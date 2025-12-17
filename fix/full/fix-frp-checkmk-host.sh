@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 #
 # Script per configurare un host CheckMK che usa FRP proxy
 # Questo script configura l'host per connettersi tramite localhost:PORT invece che IP:6556

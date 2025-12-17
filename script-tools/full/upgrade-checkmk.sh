@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ==========================================================
 #  CheckMK RAW - Upgrade Script con Controllo Versione
 #  Verifica versione corrente, scarica ultima disponibile,

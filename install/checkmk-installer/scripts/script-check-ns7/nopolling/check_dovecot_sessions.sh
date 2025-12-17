@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_dovecot_sessions.sh
 SERVICE="Dovecot_sessions"
 SESSIONS=$(doveadm who 2>/dev/null | wc -l)

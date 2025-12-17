@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ============================================================
 #  Checkmk Optimize Script - Versione Bilanciata (Finale)
 #  Compatibile con Ubuntu 24.04 + Checkmk Raw 2.4.x

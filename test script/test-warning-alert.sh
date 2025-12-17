@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Test WARNING alert support in ydea_realip
 # Simula variabili d'ambiente CheckMK per alert WARNINGexport 
 NOTIFY_WHAT="SERVICE"export 

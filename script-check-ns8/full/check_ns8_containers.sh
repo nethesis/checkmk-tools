@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_ns8_containers.sh
 # Monitoraggio stato e risorse dei container NS8 via runagent, con nomi friendly
 echo "<<<local>>>"friendly_name() {    case $1 in        ldapproxy*) 

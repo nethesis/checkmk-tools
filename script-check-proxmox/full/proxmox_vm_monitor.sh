@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Monitor Proxmox VM: Status, RAM, Disk (con LVM-thin)
 # Checkmk local check format
 # Soglie

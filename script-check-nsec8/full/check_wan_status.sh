@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # CheckMK plugin per monitoraggio stato WAN su NSecFirewall8 (OpenWrt)
 # Controlla stato interfacce WAN e connettivit├á
 # Funzione per ottenere lo stato di un'interfaccia via ubusget_interface_status() {    local iface="$1"    local status_json        status_json=$(ubus call network.interface."$iface" status 2>/dev/null)    if [[ $? -ne 0 || -z "$status_json" ]]; then        

@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Script per fixare tutti i launcher remote per usare script locali invece di GitHub
 echo "­ƒöº Fix di tutti i launcher remote..."
 echo ""fixed=0errors=0

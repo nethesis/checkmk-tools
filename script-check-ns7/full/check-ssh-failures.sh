@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 #
 # check-ssh-failures.sh
 # Local check per Checkmk su NethServer 7.9

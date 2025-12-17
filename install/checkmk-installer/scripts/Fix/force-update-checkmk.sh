@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Script per forzare l'aggiornamento del servizio WS2022AD su CheckMK
 echo "=== FORCE UPDATE WS2022AD SU CHECKMK ==="
 echo ""

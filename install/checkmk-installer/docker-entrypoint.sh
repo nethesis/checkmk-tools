@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Docker entrypoint script for ISO builderset -e
 echo "================================================"
 echo "  CheckMK Installer - ISO Builder (Docker)     "

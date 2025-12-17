@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_ssh_root_sessions.sh
 # Genera notifica per ogni login e logout SSH root
 SERVICE="SSH_root_sessions"

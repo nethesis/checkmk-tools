@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Script per aggiornare tutti i launcher sul server con quelli nuovi dal repo
 echo "­ƒöä Aggiornamento launcher sul server..."
 echo ""

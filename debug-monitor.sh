@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 TRACKING_FILE="/var/log/ydea-tickets-tracking.json"
 echo "=== DEBUG MONITOR ==="
 echo ""

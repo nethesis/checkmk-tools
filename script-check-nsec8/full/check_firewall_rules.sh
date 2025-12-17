@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # CheckMK plugin - Monitoraggio regole firewall
 # Conta regole attive e verifica firewall running
 echo "<<<firewall_rules>>>"

@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ==================================================
 # Installazione e configurazione FRPC client (0.64.0)
 # Riconosce automaticamente RockyLinux, NethServer,

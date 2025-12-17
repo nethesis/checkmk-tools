@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Remote launcher per increase-swap.sh
 # Scarica ed esegue lo script dal repository GitHub
 REPO_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"

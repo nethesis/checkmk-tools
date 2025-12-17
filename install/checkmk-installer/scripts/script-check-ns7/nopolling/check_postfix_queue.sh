@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_postfix_queue.sh - Local check per Postfix queue
 QUEUE=$(mailq 2>/dev/null | grep -c '^[A-F0-9]')if [ -z "$QUEUE" ]; then    
 echo "3 Postfix_queue - Unable to read postfix queue"    exit 0fiif [ "$QUEUE" -lt 20 ]; then    

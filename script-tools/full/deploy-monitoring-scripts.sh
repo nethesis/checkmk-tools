@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ==========================================================
 #  Deploy Monitoring Scripts - Selezione Interattiva
 #  Rileva il sistema operativo e propone gli script

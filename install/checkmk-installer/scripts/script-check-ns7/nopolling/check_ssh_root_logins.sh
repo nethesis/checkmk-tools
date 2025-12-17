@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_ssh_root_sessions.sh
 # Notifica se ci sono sessioni SSH aperte come root
 SERVICE="SSH_root_sessions"

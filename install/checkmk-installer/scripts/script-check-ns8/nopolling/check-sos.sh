@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check-sos - Local check per Checkmk
 # Verifica sessione SOS leggendo /var/log/messages
 LOGFILE="/var/log/messages"

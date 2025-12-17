@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 #
 # Script per aggiornare automaticamente TUTTI gli script .sh del sistema
 # Sostituisce gli script locali con le versioni "r*" dal repository

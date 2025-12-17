@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_ns8_mail_services.sh
 # Controllo servizi mail principali leggendo lo stato dei container
 # + numero sessioni IMAP attive da doveadm

@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ===============================================================
 # checkmk-tuning-interactive.sh v3.0
 # Ottimizzazione interattiva di Checkmk Raw (Nagios Core)

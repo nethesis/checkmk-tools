@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check-proxmox-vm-status-multi.sh
 # Versione 3.5 (2025-10-07)
 # Ogni VM/LXC come servizio distinto, nomi maiuscoli, uptime leggibile completo

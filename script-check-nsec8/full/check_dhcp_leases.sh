@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # CheckMK plugin - Monitoraggio DHCP leases
 # Conta lease attivi e disponibili
 LEASE_FILE="/tmp/dhcp.leases"if [[ ! -f "$LEASE_FILE" ]]; then    

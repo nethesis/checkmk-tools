@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ============================================================
 # Check-Proxmox-VM-Snapshot-Status.sh
 # Versione: 1.6

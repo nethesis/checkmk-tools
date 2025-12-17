@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # CheckMK plugin - Monitoraggio traffico interfacce firewall
 # Mostra RX/TX bytes per interfaccia WAN e LAN
 echo "<<<firewall_traffic>>>"

@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ==========================================================
 #  Installazione Auto Git Sync Service
 #  Installa e configura il servizio di sync automatico

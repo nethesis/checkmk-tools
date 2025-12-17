@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 
 # check_fail2ban_status.sh
 

@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_postfix_processes.sh
 SERVICE="Postfix_processes"
 PROCS=$(pgrep -c -f "postfix")if [ "$PROCS" -gt 0 ]; then    

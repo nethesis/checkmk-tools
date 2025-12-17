@@ -1,13 +1,13 @@
-
 #!/bin/bash
-/bin/bash
 # ==========================================================
 #  Auto Git Sync - Clone iniziale e Pull automatico
 #  Clona il repository alla prima esecuzione e poi
 #  esegue git pull ogni minuto automaticamente
 #  Autore: ChatGPT per Marzio Bordin
 # ==========================================================
-# Imposta PATH per systemdexport 
+
+# Imposta PATH per systemd
+export 
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Configurazione
 REPO_URL="https://github.com/Coverup20/checkmk-tools.git"

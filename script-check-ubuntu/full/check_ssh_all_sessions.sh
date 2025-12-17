@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 
 # check_ssh_all_sessions.sh
 

@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_dovecot_maxuserconn.sh
 SERVICE="Dovecot_maxuserconn"
 # Estraggo il valore (terza colonna)

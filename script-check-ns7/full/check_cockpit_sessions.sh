@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_cockpit_sessions.sh
 # Notifica login/logout Cockpit leggendo /var/log/messages
 # e mostra quante sessioni sono attive

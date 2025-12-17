@@ -1,6 +1,4 @@
-
-#!/bin/bash
-/bin/bashsource .env
+#!/bin/bashsource .env
 TITLE="$1"
 DESCRIPTION="$2"
 PRIORITY_ITA="$3"

@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_webtop_maxmemory.sh
 SERVICE="WebTop_maxmemory"
 MAXMEM=$(config show webtop 2>/dev/null | grep -i 'MaxMemory' | awk -

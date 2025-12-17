@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # =====================================================
 # Deploy Checkmk Agent (plain TCP 6556) su pi├â┬╣ host via SSH
 # Compatibile con Checkmk Raw Edition

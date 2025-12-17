@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ============================================================
 #  Installazione / Disinstallazione Checkmk Agent + FRP client
 #  Compatibile con OpenWrt / NethSecurity 8 (init: procd)

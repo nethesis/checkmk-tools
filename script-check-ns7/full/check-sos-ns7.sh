@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check-sos-ns7.sh
 # Local check per Check_MK: stato sessione SOS (WindMill VPN + SSH) - senza ID
 # NethServer 7.9

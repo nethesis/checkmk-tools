@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ===============================================================
 # checkmk-tuning-interactive.sh v4.0
 # Ottimizzazione automatica e interattiva per Checkmk Raw Edition

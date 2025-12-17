@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Script base di monitoraggio spazio disco
 # Uso: bash check_disk_space.sh
 THRESHOLD=80 

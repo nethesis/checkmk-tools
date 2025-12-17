@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Smart CheckMK Script Wrapper - TEMPLATE
 # Questo file ├¿ il template base per creare wrapper ibridi
 # NON usare direttamente - usa smart-deploy-hybrid.sh per l'installazione

@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # CheckMK plugin - Test risoluzione DNS
 # Verifica che il DNS locale risponda correttamente
 echo "<<<dns_resolution>>>"

@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 
 # Launcher remoto per ydea-toolkit.sh - scarica ed esegue da GitHub
 

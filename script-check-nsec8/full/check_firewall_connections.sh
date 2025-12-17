@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # CheckMK plugin - Monitoraggio connessioni firewall (conntrack)
 # Controlla numero di connessioni attive e limiti
 # Leggi statistiche conntrackif [[ -f /proc/sys/net/netfilter/nf_conntrack_count ]]; then    current=$(cat /proc/sys/net/netfilter/nf_conntrack_count)    max=$(cat /proc/sys/net/netfilter/nf_conntrack_max)else    

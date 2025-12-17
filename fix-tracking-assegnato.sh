@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Script temporaneo per forzare update del tracking con il campo assegnatoA
 echo "­ƒöä Forzo aggiornamento tracking con nuovo campo assegnatoA..."
 # Rimuovi il tracking attualerm -f /var/log/ydea-tickets-tracking.json

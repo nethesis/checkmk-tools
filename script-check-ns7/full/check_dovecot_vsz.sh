@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_dovecot_vsz.sh
 SERVICE="Dovecot_vsz_limit"
 # Estrae il valore da config

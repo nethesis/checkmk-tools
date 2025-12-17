@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ==================================================
 # Installazione FRPC client (0.64.0) - DRY RUN
 # Non modifica nulla, stampa solo le azioni che

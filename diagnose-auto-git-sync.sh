@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Script di diagnostica per verificare stato auto-git-sync
 echo "========================================="
 echo "  Diagnostica Auto Git Sync"

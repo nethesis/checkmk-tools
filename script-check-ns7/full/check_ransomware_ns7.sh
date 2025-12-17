@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Ransomware/Cryptolocker Monitor per NethServer 7.9
 # Scansiona tutte le share Samba e logga file sospetti
 # Log: /var/log/ransomware_monitor.log

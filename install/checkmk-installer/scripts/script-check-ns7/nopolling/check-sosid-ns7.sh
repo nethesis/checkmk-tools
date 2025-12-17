@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check-sosid-ns7.sh
 # Local check per Check_MK: mostra l'ID della sessione SOS se attivo
 # NethServer 7.9

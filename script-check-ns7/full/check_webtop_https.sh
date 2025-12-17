@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_webtop_https.sh
 SERVICE="WebTop_https"
 URL="https://$(hostname -f)/webtop/"

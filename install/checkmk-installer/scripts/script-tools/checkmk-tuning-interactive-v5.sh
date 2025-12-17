@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ===============================================================
 # checkmk-tuning-interactive.sh v5.1.1  (Fail-safe edition)
 # Autotune intelligente per Checkmk RAW (Nagios core)

@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ============================================
 # Installazione e Configurazione Postfix Smarthost
 # ============================================set -euo pipefail

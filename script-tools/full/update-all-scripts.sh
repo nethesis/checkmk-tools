@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 #
 # Script per aggiornare SOLO gli script esistenti dal repository
 # NON aggiunge nuovi script, SOSTITUISCE solo quelli gi├á presenti

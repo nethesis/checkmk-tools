@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Smart Deploy per CheckMK Scripts - Sistema Ibrido
 # Deploy iniziale + wrapper intelligenti per auto-updateset -euo pipefail
 # =====================================================

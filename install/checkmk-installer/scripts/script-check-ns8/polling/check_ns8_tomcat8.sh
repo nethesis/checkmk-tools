@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_ns8_tomcat8.sh
 # Local check per Checkmk: controlla Tomcat8 (memoria + uptime)
 echo "<<<local>>>"

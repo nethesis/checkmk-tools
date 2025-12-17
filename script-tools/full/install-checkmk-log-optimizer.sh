@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ==========================================================
 #  Checkmk RAW - LOG OPTIMIZATION PACK (Versione 2)
 #  Include TUTTI i log: Nagios, Apache, OMD, Event Console,

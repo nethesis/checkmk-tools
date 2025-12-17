@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Local check per Checkmk: Podman_Status
 # Mostra ultimo evento (Nome + Azione) oppure "Nessun Evento"
 # Esclude i container "redis"

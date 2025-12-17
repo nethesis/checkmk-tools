@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # =====================================================
 # Script Installazione CheckMK Agent + FRPC per Synology NAS
 # - Installazione ottimizzata per Synology DSM 6.x/7.x

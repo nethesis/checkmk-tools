@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # Script Checkmk local check per Proxmox VE (RAM + Stato)
 # Richiede: jq
 echo "<<<local>>>"vms=$(pvesh get /cluster/resources --type vm --output-format json | jq -c '.[] | select(.type=="qemu")')for vm in $vms; do    vmid=$(

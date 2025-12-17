@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # check_ns8_webtop.sh
 # Monitoraggio WebTop in NS8 per Checkmk
 # Controlla la presenza delle istanze e la raggiungibilit├â┬á HTTP

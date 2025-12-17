@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # ================================================
 # Deploy Checkmk Agent in modalit├â┬á Plain TCP 6556
 # Compatibile con Checkmk Raw Edition

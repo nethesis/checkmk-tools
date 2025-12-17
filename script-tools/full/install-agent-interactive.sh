@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # =====================================================
 # Script Interattivo: Installazione CheckMK Agent + FRPC (opzionale)
 # - Installa agent CheckMK in modalit├á plain (TCP 6556)

@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 #
 # Script per diagnosticare la connessione FRP ÔåÆ CheckMK Agent
 #

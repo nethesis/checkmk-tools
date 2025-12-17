@@ -1,6 +1,4 @@
-
 #!/bin/bash
-/bin/bash
 # CheckMK plugin - Monitoraggio tunnel VPN (OpenVPN/WireGuard/IPSec)
 # Controlla stato tunnel VPN attivi
 echo "<<<vpn_tunnels>>>"total_tunnels=0active_tunnels=0inactive_tunnels=0tunnel_details=()
