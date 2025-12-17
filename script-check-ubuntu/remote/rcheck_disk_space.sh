@@ -4,4 +4,5 @@
 
 LOCAL_SCRIPT="/opt/checkmk-tools/script-check-ubuntu/full/check_disk_space.sh"
 
-# Esegue lo script localeexec "$LOCAL_SCRIPT" "$@"
+# Esegue lo script locale
+exec "$LOCAL_SCRIPT" "$@"
