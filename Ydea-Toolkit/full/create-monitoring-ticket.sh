@@ -71,7 +71,8 @@ echo "$RESPONSE" | jq -r '.codice // .code // .data.codice // empty')
 if [[ -n "$TICKET_ID" && "$TICKET_ID" != "null" ]]; then  log_success "Ô£à Ticket creato con successo!"  log_success "   ID: $TICKET_ID"  log_success "   Codice: ${TICKET_CODE:-N/A}"  log_success "   Link: https://my.ydea.cloud/ticket/${TICKET_ID}"    
 # Aggiungi nota privata con dettagli allarme  log_info "Aggiunta nota privata con dettagli allarme..."  
 NOTE_USER_ID="${ASSEGNATOA_ID:-12336}"  
-NOTE_BODY=$(jq -n \    --argjson tid "$TICKET_ID" \    --arg desc "$NOTA_PRIVATA" \    --argjson uid "$NOTE_USER_ID" \    '{ticket_id: $tid, atk: {descrizione: $desc, pubblico: false, creatoda: $uid}}')    if ydea_api POST "/ticket/atk" "$NOTE_BODY" >/dev/null 2>&1; then    log_success "Ô£à Nota privata aggiunta"  else    log_warn "ÔÜá´©Å  Nota privata non aggiunta (ticket comunque creato)"  fi    
+NOTE_BODY=$(jq -n \    --argjson tid "$TICKET_ID" \    --arg desc "$NOTA_PRIVATA" \    --argjson uid "$NOTE_USER_ID" \    '{ticket_id: $tid, atk: {descrizione: $desc, pubblico: false, creatoda: $uid}}')    if ydea_api POST "/ticket/atk" "$NOTE_BODY" >/dev/null 2>&1; then    log_success "Ô£à Nota privata aggiunta"
+else    log_warn "ÔÜá´©Å  Nota privata non aggiunta (ticket comunque creato)"  fi    
 # Traccia il ticket  track_ticket "$TICKET_ID" "${TICKET_CODE:-TK-${TICKET_ID}}" "$CMK_HOST" "$CMK_SERVICE" "$CMK_OUTPUT"    
 # Output per CheckMK  
 echo "

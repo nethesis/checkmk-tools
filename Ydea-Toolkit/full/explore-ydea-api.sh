@@ -50,7 +50,8 @@ echo "")    if [[ -n "$count" && "$count" != "null" ]]; then
     echo "­ƒôª Numero di oggetti (.objs): $count"      if [[ "$count" -gt 0 ]]; then
     echo ""        
 echo "Esempio primo oggetto:"        
-echo "$response" | jq -r '.objs[0]' 2>/dev/null | head -20      fi    fi  else    
+echo "$response" | jq -r '.objs[0]' 2>/dev/null | head -20      fi    fi
+else    
 echo "ÔÜá´©Å  HTTP $http_code"    
 echo "$response" | jq '.' 2>/dev/null || 
 echo "$response"  fi

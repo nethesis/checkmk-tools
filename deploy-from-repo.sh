@@ -33,7 +33,8 @@ echo -e "${CYAN}Ôä╣´©Å${RESET}  $1"}
 # Verifica git  if ! command -v git &> /dev/null; then    print_error "git non installato"
     exit 1  fi    print_success "Prerequisiti verificati"}
 # ===== Pull dal repository =====update_repository() {  print_step "Aggiornamento repository..."    if [[ "$SCRIPT_USER" != "$DEPLOY_USER" ]]; then    print_info "Switching a utente $DEPLOY_USER per git pull..."    su
-do -u "$DEPLOY_USER" bash -c "cd '$REPO_PATH' && git pull"  else    cd "$REPO_PATH" && git pull  fi    print_success "Repository aggiornato"}
+do -u "$DEPLOY_USER" bash -c "cd '$REPO_PATH' && git pull"
+else    cd "$REPO_PATH" && git pull  fi    print_success "Repository aggiornato"}
 # ===== Mostra file disponibili =====show_available_files() {  print_header "­ƒôª FILE DISPONIBILI PER DEPLOY"    local index=1  for entry in "${DEPLOY_MAP[@]}"; do    
 IFS=':' read -r src dest needs_su
 do desc <<< "$entry"    local full_src="$REPO_PATH/$src"        if [[ -f "$full_src" ]]; then
@@ -41,7 +42,8 @@ do desc <<< "$entry"    local full_src="$REPO_PATH/$src"        if [[ -f "$full_
 echo -e "    ­ƒôü Source: $src"      
 echo -e "    ­ƒôì Dest:   $dest"            
 # Verifica se gi├á presente      if [[ -f "$dest" ]]; then
-    echo -e "    ${YELLOW}ÔÜá´©Å  File gi├á presente in destinazione${RESET}"      fi    else      
+    echo -e "    ${YELLOW}ÔÜá´©Å  File gi├á presente in destinazione${RESET}"      fi
+else      
 echo -e "${RED}[$index]${RESET} ${BOLD}$desc${RESET} ${RED}(NON TROVATO)${RESET}"      
 echo -e "    ­ƒôü Source: $src"    fi
 echo ""    ((index++))  done}
@@ -51,14 +53,17 @@ do desc <<< "$entry"    local full_src="$REPO_PATH/$src"local dest_dirlocal dest
 # Verifica source  if [[ ! -f "$full_src" ]]; then    print_error "File sorgente non trovato: $full_src"    return 1  fi    
 # Crea directory destinazione se non esiste  if [[ ! -d "$dest_dir" ]]; then    print_info "Creazione directory: $dest_dir"    if [[ "$needs_su
 do" == "yes" ]]; then      su
-do mkdir -p "$dest_dir"    else      mkdir -p "$dest_dir"    fi  fi    
+do mkdir -p "$dest_dir"
+else      mkdir -p "$dest_dir"    fi  fi    
 # Backup se esiste  if [[ -f "$dest" ]]; then    local backup="${dest}.backup.$(date +%Y%m%d_%H%M%S)"    print_info "Backup: $backup"    if [[ "$needs_su
 do" == "yes" ]]; then      su
-do cp "$dest" "$backup"    else      cp "$dest" "$backup"    fi  fi    
+do cp "$dest" "$backup"
+else      cp "$dest" "$backup"    fi  fi    
 # Copia file  if [[ "$needs_su
 do" == "yes" ]]; then    su
 do cp "$full_src" "$dest"    su
-do chmod +x "$dest" 2>/dev/null || true  else    cp "$full_src" "$dest"    chmod +x "$dest" 2>/dev/null || true  fi    print_success "Deploy completato: $dest"  return 0}
+do chmod +x "$dest" 2>/dev/null || true
+else    cp "$full_src" "$dest"    chmod +x "$dest" 2>/dev/null || true  fi    print_success "Deploy completato: $dest"  return 0}
 # ===== Deploy interattivo =====interactive_deploy() {  print_header "­ƒÜÇ DEPLOY INTERATTIVO"    
 echo -e "${BOLD}Opzioni:${RESET}"  
 echo "  [a] Deploy tutto"  
@@ -70,9 +75,11 @@ echo -e "\n${BOLD}Riepilogo:${RESET}"
 echo -e "  ${GREEN}Ô£à Successo: $success${RESET}"      if [[ $failed -gt 0 ]]; then
     echo -e "  ${RED}ÔØî Falliti: $failed${RESET}"      fi      ;;          s|S)      show_available_files      
 echo -e "${BOLD}Inserisci i numeri dei file da deployare (es: 1 3 4) o 'a' per tutti:${RESET}"      read -r -p "> " selections            if [[ "$selections" == "a" || "$selections" == "A" ]]; then        for entry in "${DEPLOY_MAP[@]}"; do          deploy_file "$entry"          
-echo ""        done      else        for num in $selections; do          if [[ "$num" =~ ^[0-9]+$ ]] && [[ $num -ge 1 ]] && [[ $num -le ${
+echo ""        done
+else        for num in $selections; do          if [[ "$num" =~ ^[0-9]+$ ]] && [[ $num -ge 1 ]] && [[ $num -le ${
 #DEPLOY_MAP[@]} ]]; then            local index=$((num - 1))            deploy_file "${DEPLOY_MAP[$index]}"            
-echo ""          else            print_warning "Numero non vali
+echo ""
+else            print_warning "Numero non vali
 do: $num"          fi        done      fi      ;;          q|Q)      print_info "Uscita..."
     exit 0      ;;          *)      print_error "Opzione non valida"
     exit 1      ;;  esac}
@@ -92,13 +99,15 @@ echo ""      done      ;;          4)      check_prerequisites      interactive_
     exit 1      ;;  esac    
 echo ""  print_success "Operazione completata!"}
 # ===== Mostra stato =====show_status() {  print_header "­ƒôè STATO ATTUALE"    print_step "Repository: $REPO_PATH"  if [[ "$SCRIPT_USER" != "$DEPLOY_USER" ]]; then    su
-do -u "$DEPLOY_USER" bash -c "cd '$REPO_PATH' && git log -1 --oneline"  else    cd "$REPO_PATH" && git log -1 --oneline  fi
+do -u "$DEPLOY_USER" bash -c "cd '$REPO_PATH' && git log -1 --oneline"
+else    cd "$REPO_PATH" && git log -1 --oneline  fi
 echo ""  print_step "File deployati:"    for entry in "${DEPLOY_MAP[@]}"; do    
 IFS=':' read -r src dest needs_su
 do desc <<< "$entry"        if [[ -f "$dest" ]]; thenlocal mod_datelocal mod_datemod_date=$(stat -c %y "$dest" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1 || stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "$dest" 2>/dev/null)      
 echo -e "  ${GREEN}Ô£à${RESET} $desc"      
 echo -e "     ${CYAN}ÔåÆ${RESET} $dest"      
-echo -e "     ${YELLOW}ÔÅ░${RESET} $mod_date"    else      
+echo -e "     ${YELLOW}ÔÅ░${RESET} $mod_date"
+else      
 echo -e "  ${RED}ÔØî${RESET} $desc"      
 echo -e "     ${CYAN}ÔåÆ${RESET} $dest (NON PRESENTE)"    fi
 echo ""  done}
@@ -114,6 +123,7 @@ echo "  --status       Mostra stato"
 echo "  --help         Mostra questo help"        
 echo ""        
 echo "Senza opzioni: modalit├á interattiva"        ;;      *)        print_error "Opzione non valida. Usa --help per vedere le opzioni"
-    exit 1        ;;    esac  else    
+    exit 1        ;;    esac
+else    
 # Modalit├á interattiva    main_menu  fi}
 # Eseguimain "$@"

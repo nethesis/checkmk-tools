@@ -16,7 +16,8 @@ IDID_LINE=$(grep "Transmit the following session ID" "$LOGFILE" | tail -n 1)
 if [ -n "$ID_LINE" ]; then
     SESSION_ID=$(
 echo "$ID_LINE" | awk '{print $NF}')fi
-if [ -n "$START_LINE" ]; then    if [ -z "$STOP_LINE" ]; then
+if [ -n "$START_LINE" ]; then
+    if [ -z "$STOP_LINE" ]; then
     STATUS="ACTIVE"        
 STATE=1    else        
 START_DATE=$(

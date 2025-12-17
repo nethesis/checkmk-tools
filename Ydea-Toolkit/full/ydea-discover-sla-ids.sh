@@ -29,7 +29,8 @@ echo '{"objs":[]}')    if [[ -z "$categories_data" || "$categories_data" == '{"o
 echo "$categories_data" > "${SCRIPT_DIR}/categories-full-dump.json"  log_debug "Dump completo categorie salvato in categories-full-dump.json"    
 # Cerca la macro categoria Premium_Mon  local macro_cat_id  macro_cat_id=$(
 echo "$categories_data" | jq -r --arg name "$MACRO_CATEGORY" '    .objs[]? | select(.nome == $name) | .id  ' | head -1)    if [[ -z "$macro_cat_id" || "$macro_cat_id" == "null" ]]; then    log_warn "Macro categoria '$MACRO_CATEGORY' non trovata direttamente"    log_info "Elenco tutte le categorie disponibili:"    
-echo "$categories_data" | jq -r '.objs[]? | "\(.id) ÔåÆ \(.nome)"'    macro_cat_id=""  else    log_success "Macro categoria '$MACRO_CATEGORY' trovata ÔåÆ ID: $macro_cat_id"  fi    
+echo "$categories_data" | jq -r '.objs[]? | "\(.id) ÔåÆ \(.nome)"'    macro_cat_id=""
+else    log_success "Macro categoria '$MACRO_CATEGORY' trovata ÔåÆ ID: $macro_cat_id"  fi    
 # Cerca le sottocategorie  declare -A subcategory_ids  local found_count=0    
 echo ""  log_info "Ricerca sottocategorie..."  
 echo ""    for subcat in "${SUBCATEGORIES[@]}"; do    local subcat_id    subcat_id=$(
@@ -57,7 +58,9 @@ echo "$sla_data" | jq -r --arg name "$SLA_NAME" '    .objs[]? | select(.nome == 
 echo "$sla_data" | jq -r '.objs[]? | "\(.id) ÔåÆ \(.nome // .name // .title)"'        
 # Prova ricerca parziale su TK25/003209    log_info "Tentativo ricerca per codice 'TK25/003209'..."    sla_id=$(
 echo "$sla_data" | jq -r '      .objs[]? | select(.nome // .name // .title | test("TK25/003209")) | .id    ' | head -1)        if [[ -z "$sla_id" || "$sla_id" == "null" ]]; then
-    sla_id=""    else      log_success "SLA trovata tramite ricerca parziale ÔåÆ ID: $sla_id"    fi  else    log_success "SLA '$SLA_NAME' trovata ÔåÆ ID: $sla_id"  fi    
+    sla_id=""
+else      log_success "SLA trovata tramite ricerca parziale ÔåÆ ID: $sla_id"    fi
+else    log_success "SLA '$SLA_NAME' trovata ÔåÆ ID: $sla_id"  fi    
 # Costruisci JSON output per SLA  local json_output="{}"    if [[ -n "$sla_id" ]]; then
     json_output=$(
 echo "$json_output" | jq --arg id "$sla_id" --arg name "$SLA_NAME" '      .sla = {id: ($id|tonumber), name: $name}    ')  fi
@@ -69,7 +72,8 @@ echo '{"objs":[]}')    if [[ -z "$priorities_data" || "$priorities_data" == '{"o
 echo "$priorities_data" > "${SCRIPT_DIR}/priorities-full-dump.json"  log_debug "Dump completo priorit├á salvato in priorities-full-dump.json"    
 # Cerca priorit├á "Bassa"  local low_priority_id  low_priority_id=$(
 echo "$priorities_data" | jq -r '    .objs[]? | select(.nome == "Bassa" or .name == "Bassa" or .nome == "Low" or .name == "Low") | .id  ' | head -1)    if [[ -z "$low_priority_id" || "$low_priority_id" == "null" ]]; then    log_warn "Priorit├á 'Bassa' non trovata"    log_info "Elenco tutte le priorit├á disponibili:"    
-echo "$priorities_data" | jq -r '.objs[]? | "\(.id) ÔåÆ \(.nome // .name)"'    low_priority_id=""  else    log_success "Priorit├á 'Bassa' trovata ÔåÆ ID: $low_priority_id"  fi    
+echo "$priorities_data" | jq -r '.objs[]? | "\(.id) ÔåÆ \(.nome // .name)"'    low_priority_id=""
+else    log_success "Priorit├á 'Bassa' trovata ÔåÆ ID: $low_priority_id"  fi    
 # Costruisci JSON output per priorit├á  local json_output="{}"    if [[ -n "$low_priority_id" ]]; then
     json_output=$(
 echo "$json_output" | jq --arg id "$low_priority_id" '      .low_priority = {id: ($id|tonumber), name: "Bassa"}    ')  fi

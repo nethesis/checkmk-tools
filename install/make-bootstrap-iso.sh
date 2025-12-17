@@ -578,7 +578,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"exec bash "${SCRIPT_DI
 #build_iso() {  log_info "Building ISO image..."    
 # Create output directory  mkdir -p "$ISO_OUTPUT_DIR"    local iso_path="${ISO_OUTPUT_DIR}/${ISO_NAME}"    
 # Choose tool  local iso_tool=""  if command -v genisoimage &>/dev/null; then
-    iso_tool="genisoimage"  elif command -v mkisofs &>/dev/null; then
+    iso_tool="genisoimage"
+elif command -v mkisofs &>/dev/null; then
     iso_tool="mkisofs"  fi    
 # Build ISO  $iso_tool \    -o "$iso_path" \    -V "CHECKMK_BOOTSTRAP" \    -J -R -v \    -input-charset utf-8 \    "$WORK_DIR" 2>&1 | grep -v "^$" || true    if [[ ! -f "$iso_path" ]]; then    log_error "Failed to create ISO"
     exit 1  fi    

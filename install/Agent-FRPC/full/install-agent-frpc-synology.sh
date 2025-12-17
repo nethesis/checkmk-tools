@@ -30,7 +30,8 @@ MODE="install"
 # =====================================================is_process_running() {    local pattern="$1"    if command -v pgrep >/dev/null 2>&1; then        pgrep -f "$pattern" >/dev/null 2>&1    else        ps aux 2>/dev/null | grep -v grep | grep -q "$pattern"    fi}
 # =====================================================
 # Funzione: Kill processo (compatibile senza pkill)
-# =====================================================kill_process() {    local pattern="$1"    if command -v pkill >/dev/null 2>&1; then        pkill -f "$pattern" 2>/dev/null    else        
+# =====================================================kill_process() {    local pattern="$1"    if command -v pkill >/dev/null 2>&1; then        pkill -f "$pattern" 2>/dev/null
+else        
 # Usa ps + grep + cut per ottenere i PID        ps aux 2>/dev/null | grep -v grep | grep "$pattern" | while read -r line; do            pid=$(
 echo "$line" | tr -s ' ' | cut -d' ' -f2)            [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null        done    fi}
 # =====================================================
@@ -78,7 +79,8 @@ UNIQUE_KEY=$(grep -oP 'unique="\K[^"]+' /etc/synoinfo.conf 2>/dev/null ||
 echo "Unknown")                
 echo -e "${GREEN}Ô£ô Synology NAS rilevato${NC}"        
 echo -e "   DSM Version: ${CYAN}${DSM_VERSION}.${DSM_MINOR}${NC}"        
-echo -e "   Unique Key: ${CYAN}${UNIQUE_KEY}${NC}"    elif [ -f /etc.defaults/VERSION ]; then
+echo -e "   Unique Key: ${CYAN}${UNIQUE_KEY}${NC}"
+elif [ -f /etc.defaults/VERSION ]; then
     NAS_TYPE="synology"        
 echo -e "${GREEN}Ô£ô Synology NAS rilevato (alternativo)${NC}"        cat /etc.defaults/VERSION | head -3    else        
 echo -e "${RED}Ô£ù Sistema Synology non rilevato${NC}"        
@@ -110,17 +112,21 @@ echo "1000")        if [ "$AVAILABLE_SPACE" -lt 100 ]; then
     echo -e "${YELLOW}ÔÜá´©Å  Spazio disco limitato: ${AVAILABLE_SPACE}MB${NC}"        
 echo -e "${YELLOW}   Continuare comunque? Lo script richiede almeno 100MB${NC}"        
 echo -n "   Continuare? [s/N]: "        read -r CONFIRM        if [[ ! "$CONFIRM" =~ ^[sS]$ ]]; then
-    exit 1        fi    else        
+    exit 1        fi
+else        
 echo -e "   Spazio disponibile: ${GREEN}${AVAILABLE_SPACE}MB${NC}"    fi}
 # =====================================================
 # Funzione: Installa dipendenze
 # =====================================================install_dependencies() {    
 echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ VERIFICA DIPENDENZE ÔòÉÔòÉÔòÉ${NC}"        
 # Verifica wget    if ! command -v wget >/dev/null 2>&1; then
-    echo -e "${YELLOW}ÔÜá´©Å  wget non trovato, tentativo installazione...${NC}"        if command -v ipkg >/dev/null 2>&1; then            ipkg update && ipkg install wget        elif command -v opkg >/dev/null 2>&1; then            opkg update && opkg install wget        else            
+    echo -e "${YELLOW}ÔÜá´©Å  wget non trovato, tentativo installazione...${NC}"        if command -v ipkg >/dev/null 2>&1; then            ipkg update && ipkg install wget
+elif command -v opkg >/dev/null 2>&1; then            opkg update && opkg install wget
+else            
 echo -e "${RED}Ô£ù Impossibile installare wget${NC}"            
 echo -e "${YELLOW}   Installa manualmente ipkg/Entware prima di continuare${NC}"
-    exit 1        fi    else        
+    exit 1        fi
+else        
 echo -e "${GREEN}Ô£ô wget disponibile${NC}"    fi        
 # Verifica tar    if ! command -v tar >/dev/null 2>&1; then
     echo -e "${RED}Ô£ù tar non disponibile${NC}"
@@ -131,10 +137,12 @@ echo -e "${GREEN}Ô£ô tar disponibile${NC}"    fi
 SOCAT_INSTALLED=false                if command -v ipkg >/dev/null 2>&1; then
     echo -e "${CYAN}   Usan
 do ipkg (Synology)...${NC}"            ipkg update 2>&1 | grep -v "Signature check"            if ipkg install socat 2>&1; then
-    SOCAT_INSTALLED=true            fi        elif command -v opkg >/dev/null 2>&1; then
+    SOCAT_INSTALLED=true            fi
+elif command -v opkg >/dev/null 2>&1; then
     echo -e "${CYAN}   Usan
 do opkg (Entware)...${NC}"            opkg update 2>&1 | grep -v "Signature check"            if opkg install socat 2>&1; then
-    SOCAT_INSTALLED=true            fi        else            
+    SOCAT_INSTALLED=true            fi
+else            
 echo -e "${RED}Ô£ù Package manager non trovato${NC}"            
 echo -e "${YELLOW}   Installa Entware per aggiungere pacchetti aggiuntivi${NC}"            
 echo -e "${YELLOW}   Visita: https://github.com/Entware/Entware${NC}"        fi                
@@ -142,8 +150,10 @@ echo -e "${YELLOW}   Visita: https://github.com/Entware/Entware${NC}"        fi
     echo -e "${YELLOW}ÔÜá´©Å  socat non disponibile, uso meto
 do alternativo${NC}"            
 echo -e "${GREEN}Ô£ô Useremo script bash standalone (netcat/bash nativo)${NC}"            
-USE_STANDALONE_MODE=true        else            
-echo -e "${GREEN}Ô£ô socat installato con successo${NC}"        fi    else        
+USE_STANDALONE_MODE=true
+else            
+echo -e "${GREEN}Ô£ô socat installato con successo${NC}"        fi
+else        
 echo -e "${GREEN}Ô£ô socat disponibile${NC}"    fi}
 # =====================================================
 # Funzione: Scarica agent CheckMK
@@ -153,7 +163,8 @@ echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ DOWNLOAD CHECKMK AGENT ÔòÉÔòÉÔòÉ${
 AGENT_URL="https://monitoring.nethlab.it/monitoring/check_mk/agents/check_mk_agent.linux"        
 echo -e "${YELLOW}­ƒôª Download agent v${CHECKMK_VERSION}...${NC}"    
 echo -e "   URL: ${CYAN}$AGENT_URL${NC}"        cd /tmp || exit 1    rm -f check_mk_agent.linux 2>/dev/null        if wget -q --show-progress "$AGENT_URL" -O check_mk_agent.linux 2>&1; then
-    echo -e "${GREEN}Ô£ô Download completato${NC}"    else        
+    echo -e "${GREEN}Ô£ô Download completato${NC}"
+else        
 echo -e "${RED}Ô£ù Errore durante il download dell'agent${NC}"
     exit 1    fi        
 # Verifica che il file sia vali
@@ -178,14 +189,16 @@ echo -e "${YELLOW}­ƒôª Installazione agent...${NC}"    cp /tmp/check_mk_agen
 echo -e "${GREEN}Ô£ô Agent installato in $AGENT_DIR${NC}"        
 # Test agent    
 echo -e "\n${CYAN}­ƒôè Test agent locale:${NC}"    if "$AGENT_DIR/bin/check_mk_agent" | head -n 5; then
-    echo -e "${GREEN}Ô£ô Agent funzionante${NC}"    else        
+    echo -e "${GREEN}Ô£ô Agent funzionante${NC}"
+else        
 echo -e "${RED}Ô£ù Errore nel test dell'agent${NC}"
     exit 1    fi}
 # =====================================================
 # Funzione: Configura servizio agent
 # =====================================================configure_agent_service() {    
 echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ CONFIGURAZIONE SERVIZIO AGENT ÔòÉÔòÉÔòÉ${NC}"        
-# Usa standalone se impostato, altrimenti socat    if [ "${USE_STANDALONE_MODE:-false}" = "true" ]; then        configure_agent_standalone    else        configure_agent_socat    fi}
+# Usa standalone se impostato, altrimenti socat    if [ "${USE_STANDALONE_MODE:-false}" = "true" ]; then        configure_agent_standalone
+else        configure_agent_socat    fi}
 # =====================================================
 # Funzione: Configura agent con socat
 # =====================================================configure_agent_socat() {    
@@ -249,7 +262,8 @@ while True:    try:        client, addr = server.accept()        log("Connession
 # Start daemon in background (senza nohup per compatibilit├á Synology)    $PYTHON_CMD /tmp/checkmk_daemon_$$.py >> "$LOG_FILE" 2>&1 &    
 DAEMON_PID=$!    
 echo $DAEMON_PID > "$PID_FILE"        sleep 2        if ps -p $DAEMON_PID > /dev/null 2>&1; then        log_msg "Daemon avviato con successo (PID: $DAEMON_PID)"        
-echo "Daemon avviato con successo (PID: $DAEMON_PID)"    else        log_msg "ERRORE: Impossibile avviare il daemon"        
+echo "Daemon avviato con successo (PID: $DAEMON_PID)"
+else        log_msg "ERRORE: Impossibile avviare il daemon"        
 echo "ERRORE: Impossibile avviare il daemon"        rm -f "$PID_FILE"
     exit 1    fi
 else    log_msg "ERRORE: Python non disponibile e socat non installato"    
@@ -264,7 +278,8 @@ PID_FILE="/var/run/checkmk_agent.pid"
 echo "$(date): Stopping CheckMK Agent" >> "$LOG_FILE"
 if [ -f "$PID_FILE" ]; then
     PID=$(cat "$PID_FILE")    if ps -p "$PID" > /dev/null 2>&1; then        kill "$PID" 2>/dev/null        rm -f "$PID_FILE"        
-echo "CheckMK Agent stopped (PID: $PID)"    else        
+echo "CheckMK Agent stopped (PID: $PID)"
+else        
 echo "Agent non in esecuzione"        rm -f "$PID_FILE"    fi
 else    
 # Fallback: kill tutti i processi    killall -9 python 2>/dev/null | grep checkmk    
@@ -285,7 +300,8 @@ echo -e "   Script: ${CYAN}$AUTOSTART_SCRIPT${NC}"
 # Avvia il servizio    
 echo -e "\n${CYAN}Avvio servizio CheckMK Agent...${NC}"    "$AUTOSTART_SCRIPT" start        sleep 3        
 # Verifica che sia attivo    if is_process_running "check_mk"; then
-    echo -e "${GREEN}Ô£ô Servizio avviato con successo${NC}"    else        
+    echo -e "${GREEN}Ô£ô Servizio avviato con successo${NC}"
+else        
 echo -e "${YELLOW}ÔÜá´©Å  Servizio potrebbe non essere attivo${NC}"        
 echo -e "   Verifica i log: ${CYAN}$AGENT_DIR/log/agent.log${NC}"    fi}
 # =====================================================
@@ -294,7 +310,8 @@ echo -e "   Verifica i log: ${CYAN}$AGENT_DIR/log/agent.log${NC}"    fi}
 echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ DOWNLOAD FRPC CLIENT ÔòÉÔòÉÔòÉ${NC}"        
 echo -e "${YELLOW}­ƒôª Download FRPC v${FRP_VERSION}...${NC}"    
 echo -e "   URL: ${CYAN}$FRP_URL${NC}"        cd /tmp || exit 1    rm -f frp_*.tar.gz 2>/dev/null        if wget -q --show-progress "$FRP_URL" -O frp.tar.gz 2>&1; then
-    echo -e "${GREEN}Ô£ô Download completato${NC}"    else        
+    echo -e "${GREEN}Ô£ô Download completato${NC}"
+else        
 echo -e "${RED}Ô£ù Errore durante il download di FRPC${NC}"
     exit 1    fi        
 # Estrai archivio    
@@ -316,7 +333,8 @@ FRP_DIR_NAME=$(find /tmp -maxdepth 1 -type d -name "frp_*" | head -1)    cp "$FR
 echo -e "${GREEN}Ô£ô FRPC installato in $FRPC_DIR${NC}"        
 # Test FRPC    
 echo -e "\n${CYAN}­ƒôè Test FRPC:${NC}"    if "$FRPC_DIR/bin/frpc" --version; then
-    echo -e "${GREEN}Ô£ô FRPC funzionante${NC}"    else        
+    echo -e "${GREEN}Ô£ô FRPC funzionante${NC}"
+else        
 echo -e "${RED}Ô£ù Errore nel test di FRPC${NC}"
     exit 1    fi}
 # =====================================================
@@ -402,7 +420,8 @@ PID_FILE="/var/run/frpc.pid"
 echo "$(date): Stopping FRPC" >> "$LOG_FILE"
 if [ -f "$PID_FILE" ]; then
     PID=$(cat "$PID_FILE")    if ps -p "$PID" > /dev/null 2>&1; then        kill "$PID" 2>/dev/null        rm -f "$PID_FILE"        
-echo "FRPC stopped (PID: $PID)"    else        
+echo "FRPC stopped (PID: $PID)"
+else        
 echo "FRPC not running"        rm -f "$PID_FILE"    fi
 else    
 # Fallback    killall frpc 2>/dev/null    
@@ -428,7 +447,8 @@ echo -e "\n${CYAN}Avvio servizio FRPC...${NC}"    "$AUTOSTART_SCRIPT" start     
 # Verifica che sia attivo    if is_process_running "frpc"; then
     echo -e "${GREEN}Ô£ô Servizio FRPC avviato con successo${NC}"        
 echo -e "\n${CYAN}Controlla i log per verificare la connessione:${NC}"        
-echo -e "   ${CYAN}tail -f $FRPC_DIR/log/frpc.log${NC}"    else        
+echo -e "   ${CYAN}tail -f $FRPC_DIR/log/frpc.log${NC}"
+else        
 echo -e "${YELLOW}ÔÜá´©Å  Servizio FRPC potrebbe non essere attivo${NC}"        
 echo -e "   Verifica i log: ${CYAN}$FRPC_DIR/log/startup.log${NC}"    fi}
 # =====================================================
@@ -512,15 +532,18 @@ do $0${NC}"
 fi # Parsing parametricase "${1:-}" in    --help|-h)        show_usage        ;;    --uninstall)        show_banner        
 echo -e "${RED}ÔÜá´©Å  ATTENZIONE: Rimozione completa di CheckMK Agent e FRPC${NC}"        
 echo -n "Confermi? [s/N]: "        read -r CONFIRM        if [[ "$CONFIRM" =~ ^[sS]$ ]]; then            uninstall_agent            uninstall_frpc            
-echo -e "\n${GREEN}Ô£ô Rimozione completata${NC}"        else            
+echo -e "\n${GREEN}Ô£ô Rimozione completata${NC}"
+else            
 echo -e "${CYAN}ÔØî Operazione annullata${NC}"        fi        exit 0        ;;    --uninstall-agent)        show_banner        
 echo -e "${RED}ÔÜá´©Å  ATTENZIONE: Rimozione CheckMK Agent${NC}"        
 echo -n "Confermi? [s/N]: "        read -r CONFIRM        if [[ "$CONFIRM" =~ ^[sS]$ ]]; then            uninstall_agent            
-echo -e "\n${GREEN}Ô£ô Rimozione completata${NC}"        else            
+echo -e "\n${GREEN}Ô£ô Rimozione completata${NC}"
+else            
 echo -e "${CYAN}ÔØî Operazione annullata${NC}"        fi        exit 0        ;;    --uninstall-frpc)        show_banner        
 echo -e "${RED}ÔÜá´©Å  ATTENZIONE: Rimozione FRPC${NC}"        
 echo -n "Confermi? [s/N]: "        read -r CONFIRM        if [[ "$CONFIRM" =~ ^[sS]$ ]]; then            uninstall_frpc            
-echo -e "\n${GREEN}Ô£ô Rimozione completata${NC}"        else            
+echo -e "\n${GREEN}Ô£ô Rimozione completata${NC}"
+else            
 echo -e "${CYAN}ÔØî Operazione annullata${NC}"        fi        exit 0        ;;esac
 # =====================================================
 # Modalit├á installazione

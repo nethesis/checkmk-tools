@@ -80,25 +80,33 @@ do..."}
 # ==========================================================
 # Backup del sito
 # ==========================================================backup_site() {    print_header "Backup Sito CheckMK"        
-# Crea directory backup se non esiste    mkdir -p "$BACKUP_DIR"        local backup_file="$BACKUP_DIR/${SITE_NAME}_pre-upgrade_$(date +%Y%m%d_%H%M%S).tar.gz"        print_info "Creazione backup in: $backup_file"        if omd backup "$SITE_NAME" "$backup_file"; then        print_success "Backup completato con successo"        print_info "File backup: $backup_file"    else        print_error "Errore durante il backup"
+# Crea directory backup se non esiste    mkdir -p "$BACKUP_DIR"        local backup_file="$BACKUP_DIR/${SITE_NAME}_pre-upgrade_$(date +%Y%m%d_%H%M%S).tar.gz"        print_info "Creazione backup in: $backup_file"        if omd backup "$SITE_NAME" "$backup_file"; then        print_success "Backup completato con successo"        print_info "File backup: $backup_file"
+else        print_error "Errore durante il backup"
     exit 1    fi}
 # ==========================================================
 # Download nuova versione
 # ==========================================================download_version() {    local version="$1"        print_header "Download CheckMK $version"        
 # Rileva distribuzione    if [[ -f /etc/os-release ]]; then        . /etc/os-release        
 OS_ID="$ID"        
-OS_VERSION_ID="$VERSION_ID"    else        print_error "Impossibile rilevare la distribuzione"
+OS_VERSION_ID="$VERSION_ID"
+else        print_error "Impossibile rilevare la distribuzione"
     exit 1    fi        print_info "Sistema operativo: $OS_ID $OS_VERSION_ID"        
 # Determina il pacchetto da scaricare    local package_name=""    local download_url=""        case "$OS_ID" in        ubuntu)            if [[ "$OS_VERSION_ID" == "24.04" ]]; then
-    package_name="check-mk-raw-${version}_0.noble_amd64.deb"            elif [[ "$OS_VERSION_ID" == "22.04" ]]; then
-    package_name="check-mk-raw-${version}_0.jammy_amd64.deb"            elif [[ "$OS_VERSION_ID" == "20.04" ]]; then
-    package_name="check-mk-raw-${version}_0.focal_amd64.deb"            else                print_error "Versione Ubuntu non supportata: $OS_VERSION_ID"
+    package_name="check-mk-raw-${version}_0.noble_amd64.deb"
+elif [[ "$OS_VERSION_ID" == "22.04" ]]; then
+    package_name="check-mk-raw-${version}_0.jammy_amd64.deb"
+elif [[ "$OS_VERSION_ID" == "20.04" ]]; then
+    package_name="check-mk-raw-${version}_0.focal_amd64.deb"
+else                print_error "Versione Ubuntu non supportata: $OS_VERSION_ID"
     exit 1            fi            ;;        debian)            if [[ "$OS_VERSION_ID" == "12" ]]; then
-    package_name="check-mk-raw-${version}_0.bookworm_amd64.deb"            elif [[ "$OS_VERSION_ID" == "11" ]]; then
-    package_name="check-mk-raw-${version}_0.bullseye_amd64.deb"            else                print_error "Versione Debian non supportata: $OS_VERSION_ID"
+    package_name="check-mk-raw-${version}_0.bookworm_amd64.deb"
+elif [[ "$OS_VERSION_ID" == "11" ]]; then
+    package_name="check-mk-raw-${version}_0.bullseye_amd64.deb"
+else                print_error "Versione Debian non supportata: $OS_VERSION_ID"
     exit 1            fi            ;;        *)            print_error "Distribuzione non supportata: $OS_ID"
     exit 1            ;;    esac        download_url="https://download.checkmk.com/checkmk/${version}/${package_name}"    local local_file="/tmp/cmk.deb"        print_info "URL download: $download_url"    print_info "File locale: $local_file"        
-# Rimuovi file esistente per evitare problemi    if [[ -f "$local_file" ]]; then        print_warning "Rimuovo file esistente..."        rm -f "$local_file"    fi        print_info "Download in corso..."    if wget --progress=bar:force -O "$local_file" "$download_url" 2>&1; then        print_success "Download completato"    else        print_error "Errore durante il download"        rm -f "$local_file"
+# Rimuovi file esistente per evitare problemi    if [[ -f "$local_file" ]]; then        print_warning "Rimuovo file esistente..."        rm -f "$local_file"    fi        print_info "Download in corso..."    if wget --progress=bar:force -O "$local_file" "$download_url" 2>&1; then        print_success "Download completato"
+else        print_error "Errore durante il download"        rm -f "$local_file"
     exit 1    fi        
 # Verifica che il file esista e abbia dimensione > 0    if [[ ! -f "$local_file" ]] || [[ ! -s "$local_file" ]]; then        print_error "File scaricato non vali
 do"
@@ -106,28 +114,39 @@ do"
 # ==========================================================
 # Installazione nuova versione
 # ==========================================================install_version() {    local package_file="$1"        print_header "Installazione Nuova Versione"        print_info "Installazione del pacchetto: $(basename "$package_file")"        
-# Determina il tipo di pacchetto e installa    if [[ "$package_file" == *.deb ]]; then        if dpkg -i "$package_file"; then            print_success "Pacchetto installato con successo"        else            print_error "Errore durante l'installazione del pacchetto"
-    exit 1        fi    elif [[ "$package_file" == *.rpm ]]; then        if rpm -U "$package_file"; then            print_success "Pacchetto installato con successo"        else            print_error "Errore durante l'installazione del pacchetto"
-    exit 1        fi    else        print_error "Tipo di pacchetto non riconosciuto"
+# Determina il tipo di pacchetto e installa    if [[ "$package_file" == *.deb ]]; then
+        if dpkg -i "$package_file"; then            print_success "Pacchetto installato con successo"
+else            print_error "Errore durante l'installazione del pacchetto"
+    exit 1        fi
+elif [[ "$package_file" == *.rpm ]]; then
+        if rpm -U "$package_file"; then            print_success "Pacchetto installato con successo"
+else            print_error "Errore durante l'installazione del pacchetto"
+    exit 1        fi
+else        print_error "Tipo di pacchetto non riconosciuto"
     exit 1    fi}
 # ==========================================================
 # Upgrade del sito
 # ==========================================================upgrade_site() {    local target_version="$1"        print_header "Upgrade Sito '$SITE_NAME'"        
-# Stop del sito    print_info "Stop del sito..."    if omd stop "$SITE_NAME"; then        print_success "Sito fermato"    else        print_error "Errore durante lo stop del sito"
+# Stop del sito    print_info "Stop del sito..."    if omd stop "$SITE_NAME"; then        print_success "Sito fermato"
+else        print_error "Errore durante lo stop del sito"
     exit 1    fi        
-# Upgrade del sito    print_info "Upgrade alla versione $target_version..."    if omd update "$SITE_NAME"; then        print_success "Upgrade completato"    else        print_error "Errore durante l'upgrade"        print_warning "Tentativo di rollback..."        omd start "$SITE_NAME"
+# Upgrade del sito    print_info "Upgrade alla versione $target_version..."    if omd update "$SITE_NAME"; then        print_success "Upgrade completato"
+else        print_error "Errore durante l'upgrade"        print_warning "Tentativo di rollback..."        omd start "$SITE_NAME"
     exit 1    fi        
-# Avvio del sito    print_info "Avvio del sito aggiornato..."    if omd start "$SITE_NAME"; then        print_success "Sito avviato correttamente"    else        print_error "Errore durante l'avvio del sito"
+# Avvio del sito    print_info "Avvio del sito aggiornato..."    if omd start "$SITE_NAME"; then        print_success "Sito avviato correttamente"
+else        print_error "Errore durante l'avvio del sito"
     exit 1    fi}
 # ==========================================================
 # Verifica post-upgrade
 # ==========================================================verify_upgrade() {    print_header "Verifica Post-Upgrade"        
 # Verifica versionelocal new_versionlocal new_versionnew_version=$(omd version "$SITE_NAME" | grep -oP '\d+\.\d+\.\d+p\d+')    print_info "Versione attuale: $new_version"        
 # Verifica status sito    print_info "Controllo status sito..."    omd status "$SITE_NAME"        
-# Verifica accesso web    print_info "Verifica accesso web..."    local site_url="http://localhost/monitoring"    if curl -s -o /dev/null -w "%{http_code}" "$site_url" | grep -q "200\|302\|301"; then        print_success "Sito web accessibile"    else        print_warning "Impossibile verificare l'accesso web"    fi        print_success "Upgrade completato con successo!"}
+# Verifica accesso web    print_info "Verifica accesso web..."    local site_url="http://localhost/monitoring"    if curl -s -o /dev/null -w "%{http_code}" "$site_url" | grep -q "200\|302\|301"; then        print_success "Sito web accessibile"
+else        print_warning "Impossibile verificare l'accesso web"    fi        print_success "Upgrade completato con successo!"}
 # ==========================================================
 # Cleanup
-# ==========================================================cleanup() {    print_header "Pulizia File Temporanei"        read -r -p "Vuoi eliminare i file di download? (s/N): " cleanup_confirm        if [[ "$cleanup_confirm" =~ ^[sS]$ ]]; then        rm -rf "$DOWNLOAD_DIR"        print_success "File temporanei eliminati"    else        print_info "File mantenuti in: $DOWNLOAD_DIR"    fi}
+# ==========================================================cleanup() {    print_header "Pulizia File Temporanei"        read -r -p "Vuoi eliminare i file di download? (s/N): " cleanup_confirm        if [[ "$cleanup_confirm" =~ ^[sS]$ ]]; then        rm -rf "$DOWNLOAD_DIR"        print_success "File temporanei eliminati"
+else        print_info "File mantenuti in: $DOWNLOAD_DIR"    fi}
 # ==========================================================
 # Main
 # ==========================================================main() {    print_header "CheckMK Upgrade Script"        

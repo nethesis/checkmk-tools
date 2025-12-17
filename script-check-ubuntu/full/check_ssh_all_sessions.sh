@@ -16,7 +16,6 @@ if [ "$SESSIONS" -gt 0 ]; then
     USERS=$(who | awk '{print $1}' | sort -u | paste -sd "," -)
     
 echo "0 $SERVICE - $SESSIONS SSH session(s) active: $USERS"
-else
-    
+else     
 echo "0 $SERVICE - no SSH sessions"
 fi

@@ -60,20 +60,24 @@ CURRENT_DELAY="(non impostato)"
 echo "$LOAD_NOW > $CORES*2" | bc -l) )); then
     NEW_CONC=20        
 NEW_SLEEP=0.35        
-COMMENT="Carico molto alto: limito concorrenza e aumento sleep."    elif (( $(
+COMMENT="Carico molto alto: limito concorrenza e aumento sleep."
+elif (( $(
 echo "$LOAD_NOW > $CORES*1" | bc -l) )); then
     NEW_CONC=25        
 NEW_SLEEP=0.30        
-COMMENT="Carico medio-alto: leggero bilanciamento."    elif (( $(
+COMMENT="Carico medio-alto: leggero bilanciamento."
+elif (( $(
 echo "$CPU_NOW > 70" | bc -l) )); then
     NEW_CONC=25        
 NEW_SLEEP=0.30        
-COMMENT="CPU alta: mantengo concorrenza media, aumento sleep."    elif (( $(
+COMMENT="CPU alta: mantengo concorrenza media, aumento sleep."
+elif (( $(
 echo "$LOAD_NOW < $CORES*0.6" | bc -l) )) && (( $(
 echo "$CPU_NOW < 40" | bc -l) )); then
     NEW_CONC=35        
 NEW_SLEEP=0.20        
-COMMENT="Sottoutilizzato: aumento concorrenza."    else        
+COMMENT="Sottoutilizzato: aumento concorrenza."
+else        
 NEW_CONC=30        
 NEW_SLEEP=0.25        
 COMMENT="Carico stabile: uso parametri bilanciati."    fi    

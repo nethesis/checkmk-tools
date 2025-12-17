@@ -19,14 +19,17 @@ if [[ "${CHECK_PREREQS,,}" == "true" ]]; then
 echo "$domain" | xargs) 
 # trim spaces      
 echo -n "  - DNS $domain: "      if host "$domain" >/dev/null 2>&1; then
-    echo "OK"      else        
+    echo "OK"
+else        
 echo "WARNING: risoluzione fallita"      fi    done  fi    
 # Verifica porte 80 e 443  
 echo -n "  - Porta 80: "  if ss -tulpn | grep -q ':80 '; then
-    echo "OK (in ascolto)"  else    
+    echo "OK (in ascolto)"
+else    
 echo "WARNING: nessun processo in ascolto"  fi
 echo -n "  - Porta 443: "  if ss -tulpn | grep -q ':443 '; then
-    echo "OK (in ascolto)"  else    
+    echo "OK (in ascolto)"
+else    
 echo "WARNING: nessun processo in ascolto"  fi
 echo ""fi
 if [[ "$EUID" -ne 0 ]]; then  exec su

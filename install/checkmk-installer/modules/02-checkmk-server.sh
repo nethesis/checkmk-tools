@@ -491,7 +491,8 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y ${deps[*]}"    log_success "De
 #                 The admin user for the web applications is cmkadmin with password: <PASSWORD>"  
 CHECKMK_AUTO_PASSWORD=$(
 echo "$create_output" | grep -oP 'password: \K\S+' || 
-echo "")    if [[ -z "$CHECKMK_AUTO_PASSWORD" ]]; then    log_warning "Could not extract auto-generated password from output"    log_info "Full omd create output:"    log_info "$create_output"  else    
+echo "")    if [[ -z "$CHECKMK_AUTO_PASSWORD" ]]; then    log_warning "Could not extract auto-generated password from output"    log_info "Full omd create output:"    log_info "$create_output"
+else    
 # SHOW PASSWORD IMMEDIATELY    
 echo ""    
 echo "=========================================="    
@@ -986,7 +987,9 @@ R=301,L]</VirtualHost><VirtualHost *:443>    ServerName _default_
 #
 #
 #install_local_agent() {  local site_name="${CHECKMK_SITE_NAME:-monitoring}"    log_info "Installing CheckMK agent on local system..."    local agent_deb="/omd/sites/$site_name/share/check_mk/agents/check-mk-agent_*.deb"    if ls $agent_deb 1> /dev/null 2>&1; then    
-# Use dpkg with force options to handle cleanup issues    if dpkg -i --force-all $agent_deb 2>&1 | tee -a "$LOG_FILE"; then      log_success "Local agent installed"    else      log_warning "Agent installation had errors but continuing..."    fi  else    log_warning "Agent package not found, skipping local agent installation"  fi}
+# Use dpkg with force options to handle cleanup issues    if dpkg -i --force-all $agent_deb 2>&1 | tee -a "$LOG_FILE"; then      log_success "Local agent installed"
+else      log_warning "Agent installation had errors but continuing..."    fi
+else    log_warning "Agent package not found, skipping local agent installation"  fi}
 #
 #
 #
@@ -1291,7 +1294,8 @@ echo "  Admin User: cmkadmin"    if [[ "$admin_password" == "N/A" ]]; then
     echo "  Admin Password: Could not capture auto-generated password"    
 echo "  To set password manually, run:"    
 echo "    su
-do su - $site_name -c 'cmk-passwd cmkadmin'"  else    
+do su - $site_name -c 'cmk-passwd cmkadmin'"
+else    
 echo "  Admin Password: $admin_password (AUTO-GENERATED)"    
 echo ""    
 echo "  ÔÜá´©Å  IMPORTANT: Save this password! The temp file will be deleted."  fi

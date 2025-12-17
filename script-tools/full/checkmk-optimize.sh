@@ -22,7 +22,8 @@ echo "[$(date +%F_%T)] $*" | tee -a "$LOGFILE"; }
 # Snapshot Timeshift (Pre-ottimizzazione)
 if command -v timeshift >/dev/null 2>&1; then  read -p "Vuoi creare uno snapshot Timeshift prima di iniziare? (s/n): " tssnap  if [[ "$tssnap" =~ ^[Ss]$ ]]; then    log "Creazione snapshot Timeshift pre-ottimizzazione..."    
 SNAP_COMMENT="Pre-checkmk-optimize $(date +%F_%T) - created by checkmk-optimize"    /usr/bin/timeshift --create --comments "$SNAP_COMMENT" --tags D    if [[ $? -eq 0 ]]; then      log "Snapshot Timeshift pre-ottimizzazione completato."      
-echo "[$(date +%F_%T)] Snapshot PRE creato con successo: $SNAP_COMMENT" >> "$TSLOG"    else      log "Errore durante la creazione dello snapshot Timeshift pre-ottimizzazione."      
+echo "[$(date +%F_%T)] Snapshot PRE creato con successo: $SNAP_COMMENT" >> "$TSLOG"
+else      log "Errore durante la creazione dello snapshot Timeshift pre-ottimizzazione."      
 echo "[$(date +%F_%T)] ERRORE creazione snapshot PRE: $SNAP_COMMENT" >> "$TSLOG"    fi  fi
 else  log "Timeshift non installato, nessuno snapshot creato."fi
 # ------------------------------------------------------------
@@ -41,13 +42,17 @@ do NAME,TYPE | awk '$2=="disk"{print $1;exit}')
 echo mq-deadline > /sys/block/$DEV/queue/scheduler  log "Impostato scheduler mq-deadline su /dev/$DEV"
 fi # ------------------------------------------------------------
 # 4. Ottimizzazione Database (MariaDB o MySQL)read -p "Ottimizzare Database (innodb, cache, log)? (s/n): " opt_db
-if [[ "$opt_db" =~ ^[Ss]$ ]]; then  if systemctl list-unit-files | grep -q mariadb.service; then
+if [[ "$opt_db" =~ ^[Ss]$ ]]; then
+  if systemctl list-unit-files | grep -q mariadb.service; then
     DB_CONF="/etc/mysql/mariadb.conf.d/50-server.cnf"    
-DB_SERVICE="mariadb"  elif systemctl list-unit-files | grep -q mysql.service; then
+DB_SERVICE="mariadb"
+elif systemctl list-unit-files | grep -q mysql.service; then
     DB_CONF="/etc/mysql/mysql.conf.d/mysqld.cnf"    
-DB_SERVICE="mysql"  else    log "Nessun servizio MariaDB/MySQL trovato ÔÇö salto sezione database."    
+DB_SERVICE="mysql"
+else    log "Nessun servizio MariaDB/MySQL trovato ÔÇö salto sezione database."    
 DB_CONF=""  fi  if [[ -n "$DB_CONF" && -f "$DB_CONF" ]]; then    cp -a "$DB_CONF" "$BACKUP_DIR/$(basename $DB_CONF).$DATE.bak"    log "Backup $DB_CONF completato."    sed -i '/innodb_buffer_pool_size/d' "$DB_CONF"    sed -i '/innodb_log_file_size/d' "$DB_CONF"    sed -i '/query_cache_size/d' "$DB_CONF"    sed -i '/query_cache_type/d' "$DB_CONF"    cat <<EOT >> "$DB_CONF"
-# Ottimizzazione Checkmk Bilanciata ($DATE)innodb_buffer_pool_size = 512Minnodb_log_file_size = 128Mquery_cache_size = 32Mquery_cache_type = 1EOT    systemctl restart "$DB_SERVICE" && log "$DB_SERVICE riavviato con configurazione ottimizzata."  else    log "File di configurazione database non trovato, nessuna modifica applicata."  fi
+# Ottimizzazione Checkmk Bilanciata ($DATE)innodb_buffer_pool_size = 512Minnodb_log_file_size = 128Mquery_cache_size = 32Mquery_cache_type = 1EOT    systemctl restart "$DB_SERVICE" && log "$DB_SERVICE riavviato con configurazione ottimizzata."
+else    log "File di configurazione database non trovato, nessuna modifica applicata."  fi
 fi
 # ------------------------------------------------------------
 # 5. Ottimizzazione Apache (OMD Web)read -p "Ottimizzare Apache (limitazioni risorse, file descriptors)? (s/n): " opt_apache
@@ -67,7 +72,8 @@ fi
 # Snapshot Timeshift (Post-ottimizzazione)
 if command -v timeshift >/dev/null 2>&1; then  read -p "Creare snapshot Timeshift post-ottimizzazione? (s/n): " postts  if [[ "$postts" =~ ^[Ss]$ ]]; then    log "Creazione snapshot Timeshift post-ottimizzazione..."    
 SNAP_COMMENT="Post-checkmk-optimize $(date +%F_%T) - created by checkmk-optimize"    /usr/bin/timeshift --create --comments "$SNAP_COMMENT" --tags D    if [[ $? -eq 0 ]]; then      log "Snapshot Timeshift post-ottimizzazione completato."      
-echo "[$(date +%F_%T)] Snapshot POST creato con successo: $SNAP_COMMENT" >> "$TSLOG"    else      log "Errore durante la creazione dello snapshot Timeshift post-ottimizzazione."      
+echo "[$(date +%F_%T)] Snapshot POST creato con successo: $SNAP_COMMENT" >> "$TSLOG"
+else      log "Errore durante la creazione dello snapshot Timeshift post-ottimizzazione."      
 echo "[$(date +%F_%T)] ERRORE creazione snapshot POST: $SNAP_COMMENT" >> "$TSLOG"    fi  fi
 fi
 # ------------------------------------------------------------

@@ -102,7 +102,8 @@ fi # Module startlog_module_start "$MODULE_NAME"
 #
 #
 #download_checkmk_agent() {  local server="${CHECKMK_SERVER:-}"  local site="${CHECKMK_SITE_NAME:-monitoring}"  local dest="/tmp/check-mk-agent.deb"    if [[ -z "$server" ]]; then    log_error "CHECKMK_SERVER not configured"    return 1  fi    log_info "Downloading CheckMK agent from server..."    local agent_url="http://${server}:${CHECKMK_HTTP_PORT:-5000}/${site}/check_mk/agents/check-mk-agent_2.4.0-1_all.deb"    if ! log_command "wget --no-check-certificate -O '$dest' '$agent_url'"; then    log_warning "Failed to download from server, trying alternative method..."        
-# Try to use local copy if available    local local_agent="${INSTALLER_ROOT}/scripts/Install/Agent-FRPC/check-mk-agent.deb"    if [[ -f "$local_agent" ]]; then      log_info "Using local agent package"      cp "$local_agent" "$dest"    else      log_error "No agent package available"      return 1    fi  fi    log_success "Agent package downloaded"  
+# Try to use local copy if available    local local_agent="${INSTALLER_ROOT}/scripts/Install/Agent-FRPC/check-mk-agent.deb"    if [[ -f "$local_agent" ]]; then      log_info "Using local agent package"      cp "$local_agent" "$dest"
+else      log_error "No agent package available"      return 1    fi  fi    log_success "Agent package downloaded"  
 echo "$dest"}
 #
 #
@@ -475,7 +476,8 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y xinetd"
 #
 #
 #install_agent_plugins() {  log_info "Installing agent plugins..."    local plugins_dir="/usr/lib/check_mk_agent/plugins"  mkdir -p "$plugins_dir"    
-# Copy plugins from local scripts if available  local local_plugins="${INSTALLER_ROOT}/scripts/script-check-ubuntu/polling"    if [[ -d "$local_plugins" ]]; then    log_debug "Copying plugins from: $local_plugins"        for plugin in "$local_plugins"/*; do      if [[ -f "$plugin" ]]; thenlocal plugin_namelocal plugin_nameplugin_name=$(basename "$plugin")        cp "$plugin" "$plugins_dir/"        chmod +x "$plugins_dir/$plugin_name"        log_debug "Installed plugin: $plugin_name"      fi    done        log_success "Agent plugins installed"  else    log_warning "No local plugins found"  fi}
+# Copy plugins from local scripts if available  local local_plugins="${INSTALLER_ROOT}/scripts/script-check-ubuntu/polling"    if [[ -d "$local_plugins" ]]; then    log_debug "Copying plugins from: $local_plugins"        for plugin in "$local_plugins"/*; do      if [[ -f "$plugin" ]]; thenlocal plugin_namelocal plugin_nameplugin_name=$(basename "$plugin")        cp "$plugin" "$plugins_dir/"        chmod +x "$plugins_dir/$plugin_name"        log_debug "Installed plugin: $plugin_name"      fi    done        log_success "Agent plugins installed"
+else    log_warning "No local plugins found"  fi}
 #
 #
 #
@@ -566,7 +568,8 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y xinetd"
 #
 #
 #
-#configure_agent_firewall() {  log_info "Configuring firewall for agent..."    local server_ip="${CHECKMK_SERVER:-}"    if [[ -n "$server_ip" ]]; then    log_command "ufw allow from $server_ip to any port 6556 proto tcp comment 'CheckMK Server'"  else    log_command "ufw allow 6556/tcp comment 'CheckMK Agent'"  fi    log_success "Firewall configured"}
+#configure_agent_firewall() {  log_info "Configuring firewall for agent..."    local server_ip="${CHECKMK_SERVER:-}"    if [[ -n "$server_ip" ]]; then    log_command "ufw allow from $server_ip to any port 6556 proto tcp comment 'CheckMK Server'"
+else    log_command "ufw allow 6556/tcp comment 'CheckMK Agent'"  fi    log_success "Firewall configured"}
 #
 #
 #
@@ -1038,7 +1041,8 @@ echo ""  print_separator "="}
 #main() {  log_info "Starting CheckMK agent installation..."    
 # Determine configuration method  local use_systemd="${USE_SYSTEMD_SOCKET:-yes}"    
 # Download and install agentlocal packagelocal packagepackage=$(download_checkmk_agent)  install_checkmk_agent "$package"    
-# Configure connection method  if [[ "$use_systemd" == "yes" ]]; then    configure_systemd_socket  else    configure_xinetd  fi    
+# Configure connection method  if [[ "$use_systemd" == "yes" ]]; then    configure_systemd_socket
+else    configure_xinetd  fi    
 # Additional configuration  install_agent_plugins  create_agent_wrapper  configure_agent_firewall    
 # Test agent  sleep 2  test_agent || log_warning "Agent test inconclusive, check manually"    
 # Try to register with server  register_with_server    log_module_end "$MODULE_NAME" "success"    display_agent_info}

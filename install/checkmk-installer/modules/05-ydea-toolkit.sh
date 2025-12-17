@@ -718,7 +718,8 @@ fi # Update tracking"$TOOLKIT" update-tracking
 #
 #
 #
-#configure_cron() {  log_info "Configuring cron for monitoring..."    local cron_template="${INSTALLER_ROOT}/templates/cron/checkmk-monitoring"    if [[ -f "$cron_template" ]]; then    cp "$cron_template" /etc/cron.d/ydea-monitoring  else    cat > /etc/cron.d/ydea-monitoring <<EOF
+#configure_cron() {  log_info "Configuring cron for monitoring..."    local cron_template="${INSTALLER_ROOT}/templates/cron/checkmk-monitoring"    if [[ -f "$cron_template" ]]; then    cp "$cron_template" /etc/cron.d/ydea-monitoring
+else    cat > /etc/cron.d/ydea-monitoring <<EOF
 # Ydea Ticket Monitoring Cron Jobs
 # Update tracked tickets every 30 minutes*/30 * * * * root $YDEA_INSTALL_DIR/ydea-ticket-monitor.sh >> ${YDEA_LOG_DIR}/ydea-monitor.log 2>&1
 # Cleanup resolved tickets daily at 3 AM0 3 * * * root $YDEA_BIN cleanup-tracking >> ${YDEA_LOG_DIR}/ydea-toolkit.log 2>&1EOF  fi    chmod 644 /etc/cron.d/ydea-monitoring    log_success "Cron jobs configured"}
@@ -1109,7 +1110,8 @@ echo ""  print_separator "="}
 #
 #main() {  log_info "Starting Ydea Toolkit installation..."    
 # Install components  install_dependencies  deploy_ydea_toolkit  configure_ydea_toolkit  install_monitoring_script    
-# Configure monitoring  local use_systemd="${USE_SYSTEMD_TIMER:-yes}"  if [[ "$use_systemd" == "yes" ]]; then    configure_systemd_timer  else    configure_cron  fi    
+# Configure monitoring  local use_systemd="${USE_SYSTEMD_TIMER:-yes}"  if [[ "$use_systemd" == "yes" ]]; then    configure_systemd_timer
+else    configure_cron  fi    
 # Additional setup  create_helper_scripts    
 # Test connection  test_ydea_connection || log_warning "Connection test failed, configure manually"    log_module_end "$MODULE_NAME" "success"    display_installation_summary}
 # Run main functionmain "$@"

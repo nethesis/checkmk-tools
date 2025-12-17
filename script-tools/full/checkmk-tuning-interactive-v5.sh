@@ -32,10 +32,12 @@ echo -e "${Y}ÔåÆ Stato sistema:${N}
 CPU=${CPU_NOW}% | Load=${LOAD_NOW} | Core=${CORES}"
 # --- Rilevazione Livestatus (timeout 3s) ---
 HAVE_LIVE=0
-if [ -S "$LIVE" ]; then  if timeout 3 bash -c "
+if [ -S "$LIVE" ]; then
+  if timeout 3 bash -c "
 echo -e 'GET status\n' | unixcat '$LIVE' >/dev/null 2>&1"; then
     HAVE_LIVE=1    
-echo -e "${G}Ô£ô Livestatus attivo.${N}"  else    
+echo -e "${G}Ô£ô Livestatus attivo.${N}"
+else    
 echo -e "${Y}ÔÜá Livestatus non risponde entro 3s ÔåÆ uso fallback log.${N}"  fi
 else  
 echo -e "${Y}ÔÜá Nessun socket Livestatus trovato ÔåÆ uso fallback log.${N}"fiecho

@@ -22,7 +22,8 @@ echo "non-interactive = true"
 echo "quiet = true"} > "$CLI_INI"
 echo ">>> Certbot installato e configurato."
 # Esecuzione challenge opzionaleread -r -p "Vuoi eseguire subito la challenge Let's Encrypt per ottenere il certificato? (s/n): " RUN_CHALLENGE
-if [[ "$RUN_CHALLENGE" =~ ^[sS]$ ]]; then  if [[ -z "$LETSENCRYPT_DOMAINS" ]]; then
+if [[ "$RUN_CHALLENGE" =~ ^[sS]$ ]]; then
+  if [[ -z "$LETSENCRYPT_DOMAINS" ]]; then
     echo "ERRORE: Nessun dominio specificato. Impossibile procedere con la challenge."
     exit 1  fi
 echo ">>> Avvio richiesta certificato..."  
@@ -46,7 +47,8 @@ R=301,L]</VirtualHost><VirtualHost *:443>    ServerName $MAIN_DOMAIN
 # Redirect root anche su HTTPS      RewriteEngine On      RewriteRule ^/?$ /$DEFAULT_SITE/ [
 R=301,L]      
 # WebSocket support per il site    RewriteCond %{HTTP:Upgrade} websocket [NC]    RewriteCond %{HTTP:Connection} upgrade [NC]    RewriteRule ^/$DEFAULT_SITE/(.*) "ws://127.0.0.1:5000/$DEFAULT_SITE/\$1" [P,L]    
-# Security headers    Header always set Strict-Transport-Security "max-age=31536000"    Header always set X-Frame-Options "SAMEORIGIN"    Header always set X-Content-Type-Options "nosniff"</VirtualHost>EOF      else        
+# Security headers    Header always set Strict-Transport-Security "max-age=31536000"    Header always set X-Frame-Options "SAMEORIGIN"    Header always set X-Content-Type-Options "nosniff"</VirtualHost>EOF
+else        
 # Configurazione generica (proxy root)        cat > "$APACHE_CONF" << EOF<VirtualHost *:80>    ServerName $MAIN_DOMAIN    
 # Redirect HTTP to HTTPS    RewriteEngine On    RewriteCond %{HTTPS} off    RewriteRule ^(.*)$ https://%{HTTP_HOST}\$1 [
 R=301,L]</VirtualHost><VirtualHost *:443>    ServerName $MAIN_DOMAIN    
@@ -56,8 +58,10 @@ R=301,L]</VirtualHost><VirtualHost *:443>    ServerName $MAIN_DOMAIN
 # Security headers    Header always set Strict-Transport-Security "max-age=31536000"    Header always set X-Frame-Options "SAMEORIGIN"    Header always set X-Content-Type-Options "nosniff"</VirtualHost>EOF      fi      
 # Abilita vhost e disabilita default, verifica e riavvia Apache      a2ensite "$(basename "$APACHE_CONF")" >/dev/null 2>&1 || true      a2dissite 000-default.conf >/dev/null 2>&1 || true            if apache2ctl configtest 2>/dev/null; then        systemctl restart apache2        
 echo ">>> Apache riavviato con il nuovo certificato Let's Encrypt."        
-echo ">>> Certificato configurato per: $MAIN_DOMAIN"      else        
-echo "ERRORE: Configurazione Apache non valida. Ripristino backup..."        mv "$BACKUP_FILE" "$APACHE_CONF" 2>/dev/null || true      fi    else      
+echo ">>> Certificato configurato per: $MAIN_DOMAIN"
+else        
+echo "ERRORE: Configurazione Apache non valida. Ripristino backup..."        mv "$BACKUP_FILE" "$APACHE_CONF" 2>/dev/null || true      fi
+else      
 echo ">>> File $APACHE_CONF non trovato. Configurazione Apache da fare manualmente."    fi  fi
 else  
 echo ">>> Challenge non eseguita. Potrai lanciarla manualmente in seguito, es.:"  

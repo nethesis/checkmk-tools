@@ -14,7 +14,8 @@ IFS= read -r repo_launcher; do  launcher_name=$(basename "$repo_launcher")
 # Aggiorna ogni location trovata  while 
 IFS= read -r deployed_path; do    if [[ -z "$deployed_path" ]]; then continue; fi        
 # Verifica se ├¿ diverso    if cmp -s "$repo_launcher" "$deployed_path" 2>/dev/null; then
-    echo "Ô£ô $launcher_name ÔåÆ $deployed_path (gi├á aggiornato)"    else      
+    echo "Ô£ô $launcher_name ÔåÆ $deployed_path (gi├á aggiornato)"
+else      
 # Backup del vecchio      cp "$deployed_path" "${deployed_path}.backup.$(date +%Y%m%d_%H%M%S)" 2>/dev/null            
 # Copia il nuovo      if cp "$repo_launcher" "$deployed_path" 2>/dev/null; then        chmod +x "$deployed_path"        
 echo "Ô£à Aggiornato: $launcher_name ÔåÆ $deployed_path"        ((updated++))      else        

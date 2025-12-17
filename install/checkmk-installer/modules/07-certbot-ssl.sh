@@ -103,13 +103,16 @@ fi
 #precheck_ssl_prereqs() {  local domain="$1"    log_info "Pre-verifica prerequisiti SSL..."    
 # DNS check  
 echo -n "  - DNS $domain: "  if host "$domain" >/dev/null 2>&1; then    local resolved_ip    resolved_ip=$(host "$domain" | grep 'has address' | awk '{print $NF}' | head -1)    
-echo "OK (risolve a $resolved_ip)"  else    log_warning "Risoluzione DNS fallita per $domain"    return 1  fi    
+echo "OK (risolve a $resolved_ip)"
+else    log_warning "Risoluzione DNS fallita per $domain"    return 1  fi    
 # Port 80 check  
 echo -n "  - Porta 80: "  if ss -tulpn | grep -q ':80 '; then
-    echo "OK (in ascolto)"  else    log_warning "Nessun processo in ascolto sulla porta 80"    return 1  fi    
+    echo "OK (in ascolto)"
+else    log_warning "Nessun processo in ascolto sulla porta 80"    return 1  fi    
 # Port 443 check  
 echo -n "  - Porta 443: "  if ss -tulpn | grep -q ':443 '; then
-    echo "OK (in ascolto)"  else    log_warning "Nessun processo in ascolto sulla porta 443"  fi
+    echo "OK (in ascolto)"
+else    log_warning "Nessun processo in ascolto sulla porta 443"  fi
 echo ""  return 0}
 #
 #
@@ -490,7 +493,8 @@ R=301,L]</VirtualHost><VirtualHost *:443>    ServerName $domain
 R=301,L]    
 # Proxy to CheckMK site    ProxyPreserveHost On    ProxyPass /$default_site/ http://127.0.0.1:5000/$default_site/    ProxyPassReverse /$default_site/ http://127.0.0.1:5000/$default_site/    
 # WebSocket support    RewriteCond %{HTTP:Upgrade} websocket [NC]    RewriteCond %{HTTP:Connection} upgrade [NC]    RewriteRule ^/$default_site/(.*) "ws://127.0.0.1:5000/$default_site/\$1" [P,L]    
-# Security headers    Header always set Strict-Transport-Security "max-age=31536000"    Header always set X-Frame-Options "SAMEORIGIN"    Header always set X-Content-Type-Options "nosniff"</VirtualHost>EOF  else    
+# Security headers    Header always set Strict-Transport-Security "max-age=31536000"    Header always set X-Frame-Options "SAMEORIGIN"    Header always set X-Content-Type-Options "nosniff"</VirtualHost>EOF
+else    
 # Config without redirect (proxy root)    cat > "$apache_conf" <<EOF<VirtualHost *:80>    ServerName $domain    
 # Redirect HTTP to HTTPS    RewriteEngine On    RewriteCond %{HTTPS} off    RewriteRule ^(.*)$ https://%{HTTP_HOST}\$1 [
 R=301,L]</VirtualHost><VirtualHost *:443>    ServerName $domain    
@@ -592,7 +596,8 @@ R=301,L]</VirtualHost><VirtualHost *:443>    ServerName $domain
 #
 #configure_nginx_ssl() {  local domain="$1"  local redirect_to_site="${2:-true}"  local default_site="${3:-monitoring}"  local nginx_conf="/etc/nginx/sites-available/checkmk.conf"    log_info "Configurazione Nginx con certificato Let's Encrypt..."    mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled    if [[ "$redirect_to_site" == "true" ]]; then    cat > "$nginx_conf" <<EOFserver {    listen 80;    server_name $domain;    return 301 https://\$host\$request_uri;}server {    listen 443 ssl;    server_name $domain;    ssl_certificate     /etc/letsencrypt/live/$domain/fullchain.pem;    ssl_certificate_key /etc/letsencrypt/live/$domain/privkey.pem;    
 # Redirect root to site    location = / {        return 301 /$default_site/;    }    
-# Proxy site path    location /$default_site/ {        proxy_set_header Host \$host;        proxy_set_header X-Real-IP \$remote_addr;        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;        proxy_set_header X-Forwarded-Proto \$scheme;        proxy_http_version 1.1;        proxy_set_header Upgrade \$http_upgrade;        proxy_set_header Connection "upgrade";        proxy_pass http://127.0.0.1:5000/$default_site/;    }}EOF  else    cat > "$nginx_conf" <<EOFserver {    listen 80;    server_name $domain;    return 301 https://\$host\$request_uri;}server {    listen 443 ssl;    server_name $domain;    ssl_certificate     /etc/letsencrypt/live/$domain/fullchain.pem;    ssl_certificate_key /etc/letsencrypt/live/$domain/privkey.pem;    location / {        proxy_set_header Host \$host;        proxy_set_header X-Real-IP \$remote_addr;        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;        proxy_set_header X-Forwarded-Proto \$scheme;        proxy_http_version 1.1;        proxy_set_header Upgrade \$http_upgrade;        proxy_set_header Connection "upgrade";        proxy_pass http://127.0.0.1:5000/;    }}EOF  fi    ln -sf "$nginx_conf" "/etc/nginx/sites-enabled/checkmk.conf"    if ! nginx -t; then    log_error "Configurazione Nginx non valida"    return 1  fi    log_command "systemctl reload nginx"    log_success "Nginx configurato con certificato Let's Encrypt per $domain"}
+# Proxy site path    location /$default_site/ {        proxy_set_header Host \$host;        proxy_set_header X-Real-IP \$remote_addr;        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;        proxy_set_header X-Forwarded-Proto \$scheme;        proxy_http_version 1.1;        proxy_set_header Upgrade \$http_upgrade;        proxy_set_header Connection "upgrade";        proxy_pass http://127.0.0.1:5000/$default_site/;    }}EOF
+else    cat > "$nginx_conf" <<EOFserver {    listen 80;    server_name $domain;    return 301 https://\$host\$request_uri;}server {    listen 443 ssl;    server_name $domain;    ssl_certificate     /etc/letsencrypt/live/$domain/fullchain.pem;    ssl_certificate_key /etc/letsencrypt/live/$domain/privkey.pem;    location / {        proxy_set_header Host \$host;        proxy_set_header X-Real-IP \$remote_addr;        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;        proxy_set_header X-Forwarded-Proto \$scheme;        proxy_http_version 1.1;        proxy_set_header Upgrade \$http_upgrade;        proxy_set_header Connection "upgrade";        proxy_pass http://127.0.0.1:5000/;    }}EOF  fi    ln -sf "$nginx_conf" "/etc/nginx/sites-enabled/checkmk.conf"    if ! nginx -t; then    log_error "Configurazione Nginx non valida"    return 1  fi    log_command "systemctl reload nginx"    log_success "Nginx configurato con certificato Let's Encrypt per $domain"}
 #
 #
 #

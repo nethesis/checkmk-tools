@@ -34,10 +34,14 @@ echo ""
 # Salva il risultato    
 echo "$HTTP_BODY" | jq '.' > "/tmp/anagrafica-${ANAGRAFICA_ID}.json"    
 echo "­ƒÆ¥ Salvato in: /tmp/anagrafica-${ANAGRAFICA_ID}.json"    
-echo ""  elif [[ "$HTTP_CODE" == "404" ]]; then
-    echo "ÔØî HTTP $HTTP_CODE - Non trovato"  elif [[ "$HTTP_CODE" == "401" ]]; then
-    echo "ÔØî HTTP $HTTP_CODE - Non autorizzato"  elif [[ "$HTTP_CODE" == "403" ]]; then
-    echo "ÔØî HTTP $HTTP_CODE - Accesso negato"  else    
+echo ""
+elif [[ "$HTTP_CODE" == "404" ]]; then
+    echo "ÔØî HTTP $HTTP_CODE - Non trovato"
+elif [[ "$HTTP_CODE" == "401" ]]; then
+    echo "ÔØî HTTP $HTTP_CODE - Non autorizzato"
+elif [[ "$HTTP_CODE" == "403" ]]; then
+    echo "ÔØî HTTP $HTTP_CODE - Accesso negato"
+else    
 echo "ÔØî HTTP $HTTP_CODE"  fi
 done
 echo ""

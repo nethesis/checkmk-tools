@@ -28,8 +28,10 @@ echo 0)    if [[ $size -gt $LOG_MAX_SIZE ]]; then
 echo "[$timestamp] [$level] [PID:$$] $message" >> "$LOG_FILE" 2>/dev/null || true}
 # Log functionslog_debug() {  log_write "DEBUG" "$*"  if [[ "${VERBOSE:-0}" == "1" ]]; then    print_color "$GRAY" "­ƒöì DEBUG: $*"  fi  return 0}log_info() {  log_write "INFO" "$*"  print_info "$*"}log_success() {  log_write "SUCCESS" "$*"  print_success "$*"}log_warning() {  log_write "WARNING" "$*"  print_warning "$*"}log_error() {  log_write "ERROR" "$*"  print_error "$*"}log_critical() {  log_write "CRITICAL" "$*"  print_error "CRITICAL: $*"}
 # Log command execution (fixed - no stdout redirection)log_command() {  local cmd="$*"  log_write "DEBUG" "Executing: $cmd"    
-# Execute command normally without redirecting stdout  eval "$cmd"  local ret=$?    if [[ $ret -eq 0 ]]; then    log_write "DEBUG" "Command succeeded: $cmd"  else    log_write "ERROR" "Command failed (exit code $ret): $cmd"  fi    return $ret}
-# Log module start/endlog_module_start() {  local module="$1"  log_write "INFO" "========== MODULE START: $module =========="  print_header "$module"}log_module_end() {  local module="$1"  local status="${2:-success}"    if [[ "$status" == "success" ]]; then    log_write "INFO" "========== MODULE END: $module (SUCCESS) =========="    log_success "Module $module completed successfully"  else    log_write "ERROR" "========== MODULE END: $module (FAILED) =========="    log_error "Module $module failed"  fi}
+# Execute command normally without redirecting stdout  eval "$cmd"  local ret=$?    if [[ $ret -eq 0 ]]; then    log_write "DEBUG" "Command succeeded: $cmd"
+else    log_write "ERROR" "Command failed (exit code $ret): $cmd"  fi    return $ret}
+# Log module start/endlog_module_start() {  local module="$1"  log_write "INFO" "========== MODULE START: $module =========="  print_header "$module"}log_module_end() {  local module="$1"  local status="${2:-success}"    if [[ "$status" == "success" ]]; then    log_write "INFO" "========== MODULE END: $module (SUCCESS) =========="    log_success "Module $module completed successfully"
+else    log_write "ERROR" "========== MODULE END: $module (FAILED) =========="    log_error "Module $module failed"  fi}
 # Show last N lines of loglog_tail() {  local lines="${1:-50}"  [[ -f "$LOG_FILE" ]] && tail -n "$lines" "$LOG_FILE"}
 # Show errors from loglog_errors() {  [[ -f "$LOG_FILE" ]] && grep -E "\[ERROR\]|\[CRITICAL\]" "$LOG_FILE"}
 # Clear loglog_clear() {  if [[ -f "$LOG_FILE" ]]; then    true > "$LOG_FILE"    log_success "Log file cleared"  fi}

@@ -84,7 +84,8 @@ START=99
 STOP=10
 USE_PROCD=1start_service() {    procd_open_instance    procd_set_param command /usr/local/bin/frpc -c /etc/frp/frpc.toml    procd_set_param respawn    procd_close_instance}stop_service() {    killall frpc >/dev/null 2>&1 || true}INIT    chmod +x "$FRPC_INIT"    /etc/init.d/frpc enable >/dev/null 2>&1 || true    /etc/init.d/frpc start || /usr/local/bin/frpc -c "$FRPC_CONF" &    sleep 2    
 echo ""    if pgrep -f frpc >/dev/null 2>&1; then
-    echo "Ô£à FRP attivo per proxy [$PROXY_NAME] ÔåÆ porta remota $REMOTE_PORT"    else        
+    echo "Ô£à FRP attivo per proxy [$PROXY_NAME] ÔåÆ porta remota $REMOTE_PORT"
+else        
 echo "ÔÜá´©Å  FRP non attivo. Controlla log: tail -f $FRPC_LOG"    fi
 fi
 # ============================================================

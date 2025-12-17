@@ -205,7 +205,9 @@ fi # Module startlog_module_start "$MODULE_NAME"
 #\?LoginGraceTime .*/LoginGraceTime $login_grace_time/" "$ssh_config"    
 # Disable password authentication (use keys only)  if [[ "${SSH_PASSWORD_AUTH:-yes}" == "no" ]]; then    log_debug "Disabling password authentication"    sed -i "s/^
 #\?PasswordAuthentication .*/PasswordAuthentication no/" "$ssh_config"  fi    
-# Restart SSH (check if service exists first)  if systemctl list-unit-files | grep -q "^sshd.service"; then    log_command "systemctl restart sshd"  elif systemctl list-unit-files | grep -q "^ssh.service"; then    log_command "systemctl restart ssh"  else    log_warning "SSH service not found, skipping restart"  fi    log_success "SSH configured successfully (port: $ssh_port)"}
+# Restart SSH (check if service exists first)  if systemctl list-unit-files | grep -q "^sshd.service"; then    log_command "systemctl restart sshd"
+elif systemctl list-unit-files | grep -q "^ssh.service"; then    log_command "systemctl restart ssh"
+else    log_warning "SSH service not found, skipping restart"  fi    log_success "SSH configured successfully (port: $ssh_port)"}
 #
 #
 #
@@ -885,7 +887,8 @@ echo ""      read -r -p "SMTP username: " smtp_user      read -r -p "SMTP passwo
 # Enable SASL authentication      postconf -e "smtp_sasl_auth_enable = yes"      postconf -e "smtp_sasl_security_options = noanonymous"      postconf -e "smtp_sasl_password_maps = hash:/etc/postfix/sasl_passwd"      postconf -e "smtp_use_tls = yes"      postconf -e "smtp_tls_security_level = encrypt"            
 # Create password file      
 echo "[${SMTP_RELAY_HOST}]:587 ${smtp_user}:${smtp_pass}" > /etc/postfix/sasl_passwd      chmod 600 /etc/postfix/sasl_passwd            
-# Generate hash map      log_command "postmap /etc/postfix/sasl_passwd"            log_success "SMTP authentication configured"    else      log_warn "SMTP credentials not provided - relay configured without authentication"    fi  fi    
+# Generate hash map      log_command "postmap /etc/postfix/sasl_passwd"            log_success "SMTP authentication configured"
+else      log_warn "SMTP credentials not provided - relay configured without authentication"    fi  fi    
 # Restart postfix  log_command "systemctl restart postfix"    log_success "Postfix configured"}
 #
 #

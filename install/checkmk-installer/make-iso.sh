@@ -494,7 +494,8 @@ echo -ne "\r${CYAN}Extracting... Done!${NC}\n"    cd - > /dev/null    if [ $exit
 #
 #setup_hybrid_boot() {  local iso_root="$1"    log_info "Setting up hybrid boot support..."    
 # Create isolinux directory if doesn't exist  local isolinux_dir="${iso_root}/isolinux"  mkdir -p "$isolinux_dir"    
-# Copy isolinux files  if [[ -f "/usr/lib/ISOLINUX/isolinux.bin" ]]; then    cp /usr/lib/ISOLINUX/isolinux.bin "$isolinux_dir/"  elif [[ -f "/usr/lib/syslinux/modules/bios/isolinux.bin" ]]; then    cp /usr/lib/syslinux/modules/bios/isolinux.bin "$isolinux_dir/"  fi    
+# Copy isolinux files  if [[ -f "/usr/lib/ISOLINUX/isolinux.bin" ]]; then    cp /usr/lib/ISOLINUX/isolinux.bin "$isolinux_dir/"
+elif [[ -f "/usr/lib/syslinux/modules/bios/isolinux.bin" ]]; then    cp /usr/lib/syslinux/modules/bios/isolinux.bin "$isolinux_dir/"  fi    
 # Copy required syslinux modules  for module in ldlinux.c32 libcom32.c32 libutil.c32 vesamenu.c32; do    if [[ -f "/usr/lib/syslinux/modules/bios/$module" ]]; then      cp "/usr/lib/syslinux/modules/bios/$module" "$isolinux_dir/"    fi  done    
 # Create isolinux.cfg  cat > "${isolinux_dir}/isolinux.cfg" <<'EOF'DEFAULT vesamenu.c32TIMEOUT 300PROMPT 0MENU TITLE CheckMK Installer Boot MenuLABEL ubuntu  MENU LABEL Boot CheckMK Installer (Ubuntu Live)  KERNEL /casper/vmlinuz  APPEND initrd=/casper/initrd boot=casper quiet splash ---LABEL grub  MENU LABEL Boot using GRUB (UE
 FI)  COM32 chain.c32  APPEND grubLABEL local  MENU LABEL Boot from local disk  LOCALBOOT 0EOF    log_success "Hybrid boot configured"}
@@ -997,7 +998,8 @@ echo ""    if [ $exit_code -ne 0 ]; then    log_error "Failed to build ISO"    r
 #
 #
 #make_hybrid() {  local iso_file="$1"    log_info "Making ISO hybrid (USB bootable)..."    if command -v isohybrid &>/dev/null; then    isohybrid --ue
-fi "$iso_file" 2>&1 | tee -a "$LOG_FILE" || true    log_success "ISO is now hybrid (can boot from USB)"  else    log_warning "isohybrid not found, ISO may not boot from USB"  fi}
+fi "$iso_file" 2>&1 | tee -a "$LOG_FILE" || true    log_success "ISO is now hybrid (can boot from USB)"
+else    log_warning "isohybrid not found, ISO may not boot from USB"  fi}
 #
 #
 #

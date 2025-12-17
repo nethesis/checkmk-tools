@@ -20,8 +20,10 @@ echo "$NEW_LAST" > "$STATEFILE"    while read -r _nr line; do        if [[ "$lin
     ip=$(
 echo "$line" | sed -n 's/.*from \([0-9\.]\+\).*/\1/p')            if [ -n "$ip" ]; then                
 # alterna WARN/CRIT per forzare notifica ad ogni login                if [ $(("$RANDOM" % 2)) -eq 0 ]; then
-    echo "1 $SERVICE - $NOW cockpit login from $ip"                else                    
-echo "2 $SERVICE - $NOW cockpit login from $ip"                fi            fi        elif [[ "$line" =~ "for session closed" ]]; then
+    echo "1 $SERVICE - $NOW cockpit login from $ip"
+else                    
+echo "2 $SERVICE - $NOW cockpit login from $ip"                fi            fi
+elif [[ "$line" =~ "for session closed" ]]; then
     ip=$(
 echo "$line" | sed -n 's/.*from \([0-9\.]\+\).*/\1/p')            [ -n "$ip" ] && 
 echo "0 $SERVICE - $NOW cockpit logout from $ip"        fi    done <<< "$NEW_LINES"

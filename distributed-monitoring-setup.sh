@@ -29,7 +29,8 @@ echo -e "${B}Ôòæ      CheckMK Distributed Monitoring Setup                 Ô
 echo -e "${B}ÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ${N}"
 echo ""
 # Detect if we're on local (central) or VPS (remote)detect_role() {    local hostname    hostname=$(hostname -f 2>/dev/null || hostname)        if [[ "$hostname" == *"$VPS_HOST"* ]] || [[ "$(hostname -I 2>/dev/null)" == *"$(dig +short $VPS_HOST 2>/dev/null)"* ]]; then
-    echo "vps"    else        
+    echo "vps"
+else        
 echo "local"    fi}
 ROLE=$(detect_role)
 echo -e "${G}Role detected: ${B}$ROLE${N}"
@@ -273,7 +274,8 @@ echo "--- WATO flags (wato_enabled) ---"grep -R --line-number "wato_enabled" etc
 echo "none"
 echo "--- Livestatus TCP config ---"omd config show LIVESTATUS_TCP || trueomd config show LIVESTATUS_TCP_PORT || trueaudit() {    
 echo -e "${B}ÔòÉÔòÉÔòÉ Audit: Quick Diagnostics ÔòÉÔòÉÔòÉ${N}"    local site    if [[ "$ROLE" == "vps" ]]; then
-    site="$VPS_SITE"    else        site="$LOCAL_SITE"    fic/check_mk/multisite.d/wato/distributed_monitoring.mk || true
+    site="$VPS_SITE"
+else        site="$LOCAL_SITE"    fic/check_mk/multisite.d/wato/distributed_monitoring.mk || true
 fi
 echo "--- Recent wato.log (last 80) ---"tail -n 80 var/log/wato.log 2>/dev/null || true
 echo "--- Recent web.log (last 60) ---"tail -n 60 var/log/web.log 2>/dev/null || true

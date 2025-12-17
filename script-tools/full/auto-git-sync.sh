@@ -51,7 +51,8 @@ echo -e "${CYAN}========================================${NC}\n"}
 # Verifica se la directory esiste    if [[ -d "$TARGET_DIR" ]]; then        
 # Verifica se ├¿ un repository git vali
 do        if [[ -d "$TARGET_DIR/.git" ]]; then            print_success "Repository gi├á esistente in: $TARGET_DIR"                        
-# Verifica il remote            cd "$TARGET_DIR" || exit 1            local current_remote            current_remote=$(timeout 10 git remote get-url origin 2>/dev/null)                        if [[ "$current_remote" == "$REPO_URL" ]]; then                print_success "Remote corretto: $REPO_URL"            else                print_warning "Remote diverso rilevato: $current_remote"                print_info "Aggiorno remote a: $REPO_URL"                git remote set-url origin "$REPO_URL"            fi                        return 0        else            print_warning "Directory esistente ma non ├¿ un repository git"            print_info "Rimuovo directory e proce
+# Verifica il remote            cd "$TARGET_DIR" || exit 1            local current_remote            current_remote=$(timeout 10 git remote get-url origin 2>/dev/null)                        if [[ "$current_remote" == "$REPO_URL" ]]; then                print_success "Remote corretto: $REPO_URL"
+else                print_warning "Remote diverso rilevato: $current_remote"                print_info "Aggiorno remote a: $REPO_URL"                git remote set-url origin "$REPO_URL"            fi                        return 0        else            print_warning "Directory esistente ma non ├¿ un repository git"            print_info "Rimuovo directory e proce
 do con il clone..."            rm -rf "$TARGET_DIR"        fi    fi        
 # Clone del repository    print_info "Clonazione repository da: $REPO_URL"    print_info "Destinazione: $TARGET_DIR"        if timeout 120 git clone "$REPO_URL" "$TARGET_DIR"; then        print_success "Repository clonato con successo!"        cd "$TARGET_DIR" || exit 1                
 # Mostra informazioni sul repository        local branch        branch=$(git branch --show-current)        local commit        commit=$(git rev-parse --short HEAD)        print_info "Branch: $branch"        print_info "Commit: $commit"                return 0    else        print_error "Errore durante il clone del repository"        return 1    fi}
@@ -70,7 +71,8 @@ do    if [[ -z "$current_branch" ]]; then        print_warning "Detached HEAD ri
 do"            return 1        fi                git checkout main 2>/dev/null || return 1    fi        
 # Se locale e remote divergono, FORZA allineamento al remote    if [[ "$local_commit" != "$remote_commit" ]]; then        local behind_count        behind_count=$(git rev-list --count HEAD..origin/$current_branch 2>/dev/null || 
 echo "?")        local ahead_count        ahead_count=$(git rev-list --count origin/$current_branch..HEAD 2>/dev/null || 
-echo "0")                if [[ "$ahead_count" != "0" ]] && [[ "$ahead_count" != "?" ]]; then            print_warning "Repository locale ├¿ AVANTI di $ahead_count commit rispetto al remote"            print_info "RESET FORZATO al remote per allineamento..."        else            print_info "Repository locale ├¿ DIETRO di $behind_count commit"        fi                
+echo "0")                if [[ "$ahead_count" != "0" ]] && [[ "$ahead_count" != "?" ]]; then            print_warning "Repository locale ├¿ AVANTI di $ahead_count commit rispetto al remote"            print_info "RESET FORZATO al remote per allineamento..."
+else            print_info "Repository locale ├¿ DIETRO di $behind_count commit"        fi                
 # HARD reset al remote e pulizia aggressiva per gestire rinominazioni        if timeout 30 git reset --hard origin/$current_branch 2>&1 | tee -a "$LOG_FILE"; then            local new_commit            new_commit=$(git rev-parse --short HEAD)                        
 # Pulizia aggressiva di file/directory non tracciati (incluse directory rinominate)            if git clean -fdx 2>&1 | tee -a "$LOG_FILE"; then                print_info "Pulizia completata: rimossi file/directory non tracciati"            fi                        print_success "Repository FORZATO ad allinearsi: $old_commit ÔåÆ $new_commit"                        
 # Rendi eseguibili tutti gli script .sh            print_info "Aggiornamento permessi script..."            find "$TARGET_DIR" -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null            print_success "Permessi aggiornati per file .sh"                        
@@ -78,7 +80,8 @@ echo "0")                if [[ "$ahead_count" != "0" ]] && [[ "$ahead_count" != 
 echo "  ${GREEN}+ $file${NC}" ;;                        M) 
 echo "  ${YELLOW}~ $file${NC}" ;;                        D) 
 echo "  ${RED}- $file${NC}" ;;                        *) 
-echo "  $status $file" ;;                    esac                done            fi                        return 0        else            print_error "Errore durante reset al remote"            return 1        fi    else        print_info "Repository gi├á aggiornato (nessuna modifica)"                
+echo "  $status $file" ;;                    esac                done            fi                        return 0        else            print_error "Errore durante reset al remote"            return 1        fi
+else        print_info "Repository gi├á aggiornato (nessuna modifica)"                
 # Aggiorna comunque i permessi per sicurezza        find "$TARGET_DIR" -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null                return 0    fi}
 # ==========================================================
 # Loop principale
@@ -86,7 +89,8 @@ echo "  $status $file" ;;                    esac                done           
 echo ""    print_warning "Premi Ctrl+C per interrompere"    
 echo ""        local sync_count=0        while true; do        sync_count=$((sync_count + 1))                
 echo -e "${CYAN}ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü${NC}"        print_info "Sync 
-#$sync_count - $(date '+%Y-%m-%d %H:%M:%S')"                if do_git_pull; then            print_success "Sync completato"        else            print_error "Sync fallito"        fi                print_info "Prossimo sync tra ${SYNC_INTERVAL}s..."        sleep "$SYNC_INTERVAL"    done}
+#$sync_count - $(date '+%Y-%m-%d %H:%M:%S')"                if do_git_pull; then            print_success "Sync completato"
+else            print_error "Sync fallito"        fi                print_info "Prossimo sync tra ${SYNC_INTERVAL}s..."        sleep "$SYNC_INTERVAL"    done}
 # ==========================================================
 # Gestione segnali
 # ==========================================================cleanup() {    
@@ -99,7 +103,8 @@ echo ""    print_warning "Ricevuto segnale di interruzione"    print_info "Arres
     exit 1    fi        
 # Crea directory per log se non esiste    if [[ -w "$(dirname "$LOG_FILE")" ]] || su
 do mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null; then        su
-do touch "$LOG_FILE" 2>/dev/null || true    else        
+do touch "$LOG_FILE" 2>/dev/null || true
+else        
 LOG_FILE="$HOME/auto-git-sync.log"        print_warning "Usan
 do log file alternativo: $LOG_FILE"    fi        print_header "Auto Git Sync - Avvio"    log_message "=== Auto Git Sync Started ==="        
 # Inizializza repository    if ! init_repository; then        print_error "Impossibile inizializzare il repository"

@@ -11,7 +11,8 @@ NODE=$(hostname)
 # -------------------------    
 # STATUS VM    
 # -------------------------    status=$(qm status $vmid | awk '{print $2}')    if [[ "$status" == "running" ]]; then
-    echo "0 vm_${vmid}_${name} Status VM ${vmid} (${name}) accesa"    else        
+    echo "0 vm_${vmid}_${name} Status VM ${vmid} (${name}) accesa"
+else        
 echo "0 vm_${vmid}_${name} Status VM ${vmid} (${name}) spenta"    fi    
 # -------------------------    
 # RAM    
@@ -23,8 +24,10 @@ echo "$current" | jq -r '.mem // 0')            perc=$(( used * 100 / alloc_byte
     state=2            elif (( perc >= WARN_RAM )); then
     state=1            else                state=0            fi            
 # Perfdata + testo leggibile            
-echo "$state vm_${vmid}_${name} RAM | used=$used;$WARN_RAM;$CRIT_RAM;0;$alloc_bytes RAM: ${perc}% (${used_h} GB / ${alloc_h} GB)"        else            alloc_h=$(awk "BEGIN {printf \"%.1f\", $alloc_bytes / 1024 / 1024 / 1024}")            
-echo "0 vm_${vmid}_${name} RAM RAM: 0% (VM spenta, ${alloc_h} GB allocata)"        fi    else        
+echo "$state vm_${vmid}_${name} RAM | used=$used;$WARN_RAM;$CRIT_RAM;0;$alloc_bytes RAM: ${perc}% (${used_h} GB / ${alloc_h} GB)"
+else            alloc_h=$(awk "BEGIN {printf \"%.1f\", $alloc_bytes / 1024 / 1024 / 1024}")            
+echo "0 vm_${vmid}_${name} RAM RAM: 0% (VM spenta, ${alloc_h} GB allocata)"        fi
+else        
 echo "0 vm_${vmid}_${name} RAM RAM: non configurata (VM spenta)"    fi    
 # -------------------------    
 # DISCHI (solo LVM-thin, ignora snapshot)    
@@ -33,6 +36,7 @@ echo "0 vm_${vmid}_${name} RAM RAM: non configurata (VM spenta)"    fi
     state=2            elif (( pct_int >= WARN_DISK )); then
     state=1            else                state=0            fi            
 # Perfdata + testo leggibile            used_bytes=$(awk "BEGIN {printf \"%d\", $used_gb * 1024 * 1024 * 1024}")            size_bytes=$(awk "BEGIN {printf \"%d\", $size_gb * 1024 * 1024 * 1024}")            
-echo "$state vm_${vmid}_${name} Disk | used=$used_bytes;$WARN_DISK;$CRIT_DISK;0;$size_bytes Disk: ${lv} ${pct_int}% (${used_gb} GB / ${size_gb} GB)"        done <<< "$disks"    else        
+echo "$state vm_${vmid}_${name} Disk | used=$used_bytes;$WARN_DISK;$CRIT_DISK;0;$size_bytes Disk: ${lv} ${pct_int}% (${used_gb} GB / ${size_gb} GB)"        done <<< "$disks"
+else        
 echo "0 vm_${vmid}_${name} Disk Disk: nessun disco trovato su LVM-thin"    fi
 done

@@ -81,13 +81,11 @@ get_script_description() {
         local desc=$(head -n 10 "$full_path" | grep -E "^# (Desc|Description|Purpose):" | sed 's/^# [^:]*: //')
         if [[ -n "$desc" ]]; then
     echo "$desc"
-        else
-            # Fallback: seconda riga (solitamente descrizione)
+else             # Fallback: seconda riga (solitamente descrizione)
             desc=$(sed -n '2p' "$full_path" | sed 's/^# //')
             echo "${desc:-Nessuna descrizione disponibile}"
         fi
-    else
-        echo "Script non trovato localmente"
+else         echo "Script non trovato localmente"
     fi
 }
 
@@ -199,8 +197,7 @@ toggle_favorite() {
     if [[ -n "${FAVORITES[$idx]:-}" ]]; then
         unset FAVORITES[$idx]
         echo -e "${GREEN}✓ Rimosso dai preferiti${NC}"
-    else
-        FAVORITES[$idx]=1
+else         FAVORITES[$idx]=1
         echo -e "${GREEN}✓ Aggiunto ai preferiti ⭐${NC}"
     fi
     save_favorites
@@ -233,8 +230,7 @@ show_statistics() {
             echo -e "${MAGENTA}║${NC}    ${BLUE}$((count+1)).${NC} $name ${CYAN}($uses)${NC}"
             ((count++))
         done
-    else
-        echo -e "${MAGENTA}║${NC}    ${YELLOW}Nessuna statistica disponibile${NC}"
+else         echo -e "${MAGENTA}║${NC}    ${YELLOW}Nessuna statistica disponibile${NC}"
     fi
 echo -e "${MAGENTA}╚═══════════════════════════════════════════════════════════╝${NC}\n"
 }
@@ -311,8 +307,7 @@ do file temporaneo
     if [ -n "$params" ]; then
         su
 do bash "$TEMP_SCRIPT" $params
-    else
-        su
+else         su
 do bash "$TEMP_SCRIPT"
     fi
     
@@ -324,8 +319,7 @@ do bash "$TEMP_SCRIPT"
     
     if [ $exit_code -eq 0 ]; then
     echo -e "${GREEN}✓ Script completato con successo${NC}\n"
-    else
-        echo -e "${RED}✗ Script terminato con errore (exit code: $exit_code)${NC}\n"
+else         echo -e "${RED}✗ Script terminato con errore (exit code: $exit_code)${NC}\n"
     fi
     
     # Pausa prima di tornare al menu
@@ -372,8 +366,7 @@ do:${NC} "
                 read -r idx
                 if [[ "$idx" =~ ^[0-9]+$ ]]; then
                     show_script_details "$idx"
-                else
-                    echo -e "${RED}✗ Numero non vali
+else                     echo -e "${RED}✗ Numero non vali
 do${NC}"
                 fi
 echo -e "${YELLOW}Premi INVIO per continuare...${NC}"
@@ -398,8 +391,7 @@ echo -e "${YELLOW}Premi INVIO per continuare...${NC}"
                 # Verifica input numerico
                 if [[ "$selection" =~ ^[0-9]+$ ]]; then
                     execute_script "$selection"
-                else
-                    echo -e "${RED}✗ Coman
+else                     echo -e "${RED}✗ Coman
 do non riconosciuto!${NC}\n"
                     sleep 2
                 fi

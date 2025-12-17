@@ -222,9 +222,11 @@ echo "This will:"
 echo "  1. Clone/pull repository from GitHub"  
 echo "  2. Update all scripts to latest version"  
 echo ""    if ! confirm "Proceed with update from GitHub?" "y"; then    return 0  fi    
-# Clone or update repository  if [[ -d "$local_repo" ]]; then    log_info "Updating existing repository..."    cd "$local_repo"    git pull origin main  else    log_info "Cloning repository..."    git clone "$repo_url" "$local_repo"  fi    
+# Clone or update repository  if [[ -d "$local_repo" ]]; then    log_info "Updating existing repository..."    cd "$local_repo"    git pull origin main
+else    log_info "Cloning repository..."    git clone "$repo_url" "$local_repo"  fi    
 # Copy scripts  log_info "Copying updated scripts..."  cp -r "$local_repo"/* "${INSTALLER_ROOT}/scripts/" 2>/dev/null || true    
-# Deploy  bash "${INSTALLER_ROOT}/modules/04-scripts-deploy.sh" || { log_error "Deployment failed"; return 1; }    print_success "Scripts updated from GitHub successfully!"  press_any_key}run_config_wizard() {  log_info "Running configuration wizard..."    if [[ -f "${INSTALLER_ROOT}/config-wizard.sh" ]]; then    bash "${INSTALLER_ROOT}/config-wizard.sh"  else    print_error "Configuration wizard not found"  fi    press_any_key}show_current_config() {  print_header "Current Configuration"    if load_configuration; then
+# Deploy  bash "${INSTALLER_ROOT}/modules/04-scripts-deploy.sh" || { log_error "Deployment failed"; return 1; }    print_success "Scripts updated from GitHub successfully!"  press_any_key}run_config_wizard() {  log_info "Running configuration wizard..."    if [[ -f "${INSTALLER_ROOT}/config-wizard.sh" ]]; then    bash "${INSTALLER_ROOT}/config-wizard.sh"
+else    print_error "Configuration wizard not found"  fi    press_any_key}show_current_config() {  print_header "Current Configuration"    if load_configuration; then
     echo ""    
 echo "${CYAN}System Configuration:${NC}"    
 echo "  SSH Port: ${SSH_PORT:-22}"    
@@ -243,7 +245,8 @@ echo ""    fi        if [[ -n "${FRPC_SERVER_ADDR:-}" ]]; then
     echo "${CYAN}FRPC Configuration:${NC}"      
 echo "  Server: ${FRPC_SERVER_ADDR}:${FRPC_SERVER_PORT:-7000}"      
 echo "  Remote Port: ${FRPC_REMOTE_PORT:-N/A}"      
-echo ""    fi  else    
+echo ""    fi
+else    
 echo ""    print_warning "No configuration file found"    
 echo ""    
 echo "Run 'Configuration Guidata' to create configuration"  fi

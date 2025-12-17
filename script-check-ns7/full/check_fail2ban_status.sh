@@ -38,11 +38,9 @@ TOTAL_BANNED=$((TOTAL_BANNED + BANNED))
     
     if [ "$TOTAL_BANNED" -gt 0 ]; then
     echo "1 $SERVICE - running, $TOTAL_BANNED IP(s) banned"
-    else
-        
+else         
 echo "0 $SERVICE - running, no banned IPs"
     fi
-else
-    
+else     
 echo "0 $SERVICE - running, no jails configured"
 fi

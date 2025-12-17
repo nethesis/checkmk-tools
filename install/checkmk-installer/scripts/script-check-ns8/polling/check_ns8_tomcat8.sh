@@ -16,9 +16,11 @@ MEM=$(runagent -m "$INSTANCE" podman exec "$C" ps -o rss= -p "$PID" | awk '{prin
 UPTIME=$(runagent -m "$INSTANCE" podman exec "$C" ps -o etime= -p "$PID" | tr -d ' ')            
 # Valutazione soglie            if (( MEM >= CRIT )); then
     STATE=2                
-MSG="Tomcat8 CRIT - Memoria=${MEM}MB (>${CRIT}MB); Uptime=${UPTIME}"            elif (( MEM >= WARN )); then
+MSG="Tomcat8 CRIT - Memoria=${MEM}MB (>${CRIT}MB); Uptime=${UPTIME}"
+elif (( MEM >= WARN )); then
     STATE=1                
-MSG="Tomcat8 WARN - Memoria=${MEM}MB (>${WARN}MB); Uptime=${UPTIME}"            else                
+MSG="Tomcat8 WARN - Memoria=${MEM}MB (>${WARN}MB); Uptime=${UPTIME}"
+else                
 STATE=0                
 MSG="Tomcat8 OK - Memoria=${MEM}MB; Uptime=${UPTIME}"            fi
 echo "$STATE Tomcat8 - $MSG"        fi    donedone

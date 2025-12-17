@@ -497,7 +497,8 @@ do bash /cdrom/checkmk-installer/bootstrap-installer.shWHAT IT DOES:------------
 #
 #setup_hybrid_boot() {  local iso_root="$1"    log_info "Setting up hybrid boot support..."    
 # Create isolinux directory if doesn't exist  local isolinux_dir="${iso_root}/isolinux"  mkdir -p "$isolinux_dir"    
-# Copy isolinux files  if [[ -f "/usr/lib/ISOLINUX/isolinux.bin" ]]; then    cp /usr/lib/ISOLINUX/isolinux.bin "$isolinux_dir/"  elif [[ -f "/usr/lib/syslinux/modules/bios/isolinux.bin" ]]; then    cp /usr/lib/syslinux/modules/bios/isolinux.bin "$isolinux_dir/"  fi    
+# Copy isolinux files  if [[ -f "/usr/lib/ISOLINUX/isolinux.bin" ]]; then    cp /usr/lib/ISOLINUX/isolinux.bin "$isolinux_dir/"
+elif [[ -f "/usr/lib/syslinux/modules/bios/isolinux.bin" ]]; then    cp /usr/lib/syslinux/modules/bios/isolinux.bin "$isolinux_dir/"  fi    
 # Copy required syslinux modules  for module in ldlinux.c32 libcom32.c32 libutil.c32 vesamenu.c32; do    if [[ -f "/usr/lib/syslinux/modules/bios/$module" ]]; then      cp "/usr/lib/syslinux/modules/bios/$module" "$isolinux_dir/"    fi  done    
 # Create isolinux.cfg  cat > "${isolinux_dir}/isolinux.cfg" <<'EOF'DEFAULT vesamenu.c32TIMEOUT 300PROMPT 0MENU TITLE CheckMK Installer Online Boot MenuLABEL ubuntu  MENU LABEL Boot CheckMK Online Installer (Ubuntu Live)  KERNEL /casper/vmlinuz  APPEND initrd=/casper/initrd boot=casper quiet splash ---LABEL grub  MENU LABEL Boot using GRUB (UE
 FI)  COM32 chain.c32  APPEND grubLABEL local  MENU LABEL Boot from local disk  LOCALBOOT 0EOF    log_success "Hybrid boot configured"}
@@ -801,14 +802,17 @@ FI boot is available  local efi_boot_args=""  if [[ -f "${iso_root}/boot/grub/e
 fi.img" ]]; then    log_debug "E
 FI boot image found, enabling UE
 FI support"    efi_boot_args="-eltorito-alt-boot -e boot/grub/e
-fi.img -no-emul-boot -isohybrid-gpt-basdat"  else    log_warning "E
+fi.img -no-emul-boot -isohybrid-gpt-basdat"
+else    log_warning "E
 FI boot image not found, creating BIOS-only ISO"  fi    
 # Build ISO with xorriso  if [[ -n "$efi_boot_args" ]]; then    
 # Build with UE
-FI support    xorriso -as mkisofs \      -iso-level 3 \      -full-iso9660-filenames \      -volid "CHECKMK_ONLINE" \      -appid "CheckMK Online Installer" \      -publisher "CheckMK Tools" \      -preparer "makeiso-online.sh" \      -eltorito-boot isolinux/isolinux.bin \      -eltorito-catalog isolinux/boot.cat \      -no-emul-boot \      -boot-load-size 4 \      -boot-info-table \      -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \      $efi_boot_args \      -output "$output_iso" \      "$iso_root" 2>&1 | grep -v "^$" || true  else    
+FI support    xorriso -as mkisofs \      -iso-level 3 \      -full-iso9660-filenames \      -volid "CHECKMK_ONLINE" \      -appid "CheckMK Online Installer" \      -publisher "CheckMK Tools" \      -preparer "makeiso-online.sh" \      -eltorito-boot isolinux/isolinux.bin \      -eltorito-catalog isolinux/boot.cat \      -no-emul-boot \      -boot-load-size 4 \      -boot-info-table \      -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \      $efi_boot_args \      -output "$output_iso" \      "$iso_root" 2>&1 | grep -v "^$" || true
+else    
 # Build BIOS-only    xorriso -as mkisofs \      -iso-level 3 \      -full-iso9660-filenames \      -volid "CHECKMK_ONLINE" \      -appid "CheckMK Online Installer" \      -publisher "CheckMK Tools" \      -preparer "makeiso-online.sh" \      -eltorito-boot isolinux/isolinux.bin \      -eltorito-catalog isolinux/boot.cat \      -no-emul-boot \      -boot-load-size 4 \      -boot-info-table \      -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \      -output "$output_iso" \      "$iso_root" 2>&1 | grep -v "^$" || true  fi    if [[ ! -f "$output_iso" ]]; then    log_error "Failed to create ISO"    return 1  fi    
 # Make ISO hybrid (bootable from USB)  if command -v isohybrid &>/dev/null; then    log_info "Making ISO hybrid bootable..."    if [[ -n "$efi_boot_args" ]]; then      isohybrid --ue
-fi "$output_iso" 2>/dev/null || log_warning "Hybrid boot setup failed (non-critical)"    else      isohybrid "$output_iso" 2>/dev/null || log_warning "Hybrid boot setup failed (non-critical)"    fi  fi    log_success "ISO created: $output_iso"}
+fi "$output_iso" 2>/dev/null || log_warning "Hybrid boot setup failed (non-critical)"
+else      isohybrid "$output_iso" 2>/dev/null || log_warning "Hybrid boot setup failed (non-critical)"    fi  fi    log_success "ISO created: $output_iso"}
 #
 #
 #

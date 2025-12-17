@@ -202,7 +202,8 @@ echo "arm"      ;;    *)      log_error "Unsupported architecture: $arch"      r
 # Try local copy first  local local_frpc="${INSTALLER_ROOT}/scripts/Install/Agent-FRPC/frpc"  if [[ -f "$local_frpc" ]]; then    log_info "Using local FRPC binary"    cp "$local_frpc" "$FRPC_INSTALL_DIR/frpc"    chmod +x "$FRPC_INSTALL_DIR/frpc"    log_success "FRPC binary installed from local copy"    return 0  fi    
 # Download from GitHub  if ! log_command "wget -O '$dest' '$download_url'"; then    log_error "Failed to download FRPC"    return 1  fi    
 # Extract  log_command "tar -xzf '$dest' -C /tmp/"    
-# Find and copy binarylocal frpc_binlocal frpc_binfrpc_bin=$(find /tmp -name "frpc" -type f | grep -v ".tar.gz" | head -1)  if [[ -n "$frpc_bin" ]]; then    cp "$frpc_bin" "$FRPC_INSTALL_DIR/frpc"    chmod +x "$FRPC_INSTALL_DIR/frpc"    log_success "FRPC binary installed"  else    log_error "FRPC binary not found in archive"    return 1  fi    
+# Find and copy binarylocal frpc_binlocal frpc_binfrpc_bin=$(find /tmp -name "frpc" -type f | grep -v ".tar.gz" | head -1)  if [[ -n "$frpc_bin" ]]; then    cp "$frpc_bin" "$FRPC_INSTALL_DIR/frpc"    chmod +x "$FRPC_INSTALL_DIR/frpc"    log_success "FRPC binary installed"
+else    log_error "FRPC binary not found in archive"    return 1  fi    
 # Cleanup  rm -rf /tmp/frp_* "$dest"}
 #
 #
@@ -298,7 +299,8 @@ echo "arm"      ;;    *)      log_error "Unsupported architecture: $arch"      r
 # Check required configuration  if [[ -z "${FRPC_SERVER_ADDR:-}" ]]; then    log_error "FRPC_SERVER_ADDR not configured"    return 1  fi    
 # Create config directory  mkdir -p "$FRPC_CONFIG_DIR"    local config_file="$FRPC_CONFIG_DIR/frpc.ini"local hostnamelocal hostnamehostname=$(hostname)    
 # Use template if available  local template="${INSTALLER_ROOT}/templates/frpc.ini.template"    if [[ -f "$template" ]]; then    log_debug "Using configuration template"    cp "$template" "$config_file"        
-# Replace placeholders    sed -i "s|{{FRPC_SERVER_ADDR}}|${FRPC_SERVER_ADDR}|g" "$config_file"    sed -i "s|{{FRPC_SERVER_PORT}}|${FRPC_SERVER_PORT:-7000}|g" "$config_file"    sed -i "s|{{FRPC_TOKEN}}|${FRPC_TOKEN:-}|g" "$config_file"    sed -i "s|{{HOSTNAME}}|${hostname}|g" "$config_file"    sed -i "s|{{FRPC_REMOTE_PORT}}|${FRPC_REMOTE_PORT:-}|g" "$config_file"    sed -i "s|{{FRPC_SSH_REMOTE_PORT}}|${FRPC_SSH_REMOTE_PORT:-}|g" "$config_file"    sed -i "s|{{FRPC_ADMIN_USER}}|${FRPC_ADMIN_USER:-admin}|g" "$config_file"    sed -i "s|{{FRPC_ADMIN_PWD}}|${FRPC_ADMIN_PWD:-admin}|g" "$config_file"    sed -i "s|{{FRPC_DOMAIN}}|${FRPC_DOMAIN:-example.com}|g" "$config_file"  else    
+# Replace placeholders    sed -i "s|{{FRPC_SERVER_ADDR}}|${FRPC_SERVER_ADDR}|g" "$config_file"    sed -i "s|{{FRPC_SERVER_PORT}}|${FRPC_SERVER_PORT:-7000}|g" "$config_file"    sed -i "s|{{FRPC_TOKEN}}|${FRPC_TOKEN:-}|g" "$config_file"    sed -i "s|{{HOSTNAME}}|${hostname}|g" "$config_file"    sed -i "s|{{FRPC_REMOTE_PORT}}|${FRPC_REMOTE_PORT:-}|g" "$config_file"    sed -i "s|{{FRPC_SSH_REMOTE_PORT}}|${FRPC_SSH_REMOTE_PORT:-}|g" "$config_file"    sed -i "s|{{FRPC_ADMIN_USER}}|${FRPC_ADMIN_USER:-admin}|g" "$config_file"    sed -i "s|{{FRPC_ADMIN_PWD}}|${FRPC_ADMIN_PWD:-admin}|g" "$config_file"    sed -i "s|{{FRPC_DOMAIN}}|${FRPC_DOMAIN:-example.com}|g" "$config_file"
+else    
 # Create basic configuration    log_warning "Template not found, creating basic configuration"        cat > "$config_file" <<EOF[common]server_addr = ${FRPC_SERVER_ADDR}server_port = ${FRPC_SERVER_PORT:-7000}token = ${FRPC_TOKEN:-}log_file = ${FRPC_LOG_DIR}/frpc.loglog_level = infolog_max_days = 7
 # Admin interfaceadmin_addr = 127.0.0.1admin_port = 7400admin_user = ${FRPC_ADMIN_USER:-admin}admin_pwd = ${FRPC_ADMIN_PWD:-admin}
 # CheckMK Agent Proxy[checkmk-${hostname}]type = tcplocal_ip = 127.0.0.1local_port = 6556remote_port = ${FRPC_REMOTE_PORT:-}use_encryption = trueuse_compression = trueEOF  fi    chmod 600 "$config_file"    log_success "FRPC configured: $config_file"}
@@ -392,7 +394,8 @@ echo "arm"      ;;    *)      log_error "Unsupported architecture: $arch"      r
 #
 #
 #
-#create_systemd_service() {  log_info "Creating systemd service..."    local service_file="/etc/systemd/system/frpc.service"  local template="${INSTALLER_ROOT}/templates/systemd/frpc.service"    if [[ -f "$template" ]]; then    cp "$template" "$service_file"  else    cat > "$service_file" <<EOF[Unit]Description=FRPC Client ServiceAfter=network.targetWants=network-online.target[Service]Type=simpleUser=rootExecStart=$FRPC_INSTALL_DIR/frpc -c $FRPC_CONFIG_DIR/frpc.iniRestart=on-failureRestartSec=10StandardOutput=journalStandardError=journal
+#create_systemd_service() {  log_info "Creating systemd service..."    local service_file="/etc/systemd/system/frpc.service"  local template="${INSTALLER_ROOT}/templates/systemd/frpc.service"    if [[ -f "$template" ]]; then    cp "$template" "$service_file"
+else    cat > "$service_file" <<EOF[Unit]Description=FRPC Client ServiceAfter=network.targetWants=network-online.target[Service]Type=simpleUser=rootExecStart=$FRPC_INSTALL_DIR/frpc -c $FRPC_CONFIG_DIR/frpc.iniRestart=on-failureRestartSec=10StandardOutput=journalStandardError=journal
 # Security settingsNoNewPrivileges=truePrivateTmp=trueProtectSystem=strictProtectHome=trueReadWritePaths=${FRPC_LOG_DIR}[Install]WantedBy=multi-user.targetEOF  fi    
 # Reload and enable service  log_command "systemctl daemon-reload"  log_command "systemctl enable frpc.service"    log_success "Systemd service created"}
 #
@@ -489,7 +492,8 @@ echo "arm"      ;;    *)      log_error "Unsupported architecture: $arch"      r
 # Start service temporarily  systemctl start frpc.service    
 # Wait a moment  sleep 3    
 # Check if running  if systemctl is-active --quiet frpc.service; then    log_success "FRPC service is running"        
-# Check logs for connection    if journalctl -u frpc.service -n 20 | grep -q "login to server success"; then      log_success "FRPC connected to server successfully"      return 0    else      log_warning "FRPC started but connection status unknown"      log_info "Check logs: journalctl -u frpc.service -f"    fi  else    log_error "FRPC service failed to start"    log_info "Check logs: journalctl -u frpc.service -n 50"    return 1  fi}
+# Check logs for connection    if journalctl -u frpc.service -n 20 | grep -q "login to server success"; then      log_success "FRPC connected to server successfully"      return 0    else      log_warning "FRPC started but connection status unknown"      log_info "Check logs: journalctl -u frpc.service -f"    fi
+else    log_error "FRPC service failed to start"    log_info "Check logs: journalctl -u frpc.service -n 50"    return 1  fi}
 #
 #
 #
@@ -788,8 +792,10 @@ echo "Check logs: journalctl -u frpc.service -n 20"
 #create_monitoring_check() {  log_info "Creating monitoring check..."    local check_script="/usr/lib/check_mk_agent/local/frpc_status"    mkdir -p "$(dirname "$check_script")"    cat > "$check_script" <<'EOF'
 #!/bin/bash
 # CheckMK Local Check: FRPC Status
-if systemctl is-active --quiet frpc.service; then  if journalctl -u frpc.service -n 5 | grep -q "login to server success\|start proxy success"; then
-    echo "0 FRPC_Status - FRPC service is running and connected"  else    
+if systemctl is-active --quiet frpc.service; then
+  if journalctl -u frpc.service -n 5 | grep -q "login to server success\|start proxy success"; then
+    echo "0 FRPC_Status - FRPC service is running and connected"
+else    
 echo "1 FRPC_Status - FRPC service is running but connection unclear"  fi
 else  
 echo "2 FRPC_Status - FRPC service is not running"fiEOF    chmod +x "$check_script"    log_success "Monitoring check created"}

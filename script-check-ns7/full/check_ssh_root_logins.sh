@@ -16,7 +16,6 @@ if [ "$SESSIONS" -gt 0 ]; then
     IPS=$(who | awk '$1=="root"{print $5}' | tr -d '()' | paste -sd "," -)
     
 echo "2 $SERVICE - $SESSIONS root session(s) from $IPS"
-else
-    
+else     
 echo "0 $SERVICE - no root sessions"
 fi

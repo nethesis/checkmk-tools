@@ -302,7 +302,9 @@ echo "Invalid choice. Please select 1 or 2."        ;;    esac  done}
 # "server" or "client"    log_info "Downloading FRP..."    local version="${FRPC_VERSION:-0.52.3}"local archlocal archarch=$(detect_architecture)  local download_url="https://github.com/fatedier/frp/releases/download/v${version}/frp_${version}_linux_${arch}.tar.gz"  local dest="/tmp/frp.tar.gz"    log_debug "Download URL: $download_url"    
 # Download from GitHub  if ! log_command "wget -O '$dest' '$download_url'"; then    log_error "Failed to download FRP"    return 1  fi    
 # Extract  log_command "tar -xzf '$dest' -C /tmp/"    
-# Find and copy binary  if [[ "$type" == "server" ]]; thenlocal frp_binlocal frp_binfrp_bin=$(find /tmp -name "frps" -type f | head -1)    if [[ -n "$frp_bin" ]]; then      cp "$frp_bin" "$FRP_INSTALL_DIR/frps"      chmod +x "$FRP_INSTALL_DIR/frps"      log_success "FRPS binary installed"    else      log_error "FRPS binary not found in archive"      return 1    fi  elselocal frp_binlocal frp_binfrp_bin=$(find /tmp -name "frpc" -type f | head -1)    if [[ -n "$frp_bin" ]]; then      cp "$frp_bin" "$FRP_INSTALL_DIR/frpc"      chmod +x "$FRP_INSTALL_DIR/frpc"      log_success "FRPC binary installed"    else      log_error "FRPC binary not found in archive"      return 1    fi  fi    
+# Find and copy binary  if [[ "$type" == "server" ]]; thenlocal frp_binlocal frp_binfrp_bin=$(find /tmp -name "frps" -type f | head -1)    if [[ -n "$frp_bin" ]]; then      cp "$frp_bin" "$FRP_INSTALL_DIR/frps"      chmod +x "$FRP_INSTALL_DIR/frps"      log_success "FRPS binary installed"
+else      log_error "FRPS binary not found in archive"      return 1    fi  elselocal frp_binlocal frp_binfrp_bin=$(find /tmp -name "frpc" -type f | head -1)    if [[ -n "$frp_bin" ]]; then      cp "$frp_bin" "$FRP_INSTALL_DIR/frpc"      chmod +x "$FRP_INSTALL_DIR/frpc"      log_success "FRPC binary installed"
+else      log_error "FRPC binary not found in archive"      return 1    fi  fi    
 # Cleanup  rm -rf /tmp/frp_* "$dest"}
 #
 #
@@ -609,10 +611,12 @@ FRPC_SSH_REMOTE_PORT="$ssh_remote_port"}
 #
 #
 #create_systemd_service() {  local type="$1"  
-# "server" or "client"    log_info "Creating systemd service..."    if [[ "$type" == "server" ]]; then    local service_file="/etc/systemd/system/frps.service"    local binary="frps"    local config="frps.toml"    local description="FRP Server"  else    local service_file="/etc/systemd/system/frpc.service"    local binary="frpc"    local config="frpc.toml"    local description="FRP Client"  fi    cat > "$service_file" <<EOF[Unit]Description=$descriptionAfter=network.targetWants=network-online.target[Service]Type=simpleUser=rootExecStart=$FRP_INSTALL_DIR/$binary -c $FRP_CONFIG_DIR/$configRestart=on-failureRestartSec=10StandardOutput=journalStandardError=journal
+# "server" or "client"    log_info "Creating systemd service..."    if [[ "$type" == "server" ]]; then    local service_file="/etc/systemd/system/frps.service"    local binary="frps"    local config="frps.toml"    local description="FRP Server"
+else    local service_file="/etc/systemd/system/frpc.service"    local binary="frpc"    local config="frpc.toml"    local description="FRP Client"  fi    cat > "$service_file" <<EOF[Unit]Description=$descriptionAfter=network.targetWants=network-online.target[Service]Type=simpleUser=rootExecStart=$FRP_INSTALL_DIR/$binary -c $FRP_CONFIG_DIR/$configRestart=on-failureRestartSec=10StandardOutput=journalStandardError=journal
 # Security settingsNoNewPrivileges=truePrivateTmp=trueProtectSystem=strictProtectHome=trueReadWritePaths=$FRP_LOG_DIR[Install]WantedBy=multi-user.targetEOF    
 # Reload and enable service  log_command "systemctl daemon-reload"  log_command "systemctl enable ${binary}.service"  log_command "systemctl start ${binary}.service"    
-# Wait and check status  sleep 2    if systemctl is-active --quiet ${binary}.service; then    log_success "$description service started successfully"  else    log_error "$description service failed to start"    log_info "Check logs: journalctl -u ${binary}.service -n 50"    return 1  fi}
+# Wait and check status  sleep 2    if systemctl is-active --quiet ${binary}.service; then    log_success "$description service started successfully"
+else    log_error "$description service failed to start"    log_info "Check logs: journalctl -u ${binary}.service -n 50"    return 1  fi}
 #
 #
 #
@@ -705,7 +709,8 @@ FRPC_SSH_REMOTE_PORT="$ssh_remote_port"}
 #
 #configure_firewall() {  local type="$1"    log_info "Configuring firewall..."    if [[ "$type" == "server" ]]; then    
 # Open FRP server port    log_command "ufw allow ${FRPS_BIND_PORT}/tcp comment 'FRP Server'"        
-# Open dashboard port (only from localhost ideally, but for simplicity allow all)    log_command "ufw allow ${FRPS_DASHBOARD_PORT}/tcp comment 'FRP Dashboard'"  else    
+# Open dashboard port (only from localhost ideally, but for simplicity allow all)    log_command "ufw allow ${FRPS_DASHBOARD_PORT}/tcp comment 'FRP Dashboard'"
+else    
 # Client: allow outgoing to FRP server    if [[ -n "${FRPC_SERVER_ADDR}" ]]; then      log_command "ufw allow out to ${FRPC_SERVER_ADDR} port ${FRPC_SERVER_PORT} proto tcp comment 'FRPC to server'"    fi  fi    log_success "Firewall configured"}
 #
 #
@@ -799,7 +804,8 @@ FRPC_SSH_REMOTE_PORT="$ssh_remote_port"}
 #
 #display_summary() {  local type="$1"    
 echo ""  print_separator "="  
-echo ""    if [[ "$type" == "server" ]]; then    display_box "FRPS Server Installation Complete!" \      "" \      "Binary: $FRP_INSTALL_DIR/frps" \      "Config: $FRP_CONFIG_DIR/frps.toml" \      "Logs: $FRP_LOG_DIR/frps.log" \      "" \      "Server listening on port: $FRPS_BIND_PORT" \      "Dashboard: http://$(hostname -I | awk '{print $1}'):$FRPS_DASHBOARD_PORT" \      "Token: $FRPS_TOKEN" \      "" \      "Commands:" \      "  systemctl status frps" \      "  journalctl -u frps -f" \      "" \      "Service: Active and enabled"  else    display_box "FRPC Client Installation Complete!" \      "" \      "Binary: $FRP_INSTALL_DIR/frpc" \      "Config: $FRP_CONFIG_DIR/frpc.toml" \      "Logs: $FRP_LOG_DIR/frpc.log" \      "" \      "Server: $FRPC_SERVER_ADDR:$FRPC_SERVER_PORT" \      "CheckMK remote port: $FRPC_REMOTE_PORT" \      "" \      "Commands:" \      "  systemctl status frpc" \      "  journalctl -u frpc -f" \      "" \      "Service: Active and enabled"  fi
+echo ""    if [[ "$type" == "server" ]]; then    display_box "FRPS Server Installation Complete!" \      "" \      "Binary: $FRP_INSTALL_DIR/frps" \      "Config: $FRP_CONFIG_DIR/frps.toml" \      "Logs: $FRP_LOG_DIR/frps.log" \      "" \      "Server listening on port: $FRPS_BIND_PORT" \      "Dashboard: http://$(hostname -I | awk '{print $1}'):$FRPS_DASHBOARD_PORT" \      "Token: $FRPS_TOKEN" \      "" \      "Commands:" \      "  systemctl status frps" \      "  journalctl -u frps -f" \      "" \      "Service: Active and enabled"
+else    display_box "FRPC Client Installation Complete!" \      "" \      "Binary: $FRP_INSTALL_DIR/frpc" \      "Config: $FRP_CONFIG_DIR/frpc.toml" \      "Logs: $FRP_LOG_DIR/frpc.log" \      "" \      "Server: $FRPC_SERVER_ADDR:$FRPC_SERVER_PORT" \      "CheckMK remote port: $FRPC_REMOTE_PORT" \      "" \      "Commands:" \      "  systemctl status frpc" \      "  journalctl -u frpc -f" \      "" \      "Service: Active and enabled"  fi
 echo ""  print_separator "="}
 #
 #
@@ -894,7 +900,8 @@ echo ""  print_separator "="}
 #main() {  log_info "Starting FRP setup..."    
 # Ask what to install  local install_type  install_type=$(ask_installation_type)    log_info "Installing FRP $install_type..."    
 # Download FRP  download_frp "$install_type"    
-# Configure  if [[ "$install_type" == "server" ]]; then    configure_frps  else    configure_frpc  fi    
+# Configure  if [[ "$install_type" == "server" ]]; then    configure_frps
+else    configure_frpc  fi    
 # Create systemd service  create_systemd_service "$install_type"    
 # Configure firewall  configure_firewall "$install_type"    log_module_end "$MODULE_NAME" "success"    display_summary "$install_type"}
 # Run main functionmain "$@"

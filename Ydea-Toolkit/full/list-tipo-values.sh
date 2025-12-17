@@ -42,7 +42,8 @@ echo "$required" | sed 's/ .*//' | tr '[:upper:]' '[:lower:]')    if
 echo "$tipo" | tr '[:upper:]' '[:lower:]' | grep -q "$keyword"; then
     found="$tipo"      break    fi  done < <(printf '%s\n' "${!TIPO_MAP[@]}")    if [[ -n "$found" ]]; then
     echo "  Ô£à $required"    
-echo "     ÔåÆ '$found'"  else    
+echo "     ÔåÆ '$found'"
+else    
 echo "  ÔØî $required"    
 echo "     ÔåÆ NON TROVATO"  fi
 echo ""done

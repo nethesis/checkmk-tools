@@ -13,8 +13,10 @@ echo "=== Installazione FRPC Client ==="
     OS_TYPE="rockylinux"
 elif grep -qi "nethserver" /etc/os-release; then
     OS_TYPE="nethserver"
-elif grep -qi "debian" /etc/os-release; then    if dpkg -l | grep -q pve-manager; then
-    OS_TYPE="proxmox"    else        
+elif grep -qi "debian" /etc/os-release; then
+    if dpkg -l | grep -q pve-manager; then
+    OS_TYPE="proxmox"
+else        
 OS_TYPE="debian"    fi
 else    
 OS_TYPE="altro"

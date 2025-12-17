@@ -40,18 +40,24 @@ VERSION_ID="?7' /etc/os-release ); then
 VERSION_ID="8" o ns8 nel nome)    elif [[ -f /etc/os-release ]] && grep -qE '
 VERSION_ID="?8|ns8|NethServer 8' /etc/os-release; then
     os_type="ns8"        
-# Rileva Proxmox    elif [[ -f /etc/pve/version ]]; then
+# Rileva Proxmox
+elif [[ -f /etc/pve/version ]]; then
     os_type="proxmox"        
-# Rileva Ubuntu/Debian    elif [[ -f /etc/os-release ]] && grep -qE "Ubuntu|Debian" /etc/os-release; then
+# Rileva Ubuntu/Debian
+elif [[ -f /etc/os-release ]] && grep -qE "Ubuntu|Debian" /etc/os-release; then
     os_type="ubuntu"        
-# Sistema generico    else        os_type="generic"    fi
+# Sistema generico
+else        os_type="generic"    fi
 echo "$os_type"}
 # ==========================================================
 # Funzioni di ricerca repository
 # ==========================================================find_repository() {    if [[ -d "/opt/checkmk-tools/.git" ]]; then
-    echo "/opt/checkmk-tools"    elif [[ -d "/root/checkmk-tools/.git" ]]; then
-    echo "/root/checkmk-tools"    elif [[ -d "$HOME/checkmk-tools/.git" ]]; then
-    echo "$HOME/checkmk-tools"    else        
+    echo "/opt/checkmk-tools"
+elif [[ -d "/root/checkmk-tools/.git" ]]; then
+    echo "/root/checkmk-tools"
+elif [[ -d "$HOME/checkmk-tools/.git" ]]; then
+    echo "$HOME/checkmk-tools"
+else        
 echo ""    fi}
 # ==========================================================
 # Funzioni di selezione script

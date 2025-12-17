@@ -60,11 +60,10 @@ install_agent_on_host() {
     if [[ "$OS_TYPE" =~ (debian|ubuntu) ]]; then
     echo -e "${GREEN}✓ Host Debian/Ubuntu rilevato, installo DEB...${NC}"
         ssh root@"$HOST" "wget -qO /tmp/check-mk-agent.deb '$DEB_FULL' && dpkg -i /tmp/check-mk-agent.deb; rm -f /tmp/check-mk-agent.deb"
-    elif [[ "$OS_TYPE" =~ (rhel|centos|rocky|almalinux|fedora) ]]; then
+elif [[ "$OS_TYPE" =~ (rhel|centos|rocky|almalinux|fedora) ]]; then
     echo -e "${GREEN}✓ Host RHEL/CentOS/Rocky rilevato, installo RPM...${NC}"
         ssh root@"$HOST" "wget -qO /tmp/check-mk-agent.rpm '$RPM_FULL' && rpm -Uvh /tmp/check-mk-agent.rpm; rm -f /tmp/check-mk-agent.rpm"
-    else
-        echo -e "${RED}✗ OS non supportato: $OS_TYPE${NC}"
+else         echo -e "${RED}✗ OS non supportato: $OS_TYPE${NC}"
         return 1
     fi
     

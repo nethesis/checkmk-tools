@@ -12,7 +12,8 @@ echo 0)        tx_packets=$(cat "/sys/class/net/$device/statistics/tx_packets" 2
 echo 0)        rx_errors=$(cat "/sys/class/net/$device/statistics/rx_errors" 2>/dev/null || 
 echo 0)        tx_errors=$(cat "/sys/class/net/$device/statistics/tx_errors" 2>/dev/null || 
 echo 0)                
-echo "$rx_bytes $tx_bytes $rx_packets $tx_packets $rx_errors $tx_errors"    else        
+echo "$rx_bytes $tx_bytes $rx_packets $tx_packets $rx_errors $tx_errors"
+else        
 echo "0 0 0 0 0 0"    fi}
 # Monitora WANfor iface in $wan_ifaces; do    device=$(get_device "$iface")    if [[ -n "$device" ]]; then        read -r rx_bytes tx_bytes rx_packets tx_packets rx_errors tx_errors < <(get_stats "$device")                status=0        if [[ $rx_errors -gt 100 || $tx_errors -gt 100 ]]; then
     status=1        fi

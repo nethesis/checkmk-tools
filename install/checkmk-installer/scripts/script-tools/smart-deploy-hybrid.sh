@@ -68,16 +68,19 @@ echo "ERROR: \$error_msg" >&2}
 # Validate script (CheckMK pattern)        if head -n 1 "\$temp_file" | grep -q "^
 #!/.*bash"; then            mv "\$temp_file" "\$CACHE_FILE"            chmod +x "\$CACHE_FILE"            
 echo "
-# Updated from GitHub \$(date)" > "\$CACHE_FILE.info"            return 0        else            rm -f "\$temp_file"            report_error "Invalid script format downloaded"            return 1        fi    else        rm -f "\$temp_file" 2>/dev/null        return 1    fi}
+# Updated from GitHub \$(date)" > "\$CACHE_FILE.info"            return 0        else            rm -f "\$temp_file"            report_error "Invalid script format downloaded"            return 1        fi
+else        rm -f "\$temp_file" 2>/dev/null        return 1    fi}
 # CheckMK-style logging (pattern dal repository ufficiale)log_info() {    [ "\${DEBUG:-false}" = "true" ] && 
 echo "
 # CheckMK Wrapper [\$SCRIPT_NAME]: \$1" >&2}
 # Main execution logic (CheckMK pattern)main() {    
 # Try update (silent, non-blocking)    if ! update_script >/dev/null 2>&1; then        log_info "GitHub update failed, using cached version"    fi    
 # Execute cached script with proper error handling    if [ -f "\$CACHE_FILE" ] && [ -x "\$CACHE_FILE" ]; then        log_info "Executing cached script (type: $script_type)"                
-# Execute with timeout and error handling (CheckMK pattern)        if timeout 30 "\$CACHE_FILE" 2>/dev/null; then            log_info "Script executed successfully"        else            local exit_code=\$?            report_error "Script execution failed with exit code \$exit_code"                        
+# Execute with timeout and error handling (CheckMK pattern)        if timeout 30 "\$CACHE_FILE" 2>/dev/null; then            log_info "Script executed successfully"
+else            local exit_code=\$?            report_error "Script execution failed with exit code \$exit_code"                        
 # CheckMK standard: still try to provide some output            if [ "\$SCRIPT_TYPE" = "local" ]; then
-    echo "2 \$SCRIPT_NAME - CRITICAL: Script execution failed"            fi        fi    else        
+    echo "2 \$SCRIPT_NAME - CRITICAL: Script execution failed"            fi        fi
+else        
 # No cached script available - report error in CheckMK format        if [ "\$SCRIPT_TYPE" = "local" ]; then
     echo "2 \$SCRIPT_NAME - CRITICAL: No script available (GitHub unreachable, no cache)"        fi        report_error "No cached script available"
     exit 2    fi}
@@ -87,7 +90,8 @@ echo "
 # FUNZIONI DI MONITORING (pattern CheckMK)
 # =====================================================check_plugin_health() {    local plugin_dir="$1"    local plugin_type="$2"        log "­ƒöì Checking $plugin_type plugins in $plugin_dir..."        if [ ! -d "$plugin_dir" ]; then        log "ÔÜá´©Å  Directory $plugin_dir non esiste"        return 1    fi        local count=0    local working=0    local errors=0        for script in "$plugin_dir"/*; do        [ -f "$script" ] || continue        count=$((count + 1))                if [ -x "$script" ]; then            
 # Test execution (timeout 5s)            if timeout 5 "$script" >/dev/null 2>&1; then
-    working=$((working + 1))            else                errors=$((errors + 1))                log "ÔØî $script failed execution test"            fi        else            errors=$((errors + 1))            log "ÔØî $script not executable"        fi    done        log "­ƒôè $plugin_type: $count total, $working working, $errors errors"    return $errors}create_deployment_status() {    local status_file="$CACHE_DIR/deployment_status.json"        cat > "$status_file" << EOF{    "deployment_date": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",    "environment": "$ENV_TYPE",    "cache_dir": "$CACHE_DIR",    "scripts_deployed": $(
+    working=$((working + 1))            else                errors=$((errors + 1))                log "ÔØî $script failed execution test"            fi
+else            errors=$((errors + 1))            log "ÔØî $script not executable"        fi    done        log "­ƒôè $plugin_type: $count total, $working working, $errors errors"    return $errors}create_deployment_status() {    local status_file="$CACHE_DIR/deployment_status.json"        cat > "$status_file" << EOF{    "deployment_date": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",    "environment": "$ENV_TYPE",    "cache_dir": "$CACHE_DIR",    "scripts_deployed": $(
 echo "${!SCRIPTS[@]}" | wc -w),    "directories": {        "local": "$CHECKMK_LOCAL_DIR",        "plugins": "$CHECKMK_PLUGIN_DIR",        "spool": "$CHECKMK_SPOOL_DIR",        "notifications": "$CHECKMK_NOTIFICATION_DIR"    }}EOF        log "­ƒôï Status saved to $status_file"}
 # =====================================================
 # SETUP INIZIALE
@@ -103,7 +107,8 @@ fi # Crea directory cachemkdir -p "$CACHE_DIR"log "­ƒôé Cache directory: $CA
 # =====================================================log "­ƒôÑ Deploying scripts..."for script_entry in "${!SCRIPTS[@]}"; do    
 # Parse entry: "path:type"    
 IFS=':' read -r github_path script_type <<< "${SCRIPTS[$script_entry]}"        log "­ƒöä Processing $script_entry (type: $script_type)..."        
-# Download iniziale per popolare la cache    cache_file="$CACHE_DIR/${script_entry}.sh"    if curl -s --max-time 10 --fail "$BASE_URL/$github_path" -o "$cache_file"; then        chmod +x "$cache_file"        log "Ô£à Cache iniziale per $script_entry creata"    else        log "ÔÜá´©Å  Warning: Impossibile scaricare $script_entry (continuo comunque)"    fi        
+# Download iniziale per popolare la cache    cache_file="$CACHE_DIR/${script_entry}.sh"    if curl -s --max-time 10 --fail "$BASE_URL/$github_path" -o "$cache_file"; then        chmod +x "$cache_file"        log "Ô£à Cache iniziale per $script_entry creata"
+else        log "ÔÜá´©Å  Warning: Impossibile scaricare $script_entry (continuo comunque)"    fi        
 # Crea wrapper smart    create_smart_wrapper "$script_entry" "$github_path" "$script_type"
 done # =====================================================
 # POST-DEPLOYMENT: STATUS E MAINTENANCE
@@ -119,10 +124,13 @@ echo "­ƒöä Manual update of all CheckMK scripts..."
 echo "­ƒôí Repository: $GITHUB_REPO"declare -A 
 SCRIPTS=(    ["check_cockpit_sessions"]="script-check-ns7/check_cockpit_sessions.sh"    ["check_dovecot_status"]="script-check-ns7/check_dovecot_status.sh"    ["check_ssh_root_sessions"]="script-check-ns7/check_ssh_root_sessions.sh"    ["check_postfix_status"]="script-check-ns7/check_postfix_status.sh"    ["telegram_realip"]="script-notify-checkmk/telegram_realip")
 for script_name in "${!SCRIPTS[@]}"; do    github_path="${SCRIPTS[$script_name]}"    cache_file="${script_name}.sh"        
-echo "Ô¼¼ Updating $script_name..."        if curl -s --max-time 10 --fail "$BASE_URL/$github_path" -o "$cache_file.tmp"; then        if head -n 1 "$cache_file.tmp" | grep -q "^
+echo "Ô¼¼ Updating $script_name..."        if curl -s --max-time 10 --fail "$BASE_URL/$github_path" -o "$cache_file.tmp"; then
+        if head -n 1 "$cache_file.tmp" | grep -q "^
 #!/.*bash"; then            mv "$cache_file.tmp" "$cache_file"            chmod +x "$cache_file"            
-echo "Ô£à $script_name updated"        else            rm -f "$cache_file.tmp"            
-echo "ÔØî $script_name invalid format"        fi    else        rm -f "$cache_file.tmp" 2>/dev/null        
+echo "Ô£à $script_name updated"
+else            rm -f "$cache_file.tmp"            
+echo "ÔØî $script_name invalid format"        fi
+else        rm -f "$cache_file.tmp" 2>/dev/null        
 echo "ÔØî $script_name download failed"    fi
 done
 echo "­ƒÅü Update completed"EOFchmod +x "$CACHE_DIR/update-all.sh"
@@ -134,7 +142,8 @@ echo "­ƒôè CheckMK Scripts Health Status"
 echo "=================================="
 # Check directoriesfor dir in "/usr/lib/check_mk_agent/local" "/usr/lib/check_mk_agent/plugins" "/usr/lib/check_mk_agent/spool"; do    if [ -d "$dir" ]; then
     count=$(find "$dir" -maxdepth 1 -type f -executable | wc -l)        
-echo "­ƒôü $dir: $count scripts"    else        
+echo "­ƒôü $dir: $count scripts"
+else        
 echo "ÔØî $dir: not found"    fi
 done
 # Check cache
@@ -158,7 +167,8 @@ echo "­ƒôÑ Aggiornan
 do $script_name..."        
 # Forza update eseguen
 do il wrapper    if /usr/lib/check_mk_agent/local/"$script_name" >/dev/null 2>&1; then
-    echo "Ô£à $script_name aggiornato"    else        
+    echo "Ô£à $script_name aggiornato"
+else        
 echo "ÔÜá´©Å  $script_name: problema nell'aggiornamento"    fi
 done
 echo "­ƒÄë Aggiornamento completato!"EOFchmod +x "$CACHE_DIR/update-all.sh"

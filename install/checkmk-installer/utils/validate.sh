@@ -27,12 +27,16 @@ IFS='.'    local -a octets=($ip)    for octet in "${octets[@]}"; do      [[ $oct
 NR==2 {print $4}' | sed 's/M//')    [[ $available_mb -ge $required_mb ]]}
 # Validate system requirementsvalidate_system_requirements() {  local errors=0    print_info "Verifica requisiti sistema..."    
 # Check if running as root  if [[ $EUID -ne 0 ]]; then    print_error "Questo script deve essere eseguito come root"    ((errors++))  else    print_success "Permessi root: OK"  fi    
-# Check disk space (at least 5GB)  if validate_disk_space "/" 5000; then    print_success "Spazio disco: OK"  else    print_error "Spazio disco insufficiente (minimo 5GB richiesti)"    ((errors++))  fi    
+# Check disk space (at least 5GB)  if validate_disk_space "/" 5000; then    print_success "Spazio disco: OK"
+else    print_error "Spazio disco insufficiente (minimo 5GB richiesti)"    ((errors++))  fi    
 # Check memory (at least 2GB)local mem_mblocal mem_mbmem_mb=$(free -m | awk '
-NR==2 {print $2}')  if [[ $mem_mb -ge 2000 ]]; then    print_success "Memoria RAM: OK (${mem_mb}MB)"  else    print_warning "Memoria RAM bassa (${mem_mb}MB, consigliati almeno 2GB)"  fi    
-# Check internet connection (optional)  if ping -c 1 8.8.8.8 &>/dev/null; then    print_success "Connessione internet: OK"  else    print_warning "Connessione internet non disponibile (modalit├á offline)"  fi    
+NR==2 {print $2}')  if [[ $mem_mb -ge 2000 ]]; then    print_success "Memoria RAM: OK (${mem_mb}MB)"
+else    print_warning "Memoria RAM bassa (${mem_mb}MB, consigliati almeno 2GB)"  fi    
+# Check internet connection (optional)  if ping -c 1 8.8.8.8 &>/dev/null; then    print_success "Connessione internet: OK"
+else    print_warning "Connessione internet non disponibile (modalit├á offline)"  fi    
 # Check required commands  local required_commands=("curl" "wget" "jq" "systemctl" "apt-get")  for cmd in "${required_commands[@]}"; do    if command -v "$cmd" &>/dev/null; then      print_success "Coman
-do '$cmd': OK"    else      print_warning "Coman
+do '$cmd': OK"
+else      print_warning "Coman
 do '$cmd': NON TROVATO (verr├á installato)"    fi  done    return $errors}
 # Input validation wrappersinput_ip() {  local prompt="$1"  local default="$2"    while true; dolocal iplocal ipip=$(input_text "$prompt" "$default")    if validate_ip "$ip"; then
     echo "$ip"      return 0    else      print_error "Indirizzo IP non vali

@@ -13,7 +13,8 @@ echo "[ERRORE] Installazione fallita. Controllare il log: $LOG_FILE"
     exit 1            }        else            
 echo "[WARN] Pacchetto grub-btrfs non disponibile nei repository. Proseguo senza." | tee -a "$LOG_FILE"            apt-get install -y timeshift inotify-tools >>"$LOG_FILE" 2>&1 || {                
 echo "[ERRORE] Installazione Timeshift non riuscita. Controllare il log: $LOG_FILE"
-    exit 1            }        fi    else        
+    exit 1            }        fi
+else        
 echo "[INFO] Installazione Timeshift saltata su richiesta dell'utente." | tee -a "$LOG_FILE"
     exit 0    fi
 fi

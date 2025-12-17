@@ -112,7 +112,8 @@ echo "${YELLOW}ÔÜá´©Å  FRPS installation detected${NC}"
 echo ""        if [[ "$frps_exists" == "true" ]]; then
     echo "Binary found: $FRP_INSTALL_DIR/frps"    fi        if [[ "$service_exists" == "true" ]]; then
     echo "Service found: frps.service"      if systemctl is-active --quiet frps.service; then
-    echo "Status: ${GREEN}Active${NC}"      else        
+    echo "Status: ${GREEN}Active${NC}"
+else        
 echo "Status: ${RED}Inactive${NC}"      fi    fi        if [[ -f "$FRP_CONFIG_DIR/frps.toml" ]]; then
     echo "Config found: $FRP_CONFIG_DIR/frps.toml"    fi
 echo ""    read -r -p "Reinstall FRPS? This will overwrite existing installation (y/n): " reinstall        if [[ "$reinstall" != "y" ]]; then      log_info "Installation cancelled by user"
@@ -305,7 +306,8 @@ echo "arm"      ;;    *)      log_error "Unsupported architecture: $arch"      r
 #download_frps() {  log_info "Downloading FRPS..."    local version="${FRPC_VERSION:-0.52.3}"local archlocal archarch=$(detect_architecture)  local download_url="https://github.com/fatedier/frp/releases/download/v${version}/frp_${version}_linux_${arch}.tar.gz"  local dest="/tmp/frp.tar.gz"    log_debug "Download URL: $download_url"    
 # Download from GitHub  if ! log_command "wget -O '$dest' '$download_url'"; then    log_error "Failed to download FRP"    return 1  fi    
 # Extract  log_command "tar -xzf '$dest' -C /tmp/"    
-# Find and copy FRPS binarylocal frps_binlocal frps_binfrps_bin=$(find /tmp -name "frps" -type f | head -1)  if [[ -n "$frps_bin" ]]; then    cp "$frps_bin" "$FRP_INSTALL_DIR/frps"    chmod +x "$FRP_INSTALL_DIR/frps"    log_success "FRPS binary installed"  else    log_error "FRPS binary not found in archive"    return 1  fi    
+# Find and copy FRPS binarylocal frps_binlocal frps_binfrps_bin=$(find /tmp -name "frps" -type f | head -1)  if [[ -n "$frps_bin" ]]; then    cp "$frps_bin" "$FRP_INSTALL_DIR/frps"    chmod +x "$FRP_INSTALL_DIR/frps"    log_success "FRPS binary installed"
+else    log_error "FRPS binary not found in archive"    return 1  fi    
 # Cleanup  rm -rf /tmp/frp_* "$dest"}
 #
 #
@@ -508,7 +510,8 @@ FRPS_TOKEN="$token"}
 #create_systemd_service() {  log_info "Creating systemd service..."    local service_file="/etc/systemd/system/frps.service"    cat > "$service_file" <<EOF[Unit]Description=FRP ServerAfter=network.targetWants=network-online.target[Service]Type=simpleUser=rootExecStart=$FRP_INSTALL_DIR/frps -c $FRP_CONFIG_DIR/frps.tomlRestart=on-failureRestartSec=10StandardOutput=journalStandardError=journal
 # Security settingsNoNewPrivileges=truePrivateTmp=trueProtectSystem=strictProtectHome=trueReadWritePaths=$FRP_LOG_DIR[Install]WantedBy=multi-user.targetEOF    
 # Reload and enable service  log_command "systemctl daemon-reload"  log_command "systemctl enable frps.service"  log_command "systemctl start frps.service"    
-# Wait and check status  sleep 2    if systemctl is-active --quiet frps.service; then    log_success "FRPS service started successfully"  else    log_error "FRPS service failed to start"    log_info "Check logs: journalctl -u frps.service -n 50"    return 1  fi}
+# Wait and check status  sleep 2    if systemctl is-active --quiet frps.service; then    log_success "FRPS service started successfully"
+else    log_error "FRPS service failed to start"    log_info "Check logs: journalctl -u frps.service -n 50"    return 1  fi}
 #
 #
 #

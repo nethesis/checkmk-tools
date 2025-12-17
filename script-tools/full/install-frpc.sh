@@ -9,15 +9,19 @@ FRP_URL_DEFAULT="https://github.com/fatedier/frp/releases/download/v${FRP_VERSIO
 echo "=== Installazione FRPC Client ==="
 # ----------------------------
 # 1. Rileva sistema operativo
-# ----------------------------if grep -qi "rocky" /etc/os-release; then
+# ----------------------------
+if grep -qi "rocky" /etc/os-release; then
     OS_TYPE="rockylinux"
 elif grep -qi "nethserver" /etc/os-release; then
     OS_TYPE="nethserver"
-elif grep -qi "debian" /etc/os-release; then    if dpkg -l | grep -q pve-manager; then
-    OS_TYPE="proxmox"    else        
-OS_TYPE="debian"    fi
-else    
-OS_TYPE="altro"
+elif grep -qi "debian" /etc/os-release; then
+    if dpkg -l | grep -q pve-manager; then
+        OS_TYPE="proxmox"
+    else
+        OS_TYPE="debian"
+    fi
+else
+    OS_TYPE="altro"
 fi
 echo "Rilevato sistema operativo: $OS_TYPE"
 # ----------------------------

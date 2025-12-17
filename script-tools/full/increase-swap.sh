@@ -38,17 +38,14 @@ if [[ -z "$SWAPFILE" ]]; then
     if [[ "$AUTO_YES" == true ]]; then
     SWAPFILE="/swapfile"
         echo -e "${GREEN}Creazione nuovo swapfile: $SWAPFILE${NC}"
-    else
-        echo "Vuoi creare un nuovo swapfile da 16GB? (s/n)"
+else         echo "Vuoi creare un nuovo swapfile da 16GB? (s/n)"
         read -r CREATE_NEW
         if [[ "$CREATE_NEW" =~ ^[Ss]$ ]]; then
     SWAPFILE="/swapfile"
-        else
-            exit 1
+else             exit 1
         fi
     fi
-else
-    echo -e "${GREEN}Swapfile esistente: $SWAPFILE${NC}"
+else     echo -e "${GREEN}Swapfile esistente: $SWAPFILE${NC}"
 fi
 
 SWAP_SIZE_OLD=$(swapon --show=SIZE --noheadings --bytes | head -n1)
@@ -64,8 +61,7 @@ if [[ "$AUTO_YES" == false ]]; then
     echo "Operazione annullata"
     exit 0
     fi
-else
-    echo -e "${GREEN}Modalità automatica: procedura avviata${NC}"
+else     echo -e "${GREEN}Modalità automatica: procedura avviata${NC}"
 fi
 
 # Disattiva swap esistente
@@ -103,8 +99,7 @@ echo -e "${YELLOW}6. Verifica fstab...${NC}"
 if ! grep -q "^$SWAPFILE" /etc/fstab; then
     echo "$SWAPFILE none swap sw 0 0" >> /etc/fstab
     echo -e "${GREEN}✓ Entry aggiunta a /etc/fstab${NC}"
-else
-    echo -e "${GREEN}✓ Entry già presente in /etc/fstab${NC}"
+else     echo -e "${GREEN}✓ Entry già presente in /etc/fstab${NC}"
 fi
 
 # Ottimizza swappiness (usa swap solo quan
@@ -114,8 +109,7 @@ if ! grep -q "vm.swappiness" /etc/sysctl.conf; then
     echo "vm.swappiness=10" >> /etc/sysctl.conf
     sysctl -w vm.swappiness=10
     echo -e "${GREEN}✓ Swappiness impostato a 10 (conservativo)${NC}"
-else
-    echo -e "${GREEN}✓ Swappiness già configurato${NC}"
+else     echo -e "${GREEN}✓ Swappiness già configurato${NC}"
 fi
 
 # Mostra risultato finale

@@ -25,7 +25,8 @@ elif [[ -d "${INSTALLER_ROOT}/../../script-notify-checkmk" ]]; then
 SCRIPTS_SRC="$(cd "${INSTALLER_ROOT}/../.." && pwd)"  log_debug "Using local repository: $SCRIPTS_SRC"
 else  
 # Check one level up from installer root  parent_dir="$(dirname "$INSTALLER_ROOT")"  if [[ -d "$parent_dir/script-notify-checkmk" ]]; then
-    SCRIPTS_SRC="$parent_dir"    log_debug "Using parent directory: $SCRIPTS_SRC"  else    
+    SCRIPTS_SRC="$parent_dir"    log_debug "Using parent directory: $SCRIPTS_SRC"
+else    
 # Fallback to installer root    
 SCRIPTS_SRC="$INSTALLER_ROOT"    log_warning "Scripts not found in expected locations, using: $SCRIPTS_SRC"  fifilog_info "Script source: $SCRIPTS_SRC"
 #

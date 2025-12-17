@@ -16,7 +16,7 @@ if [[ -z "${YDEA_ID:-}" ]] || [[ -z "${YDEA_API_KEY:-}" ]]; then
     
 # shellcheck disable=SC1090,SC1091
     source "$SCRIPT_DIR/.env"
-  elif [[ -f "/opt/ydea-toolkit/.env" ]]; then
+elif [[ -f "/opt/ydea-toolkit/.env" ]]; then
     
 # shellcheck disable=SC1091
     source "/opt/ydea-toolkit/.env"
@@ -229,8 +229,7 @@ ensure_token() {
   if token_is_fresh; then
     log_debug "Token ancora vali
 do"
-  else
-    log_info "Token scaduto o mancante, effettuo il login..."
+else     log_info "Token scaduto o mancante, effettuo il login..."
     ydea_login
   fi
 }
@@ -572,7 +571,8 @@ echo "$ticket_data" | jq -r '.priorita // "Normale"')
 local assegnato_a
 local assegnato_a
 assegnato_a=$(
-echo "$ticket_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA else "Non assegnato" end')
+echo "$ticket_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA
+else "Non assegnato" end')
   
   
 # Aggiungi al tracking
@@ -616,10 +616,10 @@ echo "")
     log_warn "Ticket 
 #$ticket_id giÔö£├í tracciato, aggiorno contatore"
     jq --arg tid "$ticket_id" --arg now "$now" \
-      '.tickets |= map(if .ticket_id == ($tid|tonumber) then .checks_count += 1 | .last_update = $now else . end) | .last_update = $now' \
+      '.tickets |= map(if .ticket_id == ($tid|tonumber) then .checks_count += 1 | .last_update = $now
+else . end) | .last_update = $now' \
       "$YDEA_TRACKING_FILE" > "${YDEA_TRACKING_FILE}.tmp" && mv "${YDEA_TRACKING_FILE}.tmp" "$YDEA_TRACKING_FILE"
-  else
-    log_info "Aggiunto ticket 
+else     log_info "Aggiunto ticket 
 #$ticket_id al tracking"
     jq --argjson entry "$new_entry" --arg now "$now" \
       '.tickets += [$entry] | .last_update = $now' \
@@ -696,7 +696,8 @@ echo "$ticket_obj" | jq -r '.priorita // "Normale"')
 local assegnato_a
 local assegnato_a
 assegnato_a=$(
-echo "$ticket_obj" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA else "Non assegnato" end')
+echo "$ticket_obj" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA
+else "Non assegnato" end')
     
     
 # Controlla se risolto
@@ -704,7 +705,8 @@ echo "$ticket_obj" | jq -r 'if .assegnatoA | type == "object" then (if (.assegna
       log_success "├ö┬ú├á Ticket 
 #$ticket_id RISOLTO (stato: $stato)"
       jq --arg tid "$ticket_id" --arg stato "$stato" --arg desc "$descrizione_ticket" --arg prio "$priorita" --arg assegnato "$assegnato_a" --arg now "$now" \
-        '.tickets |= map(if .ticket_id == ($tid|tonumber) then .stato = $stato | .descrizione_ticket = $desc | .priorita = $prio | .assegnatoA = $assegnato | .resolved_at = $now | .last_update = $now else . end) | .last_update = $now' \
+        '.tickets |= map(if .ticket_id == ($tid|tonumber) then .stato = $stato | .descrizione_ticket = $desc | .priorita = $prio | .assegnatoA = $assegnato | .resolved_at = $now | .last_update = $now
+else . end) | .last_update = $now' \
         "$YDEA_TRACKING_FILE" > "${YDEA_TRACKING_FILE}.tmp" && mv "${YDEA_TRACKING_FILE}.tmp" "$YDEA_TRACKING_FILE"
       resolved=$((resolved + 1))
     else
@@ -749,8 +751,7 @@ cutoff_date=$(date -u -d "@$cutoff_epoch" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || d
   
   if [[ $removed -gt 0 ]]; then
     log_success "Rimossi $removed ticket risolti vecchi"
-  else
-    log_info "Nessun ticket da rimuovere"
+else     log_info "Nessun ticket da rimuovere"
   fi
 }
 
@@ -857,8 +858,7 @@ echo ""
   if [[ -n "$current_id" ]]; then
     read -r -p "YDEA_ID [$current_id]: " new_id
     new_id="${new_id:-$current_id}"
-  else
-    read -r -p "YDEA_ID: " new_id
+else     read -r -p "YDEA_ID: " new_id
     while [[ -z "$new_id" ]]; do
       
 echo "├ö├ÿ├« YDEA_ID Ôö£┬┐ obbligatorio!"
@@ -871,8 +871,7 @@ echo "├ö├ÿ├« YDEA_ID Ôö£┬┐ obbligatorio!"
   if [[ -n "$current_key" ]]; then
     read -r -p "YDEA_API_KEY [***nascosta***] (invio per mantenere): " new_key
     new_key="${new_key:-$current_key}"
-  else
-    read -r -p "YDEA_API_KEY: " new_key
+else     read -r -p "YDEA_API_KEY: " new_key
     while [[ -z "$new_key" ]]; do
       
 echo "├ö├ÿ├« YDEA_API_KEY Ôö£┬┐ obbligatoria!"
@@ -1208,8 +1207,7 @@ show_logs() {
   local lines="${1:-50}"
   if [[ -f "$YDEA_LOG_FILE" ]]; then
     tail -n "$lines" "$YDEA_LOG_FILE"
-  else
-    
+else     
 echo "File di log non trovato: $YDEA_LOG_FILE" >&2
     return 1
   fi
@@ -1221,8 +1219,7 @@ clear_log() {
   if [[ -f "$YDEA_LOG_FILE" ]]; then
     : > "$YDEA_LOG_FILE"
     log_info "File di log pulito: $YDEA_LOG_FILE"
-  else
-    log_warn "File di log non esistente: $YDEA_LOG_FILE"
+else     log_warn "File di log non esistente: $YDEA_LOG_FILE"
   fi
 }
 

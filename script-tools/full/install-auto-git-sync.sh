@@ -47,8 +47,7 @@ elif [[ -d "/root/checkmk-tools/.git" ]]; then
     REPO_DIR="/root/checkmk-tools"
 elif [[ -d "$HOME/checkmk-tools/.git" ]]; then
     REPO_DIR="$HOME/checkmk-tools"
-else
-    echo "❌ Repository checkmk-tools non trovato"
+else     echo "❌ Repository checkmk-tools non trovato"
     echo "   Posizioni cercate:"
     echo "   - /opt/checkmk-tools (consigliato)"
     echo "   - /root/checkmk-tools"
@@ -157,8 +156,7 @@ fi
 if touch /var/log/auto-git-sync.log 2>/dev/null; then
     chown "$REPO_OWNER:$REPO_OWNER" /var/log/auto-git-sync.log 2>/dev/null || echo "⚠️  Impossibile cambiare owner del log file"
     echo "✅ Log file preparato"
-else
-    echo "⚠️  Impossibile creare log file, verrà usato journalctl"
+else     echo "⚠️  Impossibile creare log file, verrà usato journalctl"
 fi
 
 # Crea service file personalizzato che esegue direttamente da GitHub
@@ -273,8 +271,7 @@ if [[ "$start_now" =~ ^[sS]$ ]]; then
     echo ""
     sleep 2
     systemctl status auto-git-sync --no-pager
-else
-    echo ""
+else     echo ""
     echo "ℹ️  Servizio non avviato. Usa 'systemctl start auto-git-sync' per avviarlo."
 fi
 echo ""

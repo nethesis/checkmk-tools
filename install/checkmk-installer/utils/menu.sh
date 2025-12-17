@@ -26,10 +26,12 @@ echo "=========================================="  for line in "$@"; do
 echo "  $line"  done
 echo "=========================================="  
 echo ""}input_text() {  local prompt="$1"  local default="$2"  local result    if [[ -n "$default" ]]; then    read -r -p "$prompt [$default]: " result    
-echo "${result:-$default}"  else    read -r -p "$prompt: " result    
+echo "${result:-$default}"
+else    read -r -p "$prompt: " result    
 echo "$result"  fi}input_password() {  local prompt="$1"  local result    read -s -p "$prompt: " result  
 echo "" >&2  
-echo "$result"}input_number() {  local prompt="$1"  local default="$2"  local result    while true; do    if [[ -n "$default" ]]; then      read -r -p "$prompt [$default]: " result      result="${result:-$default}"    else      read -r -p "$prompt: " result    fi        if [[ "$result" =~ ^[0-9]+$ ]]; then
+echo "$result"}input_number() {  local prompt="$1"  local default="$2"  local result    while true; do    if [[ -n "$default" ]]; then      read -r -p "$prompt [$default]: " result      result="${result:-$default}"
+else      read -r -p "$prompt: " result    fi        if [[ "$result" =~ ^[0-9]+$ ]]; then
     echo "$result"      return 0    fi
 echo "Enter a valid number" >&2  done}select_from_list() {  local prompt="$1"  shift  local options=("$@")    
 echo "" >&2  
