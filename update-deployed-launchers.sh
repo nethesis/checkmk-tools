@@ -3,7 +3,8 @@
 echo "­ƒöä Aggiornamento launcher sul server..."
 echo ""
 REPO_DIR="/opt/checkmk-tools"updated=0errors=0
-# Verifica che il repo esistaif [[ ! -d "$REPO_DIR" ]]; then  
+# Verifica che il repo esista
+if [[ ! -d "$REPO_DIR" ]]; then  
 echo "ÔØî ERRORE: Directory repo non trovata: $REPO_DIR"  exit 1fi
 # Trova tutti i launcher nel repowhile 
 IFS= read -r repo_launcher; do  launcher_name=$(basename "$repo_launcher")    
@@ -20,6 +21,7 @@ echo "ÔØî ERRORE: impossibile aggiornare $deployed_path"        ((errors++)) 
 echo ""
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo "Ô£à Completato!"
-echo "   ­ƒôØ $updated launcher aggiornati"if [[ $errors -gt 0 ]]; then  
-echo "   ÔØî $errors errori"fi
-echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
+echo "   ­ƒôØ $updated launcher aggiornati"
+if [[ $errors -gt 0 ]]; then  
+echo "   ÔØî $errors errori"
+fi echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"

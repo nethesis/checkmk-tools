@@ -8,9 +8,11 @@ TOOLKIT_DIR="${YDEA_TOOLKIT_DIR:-/opt/ydea-toolkit}"
 YDEA_TOOLKIT="${TOOLKIT_DIR}/ydea-toolkit.sh"
 YDEA_ENV="${TOOLKIT_DIR}/.env"
 TRACKING_FILE="${YDEA_TRACKING_FILE:-/var/log/ydea-tickets-tracking.json}"
-# Carica variabili ambiente se disponibiliif [[ -f "$YDEA_ENV" ]]; then  
-# shellcheck disable=SC1090  source "$YDEA_ENV"fi
-# Verifica che il toolkit esistaif [[ ! -x "$YDEA_TOOLKIT" ]]; then  
+# Carica variabili ambiente se disponibili
+if [[ -f "$YDEA_ENV" ]]; then  
+# shellcheck disable=SC1090  source "$YDEA_ENV"
+fi # Verifica che il toolkit esista
+if [[ ! -x "$YDEA_TOOLKIT" ]]; then  
 echo "ERRORE: ydea-toolkit.sh non trovato o non eseguibile: $YDEA_TOOLKIT"  exit 1fi
 # ===== LOGGING HELPER =====log_ticket_event() {  local event_type="$1"  local ticket_id="$2"  local details="${3:-}"  
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] [TICKET-EVENT] [$event_type] 
@@ -40,12 +42,14 @@ echo "$api_data" | jq --arg tid "$tid" '.objs[] | select(.id == ($tid|tonumber))
 echo "$ticket_api_data" | jq -r '.stato // "Sconosciuto"')      current_desc=$(
 echo "$ticket_api_data" | jq -r '.descrizione // ""')      current_prio=$(
 echo "$ticket_api_data" | jq -r '.priorita // "Normale"')      current_assegnato=$(
-echo "$ticket_api_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA else "Non assegnato" end')            
+echo "$ticket_api_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) el
+if .assegnatoA then .assegnatoA else "Non assegnato" end')            
 # Rileva modifica descrizione      if [[ -n "$prev_desc" && "$current_desc" != "$prev_desc" ]]; then        log_ticket_event "DESCRIZIONE-MODIFICATA" "$tid" "[$codice] Host: $host, Service: $service"      fi            
 # Rileva modifica priorita      if [[ "$current_prio" != "$prev_prio" ]]; then        log_ticket_event "PRIORITA-MODIFICATA" "$tid" "[$codice] $prev_prio ÔåÆ $current_prio - Host: $host, Service: $service"      fi            
 # Rileva cambio assegnazione      if [[ "$current_assegnato" != "$prev_assegnato" ]]; then        log_ticket_event "ASSEGNAZIONE-MODIFICATA" "$tid" "[$codice] $prev_assegnato ÔåÆ $current_assegnato - Host: $host, Service: $service"      fi            
 # Se ticket ├¿ diventato risolto      if [[ "$current_stato" =~ ^(Effettuato|Chiuso|Completato|Risolto)$ ]] && [[ "$prev_stato" != "$current_stato" ]]; then        log_ticket_event "RISOLTO" "$tid" "[$codice] Host: $host, Service: $service, Stato: $prev_stato ÔåÆ $current_stato"      
-# Se lo stato ├¿ cambiato ma non ├¿ risolto      elif [[ -n "$prev_stato" && "$prev_stato" != "NUOVO" && "$prev_stato" != "$current_stato" ]]; then        log_ticket_event "STATO-CAMBIATO" "$tid" "[$codice] $prev_stato ÔåÆ $current_stato (Host: $host, Service: $service)"      fi    done < <(jq -r '.tickets[] | select(.resolved_at == null) | "\(.ticket_id)|\(.stato)|\(.host)|\(.service)|\(.codice)"' "$TRACKING_FILE" 2>/dev/null || true)  fi    
+# Se lo stato ├¿ cambiato ma non ├¿ risolto      el
+if [[ -n "$prev_stato" && "$prev_stato" != "NUOVO" && "$prev_stato" != "$current_stato" ]]; then        log_ticket_event "STATO-CAMBIATO" "$tid" "[$codice] $prev_stato ÔåÆ $current_stato (Host: $host, Service: $service)"      fi    done < <(jq -r '.tickets[] | select(.resolved_at == null) | "\(.ticket_id)|\(.stato)|\(.host)|\(.service)|\(.codice)"' "$TRACKING_FILE" 2>/dev/null || true)  fi    
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Ô£à Aggiornamento stati completato"    
 # Pulisci ticket risolti vecchi (ogni 6 ore, controlla se ultima pulizia > 6h fa)  local cleanup_marker="/tmp/ydea_last_cleanup"local nowlocal nownow=$(date +%s)  local last_cleanup=0    if [[ -f "$cleanup_marker" ]]; then    last_cleanup=$(cat "$cleanup_marker")  fi    local hours_since_cleanup=$(( (now - last_cleanup) / 3600 ))    if [[ $hours_since_cleanup -ge 6 ]]; then    
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] ­ƒº╣ Eseguo pulizia ticket risolti vecchi..."    "$YDEA_TOOLKIT" cleanup-tracking    

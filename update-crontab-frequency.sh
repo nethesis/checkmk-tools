@@ -4,7 +4,14 @@ echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔ
 echo "  Configurazione frequenza ticket-monitor"
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo ""
-# Mostra configurazione attualecurrent_freq=$(crontab -l 2>/dev/null | grep "ydea-ticket-monitor.sh" | awk '{print $1}')if [[ "$current_freq" == "*/5" ]]; then  current_text="5 minuti"elif [[ "$current_freq" == "*/10" ]]; then  current_text="10 minuti"elif [[ "$current_freq" == "*/15" ]]; then  current_text="15 minuti"elif [[ "$current_freq" == "*/30" ]]; then  current_text="30 minuti"else  current_text="$current_freq (personalizzato)"fi
+# Mostra configurazione attualecurrent_freq=$(crontab -l 2>/dev/null | grep "ydea-ticket-monitor.sh" | awk '{print $1}')if [[ "$current_freq" == "*/5" ]]; then  current_text="5 minuti"
+el
+if [[ "$current_freq" == "*/10" ]]; then  current_text="10 minuti"
+el
+if [[ "$current_freq" == "*/15" ]]; then  current_text="15 minuti"
+el
+if [[ "$current_freq" == "*/30" ]]; then  current_text="30 minuti"
+else  current_text="$current_freq (personalizzato)"fi
 echo "­ƒôè Frequenza attuale: $current_text ($current_freq)"
 echo ""
 echo "Scegli nuova frequenza:"
@@ -22,7 +29,8 @@ echo "ÔØî Scelta non valida"    exit 1    ;;esac
 echo ""
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo "ÔÜá´©Å  Cambio frequenza: $current_freq ÔåÆ $new_freq"
-echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"read -p "Confermi? [s/N]: " confirmif [[ "$confirm" != "s" && "$confirm" != "S" ]]; then  
+echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"read -p "Confermi? [s/N]: " confirm
+if [[ "$confirm" != "s" && "$confirm" != "S" ]]; then  
 echo "Annullato."  exit 0fi
 # Backup del crontabbackup_file="/tmp/crontab.backup.$(date +%Y%m%d_%H%M%S)"crontab -l > "$backup_file"
 echo "­ƒÆ¥ Backup crontab: $backup_file"

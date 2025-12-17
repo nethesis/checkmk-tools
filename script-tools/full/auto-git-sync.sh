@@ -11,10 +11,16 @@ export
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Configurazione
 REPO_URL="https://github.com/Coverup20/checkmk-tools.git"
-# Cerca il repository: prima /opt, poi /root, poi $HOMEif [[ -d "/opt/checkmk-tools/.git" ]]; then    
-TARGET_DIR="/opt/checkmk-tools"elif [[ -d "/root/checkmk-tools/.git" ]]; then    
-TARGET_DIR="/root/checkmk-tools"elif [[ -d "$HOME/checkmk-tools/.git" ]]; then    
-TARGET_DIR="$HOME/checkmk-tools"else    
+# Cerca il repository: prima /opt, poi /root, poi $HOME
+if [[ -d "/opt/checkmk-tools/.git" ]]; then    
+TARGET_DIR="/opt/checkmk-tools"
+el
+if [[ -d "/root/checkmk-tools/.git" ]]; then    
+TARGET_DIR="/root/checkmk-tools"
+el
+if [[ -d "$HOME/checkmk-tools/.git" ]]; then    
+TARGET_DIR="$HOME/checkmk-tools"
+else    
 TARGET_DIR="$HOME/checkmk-tools"  
 # Default se non esiste ancora
 fi
@@ -99,4 +105,5 @@ do log file alternativo: $LOG_FILE"    fi        print_header "Auto Git Sync - A
 # Inizializza repository    if ! init_repository; then        print_error "Impossibile inizializzare il repository"        exit 1    fi        
 # Esegui primo sync immediato    print_header "Primo Sync"    do_git_pull        
 # Avvia loop di sync    run_sync_loop}
-# Controlla se script eseguito direttamenteif [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then    main "$@"fi
+# Controlla se script eseguito direttamente
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then    main "$@"fi

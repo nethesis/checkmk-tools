@@ -6,7 +6,8 @@ MODULE_NAME="Let's Encrypt SSL Certificate"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
-# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
+# Load configuration
+if [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
 fi
 # Module startlog_module_start "$MODULE_NAME"
 #
@@ -688,4 +689,5 @@ R=301,L]</VirtualHost><VirtualHost *:443>    ServerName $domain
 # Configure CLI  configure_certbot_cli "$email"    
 # Request certificate  request_certificate "$webserver" "$domain"    
 # Configure webserver  case "$webserver" in    apache)      configure_apache_ssl "$domain" "$redirect_to_site" "$default_site"      ;;    nginx)      configure_nginx_ssl "$domain" "$redirect_to_site" "$default_site"      ;;    standalone)      log_warning "Webserver standalone: configurazione manuale necessaria"      ;;  esac    log_module_complete "$MODULE_NAME"}
-# Run if executed directlyif [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then  main "$@"fi
+# Run if executed directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then  main "$@"fi

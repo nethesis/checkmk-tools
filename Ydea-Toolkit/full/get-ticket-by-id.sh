@@ -23,7 +23,8 @@ HTTP_CODE="$(
 echo "$RESPONSE" | tail -n1)"
 echo "   HTTP Status: $HTTP_CODE"
 echo ""if [[ "$HTTP_CODE" == "200" ]]; then  
-TICKET_DATA="$HTTP_BODY"else  
+TICKET_DATA="$HTTP_BODY"
+else  
 # Se fallisce, prova con paginazione  
 TICKET_DATA=""  
 LIMIT=100  
@@ -143,13 +144,15 @@ echo "$TICKET_DATA" | jq -r '.cliente // "N/A"')"
 echo ""
 echo "­ƒöº Custom Attributes:"if 
 echo "$TICKET_DATA" | jq -e '.customAttributes' >/dev/null 2>&1; then  
-echo "$TICKET_DATA" | jq '.customAttributes'elif 
+echo "$TICKET_DATA" | jq '.customAttributes'el
+if 
 echo "$TICKET_DATA" | jq -e '.custom_attributes' >/dev/null 2>&1; then  
-echo "$TICKET_DATA" | jq '.custom_attributes'elif 
+echo "$TICKET_DATA" | jq '.custom_attributes'el
+if 
 echo "$TICKET_DATA" | jq -e '.campiCustom' >/dev/null 2>&1; then  
 echo "$TICKET_DATA" | jq '.campiCustom'else  
-echo "   Nessun custom attribute trovato"fi
-echo ""
+echo "   Nessun custom attribute trovato"
+fi echo ""
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo "TUTTE LE CHIAVI DISPONIBILI NEL JSON"
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"

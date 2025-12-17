@@ -77,7 +77,8 @@ UNIQUE_KEY=$(grep -oP 'unique="\K[^"]+' /etc/synoinfo.conf 2>/dev/null ||
 echo "Unknown")                
 echo -e "${GREEN}Ô£ô Synology NAS rilevato${NC}"        
 echo -e "   DSM Version: ${CYAN}${DSM_VERSION}.${DSM_MINOR}${NC}"        
-echo -e "   Unique Key: ${CYAN}${UNIQUE_KEY}${NC}"    elif [ -f /etc.defaults/VERSION ]; then        
+echo -e "   Unique Key: ${CYAN}${UNIQUE_KEY}${NC}"    el
+if [ -f /etc.defaults/VERSION ]; then        
 NAS_TYPE="synology"        
 echo -e "${GREEN}Ô£ô Synology NAS rilevato (alternativo)${NC}"        cat /etc.defaults/VERSION | head -3    else        
 echo -e "${RED}Ô£ù Sistema Synology non rilevato${NC}"        
@@ -113,7 +114,8 @@ echo -e "   Spazio disponibile: ${GREEN}${AVAILABLE_SPACE}MB${NC}"    fi}
 # =====================================================install_dependencies() {    
 echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ VERIFICA DIPENDENZE ÔòÉÔòÉÔòÉ${NC}"        
 # Verifica wget    if ! command -v wget >/dev/null 2>&1; then        
-echo -e "${YELLOW}ÔÜá´©Å  wget non trovato, tentativo installazione...${NC}"        if command -v ipkg >/dev/null 2>&1; then            ipkg update && ipkg install wget        elif command -v opkg >/dev/null 2>&1; then            opkg update && opkg install wget        else            
+echo -e "${YELLOW}ÔÜá´©Å  wget non trovato, tentativo installazione...${NC}"        if command -v ipkg >/dev/null 2>&1; then            ipkg update && ipkg install wget        el
+if command -v opkg >/dev/null 2>&1; then            opkg update && opkg install wget        else            
 echo -e "${RED}Ô£ù Impossibile installare wget${NC}"            
 echo -e "${YELLOW}   Installa manualmente ipkg/Entware prima di continuare${NC}"            exit 1        fi    else        
 echo -e "${GREEN}Ô£ô wget disponibile${NC}"    fi        
@@ -125,7 +127,8 @@ echo -e "${YELLOW}ÔÜá´©Å  socat non trovato, tentativo installazione...${N
 SOCAT_INSTALLED=false                if command -v ipkg >/dev/null 2>&1; then            
 echo -e "${CYAN}   Usan
 do ipkg (Synology)...${NC}"            ipkg update 2>&1 | grep -v "Signature check"            if ipkg install socat 2>&1; then                
-SOCAT_INSTALLED=true            fi        elif command -v opkg >/dev/null 2>&1; then            
+SOCAT_INSTALLED=true            fi        el
+if command -v opkg >/dev/null 2>&1; then            
 echo -e "${CYAN}   Usan
 do opkg (Entware)...${NC}"            opkg update 2>&1 | grep -v "Signature check"            if opkg install socat 2>&1; then                
 SOCAT_INSTALLED=true            fi        else            
@@ -210,16 +213,22 @@ LOG_FILE="/opt/checkmk/log/agent.log"
 PID_FILE="/var/run/checkmk_agent.pid"
 # Funzione per logginglog_msg() {    
 echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >> "$LOG_FILE"}
-# Controlla se gi├á in esecuzioneif [ -f "$PID_FILE" ]; then    
+# Controlla se gi├á in esecuzione
+if [ -f "$PID_FILE" ]; then    
 OLD_PID=$(cat "$PID_FILE")    if ps -p "$OLD_PID" > /dev/null 2>&1; then        log_msg "Agent gi├á in esecuzione (PID: $OLD_PID)"        
 echo "Agent gi├á in esecuzione (PID: $OLD_PID)"        exit 0    else        rm -f "$PID_FILE"    fi
 fi
-# Verifica se la porta ├¿ gi├á in usoif netstat -tuln 2>/dev/null | grep -q ":$PORT "; then    log_msg "ERRORE: Porta $PORT gi├á in uso"    
+# Verifica se la porta ├¿ gi├á in uso
+if netstat -tuln 2>/dev/null | grep -q ":$PORT "; then    log_msg "ERRORE: Porta $PORT gi├á in uso"    
 echo "ERRORE: Porta $PORT gi├á in uso"    exit 1filog_msg "Avvio CheckMK Agent daemon sulla porta $PORT"
 # Prova con Python (preferito)if command -v python3 >/dev/null 2>&1; then    
-PYTHON_CMD="python3"elif command -v python >/dev/null 2>&1; then    
-PYTHON_CMD="python"else    
-PYTHON_CMD=""fiif [ -n "$PYTHON_CMD" ]; then    log_msg "Usan
+PYTHON_CMD="python3"
+el
+if command -v python >/dev/null 2>&1; then    
+PYTHON_CMD="python"
+else    
+PYTHON_CMD=""fi
+if [ -n "$PYTHON_CMD" ]; then    log_msg "Usan
 do Python daemon"        
 # Daemon Python    cat > /tmp/checkmk_daemon_$$.py <<'PYEOF'
 #!/usr/bin/env python
@@ -240,7 +249,8 @@ echo "ERRORE: Python non disponibile e socat non installato"    exit 1fiDAEMON_E
 #!/bin/bash
 LOG_FILE="/opt/checkmk/log/agent.log"
 PID_FILE="/var/run/checkmk_agent.pid"
-echo "$(date): Stopping CheckMK Agent" >> "$LOG_FILE"if [ -f "$PID_FILE" ]; then    
+echo "$(date): Stopping CheckMK Agent" >> "$LOG_FILE"
+if [ -f "$PID_FILE" ]; then    
 PID=$(cat "$PID_FILE")    if ps -p "$PID" > /dev/null 2>&1; then        kill "$PID" 2>/dev/null        rm -f "$PID_FILE"        
 echo "CheckMK Agent stopped (PID: $PID)"    else        
 echo "Agent non in esecuzione"        rm -f "$PID_FILE"    fi
@@ -353,14 +363,16 @@ FRPC_BIN="/opt/frpc/bin/frpc"
 FRPC_CONF="/opt/frpc/conf/frpc.toml"
 LOG_FILE="/opt/frpc/log/startup.log"
 PID_FILE="/var/run/frpc.pid"
-# Controlla se gi├á in esecuzioneif [ -f "$PID_FILE" ]; then    
+# Controlla se gi├á in esecuzione
+if [ -f "$PID_FILE" ]; then    
 OLD_PID=$(cat "$PID_FILE")    if ps -p "$OLD_PID" > /dev/null 2>&1; then        
 echo "FRPC gi├á in esecuzione (PID: $OLD_PID)"        exit 0    else        rm -f "$PID_FILE"    fi
 fi
 echo "$(date): Starting FRPC" >> "$LOG_FILE"
 # Start FRPC (senza nohup per compatibilit├á Synology)$FRPC_BIN -c "$FRPC_CONF" >> "$LOG_FILE" 2>&1 &
 FRPC_PID=$!
-echo $FRPC_PID > "$PID_FILE"sleep 2if ps -p $FRPC_PID > /dev/null 2>&1; then    
+echo $FRPC_PID > "$PID_FILE"sleep 2
+if ps -p $FRPC_PID > /dev/null 2>&1; then    
 echo "FRPC started successfully (PID: $FRPC_PID)"else    
 echo "Failed to start FRPC"    rm -f "$PID_FILE"    exit 1fiEOF        chmod +x "$FRPC_DIR/start_frpc.sh"        
 # Script di stop    cat > "$FRPC_DIR/stop_frpc.sh" <<'EOF'
@@ -368,7 +380,8 @@ echo "Failed to start FRPC"    rm -f "$PID_FILE"    exit 1fiEOF        chmod +x 
 # Stop FRPC Client
 LOG_FILE="/opt/frpc/log/startup.log"
 PID_FILE="/var/run/frpc.pid"
-echo "$(date): Stopping FRPC" >> "$LOG_FILE"if [ -f "$PID_FILE" ]; then    
+echo "$(date): Stopping FRPC" >> "$LOG_FILE"
+if [ -f "$PID_FILE" ]; then    
 PID=$(cat "$PID_FILE")    if ps -p "$PID" > /dev/null 2>&1; then        kill "$PID" 2>/dev/null        rm -f "$PID_FILE"        
 echo "FRPC stopped (PID: $PID)"    else        
 echo "FRPC not running"        rm -f "$PID_FILE"    fi
@@ -470,7 +483,8 @@ echo ""}
 # =====================================================
 # MAIN - Gestione parametri
 # =====================================================
-# Verifica se rootif [ "$EUID" -ne 0 ] && [ "$(id -u)" -ne 0 ]; then    
+# Verifica se root
+if [ "$EUID" -ne 0 ] && [ "$(id -u)" -ne 0 ]; then    
 echo -e "${RED}Ô£ù Questo script deve essere eseguito come root${NC}"    
 echo -e "${YELLOW}   Usa: su
 do $0${NC}"    exit 1fi
@@ -501,7 +515,8 @@ echo -e "\n${CYAN}Vuoi installare anche FRPC Client per il tunneling remoto?${NC
 echo -e "${YELLOW}FRPC permette di esporre l'agent CheckMK attraverso un tunnel${NC}"
 echo -e "${YELLOW}verso un server FRP, utile per monitoraggio di sistemi in NAT.${NC}"
 echo ""
-echo -n "Installare FRPC? [S/n]: "read -r INSTALL_FRPCif [[ ! "$INSTALL_FRPC" =~ ^[nN]$ ]]; then    
+echo -n "Installare FRPC? [S/n]: "read -r INSTALL_FRPC
+if [[ ! "$INSTALL_FRPC" =~ ^[nN]$ ]]; then    
 # Installa FRPC    download_frpc    install_frpc    configure_frpc    create_frpc_scripts    setup_frpc_autostart
 fi
 # Mostra riepilogoshow_summary

@@ -29,12 +29,14 @@ RUNNING=$((QEMU_RUNNING + LXC_RUNNING))
 STOPPED=$((TOTAL - RUNNING))
 # --- Riga riepilogativa globale ---if (( RUNNING == 0 )); then    
 STATUS=2    
-MSG="CRIT: nessuna VM o container attivo"elif (( STOPPED > 0 )); then    
+MSG="CRIT: nessuna VM o container attivo"
+el
+if (( STOPPED > 0 )); then    
 STATUS=1    
 MSG="WARN: $RUNNING/$TOTAL attivi ($STOPPED spenti)"else    
 STATUS=0    
-MSG="OK: tutti i $TOTAL attivi"fi
-echo "$STATUS Proxmox_VM_Global total_active=$RUNNING;0;$TOTAL;0;$TOTAL total_total=$TOTAL;0;$TOTAL;0;$TOTAL - $MSG"
+MSG="OK: tutti i $TOTAL attivi"
+fi echo "$STATUS Proxmox_VM_Global total_active=$RUNNING;0;$TOTAL;0;$TOTAL total_total=$TOTAL;0;$TOTAL;0;$TOTAL - $MSG"
 # --- VM (QEMU) ---if (( QEMU_TOTAL > 0 )); then    jq -r '.[] | "\(.vmid) \(.name) \(.status) \(.uptime)"' "$TMP_QEMU" | while read -r ID NAME STATUSTXT UPTIME; do        
 NAME_UPPER=$(uppercase "$NAME")        
 SERVICE_NAME=$(uppercase "vm_${ID}_${NAME}")        

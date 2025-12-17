@@ -29,7 +29,8 @@ echo "  Verifica nome sito o usa: export
 CHECKMK_SITE='nome_sito'"    exit 1  fi  success "CheckMK sito '${CHECKMK_SITE}' trovato"}check_ydea_toolkit() {  if [[ ! -d "$YDEA_TOOLKIT_DIR" ]]; then    warn "Directory Ydea Toolkit non trovata: $YDEA_TOOLKIT_DIR"    read -p "Vuoi crearla? (y/n) " -n 1 -r    
 echo    if [[ $REPLY =~ ^[Yy]$ ]]; then      mkdir -p "$YDEA_TOOLKIT_DIR"      success "Directory creata: $YDEA_TOOLKIT_DIR"    else      error "Impossibile continuare senza Ydea Toolkit"      exit 1    fi  else    success "Ydea Toolkit trovato: $YDEA_TOOLKIT_DIR"  fi}install_scripts() {  info "Installazione script di notifica CheckMK..."    
 # Determina percorso script-notify-checkmk (supporta sia struttura normale che sparse-checkout)  local NOTIFY_SCRIPT_DIR  if [[ -d "${SCRIPT_DIR}/script-notify-checkmk" ]]; then    
-NOTIFY_SCRIPT_DIR="${SCRIPT_DIR}/script-notify-checkmk"  elif [[ -d "$(dirname "${SCRIPT_DIR}")/script-notify-checkmk" ]]; then    
+NOTIFY_SCRIPT_DIR="${SCRIPT_DIR}/script-notify-checkmk"  el
+if [[ -d "$(dirname "${SCRIPT_DIR}")/script-notify-checkmk" ]]; then    
 NOTIFY_SCRIPT_DIR="$(dirname "${SCRIPT_DIR}")/script-notify-checkmk"  else    error "Cartella script-notify-checkmk non trovata"    
 echo "  Provato: ${SCRIPT_DIR}/script-notify-checkmk"    
 echo "  Provato: $(dirname "${SCRIPT_DIR}")/script-notify-checkmk"    exit 1  fi    info "Usan
@@ -37,7 +38,8 @@ do script da: ${NOTIFY_SCRIPT_DIR}"
 # Copia ydea_realip  if [[ -f "${NOTIFY_SCRIPT_DIR}/ydea_realip" ]]; then    cp "${NOTIFY_SCRIPT_DIR}/ydea_realip" "$CHECKMK_NOTIFY_DIR/"    chmod +x "${CHECKMK_NOTIFY_DIR}/ydea_realip"    success "ydea_realip installato"  else    error "File ydea_realip non trovato in ${NOTIFY_SCRIPT_DIR}/"    exit 1  fi    
 # Copia mail_ydea_down  if [[ -f "${NOTIFY_SCRIPT_DIR}/mail_ydea_down" ]]; then    cp "${NOTIFY_SCRIPT_DIR}/mail_ydea_down" "$CHECKMK_NOTIFY_DIR/"    chmod +x "${CHECKMK_NOTIFY_DIR}/mail_ydea_down"    success "mail_ydea_down installato"  else    warn "File mail_ydea_down non trovato (opzionale)"  fi    
 # Copia health monitor (supporta sia percorso relativo che assoluto)  info "Installazione health monitor..."  local HEALTH_MONITOR  if [[ -f "${SCRIPT_DIR}/ydea-health-monitor.sh" ]]; then    
-HEALTH_MONITOR="${SCRIPT_DIR}/ydea-health-monitor.sh"  elif [[ -f "${SCRIPT_DIR}/Ydea-Toolkit/ydea-health-monitor.sh" ]]; then    
+HEALTH_MONITOR="${SCRIPT_DIR}/ydea-health-monitor.sh"  el
+if [[ -f "${SCRIPT_DIR}/Ydea-Toolkit/ydea-health-monitor.sh" ]]; then    
 HEALTH_MONITOR="${SCRIPT_DIR}/Ydea-Toolkit/ydea-health-monitor.sh"  else    error "File ydea-health-monitor.sh non trovato"    exit 1  fi    cp "$HEALTH_MONITOR" "$YDEA_TOOLKIT_DIR/"  chmod +x "${YDEA_TOOLKIT_DIR}/ydea-health-monitor.sh"  success "ydea-health-monitor.sh installato"}setup_env() {  info "Configurazione file .env..."    local env_file="${YDEA_TOOLKIT_DIR}/.env"    if [[ -f "$env_file" ]]; then    warn "File .env gi├á esistente, salvo backup"    cp "$env_file" "${env_file}.backup.$(date +%Y%m%d_%H%M%S)"  fi    
 # Copia .env template se esiste  if [[ -f "${SCRIPT_DIR}/Ydea-Toolkit/.env" ]]; then    cp "${SCRIPT_DIR}/Ydea-Toolkit/.env" "$env_file"    success "Template .env copiato"  fi    
 echo ""  warn "ÔÜá´©Å  IMPORTANTE: Configura le credenziali Ydea in:"  

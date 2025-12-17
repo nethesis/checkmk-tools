@@ -4,9 +4,11 @@
 # Include login, gestione token e funzioni helper per ticketset -euo pipefail
 # ===== Caricamento configurazione da .env =====
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"if [[ -f "$SCRIPT_DIR/.env" ]]; then  
-# shellcheck disable=SC1090,SC1091  source "$SCRIPT_DIR/.env"elif [[ -f "/opt/ydea-toolkit/.env" ]]; then  
-# shellcheck disable=SC1091  source "/opt/ydea-toolkit/.env"fi
-# ===== Config =====: "${YDEA_BASE_URL:=https://my.ydea.cloud/app_api_v2}": "${YDEA_LOGIN_PATH:=/login}"
+# shellcheck disable=SC1090,SC1091  source "$SCRIPT_DIR/.env"
+el
+if [[ -f "/opt/ydea-toolkit/.env" ]]; then  
+# shellcheck disable=SC1091  source "/opt/ydea-toolkit/.env"
+fi # ===== Config =====: "${YDEA_BASE_URL:=https://my.ydea.cloud/app_api_v2}": "${YDEA_LOGIN_PATH:=/login}"
 # Credenziali Login API: "${YDEA_ID:=}": "${YDEA_API_KEY:=}"
 # ID Utente per operazioni: "${YDEA_USER_ID_CREATE_TICKET:=4675}"      
 # ID utente per creazione ticket: "${YDEA_USER_ID_CREATE_NOTE:=4675}"        

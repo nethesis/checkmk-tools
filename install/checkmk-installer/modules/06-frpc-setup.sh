@@ -6,7 +6,8 @@ MODULE_NAME="FRPC Client Setup"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
-# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
+# Load configuration
+if [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
 fi
 # Module startlog_module_start "$MODULE_NAME"
 # Installation paths
@@ -678,15 +679,18 @@ echo "arm"      ;;    *)      log_error "Unsupported architecture: $arch"      r
 echo "=== FRPC Service Status ==="systemctl status frpc.service --no-pager
 echo ""
 echo "=== FRPC Connections ==="if command -v ss &>/dev/null; then  ss -tnp | grep frpc || 
-echo "No active connections"else  netstat -tnp | grep frpc || 
-echo "No active connections"fi
-echo ""
+echo "No active connections"
+else  netstat -tnp | grep frpc || 
+echo "No active connections"
+fi echo ""
 echo "=== Recent Logs ==="journalctl -u frpc.service -n 10 --no-pagerEOF    chmod +x /usr/local/bin/frpc-status    
 # FRPC restart script  cat > /usr/local/bin/frpc-restart <<'EOF'
 #!/bin/bash
 # FRPC Service Restart
-echo "Restarting FRPC service..."systemctl restart frpc.servicesleep 2if systemctl is-active --quiet frpc.service; then  
-echo "Ô£à FRPC service restarted successfully"else  
+echo "Restarting FRPC service..."systemctl restart frpc.servicesleep 2
+if systemctl is-active --quiet frpc.service; then  
+echo "Ô£à FRPC service restarted successfully"
+else  
 echo "ÔØî FRPC service failed to restart"  
 echo "Check logs: journalctl -u frpc.service -n 20"  exit 1fiEOF    chmod +x /usr/local/bin/frpc-restart    log_success "Management scripts created"}
 #
@@ -781,7 +785,8 @@ echo "Check logs: journalctl -u frpc.service -n 20"  exit 1fiEOF    chmod +x /us
 #
 #create_monitoring_check() {  log_info "Creating monitoring check..."    local check_script="/usr/lib/check_mk_agent/local/frpc_status"    mkdir -p "$(dirname "$check_script")"    cat > "$check_script" <<'EOF'
 #!/bin/bash
-# CheckMK Local Check: FRPC Statusif systemctl is-active --quiet frpc.service; then  if journalctl -u frpc.service -n 5 | grep -q "login to server success\|start proxy success"; then    
+# CheckMK Local Check: FRPC Status
+if systemctl is-active --quiet frpc.service; then  if journalctl -u frpc.service -n 5 | grep -q "login to server success\|start proxy success"; then    
 echo "0 FRPC_Status - FRPC service is running and connected"  else    
 echo "1 FRPC_Status - FRPC service is running but connection unclear"  fi
 else  

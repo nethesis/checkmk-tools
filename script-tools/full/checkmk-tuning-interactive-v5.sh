@@ -31,7 +31,8 @@ LOAD_NOW=$(awk '{print $1}' /proc/loadavg)
 echo -e "${Y}ÔåÆ Stato sistema:${N} 
 CPU=${CPU_NOW}% | Load=${LOAD_NOW} | Core=${CORES}"
 # --- Rilevazione Livestatus (timeout 3s) ---
-HAVE_LIVE=0if [ -S "$LIVE" ]; then  if timeout 3 bash -c "
+HAVE_LIVE=0
+if [ -S "$LIVE" ]; then  if timeout 3 bash -c "
 echo -e 'GET status\n' | unixcat '$LIVE' >/dev/null 2>&1"; then    
 HAVE_LIVE=1    
 echo -e "${G}Ô£ô Livestatus attivo.${N}"  else    
@@ -46,7 +47,8 @@ AVG_EXEC=0.7; P95
 _EXEC=1.8; 
 AVG_LAT=0.2; 
 TIMEOUT_RATE=0
-LOG="$SITEPATH/var/nagios/nagios.log"if [ $HAVE_LIVE -eq 1 ]; then  
+LOG="$SITEPATH/var/nagios/nagios.log"
+if [ $HAVE_LIVE -eq 1 ]; then  
 SRV_COUNT=$(
 echo -e "GET services\nColumns: active_checks_enabled\nOutputFormat: json\n" | timeout 3 unixcat "$LIVE" | jq 'length' 2>/dev/null || 
 echo 0)  [ -z "$SRV_COUNT" ] && 
@@ -73,7 +75,8 @@ TH=${TH_NEEDED} checks/s, P95=${P95_EXEC}s ÔåÆ ${CONC_THEO}"
 HARD_CAP=$((CORES*12))if (( $(
 echo "$CPU_NOW > 80" | bc -l) )) || (( $(
 echo "$TIMEOUT_RATE > 2" | bc -l) )); then  
-SCALE=0.8elif (( $(
+SCALE=0.8el
+if (( $(
 echo "$CPU_NOW < 40" | bc -l) )); then  
 SCALE=1.2else  
 SCALE=1.0fi

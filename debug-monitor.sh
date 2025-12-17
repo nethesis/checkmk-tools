@@ -10,7 +10,8 @@ echo "tid=$tid"
 echo "stato=$stato"  
 echo "desc=$desc"  
 echo "prio=$prio"  
-echo "assegnato=$assegnato"done < <(jq -r '.tickets[] | select(.resolved_at == null) | "\(.ticket_id)|\(.stato)|\(.descrizione_ticket // "")|\(.priorita // "Normale")|\(.assegnatoA // "Non assegnato")"' "$TRACKING_FILE")
+echo "assegnato=$assegnato"
+done < <(jq -r '.tickets[] | select(.resolved_at == null) | "\(.ticket_id)|\(.stato)|\(.descrizione_ticket // "")|\(.priorita // "Normale")|\(.assegnatoA // "Non assegnato")"' "$TRACKING_FILE")
 echo ""
 echo "3. Eseguo update-tracking:"/opt/checkmk-tools/Ydea-Toolkit/full/ydea-toolkit.sh update-tracking
 echo ""
@@ -26,4 +27,5 @@ echo "codice=$codice"
 echo "desc=$desc"  
 echo "prio=$prio"  
 echo "assegnato=$assegnato"  
-echo "_extra=$_extra"done < <(jq -r '.tickets[] | "\(.ticket_id)|\(.stato)|\(.host)|\(.service)|\(.codice)|\(.descrizione_ticket // "")|\(.priorita // "Normale")|\(.assegnatoA // "Non assegnato")"' "$TRACKING_FILE")
+echo "_extra=$_extra"
+done < <(jq -r '.tickets[] | "\(.ticket_id)|\(.stato)|\(.host)|\(.service)|\(.codice)|\(.descrizione_ticket // "")|\(.priorita // "Normale")|\(.assegnatoA // "Non assegnato")"' "$TRACKING_FILE")

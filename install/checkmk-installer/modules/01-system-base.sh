@@ -6,7 +6,8 @@ MODULE_NAME="System Base Configuration"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
-# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
+# Load configuration
+if [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
 else  log_error "Configuration file not found. Run config-wizard.sh first."  exit 1fi
 # Module startlog_module_start "$MODULE_NAME"
 #
@@ -203,7 +204,8 @@ else  log_error "Configuration file not found. Run config-wizard.sh first."  exi
 #\?LoginGraceTime .*/LoginGraceTime $login_grace_time/" "$ssh_config"    
 # Disable password authentication (use keys only)  if [[ "${SSH_PASSWORD_AUTH:-yes}" == "no" ]]; then    log_debug "Disabling password authentication"    sed -i "s/^
 #\?PasswordAuthentication .*/PasswordAuthentication no/" "$ssh_config"  fi    
-# Restart SSH (check if service exists first)  if systemctl list-unit-files | grep -q "^sshd.service"; then    log_command "systemctl restart sshd"  elif systemctl list-unit-files | grep -q "^ssh.service"; then    log_command "systemctl restart ssh"  else    log_warning "SSH service not found, skipping restart"  fi    log_success "SSH configured successfully (port: $ssh_port)"}
+# Restart SSH (check if service exists first)  if systemctl list-unit-files | grep -q "^sshd.service"; then    log_command "systemctl restart sshd"  el
+if systemctl list-unit-files | grep -q "^ssh.service"; then    log_command "systemctl restart ssh"  else    log_warning "SSH service not found, skipping restart"  fi    log_success "SSH configured successfully (port: $ssh_port)"}
 #
 #
 #

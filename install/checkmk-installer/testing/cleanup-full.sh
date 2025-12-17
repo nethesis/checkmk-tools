@@ -13,7 +13,8 @@ echo "  - FRPS Server"
 echo "  - All monitoring scripts"
 echo "  - Ydea Toolkit"
 echo "  - Configuration files"
-echo ""read -r -p "Continue? (y/n): " confirmif [[ "$confirm" != "y" ]]; then  
+echo ""read -r -p "Continue? (y/n): " confirm
+if [[ "$confirm" != "y" ]]; then  
 echo "Cleanup cancelled."  exit 0fi
 echo ""
 echo "Starting cleanup..."

@@ -43,12 +43,14 @@ APACHE_CONF=${APACHE_CONF:-/etc/apache2/sites-available/checkmk.conf}
 NGINX_CONF=${NGINX_CONF:-/etc/nginx/sites-available/checkmk.conf}
 # Optional interactive mode: ask all variables every time
 ASK_ALL=${ASK_ALL:-}for arg in "$@"; do  if [[ "$arg" == "-i" || "$arg" == "--interactive" ]]; then    
-ASK_ALL=true  fidoneif [[ "${ASK_ALL,,}" == "true" ]]; then  read -r -p "Specifica webserver (apache/nginx/standalone) [${WS}]: " _v; 
+ASK_ALL=true  fidone
+if [[ "${ASK_ALL,,}" == "true" ]]; then  read -r -p "Specifica webserver (apache/nginx/standalone) [${WS}]: " _v; 
 WS=${_v:-$WS}  read -r -p "Email Let's Encrypt [${LETSENCRYPT_EMAIL}]: " _v; 
 LETSENCRYPT_EMAIL=${_v:-$LETSENCRYPT_EMAIL}  read -r -p "Domini separati da virgola [${LETSENCRYPT_DOMAINS}]: " _v; 
 LETSENCRYPT_DOMAINS=${_v:-$LETSENCRYPT_DOMAINS}  read -r -p "Redirect root al site? (true/false) [${REDIRECT_TO_SITE}]: " _v; 
 REDIRECT_TO_SITE=${_v:-$REDIRECT_TO_SITE}  read -r -p "Nome site CheckMK di default [${DEFAULT_SITE}]: " _v; 
-DEFAULT_SITE=${_v:-$DEFAULT_SITE}fiif [[ -z "$LETSENCRYPT_DOMAINS" ]]; then  
+DEFAULT_SITE=${_v:-$DEFAULT_SITE}fi
+if [[ -z "$LETSENCRYPT_DOMAINS" ]]; then  
 echo "ERROR: LETSENCRYPT_DOMAINS is required (comma-separated)." >&2  exit 1fi
 echo ">>> Updating apt cache..."apt-get update -y >/dev/null
 echo ">>> Installing Certbot..."apt-get install -y certbot >/dev/nullcase "$WS" in  apache)    
@@ -67,7 +69,8 @@ MAIN_DOMAIN="${DOM_ARRAY[0]}"
 echo ">>> Requesting certificate for: $LETSENCRYPT_DOMAINS (
 WS=$WS)"certbot certonly --"$WS" "${DOMAIN_ARGS[@]}"
 echo ">>> Certificate request completed."
-# Apache auto-configif [[ "$WS" == "apache" ]] && [[ -n "$MAIN_DOMAIN" ]] && [[ -f "$APACHE_CONF" ]]; then  
+# Apache auto-config
+if [[ "$WS" == "apache" ]] && [[ -n "$MAIN_DOMAIN" ]] && [[ -f "$APACHE_CONF" ]]; then  
 echo ">>> Auto-config Apache vhost: $APACHE_CONF"  
 BACKUP_FILE="${APACHE_CONF}.backup-$(date +%Y%m%d-%H%M%S)"  cp "$APACHE_CONF" "$BACKUP_FILE"  if [[ "${REDIRECT_TO_SITE,,}" == "true" ]]; then    cat > "$APACHE_CONF" << EOF<VirtualHost *:80>    ServerName $MAIN_DOMAIN    
 # Redirect HTTP to HTTPS and / -> /$DEFAULT_SITE/    RewriteEngine On    RewriteCond %{HTTPS} off    RewriteRule ^(.*)$ https://%{HTTP_HOST}\$1 [
@@ -82,7 +85,8 @@ echo "ERROR: Apache config invalid, restoring backup..." >&2    mv "$BACKUP_FILE
 else  
 echo ">>> Skipping Apache vhost auto-config (
 WS=$WS or vhost file missing)."fi
-# Nginx auto-configif [[ "$WS" == "nginx" ]] && [[ -n "$MAIN_DOMAIN" ]]; then  
+# Nginx auto-config
+if [[ "$WS" == "nginx" ]] && [[ -n "$MAIN_DOMAIN" ]]; then  
 echo ">>> Auto-config Nginx vhost: $NGINX_CONF"  mkdir -p "$(dirname "$NGINX_CONF")" /etc/nginx/sites-enabled  if [[ "${REDIRECT_TO_SITE,,}" == "true" ]]; then    cat > "$NGINX_CONF" << EOFserver {    listen 80;    server_name $MAIN_DOMAIN;    return 301 https://\$host\$request_uri;}server {    listen 443 ssl;    server_name $MAIN_DOMAIN;    ssl_certificate     /etc/letsencrypt/live/$MAIN_DOMAIN/fullchain.pem;    ssl_certificate_key /etc/letsencrypt/live/$MAIN_DOMAIN/privkey.pem;    
 # Redirect root to site    location = / {        return 301 /$DEFAULT_SITE/;    }    
 # Proxy site path    location /$DEFAULT_SITE/ {        proxy_set_header Host \$host;        proxy_set_header X-Real-IP \$remote_addr;        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;        proxy_set_header X-Forwarded-Proto \$scheme;        proxy_http_version 1.1;        proxy_set_header Upgrade \$http_upgrade;        proxy_set_header Connection "upgrade";        proxy_pass http://127.0.0.1:5000/$DEFAULT_SITE/;    }}EOF  else    cat > "$NGINX_CONF" << EOFserver {    listen 80;    server_name $MAIN_DOMAIN;    return 301 https://\$host\$request_uri;}server {    listen 443 ssl;    server_name $MAIN_DOMAIN;    ssl_certificate     /etc/letsencrypt/live/$MAIN_DOMAIN/fullchain.pem;    ssl_certificate_key /etc/letsencrypt/live/$MAIN_DOMAIN/privkey.pem;    location / {        proxy_set_header Host \$host;        proxy_set_header X-Real-IP \$remote_addr;        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;        proxy_set_header X-Forwarded-Proto \$scheme;        proxy_http_version 1.1;        proxy_set_header Upgrade \$http_upgrade;        proxy_set_header Connection "upgrade";        proxy_pass http://127.0.0.1:5000/;    }}EOF  fi  ln -sf "$NGINX_CONF" "/etc/nginx/sites-enabled/$(basename "$NGINX_CONF")"  if nginx -t; then    systemctl reload nginx    

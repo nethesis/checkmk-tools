@@ -12,7 +12,8 @@ echo "  ­ƒöì ESPLORAZIONE API YDEA"
 echo "ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ"
 echo ""
 # Verifica autenticazione
-echo "­ƒôï Step 1: Autenticazione..."set +eensure_token 2>&1if [[ $? -ne 0 ]]; then  
+echo "­ƒôï Step 1: Autenticazione..."set +eensure_token 2>&1
+if [[ $? -ne 0 ]]; then  
 echo "ÔØî Errore autenticazione"  exit 1fiset -e
 echo "Ô£à Autenticato"
 echo ""

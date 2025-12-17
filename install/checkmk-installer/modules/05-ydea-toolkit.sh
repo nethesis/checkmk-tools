@@ -6,7 +6,8 @@ MODULE_NAME="Ydea Toolkit Installation"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
-# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
+# Load configuration
+if [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
 fi
 # Module startlog_module_start "$MODULE_NAME"
 # Installation paths
@@ -526,7 +527,8 @@ echo '{"tickets":[],"last_update":""}' > "$tracking_file_ag"    chmod 666 "$trac
 #!/bin/bash
 # Ydea Ticket Monitor
 # Updates tracked tickets statusset -euo pipefail
-TOOLKIT="/usr/local/bin/ydea-toolkit"if [[ ! -f "$TOOLKIT" ]]; then  
+TOOLKIT="/usr/local/bin/ydea-toolkit"
+if [[ ! -f "$TOOLKIT" ]]; then  
 echo "ERROR: Ydea toolkit not found"  exit 1fi
 # Update tracking"$TOOLKIT" update-tracking
 # Cleanup old resolved tickets"$TOOLKIT" cleanup-trackingexit 0EOF        chmod +x "$monitor_script"  fi    log_success "Monitoring script installed"}
@@ -905,7 +907,8 @@ echo "ERROR: Ydea toolkit not found"  exit 1fi
 # Create ticket creation helper  cat > /usr/local/bin/create-checkmk-ticket <<'EOF'
 #!/bin/bash
 # Quick ticket creation for CheckMK alerts
-YDEA_TOOLKIT="/usr/local/bin/ydea-toolkit"if [[ $
+YDEA_TOOLKIT="/usr/local/bin/ydea-toolkit"
+if [[ $
 # -lt 2 ]]; then  
 echo "Usage: $0 <host> <service> [description]"  exit 1fi
 HOST="$1"
@@ -914,7 +917,8 @@ DESCRIPTION="${3:-Alert from CheckMK}""$YDEA_TOOLKIT" create \  --codice "$HOST"
 # Create ticket status checker  cat > /usr/local/bin/check-ticket-status <<'EOF'
 #!/bin/bash
 # Check status of a ticket
-YDEA_TOOLKIT="/usr/local/bin/ydea-toolkit"if [[ $
+YDEA_TOOLKIT="/usr/local/bin/ydea-toolkit"
+if [[ $
 # -lt 1 ]]; then  
 echo "Usage: $0 <ticket_id>"  exit 1fi"$YDEA_TOOLKIT" get "$1"EOF    chmod +x /usr/local/bin/check-ticket-status    log_success "Helper scripts created"}
 #

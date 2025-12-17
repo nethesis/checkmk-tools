@@ -36,17 +36,22 @@ VERSION_ID="7")    if [[ -f /etc/nethserver-release ]] || \       ( [[ -f /etc/o
 ID="?nethserver|
 VERSION_ID="?7' /etc/os-release ); then        os_type="ns7"        
 # Rileva NethServer 8 (cerca 
-VERSION_ID="8" o ns8 nel nome)    elif [[ -f /etc/os-release ]] && grep -qE '
+VERSION_ID="8" o ns8 nel nome)    el
+if [[ -f /etc/os-release ]] && grep -qE '
 VERSION_ID="?8|ns8|NethServer 8' /etc/os-release; then        os_type="ns8"        
-# Rileva Proxmox    elif [[ -f /etc/pve/version ]]; then        os_type="proxmox"        
-# Rileva Ubuntu/Debian    elif [[ -f /etc/os-release ]] && grep -qE "Ubuntu|Debian" /etc/os-release; then        os_type="ubuntu"        
+# Rileva Proxmox    el
+if [[ -f /etc/pve/version ]]; then        os_type="proxmox"        
+# Rileva Ubuntu/Debian    el
+if [[ -f /etc/os-release ]] && grep -qE "Ubuntu|Debian" /etc/os-release; then        os_type="ubuntu"        
 # Sistema generico    else        os_type="generic"    fi        
 echo "$os_type"}
 # ==========================================================
 # Funzioni di ricerca repository
 # ==========================================================find_repository() {    if [[ -d "/opt/checkmk-tools/.git" ]]; then        
-echo "/opt/checkmk-tools"    elif [[ -d "/root/checkmk-tools/.git" ]]; then        
-echo "/root/checkmk-tools"    elif [[ -d "$HOME/checkmk-tools/.git" ]]; then        
+echo "/opt/checkmk-tools"    el
+if [[ -d "/root/checkmk-tools/.git" ]]; then        
+echo "/root/checkmk-tools"    el
+if [[ -d "$HOME/checkmk-tools/.git" ]]; then        
 echo "$HOME/checkmk-tools"    else        
 echo ""    fi}
 # ==========================================================
@@ -83,7 +88,8 @@ echo "" >&2
 # Reindirizza stdin da /dev/tty per questa operazione    exec < /dev/tty    read -r -p "Selezione: " selection >&2        
 # Gestisci selezione    if [[ "$selection" == "a" || "$selection" == "A" ]]; then        
 # Tutti gli script        selected=("${scripts[@]}")        print_success "Selezionati tutti gli script (${
-#selected[@]})" >&2    elif [[ "$selection" == "n" || "$selection" == "N" ]]; then        
+#selected[@]})" >&2    el
+if [[ "$selection" == "n" || "$selection" == "N" ]]; then        
 # Nessuno script        print_info "Nessuno script selezionato" >&2        return 0    else        
 # Selezione per numeri        for num in $selection; do            if [[ "$num" =~ ^[0-9]+$ ]] && [[ $num -ge 1 ]] && [[ $num -le ${
 #scripts[@]} ]]; then                selected+=("${scripts[$((num-1))]}")            else                print_warning "Numero non vali

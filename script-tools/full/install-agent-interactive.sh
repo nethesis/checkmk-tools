@@ -105,11 +105,14 @@ MODE="uninstall-all"        ;;    "")
 MODE="install"        ;;    *)        
 echo -e "${RED}Ô£ù Parametro non vali
 do: $1${NC}"        show_usage        ;;esac
-# Verifica permessi rootif [ "$EUID" -ne 0 ]; then    
+# Verifica permessi root
+if [ "$EUID" -ne 0 ]; then    
 echo -e "${RED}Ô£ù Questo script deve essere eseguito come root${NC}"    exit 1fi
 # =====================================================
 # Esegui modalit├á richiesta
-# =====================================================if [ "$MODE" = "uninstall-frpc" ]; then    uninstall_frpc    exit 0elif [ "$MODE" = "uninstall-agent" ]; then    uninstall_agent    exit 0elif [ "$MODE" = "uninstall-all" ]; then    
+# =====================================================if [ "$MODE" = "uninstall-frpc" ]; then    uninstall_frpc    exit 0el
+if [ "$MODE" = "uninstall-agent" ]; then    uninstall_agent    exit 0el
+if [ "$MODE" = "uninstall-all" ]; then    
 echo -e "${RED}ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù${NC}"    
 echo -e "${RED}Ôòæ        DISINSTALLAZIONE COMPLETA (Agent + FRPC)          Ôòæ${NC}"    
 echo -e "${RED}ÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ${NC}"    
@@ -137,7 +140,8 @@ echo "8")        fi
 # Rileva NethServer 8 Core / OpenWrt        if [ -f /etc/openwrt_release ] || grep -qi "openwrt" /etc/os-release 2>/dev/null; then            
 OS="openwrt"            
 VER=$(grep DISTRIB_RELEASE /etc/openwrt_release 2>/dev/null | cut -d"'" -f2 || 
-echo "23.05")        fi    elif type lsb_release >/dev/null 2>&1; then        
+echo "23.05")        fi    el
+if type lsb_release >/dev/null 2>&1; then        
 OS=$(lsb_release -si | tr '[:upper:]' '[:lower:]')        
 VER=$(lsb_release -sr)    else        
 OS=$(uname -s)        
@@ -314,7 +318,8 @@ echo -e "\n${YELLOW}­ƒöº Creazione servizio systemd...${NC}"                
 # Verifica stato    if [ "$PKG_TYPE" = "openwrt" ]; then        if pgrep -f frpc >/dev/null 2>&1; then            
 echo -e "${GREEN}Ô£ô FRPC avviato con successo${NC}"        else            
 echo -e "${RED}Ô£ù Errore nell'avvio di FRPC${NC}"            
-echo -e "${YELLOW}Verifica log: tail -f /var/log/frpc.log${NC}"        fi    elif systemctl is-active --quiet frpc; then        
+echo -e "${YELLOW}Verifica log: tail -f /var/log/frpc.log${NC}"        fi    el
+if systemctl is-active --quiet frpc; then        
 echo -e "${GREEN}Ô£ô FRPC avviato con successo${NC}"        
 echo -e "\n${CYAN}­ƒôè Status:${NC}"        systemctl status frpc --no-pager -l | head -n 10    else        
 echo -e "${RED}Ô£ù Errore nell'avvio di FRPC${NC}"        
@@ -340,7 +345,8 @@ echo -e "\n${GREEN}­ƒÄë Installazione terminata con successo!${NC}\n"}
 # =====================================================
 # MAIN SCRIPT
 # =====================================================
-# Verifica permessi rootif [ "$EUID" -ne 0 ]; then    
+# Verifica permessi root
+if [ "$EUID" -ne 0 ]; then    
 echo -e "${RED}Ô£ù Questo script deve essere eseguito come root${NC}"    exit 1fi
 # Rileva sistema operativodetect_os
 # =====================================================
@@ -365,8 +371,8 @@ echo -e "   ÔÇó CheckMK Agent (plain TCP on port 6556)"
 echo -e "   ÔÇó Servizio: $([ "$PKG_TYPE" = "openwrt" ] && 
 echo "init.d" || 
 echo "systemd socket")"if [ "$PKG_TYPE" = "openwrt" ]; then    
-echo -e "   ÔÇó TCP Listener: socat"fi
-echo -e "\n${YELLOW}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"read -r -p "$(
+echo -e "   ÔÇó TCP Listener: socat"
+fi echo -e "\n${YELLOW}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"read -r -p "$(
 echo -e ${CYAN}Procedi con l\"installazione su questo sistema? ${NC}[s/N]: )" CONFIRM_SYSTEM
 echo -e "${YELLOW}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"if [[ ! "$CONFIRM_SYSTEM" =~ ^[sS]$ ]]; then    
 echo -e "\n${CYAN}Installazione annullata dall\"utente${NC}\n"    exit 0fi
@@ -378,7 +384,8 @@ do con l\"installazione...${NC}\n"
 echo -e "\n${YELLOW}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"read -r -p "$(
 echo -e ${CYAN}Vuoi installare anche FRPC? ${NC}[s/N]: )" INSTALL_FRPC_INPUT
 echo -e "${YELLOW}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"
-INSTALL_FRPC="no"if [[ "$INSTALL_FRPC_INPUT" =~ ^[sS]$ ]]; then    
+INSTALL_FRPC="no"
+if [[ "$INSTALL_FRPC_INPUT" =~ ^[sS]$ ]]; then    
 INSTALL_FRPC="yes"    install_frpc    configure_frpc
 else    
 echo -e "${YELLOW}ÔÅ¡´©Å  Installazione FRPC saltata${NC}"fi

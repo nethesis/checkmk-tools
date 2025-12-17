@@ -6,18 +6,27 @@ MODULE_NAME="Monitoring Scripts Deployment"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
-# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
+# Load configuration
+if [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
 fi
 # Module startlog_module_start "$MODULE_NAME"
-# Script source directory - check multiple possible locationsif [[ -d "/cdrom/script-notify-checkmk" ]]; then  
+# Script source directory - check multiple possible locations
+if [[ -d "/cdrom/script-notify-checkmk" ]]; then  
 # Running from ISO mount point  
-SCRIPTS_SRC="/cdrom"  log_debug "Using ISO mount point: $SCRIPTS_SRC"elif [[ -d "${INSTALLER_ROOT}/scripts/script-notify-checkmk" ]]; then  
+SCRIPTS_SRC="/cdrom"  log_debug "Using ISO mount point: $SCRIPTS_SRC"
+el
+if [[ -d "${INSTALLER_ROOT}/scripts/script-notify-checkmk" ]]; then  
 # Scripts are in subdirectory of installer  
-SCRIPTS_SRC="${INSTALLER_ROOT}/scripts"  log_debug "Using installer scripts subdirectory: $SCRIPTS_SRC"elif [[ -d "/mnt/usbdisk/script-notify-checkmk" ]]; then  
+SCRIPTS_SRC="${INSTALLER_ROOT}/scripts"  log_debug "Using installer scripts subdirectory: $SCRIPTS_SRC"
+el
+if [[ -d "/mnt/usbdisk/script-notify-checkmk" ]]; then  
 # Running from USB mount (scripts at same level as checkmk-installer)  
-SCRIPTS_SRC="/mnt/usbdisk"  log_debug "Using USB mount root: $SCRIPTS_SRC"elif [[ -d "${INSTALLER_ROOT}/../../script-notify-checkmk" ]]; then  
+SCRIPTS_SRC="/mnt/usbdisk"  log_debug "Using USB mount root: $SCRIPTS_SRC"
+el
+if [[ -d "${INSTALLER_ROOT}/../../script-notify-checkmk" ]]; then  
 # Running from local repository (go up 2 levels)  
-SCRIPTS_SRC="$(cd "${INSTALLER_ROOT}/../.." && pwd)"  log_debug "Using local repository: $SCRIPTS_SRC"else  
+SCRIPTS_SRC="$(cd "${INSTALLER_ROOT}/../.." && pwd)"  log_debug "Using local repository: $SCRIPTS_SRC"
+else  
 # Check one level up from installer root  parent_dir="$(dirname "$INSTALLER_ROOT")"  if [[ -d "$parent_dir/script-notify-checkmk" ]]; then    
 SCRIPTS_SRC="$parent_dir"    log_debug "Using parent directory: $SCRIPTS_SRC"  else    
 # Fallback to installer root    
@@ -692,13 +701,16 @@ echo "Creating backup..."mkdir -p "$BACKUP_DIR"
 BACKUP_FILE="$BACKUP_DIR/scripts-backup-$(date +%Y%m%d_%H%M%S).tar.gz"tar czf "$BACKUP_FILE" /opt/script-* /usr/local/bin/*checkmk* 2>/dev/null || true
 echo "Backup created: $BACKUP_FILE"
 echo ""
-# Update from GitHub or localif [[ -d "$LOCAL_REPO" ]]; then  
+# Update from GitHub or local
+if [[ -d "$LOCAL_REPO" ]]; then  
 echo "Updating from local repository..."  cd "$LOCAL_REPO"  git pull origin main
 else  
-echo "Cloning repository..."  git clone "$REPO_URL" "$LOCAL_REPO"fi
-echo ""
+echo "Cloning repository..."  git clone "$REPO_URL" "$LOCAL_REPO"
+fi echo ""
 echo "Deploying updated scripts..."
-# Re-run deploymentif [[ -f "$LOCAL_REPO/Install/checkmk-installer/modules/04-scripts-deploy.sh" ]]; then  bash "$LOCAL_REPO/Install/checkmk-installer/modules/04-scripts-deploy.sh"else  
+# Re-run deployment
+if [[ -f "$LOCAL_REPO/Install/checkmk-installer/modules/04-scripts-deploy.sh" ]]; then  bash "$LOCAL_REPO/Install/checkmk-installer/modules/04-scripts-deploy.sh"
+else  
 echo "ERROR: Deployment script not found"  exit 1fi
 echo ""
 echo "Update completed!"EOF    chmod +x /usr/local/bin/update-checkmk-scripts 2>/dev/null || true    log_success "Update script created: /usr/local/bin/update-checkmk-scripts"}

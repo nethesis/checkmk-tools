@@ -23,8 +23,8 @@ echo "$HTTP_BODY" | jq -r '.objs | length')  if [[ "$COUNT" -eq 0 ]]; then
 echo "Nessun ticket, fine"    break  fi    
 echo "$COUNT ticket"    
 # Estrai customAttributes con ID ticket  
-echo "$HTTP_BODY" | jq '[.objs[] | select(.customAttributes != null) | {id, codice, customAttributes}]' >> "$TEMP_FILE.part"done
-echo ""
+echo "$HTTP_BODY" | jq '[.objs[] | select(.customAttributes != null) | {id, codice, customAttributes}]' >> "$TEMP_FILE.part"
+done echo ""
 echo "­ƒôè Elaborazione dati..."
 # Combina tutti i risultatijq -s 'add' "$TEMP_FILE.part" 2>/dev/null > "$TEMP_FILE" || 
 echo "[]" > "$TEMP_FILE"rm -f "$TEMP_FILE.part"
@@ -50,7 +50,8 @@ IFS= read -r ATTR; do    [[ -z "$ATTR" ]] && continue
 echo "ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ"    
 echo "Esempi per attributo: '$ATTR'"    
 echo "ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ"        jq --arg attr "$ATTR" -r '      [.[] | select(.customAttributes[$attr] != null) |        {id, codice, valore: .customAttributes[$attr]}] |       unique_by(.valore) |       sort_by(.valore) |       .[] |       "  [\(.id)] \(.codice) ÔåÆ \(.valore)"    ' "$TEMP_FILE" | head -20    
-echo ""  done <<< "$MATCHING_ATTRS"else  
+echo ""  done <<< "$MATCHING_ATTRS"
+else  
 echo "ÔÜá´©Å  Nessun custom attribute trovato con queste parole chiave"  
 echo ""fi
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
@@ -68,10 +69,11 @@ echo "RICERCA SPECIFICA: Ticket con 'Premium' o 'Mon' nei customAttributes"
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo ""
 PREMIUM_TICKETS=$(jq '[.[] | select(.customAttributes | tostring | test("Premium|Mon|premium|mon"))] | length' "$TEMP_FILE")
-echo "Ticket trovati: $PREMIUM_TICKETS"if [[ "$PREMIUM_TICKETS" -gt 0 ]]; then  
+echo "Ticket trovati: $PREMIUM_TICKETS"
+if [[ "$PREMIUM_TICKETS" -gt 0 ]]; then  
 echo ""  
-echo "Primi 10 ticket con 'Premium' o 'Mon':"  jq -r '[.[] | select(.customAttributes | tostring | test("Premium|Mon|premium|mon"))] |     .[0:10][] |     "  [\(.id)] \(.codice) ÔåÆ " + (.customAttributes | tojson)' "$TEMP_FILE"fi
-echo ""
+echo "Primi 10 ticket con 'Premium' o 'Mon':"  jq -r '[.[] | select(.customAttributes | tostring | test("Premium|Mon|premium|mon"))] |     .[0:10][] |     "  [\(.id)] \(.codice) ÔåÆ " + (.customAttributes | tojson)' "$TEMP_FILE"
+fi echo ""
 echo "Ô£à Analisi completata!"
 echo ""
 echo "­ƒÆ¥ File salvati:"

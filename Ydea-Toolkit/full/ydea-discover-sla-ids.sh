@@ -4,7 +4,8 @@
 # Utilizzato per trovare gli ID necessari per la gestione ticket con SLA Premium_Monset -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 YDEA_TOOLKIT="${SCRIPT_DIR}/ydea-toolkit.sh"
-# Verifica che ydea-toolkit esistaif [[ ! -f "$YDEA_TOOLKIT" ]]; then  
+# Verifica che ydea-toolkit esista
+if [[ ! -f "$YDEA_TOOLKIT" ]]; then  
 echo "ÔØî Errore: ydea-toolkit.sh non trovato in $SCRIPT_DIR"  exit 1fi
 # Carica le funzioni da ydea-toolkit
 # shellcheck disable=SC1090source "$YDEA_TOOLKIT"

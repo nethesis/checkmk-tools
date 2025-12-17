@@ -22,7 +22,8 @@ echo -e "${RED}Ô£ù${NC} $1"}
 # Parametri
 REPO_DIR="${1:-/opt/checkmk-tools}"
 AUTO_MODE=false
-# Check per modalit├á autoif [[ "$2" == "--auto" ]] || [[ "$3" == "--auto" ]]; then    
+# Check per modalit├á auto
+if [[ "$2" == "--auto" ]] || [[ "$3" == "--auto" ]]; then    
 AUTO_MODE=true    
 SEARCH_PATHS=("/")  
 # Cerca in tutto il sistema
@@ -30,9 +31,13 @@ else
 SEARCH_PATH="${2:-/opt/omd}"    
 SEARCH_PATHS=("$SEARCH_PATH")fi
 BACKUP_DIR="/tmp/script-backup-$(date +%Y%m%d-%H%M%S)"
-# Verifica che le directory esistanoif [[ ! -d "$REPO_DIR" ]]; then    log_error "Directory repository non trovata: $REPO_DIR"    exit 1filog "========================================"log "UPDATE SCRIPT DA REPOSITORY"log "========================================"log "Repository: $REPO_DIR"if $AUTO_MODE; then    log "Modalit├á: AUTOMATICA (sistema completo)"    log "Ricerca in: / (tutto il filesystem)"    log ""    log "ÔÜá´©Å  ATTENZIONE: La scansione completa pu├▓ richiedere alcuni minuti"else    log "Modalit├á: MANUALE"    log "Ricerca in: ${SEARCH_PATHS[0]}"filog ""
+# Verifica che le directory esistano
+if [[ ! -d "$REPO_DIR" ]]; then    log_error "Directory repository non trovata: $REPO_DIR"    exit 1filog "========================================"log "UPDATE SCRIPT DA REPOSITORY"log "========================================"log "Repository: $REPO_DIR"
+if $AUTO_MODE; then    log "Modalit├á: AUTOMATICA (sistema completo)"    log "Ricerca in: / (tutto il filesystem)"    log ""    log "ÔÜá´©Å  ATTENZIONE: La scansione completa pu├▓ richiedere alcuni minuti"
+else    log "Modalit├á: MANUALE"    log "Ricerca in: ${SEARCH_PATHS[0]}"filog ""
 # Aggiorna il repositorylog "Aggiornamento repository..."cd "$REPO_DIR"
-# Salva modifiche locali se esistonoif ! git diff --quiet || ! git diff --cached --quiet; then    log_warning "Modifiche locali rilevate, salvataggio temporaneo..."    git stash push -m "Auto-stash before update $(date +%Y%m%d-%H%M%S)" >/dev/null 2>&1figit pull origin main 2>&1 | grep -v "Already up to date" || truelog_success "Repository aggiornato"log ""
+# Salva modifiche locali se esistono
+if ! git diff --quiet || ! git diff --cached --quiet; then    log_warning "Modifiche locali rilevate, salvataggio temporaneo..."    git stash push -m "Auto-stash before update $(date +%Y%m%d-%H%M%S)" >/dev/null 2>&1figit pull origin main 2>&1 | grep -v "Already up to date" || truelog_success "Repository aggiornato"log ""
 # Crea directory di backupmkdir -p "$BACKUP_DIR"log "Directory backup: $BACKUP_DIR"log ""
 # Contatori
 UPDATED=0
@@ -53,7 +58,8 @@ do (bash o eseguibile generico)            if bash -n "$repo_script" 2>/dev/null
 # Copia e sostituisci                cp "$repo_script" "$target_script"                chmod +x "$target_script"                                
 # Mantieni owner originale se possibile                original_owner=$(stat -c '%U:%G' "$target_script" 2>/dev/null || 
 echo "root:root")                chown "$original_owner" "$target_script" 2>/dev/null || true                                log_success "Aggiornato: $script_dir/$script_name"                REPLACEMENTS["$script_dir/$script_name"]="r${script_name}"                ((UPDATED++))            else                log_error "Errore sintassi in r${script_name}, skip"                ((ERRORS++))            fi        fi            done < <(        if [[ "$search_dir" == "/" ]]; then            
-# Escludi directory di sistema per scansione root            find / \( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path /tmp -o -path /var/tmp -o -path '*/snap' -o -path '*/.git' \) -prune -o -type f \( -name "*.sh" -o -executable \) -print0 2>/dev/null        else            find "$search_dir" -type f \( -name "*.sh" -o -executable \) -print0 2>/dev/null        fi    )donelog ""log "========================================"log "RIEPILOGO AGGIORNAMENTO"log "========================================"log_success "Aggiornati: $UPDATED script"log_warning "Trovati ma non aggiornati: $SKIPPED script"if [[ $ERRORS -gt 0 ]]; then    log_error "Errori: $ERRORS script"filog ""if [[ $UPDATED -gt 0 ]]; then    log "Script sostituiti:"    for original in "${!REPLACEMENTS[@]}"; do        
+# Escludi directory di sistema per scansione root            find / \( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path /tmp -o -path /var/tmp -o -path '*/snap' -o -path '*/.git' \) -prune -o -type f \( -name "*.sh" -o -executable \) -print0 2>/dev/null        else            find "$search_dir" -type f \( -name "*.sh" -o -executable \) -print0 2>/dev/null        fi    )donelog ""log "========================================"log "RIEPILOGO AGGIORNAMENTO"log "========================================"log_success "Aggiornati: $UPDATED script"log_warning "Trovati ma non aggiornati: $SKIPPED script"
+if [[ $ERRORS -gt 0 ]]; then    log_error "Errori: $ERRORS script"filog ""if [[ $UPDATED -gt 0 ]]; then    log "Script sostituiti:"    for original in "${!REPLACEMENTS[@]}"; do        
 echo "  ÔÇó $original ÔåÆ ${REPLACEMENTS[$original]}"    done    log ""        log "========================================"    log "VERIFICA FILE SOSTITUITI"    log "========================================"    log "Controllo presenza e integrit├á dei file aggiornati..."    log ""        verify_success=0    verify_failed=0        for original in "${!REPLACEMENTS[@]}"; do        if [[ -f "$original" ]]; then            
 # Verifica che sia eseguibile            if [[ -x "$original" ]]; then                
 # Verifica che sia un file bash vali

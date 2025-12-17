@@ -11,7 +11,8 @@ echo "========================================="
 echo "  Installazione Auto Git Sync Service"
 echo "========================================="
 echo ""
-# Verifica esecuzione come rootif [[ $EUID -ne 0 ]]; then    
+# Verifica esecuzione come root
+if [[ $EUID -ne 0 ]]; then    
 echo "ÔØî Questo script deve essere eseguito come root"    
 echo "   Usa: su
 do bash install-auto-git-sync.sh"    exit 1fi
@@ -50,7 +51,8 @@ echo "Ôä╣´©Å  Repository owner: $REPO_OWNER"
 echo "Ôä╣´©Å  Repository path: $REPO_DIR"
 echo "Ôä╣´©Å  Home directory: $REPO_OWNER_HOME"
 echo ""
-# Verifica esistenza scriptif [[ ! -f "$SCRIPT_DIR/$SCRIPT_FILE" ]]; then    
+# Verifica esistenza script
+if [[ ! -f "$SCRIPT_DIR/$SCRIPT_FILE" ]]; then    
 echo "ÔØî File non trovato: $SCRIPT_FILE"    exit 1fi
 echo "Ô£à Script trovato"
 # Rendi eseguibile lo scriptchmod +x "$SCRIPT_DIR/$SCRIPT_FILE"
@@ -68,10 +70,11 @@ echo "Ô£à Service file creato e installato"
 echo "Ô£à Systemd ricaricato"
 # Abilita il servizio all'avviosystemctl enable auto-git-sync.service
 echo "Ô£à Servizio abilitato all'avvio"
-# Riavvia il servizio se gi├á attivoif systemctl is-active --quiet auto-git-sync.service; then    
+# Riavvia il servizio se gi├á attivo
+if systemctl is-active --quiet auto-git-sync.service; then    
 echo "Ôä╣´©Å  Servizio gi├á attivo, riavvio in corso..."    systemctl restart auto-git-sync.service    
-echo "Ô£à Servizio riavviato con nuova configurazione"fi
-# Mostra menu opzioni
+echo "Ô£à Servizio riavviato con nuova configurazione"
+fi # Mostra menu opzioni
 echo ""
 echo "========================================="
 echo "  Installazione Completata!"
@@ -104,7 +107,8 @@ echo "    tail -f /var/log/auto-git-sync.log"
 echo ""
 echo "  ÔÇó Disabilita servizio:"
 echo "    systemctl disable auto-git-sync"
-echo ""read -r -p "Vuoi avviare il servizio ora? (s/N): " start_nowif [[ "$start_now" =~ ^[sS]$ ]]; then    systemctl start auto-git-sync    
+echo ""read -r -p "Vuoi avviare il servizio ora? (s/N): " start_now
+if [[ "$start_now" =~ ^[sS]$ ]]; then    systemctl start auto-git-sync    
 echo ""    
 echo "Ô£à Servizio avviato!"    
 echo ""    sleep 2    systemctl status auto-git-sync --no-pager

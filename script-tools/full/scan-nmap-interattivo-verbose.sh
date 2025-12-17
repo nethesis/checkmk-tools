@@ -35,7 +35,8 @@ echo "  1) Scan porte (default)     -- porta scan"
 echo "  2) Discovery only (no port scan) -- nmap -sn"  read -rp "Scegli 1 o 2 [default 1]: " SCAN_CHOICE  
 SCAN_CHOICE="${SCAN_CHOICE:-1}"  if [[ "$SCAN_CHOICE" == "1" || "$SCAN_CHOICE" == "2" ]]; then break; fi  
 echo "Risposta non valida."done
-PORTS="$DEFAULT_PORTS"if [[ "$SCAN_CHOICE" == "1" ]]; then  read -rp "Porte da scansionare (es. 22,80,443 o 1-65535) [default: ${DEFAULT_PORTS}]: " INPUT_PORTS  
+PORTS="$DEFAULT_PORTS"
+if [[ "$SCAN_CHOICE" == "1" ]]; then  read -rp "Porte da scansionare (es. 22,80,443 o 1-65535) [default: ${DEFAULT_PORTS}]: " INPUT_PORTS  
 PORTS="${INPUT_PORTS:-$DEFAULT_PORTS}"fi
 # VERBOSITY / DEBUG (applies especially to discovery-only if selected)echo
 echo "Livello verbosit├â┬á / debug:"
@@ -51,10 +52,13 @@ NTNT="${NT:-3}"if ! [[ "$NT" =~ ^[0-5]$ ]]; then
 NT=3; fi
 # Confirmecho
 echo "Riepilogo:"if [[ "$MODE" == "1" ]]; then  
-echo "  Target: $TARGET_ARG"else  
-echo "  Targets file: $TARGET_FILE"fiif [[ "$SCAN_CHOICE" == "1" ]]; then  
+echo "  Target: $TARGET_ARG"
+else  
+echo "  Targets file: $TARGET_FILE"fi
+if [[ "$SCAN_CHOICE" == "1" ]]; then  
 echo "  Modalit├â┬á: Scan porte"  
-echo "  Porte: $PORTS"else  
+echo "  Porte: $PORTS"
+else  
 echo "  Modalit├â┬á: Discovery only (no port scan) - equivalente a -sn"ficase "$VLEVEL" in  0) 
 echo "  Verbosit├â┬á: nessuna extra" ;;  1) 
 echo "  Verbosit├â┬á: -v" ;;  2) 
@@ -63,7 +67,8 @@ echo "  Verbosit├â┬á: debug (-d) + --packet-trace" ;;esac
 echo "  Output dir: $OUTDIR"
 echo "  Timing template: -T$NT"echoread -rp "Procedere con la scansione? [y/N]: " 
 CONFCONF="${CONF:-N}"if [[ ! "$CONF" =~ ^[Yy]$ ]]; then  
-echo "Annullato dall'utente."  exit 0fimkdir -p "$OUTDIR"if [[ ! -w "$OUTDIR" ]]; then  
+echo "Annullato dall'utente."  exit 0fimkdir -p "$OUTDIR"
+if [[ ! -w "$OUTDIR" ]]; then  
 echo "Errore: directory $OUTDIR non scrivibile." >&2  exit 5fi
 TS="$(TIMESTAMP)"
 OUTBASE="${OUTDIR%/}/nmap-${TS}_${LABEL}"
@@ -71,7 +76,9 @@ OUTTXT="${OUTBASE}.txt"
 OUTSUM="${OUTBASE}_summary.txt"
 # Build nmap flags depending on choices
 NMAP_OPTS=()
-# verbosit├â┬áif [[ "$VLEVEL" -eq 1 ]]; then  NMAP_OPTS+=( -v )elif [[ "$VLEVEL" -eq 2 ]]; then  NMAP_OPTS+=( -vv )elif [[ "$VLEVEL" -eq 3 ]]; then  NMAP_OPTS+=( -d --packet-trace )fi
+# verbosit├â┬áif [[ "$VLEVEL" -eq 1 ]]; then  NMAP_OPTS+=( -v )el
+if [[ "$VLEVEL" -eq 2 ]]; then  NMAP_OPTS+=( -vv )el
+if [[ "$VLEVEL" -eq 3 ]]; then  NMAP_OPTS+=( -d --packet-trace )fi
 # reason to show cause for host/port decisionsNMAP_OPTS+=( --reason -T"${NT}" )if [[ "$SCAN_CHOICE" == "2" ]]; then  
 # discovery-only  NMAP_OPTS+=( -sn )else  
 # port scan: choose SYN if root, altrimenti connect  if [[ "$(id -u)" -eq 0 ]]; then    NMAP_OPTS+=( -sS -p "$PORTS" )  else    NMAP_OPTS+=( -sT -p "$PORTS" )  fi
@@ -81,7 +88,8 @@ NMAP_CMD=( "$NMAP_BIN" "${NMAP_OPTS[@]}" )if [[ "$MODE" == "2" ]]; then  NMAP_CM
 echo "Eseguo nmap..."
 echo "Coman
 do: ${NMAP_CMD[*]}"echo
-# Run nmapif "${NMAP_CMD[@]}"; then  
+# Run nmap
+if "${NMAP_CMD[@]}"; then  
 EC=0else  
 EC=$?fi
 # Produce summary: adattivo in base alla modalit├â┬áif [[ "$SCAN_CHOICE" == "2" ]]; then  

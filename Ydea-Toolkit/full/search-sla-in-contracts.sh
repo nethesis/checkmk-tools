@@ -17,8 +17,8 @@ COUNT=$(
 echo "$RESPONSE" | jq -r '.objs | length')  if [[ "$COUNT" -eq 0 ]]; then    
 echo "Fine"    break  fi    
 echo "$COUNT contratti"  
-echo "$RESPONSE" | jq '.objs' >> "$ALL_CONTRACTS.tmp"done
-# Combina tutti i risultatijq -s 'add' "$ALL_CONTRACTS.tmp" 2>/dev/null > "$ALL_CONTRACTS" || 
+echo "$RESPONSE" | jq '.objs' >> "$ALL_CONTRACTS.tmp"
+done # Combina tutti i risultatijq -s 'add' "$ALL_CONTRACTS.tmp" 2>/dev/null > "$ALL_CONTRACTS" || 
 echo "[]" > "$ALL_CONTRACTS"rm -f "$ALL_CONTRACTS.tmp"
 TOTAL=$(jq 'length' "$ALL_CONTRACTS")
 echo ""
@@ -32,7 +32,8 @@ echo ""
 MATCHING=$(jq '[.[] | select((. | tostring) | test("Premium|Mon|premium|mon"))]' "$ALL_CONTRACTS")
 MATCHING_COUNT=$(
 echo "$MATCHING" | jq 'length')
-echo "Trovati: $MATCHING_COUNT contratti"if [[ "$MATCHING_COUNT" -gt 0 ]]; then  
+echo "Trovati: $MATCHING_COUNT contratti"
+if [[ "$MATCHING_COUNT" -gt 0 ]]; then  
 echo ""  
 echo "$MATCHING" | jq '.[]'else  
 echo "   Nessun contratto trovato con 'Premium' o 'Mon'"fi

@@ -20,12 +20,17 @@ echo "0 WAN_Status status=ERROR No WAN interfaces found"    exit 0fioverall_stat
 # Controlla ogni interfaccia WANfor iface in $wan_interfaces; do    status=$(get_interface_status "$iface")    gateway=$(get_gateway "$iface")        if [[ "$status" == "true" || "$status" == "1" ]]; then        
 # Interfaccia UP - verifica connettivit├á        if [[ -n "$gateway" ]]; then            if check_connectivity "$gateway"; then                details+=("$iface: UP (gateway $gateway reachable)")                status_messages+=("$iface=OK")            else                details+=("$iface: UP but gateway $gateway unreachable")                status_messages+=("$iface=DEGRADED")                overall_status=1            fi        else            
 # UP ma senza gateway            
-# Prova DNS pubblici            if check_connectivity "8.8.8.8" || check_connectivity "1.1.1.1"; then                details+=("$iface: UP (internet reachable)")                status_messages+=("$iface=OK")            else                details+=("$iface: UP but no connectivity")                status_messages+=("$iface=DEGRADED")                overall_status=1            fi        fi    elif [[ "$status" == "false" || "$status" == "0" ]]; then        
+# Prova DNS pubblici            if check_connectivity "8.8.8.8" || check_connectivity "1.1.1.1"; then                details+=("$iface: UP (internet reachable)")                status_messages+=("$iface=OK")            else                details+=("$iface: UP but no connectivity")                status_messages+=("$iface=DEGRADED")                overall_status=1            fi        fi    el
+if [[ "$status" == "false" || "$status" == "0" ]]; then        
 # Interfaccia DOWN        details+=("$iface: DOWN")        status_messages+=("$iface=DOWN")        overall_status=2    else        
 # Stato sconosciuto        details+=("$iface: UNKNOWN")        status_messages+=("$iface=UNKNOWN")        overall_status=1    fi
 done
-# Determina stato finaleif [[ $overall_status -eq 0 ]]; then    final_status="OK"elif [[ $overall_status -eq 1 ]]; then    final_status="WARNING"else    final_status="CRITICAL"fi
-# Output CheckMKstatus_line="${status_messages[*]}"detail_line=$(
+# Determina stato finale
+if [[ $overall_status -eq 0 ]]; then    final_status="OK"
+el
+if [[ $overall_status -eq 1 ]]; then    final_status="WARNING"
+else    final_status="CRITICAL"
+fi # Output CheckMKstatus_line="${status_messages[*]}"detail_line=$(
 IFS=', '; 
 echo "${details[*]}")
 echo "$overall_status WAN_Status status=$final_status $status_line - $detail_line"

@@ -30,7 +30,8 @@ echo "Output: $NOTIFY_SERVICEOUTPUT"
 echo "Launcher: $LAUNCHER"
 echo "=========================================="
 echo ""
-# Verifica che il launcher esistaif [[ ! -f "$LAUNCHER" ]]; then  
+# Verifica che il launcher esista
+if [[ ! -f "$LAUNCHER" ]]; then  
 echo "ÔØî ERRORE: Launcher non trovato in $LAUNCHER"  exit 1fi
 echo "1. Eseguo launcher..."$
 LAUNCHERRESULT=$?

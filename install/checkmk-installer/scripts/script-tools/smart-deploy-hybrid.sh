@@ -7,7 +7,8 @@ do
 # =====================================================
 GITHUB_REPO="Coverup20/checkmk-tools"
 BASE_URL="https://raw.githubusercontent.com/$GITHUB_REPO/main"
-# Auto-detection environment CheckMKif [ -d "/omd/sites" ]; then    
+# Auto-detection environment CheckMK
+if [ -d "/omd/sites" ]; then    
 # Ambiente CheckMK Server (OMD)    
 SITE_NAME=$(ls /omd/sites/ 2>/dev/null | head -n1)    
 OMD_ROOT="/omd/sites/${SITE_NAME:-monitoring}"    
@@ -18,7 +19,8 @@ CHECKMK_NOTIFICATION_DIR="$OMD_ROOT/local/share/check_mk/notifications"
 CACHE_DIR="$OMD_ROOT/var/cache/checkmk-scripts"    
 MK_CONFDIR="${MK_CONFDIR:-$OMD_ROOT/etc/check_mk}"    
 MK_VARDIR="${MK_VARDIR:-$OMD_ROOT/var/check_mk}"    
-ENV_TYPE="OMD Server"else    
+ENV_TYPE="OMD Server"
+else    
 # Ambiente CheckMK Agent (client)    
 CHECKMK_LOCAL_DIR="/usr/lib/check_mk_agent/local"    
 CHECKMK_SPOOL_DIR="/usr/lib/check_mk_agent/spool"    
@@ -26,8 +28,8 @@ CHECKMK_PLUGIN_DIR="/usr/lib/check_mk_agent/plugins"
 CACHE_DIR="/var/cache/checkmk-scripts"    
 MK_CONFDIR="${MK_CONFDIR:-/etc/check_mk}"    
 MK_VARDIR="${MK_VARDIR:-/var/lib/check_mk_agent}"    
-ENV_TYPE="Agent Client"fi
-# Lista script da deployare con i loro tipideclare -A 
+ENV_TYPE="Agent Client"
+fi # Lista script da deployare con i loro tipideclare -A 
 SCRIPTS=(    ["check_cockpit_sessions"]="script-check-ns7/check_cockpit_sessions.sh:local"    ["check_dovecot_status"]="script-check-ns7/check_dovecot_status.sh:local"    ["check_ssh_root_sessions"]="script-check-ns7/check_ssh_root_sessions.sh:local"    ["check_postfix_status"]="script-check-ns7/check_postfix_status.sh:local"    ["telegram_realip"]="script-notify-checkmk/telegram_realip:notification")
 # =====================================================
 # FUNZIONI
@@ -89,7 +91,8 @@ echo "${!SCRIPTS[@]}" | wc -w),    "directories": {        "local": "$CHECKMK_LO
 # SETUP INIZIALE
 # =====================================================log "­ƒÜÇ CheckMK Smart Deploy - Sistema Ibri
 do"log "­ƒÅù´©Å  Environment: $ENV_TYPE"log "­ƒôü Cache: $CACHE_DIR"
-# Verifica permessi baseif [ ! -w "/usr/lib/check_mk_agent" ] 2>/dev/null; then    log "ÔØî Errore: Non hai permessi di scrittura su /usr/lib/check_mk_agent"    log "­ƒÆí Esegui come root o con su
+# Verifica permessi base
+if [ ! -w "/usr/lib/check_mk_agent" ] 2>/dev/null; then    log "ÔØî Errore: Non hai permessi di scrittura su /usr/lib/check_mk_agent"    log "­ƒÆí Esegui come root o con su
 do"    exit 1fi
 # Crea directory cachemkdir -p "$CACHE_DIR"log "­ƒôé Cache directory: $CACHE_DIR"
 # =====================================================
@@ -98,8 +101,8 @@ do"    exit 1fi
 # Parse entry: "path:type"    
 IFS=':' read -r github_path script_type <<< "${SCRIPTS[$script_entry]}"        log "­ƒöä Processing $script_entry (type: $script_type)..."        
 # Download iniziale per popolare la cache    cache_file="$CACHE_DIR/${script_entry}.sh"    if curl -s --max-time 10 --fail "$BASE_URL/$github_path" -o "$cache_file"; then        chmod +x "$cache_file"        log "Ô£à Cache iniziale per $script_entry creata"    else        log "ÔÜá´©Å  Warning: Impossibile scaricare $script_entry (continuo comunque)"    fi        
-# Crea wrapper smart    create_smart_wrapper "$script_entry" "$github_path" "$script_type"done
-# =====================================================
+# Crea wrapper smart    create_smart_wrapper "$script_entry" "$github_path" "$script_type"
+done # =====================================================
 # POST-DEPLOYMENT: STATUS E MAINTENANCE
 # =====================================================log "­ƒöº Crean
 do script di manutenzione..."cat > "$CACHE_DIR/update-all.sh" << 'EOF'
@@ -129,10 +132,12 @@ echo "=================================="
 echo "­ƒôü $dir: $count scripts"    else        
 echo "ÔØî $dir: not found"    fi
 done
-# Check cacheif [ -d "${CACHE_DIR:-/var/cache/checkmk-scripts}" ]; then    cache_count=$(find "${CACHE_DIR:-/var/cache/checkmk-scripts}" -name "*.sh" | wc -l)    
-echo "­ƒÆ¥ Cache: $cache_count files"else    
-echo "ÔØî Cache directory not found"fi
-# Check recent activity
+# Check cache
+if [ -d "${CACHE_DIR:-/var/cache/checkmk-scripts}" ]; then    cache_count=$(find "${CACHE_DIR:-/var/cache/checkmk-scripts}" -name "*.sh" | wc -l)    
+echo "­ƒÆ¥ Cache: $cache_count files"
+else    
+echo "ÔØî Cache directory not found"
+fi # Check recent activity
 echo ""
 echo "­ƒôà Recent Activity:"find "/usr/lib/check_mk_agent" -name "*" -type f -mtime -1 2>/dev/null | head -5 | while read -r file; do    
 echo "   $(stat -c '%y %n' "$file" 2>/dev/null)"doneEOFchmod +x "$CACHE_DIR/check-status.sh"
@@ -154,6 +159,7 @@ echo "­ƒÄë Aggiornamento completato!"EOFchmod +x "$CACHE_DIR/update-all.sh"
 # =====================================================
 # RIEPILOGO
 # =====================================================log "­ƒÄë Deploy completato!"log ""log "­ƒôè RIEPILOGO:"log "   ÔÇó Environment: $ENV_TYPE"log "   ÔÇó Script deployati: ${
-#SCRIPTS[@]}"log "   ÔÇó Cache directory: $CACHE_DIR"log "   ÔÇó Directories usate:"log "     - Local checks: $CHECKMK_LOCAL_DIR"if [ "$ENV_TYPE" = "OMD Server" ]; then    log "     - Notifications: $CHECKMK_NOTIFICATION_DIR"filog ""log "­ƒÆí FUNZIONAMENTO:"log "   ÔÇó Gli script si auto-aggiornano da GitHub ad ogni esecuzione"log "   ÔÇó In caso di problemi di rete, usano la cache locale"log "   ÔÇó Aggiornamento manuale: $CACHE_DIR/update-all.sh"log ""log "­ƒº¬ TEST:"log "   ls -la $CHECKMK_LOCAL_DIR/"if [ -f "$CHECKMK_LOCAL_DIR/check_cockpit_sessions" ]; then    log "   $CHECKMK_LOCAL_DIR/check_cockpit_sessions"filog "   
+#SCRIPTS[@]}"log "   ÔÇó Cache directory: $CACHE_DIR"log "   ÔÇó Directories usate:"log "     - Local checks: $CHECKMK_LOCAL_DIR"
+if [ "$ENV_TYPE" = "OMD Server" ]; then    log "     - Notifications: $CHECKMK_NOTIFICATION_DIR"filog ""log "­ƒÆí FUNZIONAMENTO:"log "   ÔÇó Gli script si auto-aggiornano da GitHub ad ogni esecuzione"log "   ÔÇó In caso di problemi di rete, usano la cache locale"log "   ÔÇó Aggiornamento manuale: $CACHE_DIR/update-all.sh"log ""log "­ƒº¬ TEST:"log "   ls -la $CHECKMK_LOCAL_DIR/"if [ -f "$CHECKMK_LOCAL_DIR/check_cockpit_sessions" ]; then    log "   $CHECKMK_LOCAL_DIR/check_cockpit_sessions"filog "   
 DEBUG=1 $CHECKMK_LOCAL_DIR/check_cockpit_sessions  
 # debug mode"

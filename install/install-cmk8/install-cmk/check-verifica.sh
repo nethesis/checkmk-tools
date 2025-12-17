@@ -20,8 +20,8 @@ echo 'nd')"
 echo -e "\n├░┼©ÔÇØ┬Å Certbot:"if command -v certbot >/dev/null 2>&1; then  certbot --version  
 echo "Certificati presenti:"  certbot certificates || true
 else  
-echo "Certbot non installato"fi
-echo -e "\n├░┼©ÔÇ£┼á Checkmk site:"if command -v omd >/dev/null 2>&1; then  omd status || true
+echo "Certbot non installato"
+fi echo -e "\n├░┼©ÔÇ£┼á Checkmk site:"if command -v omd >/dev/null 2>&1; then  omd status || true
 else  
-echo "Checkmk non installato"fi
-echo -e "\n===== VERIFICA COMPLETATA ====="
+echo "Checkmk non installato"
+fi echo -e "\n===== VERIFICA COMPLETATA ====="

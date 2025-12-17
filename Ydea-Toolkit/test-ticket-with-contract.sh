@@ -186,7 +186,8 @@ NC='\033[0m'
 # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOOLKIT="${SCRIPT_DIR}/rydea-toolkit.sh"
-# Verifica parametriif [ -z "$1" ]; then    
+# Verifica parametri
+if [ -z "$1" ]; then    
 echo -e "${RED}ÔØî Errore: Devi specificare l'ID del contratto${NC}"    
 echo ""    
 echo "Uso: $0 <CONTRATTO_ID>"    
@@ -222,7 +223,8 @@ echo "   - ID: ${CONTRATTO_ID}"
 echo "   - Nome: ${CONTRATTO_NOME}"
 echo "   - Azienda ID: ${CONTRATTO_AZIENDA_ID}"
 echo ""
-# Step 2: Verifica che il contratto appartenga all'anagrafica correttaif [ "$CONTRATTO_AZIENDA_ID" != "$ANAGRAFICA_ID" ]; then    
+# Step 2: Verifica che il contratto appartenga all'anagrafica corretta
+if [ "$CONTRATTO_AZIENDA_ID" != "$ANAGRAFICA_ID" ]; then    
 echo -e "${RED}ÔØî Errore: Il contratto ${CONTRATTO_ID} non appartiene all'anagrafica ${ANAGRAFICA_ID}!${NC}"    
 echo "   Appartiene invece all'anagrafica ${CONTRATTO_AZIENDA_ID}"    exit 1fi
 echo -e "${GREEN}Ô£à Contratto associato all'anagrafica corretta${NC}"
@@ -290,8 +292,8 @@ echo ""
 echo "Possibili cause:"    
 echo "   1. Il contratto non ├¿ attivo"    
 echo "   2. Il contratto non ha date valide"    
-echo "   3. API v2 non supporta l'associazione contratto in creazione"fi
-echo ""
+echo "   3. API v2 non supporta l'associazione contratto in creazione"
+fi echo ""
 echo -e "${BLUE}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"
 echo ""
 # Output finale per uso in script

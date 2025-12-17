@@ -7,8 +7,15 @@ echo "<<<dns_resolution>>>"
 # Test risoluzione con timeout    start_time=$(date +%s%N)    result=$(nslookup "$domain" "$dns_server" 2>/dev/null | grep -A1 "Name:" | tail -1 | grep "Address")    end_time=$(date +%s%N)        if [[ -n "$result" ]]; then        successful=$((successful + 1))        response_time=$(( (end_time - start_time) / 1000000 )) 
 # ms        response_times+=($response_time)    else        failed=$((failed + 1))    fi
 done
-# Calcola tempo medioif [[ ${
+# Calcola tempo medio
+if [[ ${
 #response_times[@]} -gt 0 ]]; then    avg_time=0    for time in "${response_times[@]}"; do        avg_time=$((avg_time + time))    done    avg_time=$((avg_time / ${
 #response_times[@]}))else    avg_time=0fi
-# Determina statoif [[ $failed -eq $total ]]; then    status=2    status_text="CRITICAL - DNS non risponde"elif [[ $failed -gt 0 ]]; then    status=1    status_text="WARNING - Alcuni test falliti"elif [[ $avg_time -gt 1000 ]]; then    status=1    status_text="WARNING - DNS lento"else    status=0    status_text="OK"fi
-echo "$status DNS_Resolution response_time=${avg_time}ms;500;1000 Test: $successful/$total OK, tempo medio: ${avg_time}ms - $status_text | successful=$successful failed=$failed total=$total avg_time_ms=$avg_time"
+# Determina stato
+if [[ $failed -eq $total ]]; then    status=2    status_text="CRITICAL - DNS non risponde"
+el
+if [[ $failed -gt 0 ]]; then    status=1    status_text="WARNING - Alcuni test falliti"
+el
+if [[ $avg_time -gt 1000 ]]; then    status=1    status_text="WARNING - DNS lento"
+else    status=0    status_text="OK"
+fi echo "$status DNS_Resolution response_time=${avg_time}ms;500;1000 Test: $successful/$total OK, tempo medio: ${avg_time}ms - $status_text | successful=$successful failed=$failed total=$total avg_time_ms=$avg_time"

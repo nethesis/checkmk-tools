@@ -237,7 +237,8 @@ echo -e "${G}Ô£ô VPS configured as clean remote site${N}"
 echo -e "${Y}ÔåÆ Ensuring Setup (WATO) is enabled...${N}"if ! grep -q "wato_enabled.*True" etc/check_mk/multisite.mk 2>/dev/null; then    
 echo "wato_enabled = True" >> etc/check_mk/multisite.mk
 fi
-# Check if automation user exists, create if neededif [[ ! -f var/check_mk/web/automation/automation.secret ]]; then    
+# Check if automation user exists, create if needed
+if [[ ! -f var/check_mk/web/automation/automation.secret ]]; then    
 echo -e "${Y}ÔåÆ Creating automation user...${N}"    secret=\$(pwgen -s 32 1 2>/dev/null || openssl rand -base64 24)    htpasswd -bB -c etc/htpasswd automation "\$secret" 2>/dev/null    mkdir -p var/check_mk/web/automation    
 echo "\$secret" > var/check_mk/web/automation/automation.secret    chmod 660 var/check_mk/web/automation/automation.secret    
 echo -e "${G}Ô£ô Automation user created${N}"else    

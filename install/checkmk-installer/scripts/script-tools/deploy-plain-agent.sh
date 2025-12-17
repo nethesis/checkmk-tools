@@ -5,7 +5,8 @@
 # ================================================set -e
 SOCKET_FILE="/etc/systemd/system/check-mk-agent-plain.socket"
 SERVICE_FILE="/etc/systemd/system/check-mk-agent-plain@.service"
-FORCE=0if [[ "$1" == "--force" ]]; then    
+FORCE=0
+if [[ "$1" == "--force" ]]; then    
 FORCE=1    
 echo "├ó┼í┬á├»┬©┬Å  Modalit├â┬á FORCE attiva: eventuali file esistenti saranno sovrascritti."fi
 # --- Check esistenza ---if [[ $FORCE -eq 0 ]] && ([[ -f "$SOCKET_FILE" ]] || [[ -f "$SERVICE_FILE" ]]); then    

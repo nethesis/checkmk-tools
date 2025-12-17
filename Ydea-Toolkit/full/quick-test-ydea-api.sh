@@ -14,7 +14,8 @@ echo ""
 # Test 1: Verifica variabili ambiente
 echo "­ƒôï Test 1: Verifica configurazione..."if [[ -z "${YDEA_ID:-}" || "${YDEA_ID}" == "ID" ]]; then  
 echo "ÔØî YDEA_ID non configurato correttamente"  
-echo "   Edita il file .env e imposta YDEA_ID"  exit 1fiif [[ -z "${YDEA_API_KEY:-}" || "${YDEA_API_KEY}" == "TOKEN" ]]; then  
+echo "   Edita il file .env e imposta YDEA_ID"  exit 1fi
+if [[ -z "${YDEA_API_KEY:-}" || "${YDEA_API_KEY}" == "TOKEN" ]]; then  
 echo "ÔØî YDEA_API_KEY non configurato correttamente"  
 echo "   Edita il file .env e imposta YDEA_API_KEY"  exit 1fi
 echo "Ô£à Variabili configurate:"
@@ -30,7 +31,8 @@ echo ""
 # Test 3: Test chiamata API categorie
 echo "­ƒôï Test 3: Test chiamata API categorie..."set +e  
 # Disabilita exit on error temporaneamentecategories_data=$(ydea_api GET "/categories" 2>&1)exit_code=$?set -e  
-# Riabilita exit on errorif [[ $exit_code -ne 0 ]]; then  
+# Riabilita exit on error
+if [[ $exit_code -ne 0 ]]; then  
 echo "ÔØî Errore nella chiamata API categorie (exit code: $exit_code)"  
 echo ""  
 echo "Risposta/Errore:"  
@@ -41,14 +43,16 @@ echo "  - Endpoint /categories non esiste o non ├¿ accessibile"
 echo "  - Problema di connessione o timeout"  
 echo "  - Token scaduto o non vali
 do"  exit 1fi
-# Verifica se la risposta ├¿ JSON validoif ! 
+# Verifica se la risposta ├¿ JSON valido
+if ! 
 echo "$categories_data" | jq empty 2>/dev/null; then  
 echo "ÔØî Risposta non ├¿ JSON vali
 do"  
 echo ""  
 echo "Risposta ricevuta:"  
 echo "$categories_data" | head -30  exit 1fi
-# Verifica se c'├¿ un errore nella rispostaif 
+# Verifica se c'├¿ un errore nella risposta
+if 
 echo "$categories_data" | jq -e 'has("error")' >/dev/null 2>&1; then  
 echo "ÔØî Errore nella risposta API"  
 echo "$categories_data" | jq '.'  exit 1ficat_count=$(

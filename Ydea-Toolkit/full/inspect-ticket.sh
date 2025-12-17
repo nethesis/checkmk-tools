@@ -89,8 +89,8 @@ echo ""
 echo "­ƒöº Custom Attributes:"if 
 echo "$TICKET_DATA" | jq -e '.customAttributes' >/dev/null 2>&1; then  
 echo "$TICKET_DATA" | jq '.customAttributes'else  
-echo "   Nessun custom attribute trovato"fi
-echo ""
+echo "   Nessun custom attribute trovato"
+fi echo ""
 echo "­ƒæñ Assegnazione:"
 echo "   Assegnato A: $(
 echo "$TICKET_DATA" | jq -r '.assegnatoA // .assegnato_a // "N/A"')"

@@ -3,7 +3,8 @@
 # create-monitoring-ticket.sh - Crea ticket Ydea da allarme CheckMKset -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"source "$SCRIPT_DIR/ydea-toolkit.sh"
 # Carica configurazione Premium_Mon
-CONFIG_FILE="$SCRIPT_DIR/../config/premium-mon-config.json"if [[ ! -f "$CONFIG_FILE" ]]; then  log_error "File configurazione non trovato: $CONFIG_FILE"  exit 1fi
+CONFIG_FILE="$SCRIPT_DIR/../config/premium-mon-config.json"
+if [[ ! -f "$CONFIG_FILE" ]]; then  log_error "File configurazione non trovato: $CONFIG_FILE"  exit 1fi
 # Leggi parametri da Check
 MKCMK_HOST="${1:-}"
 CMK_SERVICE="${2:-}"
@@ -33,12 +34,15 @@ echo "$service_lower" | grep -qi "$keyword"; then        jq -r ".tipologie.${tip
 # Default se non trovato match  
 echo "$DEFAULT_TIPO"}
 TIPO=$(determine_tipo)log_info "Tipologia determinata: $TIPO"
-# Costruisci titolo e descrizioneif [[ "$CMK_STATE" == "DOWN" || "$CMK_STATE" == "CRITICAL" ]]; then  
-STATE_ICON="­ƒö┤"elif [[ "$CMK_STATE" == "WARNING" ]]; then  
+# Costruisci titolo e descrizione
+if [[ "$CMK_STATE" == "DOWN" || "$CMK_STATE" == "CRITICAL" ]]; then  
+STATE_ICON="­ƒö┤"el
+if [[ "$CMK_STATE" == "WARNING" ]]; then  
 STATE_ICON="ÔÜá´©Å"else  
 STATE_ICON="Ôä╣´©Å"fi
 TITOLO="[${CMK_STATE}] ${CMK_HOST}"if [[ -n "$CMK_SERVICE" && "$CMK_SERVICE" != "Host" ]]; then  
-TITOLO="${TITOLO} - ${CMK_SERVICE}"fiif [[ -n "$CMK_HOSTIP" ]]; then  
+TITOLO="${TITOLO} - ${CMK_SERVICE}"fi
+if [[ -n "$CMK_HOSTIP" ]]; then  
 TITOLO="${TITOLO} [
 IP=${CMK_HOSTIP}]"fi
 # Descrizione generica
@@ -49,9 +53,11 @@ NOTA_PRIVATA="<p><strong>${STATE_ICON} Allarme da CheckMK Monitoring</strong></p
 # Costruisci corpo ticket base
 TICKET_BODY_BASE=$(jq -n \  --arg titolo "$TITOLO" \  --arg descrizione "$DESCRIZIONE" \  --argjson anagrafica "$ANAGRAFICA_ID" \  --argjson priorita "$PRIORITA_ID" \  --arg fonte "$FONTE" \  --arg tipo "$TIPO" \  '{    titolo: $titolo,    descrizione: $descrizione,    anagrafica_id: $anagrafica,    priorita_id: $priorita,    fonte: $fonte,    tipo: $tipo  }')
 # Aggiungi campi opzionali se presenti
-TICKET_BODY="$TICKET_BODY_BASE"if [[ -n "$ASSEGNATOA_ID" ]]; then  
+TICKET_BODY="$TICKET_BODY_BASE"
+if [[ -n "$ASSEGNATOA_ID" ]]; then  
 TICKET_BODY=$(
-echo "$TICKET_BODY" | jq --argjson uid "$ASSEGNATOA_ID" '. + {assegnatoa: [$uid]}')fiif [[ -n "$SLA_ID" ]]; then  
+echo "$TICKET_BODY" | jq --argjson uid "$ASSEGNATOA_ID" '. + {assegnatoa: [$uid]}')fi
+if [[ -n "$SLA_ID" ]]; then  
 TICKET_BODY=$(
 echo "$TICKET_BODY" | jq --argjson sid "$SLA_ID" '. + {sla_id: $sid}')filog_debug "Body: $TICKET_BODY"
 # Chiamata API per creare ticketensure_token

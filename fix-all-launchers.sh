@@ -22,6 +22,7 @@ LOCAL_SCRIPT="$deployed_path"
 echo "Ô£à Fixed: $launcher_name ÔåÆ $deployed_path"  ((fixed++))  done < <(find . -path "*/remote/r*.sh" -type f)
 echo ""
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
-echo "Ô£à Completato! $fixed launcher fixati"if [[ $errors -gt 0 ]]; then  
-echo "ÔÜá´©Å  $errors errori riscontrati"fi
-echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
+echo "Ô£à Completato! $fixed launcher fixati"
+if [[ $errors -gt 0 ]]; then  
+echo "ÔÜá´©Å  $errors errori riscontrati"
+fi echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"

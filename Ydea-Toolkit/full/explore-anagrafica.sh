@@ -34,9 +34,12 @@ echo ""
 # Salva il risultato    
 echo "$HTTP_BODY" | jq '.' > "/tmp/anagrafica-${ANAGRAFICA_ID}.json"    
 echo "­ƒÆ¥ Salvato in: /tmp/anagrafica-${ANAGRAFICA_ID}.json"    
-echo ""  elif [[ "$HTTP_CODE" == "404" ]]; then    
-echo "ÔØî HTTP $HTTP_CODE - Non trovato"  elif [[ "$HTTP_CODE" == "401" ]]; then    
-echo "ÔØî HTTP $HTTP_CODE - Non autorizzato"  elif [[ "$HTTP_CODE" == "403" ]]; then    
+echo ""  el
+if [[ "$HTTP_CODE" == "404" ]]; then    
+echo "ÔØî HTTP $HTTP_CODE - Non trovato"  el
+if [[ "$HTTP_CODE" == "401" ]]; then    
+echo "ÔØî HTTP $HTTP_CODE - Non autorizzato"  el
+if [[ "$HTTP_CODE" == "403" ]]; then    
 echo "ÔØî HTTP $HTTP_CODE - Accesso negato"  else    
 echo "ÔØî HTTP $HTTP_CODE"  fi
 done
@@ -52,7 +55,8 @@ MATCHING_TICKETS=$(
 echo "$RESPONSE" | jq --arg aid "$ANAGRAFICA_ID" '[.objs[] | select(.anagrafica_id == ($aid|tonumber))]')
 COUNT=$(
 echo "$MATCHING_TICKETS" | jq 'length')
-echo "Trovati $COUNT ticket con questa anagrafica"if [[ "$COUNT" -gt 0 ]]; then  
+echo "Trovati $COUNT ticket con questa anagrafica"
+if [[ "$COUNT" -gt 0 ]]; then  
 echo ""  
 echo "Primo ticket trovato (per analisi campi):"  
 echo "$MATCHING_TICKETS" | jq '.[0]'  

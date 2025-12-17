@@ -8,6 +8,9 @@ JAIL_INFO=$(fail2ban-client status sshd 2>/dev/null)if [ $? -ne 0 ] || [ -z "$JA
 echo "0 SSH-Failures - Fail2ban non attivo o jail sshd non trovato"    exit 0fi
 BANNED=$(
 echo "$JAIL_INFO" | grep 'Currently banned:' | awk '{print $4}')if [ -z "$BANNED" ]; then    
-BANNED=0fiif [ "$BANNED" -gt 0 ]; then    
-echo "1 SSH-Failures - SSH failed logins blocked (banned IPs) = $BANNED"else    
-echo "0 SSH-Failures - No SSH failed logins currently blocked"fi
+BANNED=0fi
+if [ "$BANNED" -gt 0 ]; then    
+echo "1 SSH-Failures - SSH failed logins blocked (banned IPs) = $BANNED"
+else    
+echo "0 SSH-Failures - No SSH failed logins currently blocked"
+fi 

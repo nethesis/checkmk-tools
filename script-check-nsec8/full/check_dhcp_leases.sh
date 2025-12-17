@@ -1,7 +1,8 @@
 #!/bin/bash
 # CheckMK plugin - Monitoraggio DHCP leases
 # Conta lease attivi e disponibili
-LEASE_FILE="/tmp/dhcp.leases"if [[ ! -f "$LEASE_FILE" ]]; then    
+LEASE_FILE="/tmp/dhcp.leases"
+if [[ ! -f "$LEASE_FILE" ]]; then    
 echo "<<<dhcp_leases>>>"    
 echo "1 DHCP_Leases - File leases non trovato"    exit 0fi
 # Conta lease attivi (non expired)current_time=$(date +%s)active_leases=0expired_leases=0total_leases=0while 
@@ -10,7 +11,12 @@ done < "$LEASE_FILE"
 # Leggi configurazione DHCP per trovare pool sizedhcp_start=$(uci get dhcp.lan.start 2>/dev/null || 
 echo 100)dhcp_limit=$(uci get dhcp.lan.limit 2>/dev/null || 
 echo 150)max_leases=$dhcp_limit
-# Calcola percentuale utilizzoif [[ $max_leases -gt 0 ]]; then    percent=$((active_leases * 100 / max_leases))else    percent=0fi
-# Determina statoif [[ $percent -ge 90 ]]; then    status=2    status_text="CRITICAL"elif [[ $percent -ge 80 ]]; then    status=1    status_text="WARNING"else    status=0    status_text="OK"fi
-echo "<<<dhcp_leases>>>"
+# Calcola percentuale utilizzo
+if [[ $max_leases -gt 0 ]]; then    percent=$((active_leases * 100 / max_leases))else    percent=0fi
+# Determina stato
+if [[ $percent -ge 90 ]]; then    status=2    status_text="CRITICAL"
+el
+if [[ $percent -ge 80 ]]; then    status=1    status_text="WARNING"
+else    status=0    status_text="OK"
+fi echo "<<<dhcp_leases>>>"
 echo "$status DHCP_Leases active=${active_leases};$((max_leases * 80 / 100));$((max_leases * 90 / 100));0;${max_leases} Lease attivi: $active_leases/$max_leases (${percent}%) - $status_text | active=$active_leases expired=$expired_leases total=$total_leases max=$max_leases percent=$percent"

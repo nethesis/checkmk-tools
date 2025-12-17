@@ -17,7 +17,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     
 # shellcheck disable=SC1090,SC1091
     source "$SCRIPT_DIR/.env"
-  elif [[ -f "/opt/ydea-toolkit/.env" ]]; then
+  el
+if [[ -f "/opt/ydea-toolkit/.env" ]]; then
     
 # shellcheck disable=SC1091
     source "/opt/ydea-toolkit/.env"
@@ -574,7 +575,8 @@ echo "$ticket_data" | jq -r '.priorita // "Normale"')
 local assegnato_a
 local assegnato_a
 assegnato_a=$(
-echo "$ticket_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA else "Non assegnato" end')
+echo "$ticket_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) el
+if .assegnatoA then .assegnatoA else "Non assegnato" end')
   
   
 # Aggiungi al tracking
@@ -698,7 +700,8 @@ echo "$ticket_obj" | jq -r '.priorita // "Normale"')
 local assegnato_a
 local assegnato_a
 assegnato_a=$(
-echo "$ticket_obj" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA else "Non assegnato" end')
+echo "$ticket_obj" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) el
+if .assegnatoA then .assegnatoA else "Non assegnato" end')
     
     
 # Controlla se risolto

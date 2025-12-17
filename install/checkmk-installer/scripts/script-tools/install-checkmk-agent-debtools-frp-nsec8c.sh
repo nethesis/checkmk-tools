@@ -48,7 +48,8 @@ USE_PROCD=1
 PROG=/usr/bin/check_mk_agentstart_service() {    mkdir -p /var/run    
 echo "Starting Checkmk Agent on TCP port 6556..."    procd_open_instance    procd_set_param command socat TCP-LISTEN:6556,reuseaddr,fork,keepalive EXEC:$PROG    procd_set_param respawn  
 # Auto-restart if socat crashes    procd_set_param stdout 1    procd_set_param stderr 1    procd_close_instance}stop_service() {    
-echo "Stopping Checkmk Agent..."    killall socat >/dev/null 2>&1 || true}EOFchmod +x /etc/init.d/check_mk_agent/etc/init.d/check_mk_agent enable >/dev/null 2>&1 || true/etc/init.d/check_mk_agent restartsleep 2if pgrep -f "socat TCP-LISTEN:6556" >/dev/null 2>&1; then    
+echo "Stopping Checkmk Agent..."    killall socat >/dev/null 2>&1 || true}EOFchmod +x /etc/init.d/check_mk_agent/etc/init.d/check_mk_agent enable >/dev/null 2>&1 || true/etc/init.d/check_mk_agent restartsleep 2
+if pgrep -f "socat TCP-LISTEN:6556" >/dev/null 2>&1; then    
 echo "Ô£à Checkmk Agent attivo e persistente sulla porta 6556 (socat mode)."else    
 echo "ÔÜá´©Å  Checkmk Agent non risponde ÔÇö verifica /usr/bin/check_mk_agent."fi
 # ============================================================

@@ -17,6 +17,9 @@ echo "[$DATE] [SHARE:$SHARE] [PATH:$SHARE_PATH] File sospetti trovati:" >> "$LOG
 echo -e "$FOUND" | while read -r F; do            [ -n "$F" ] && 
 echo "  $F" >> "$LOGFILE"        done    fi
 done
-# Output per CheckMKif grep -q "File sospetti trovati:" "$LOGFILE"; then    
-echo "2 CRITICAL - Ransomware: file sospetti rilevati. Vedi $LOGFILE"else    
-echo "0 OK - Nessun ransomware rilevato"fi
+# Output per CheckMK
+if grep -q "File sospetti trovati:" "$LOGFILE"; then    
+echo "2 CRITICAL - Ransomware: file sospetti rilevati. Vedi $LOGFILE"
+else    
+echo "0 OK - Nessun ransomware rilevato"
+fi 

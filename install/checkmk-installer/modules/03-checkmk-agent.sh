@@ -6,7 +6,8 @@ MODULE_NAME="CheckMK Agent Installation"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
-# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
+# Load configuration
+if [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
 else  log_error "Configuration file not found. Run config-wizard.sh first."  exit 1fi
 # Module startlog_module_start "$MODULE_NAME"
 #
@@ -751,7 +752,8 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y xinetd"
 # CheckMK Agent Wrapper
 # Runs custom checks before standard agent output
 # Run standard agent/usr/bin/check_mk_agent
-# Add custom local checksif [[ -d /usr/lib/check_mk_agent/local ]]; then  for check in /usr/lib/check_mk_agent/local/*; do    if [[ -x "$check" ]]; then      "$check"    fi  donefiEOF    chmod +x /usr/local/bin/check_mk_agent_wrapper.sh    
+# Add custom local checks
+if [[ -d /usr/lib/check_mk_agent/local ]]; then  for check in /usr/lib/check_mk_agent/local/*; do    if [[ -x "$check" ]]; then      "$check"    fi  donefiEOF    chmod +x /usr/local/bin/check_mk_agent_wrapper.sh    
 # Create local checks directory  mkdir -p /usr/lib/check_mk_agent/local    log_success "Agent wrapper created"}
 #
 #

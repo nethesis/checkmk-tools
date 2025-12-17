@@ -6,9 +6,11 @@
 TOOLKIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 YDEA_TOOLKIT="${TOOLKIT_DIR}/ydea-toolkit.sh"
 YDEA_ENV="${TOOLKIT_DIR}/.env"
-# Carica variabili ambiente se disponibiliif [[ -f "$YDEA_ENV" ]]; then  
-# shellcheck disable=SC1090  source "$YDEA_ENV"fi
-# Verifica che il toolkit esistaif [[ ! -x "$YDEA_TOOLKIT" ]]; then  
+# Carica variabili ambiente se disponibili
+if [[ -f "$YDEA_ENV" ]]; then  
+# shellcheck disable=SC1090  source "$YDEA_ENV"
+fi # Verifica che il toolkit esista
+if [[ ! -x "$YDEA_TOOLKIT" ]]; then  
 echo "ERRORE: ydea-toolkit.sh non trovato o non eseguibile: $YDEA_TOOLKIT"  exit 1fi
 # ===== MAIN =====main() {  
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Avvio monitoraggio ticket tracciati"    
