@@ -110,9 +110,7 @@ if [ "$EUID" -ne 0 ]; then
 echo -e "${RED}Ô£ù Questo script deve essere eseguito come root${NC}"    exit 1fi
 # =====================================================
 # Esegui modalit├á richiesta
-# =====================================================if [ "$MODE" = "uninstall-frpc" ]; then    uninstall_frpc    exit 0el
-if [ "$MODE" = "uninstall-agent" ]; then    uninstall_agent    exit 0el
-if [ "$MODE" = "uninstall-all" ]; then    
+# =====================================================if [ "$MODE" = "uninstall-frpc" ]; then    uninstall_frpc    exit 0elif [ "$MODE" = "uninstall-agent" ]; then    uninstall_agent    exit 0elif [ "$MODE" = "uninstall-all" ]; then    
 echo -e "${RED}ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù${NC}"    
 echo -e "${RED}Ôòæ        DISINSTALLAZIONE COMPLETA (Agent + FRPC)          Ôòæ${NC}"    
 echo -e "${RED}ÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ${NC}"    
@@ -140,8 +138,7 @@ echo "8")        fi
 # Rileva NethServer 8 Core / OpenWrt        if [ -f /etc/openwrt_release ] || grep -qi "openwrt" /etc/os-release 2>/dev/null; then            
 OS="openwrt"            
 VER=$(grep DISTRIB_RELEASE /etc/openwrt_release 2>/dev/null | cut -d"'" -f2 || 
-echo "23.05")        fi    el
-if type lsb_release >/dev/null 2>&1; then        
+echo "23.05")        fi    elif type lsb_release >/dev/null 2>&1; then        
 OS=$(lsb_release -si | tr '[:upper:]' '[:lower:]')        
 VER=$(lsb_release -sr)    else        
 OS=$(uname -s)        
@@ -318,8 +315,7 @@ echo -e "\n${YELLOW}­ƒöº Creazione servizio systemd...${NC}"                
 # Verifica stato    if [ "$PKG_TYPE" = "openwrt" ]; then        if pgrep -f frpc >/dev/null 2>&1; then            
 echo -e "${GREEN}Ô£ô FRPC avviato con successo${NC}"        else            
 echo -e "${RED}Ô£ù Errore nell'avvio di FRPC${NC}"            
-echo -e "${YELLOW}Verifica log: tail -f /var/log/frpc.log${NC}"        fi    el
-if systemctl is-active --quiet frpc; then        
+echo -e "${YELLOW}Verifica log: tail -f /var/log/frpc.log${NC}"        fi    elif systemctl is-active --quiet frpc; then        
 echo -e "${GREEN}Ô£ô FRPC avviato con successo${NC}"        
 echo -e "\n${CYAN}­ƒôè Status:${NC}"        systemctl status frpc --no-pager -l | head -n 10    else        
 echo -e "${RED}Ô£ù Errore nell'avvio di FRPC${NC}"        

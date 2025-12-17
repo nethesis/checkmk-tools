@@ -14,16 +14,13 @@ fi
 if [[ -d "/cdrom/script-notify-checkmk" ]]; then  
 # Running from ISO mount point  
 SCRIPTS_SRC="/cdrom"  log_debug "Using ISO mount point: $SCRIPTS_SRC"
-el
-if [[ -d "${INSTALLER_ROOT}/scripts/script-notify-checkmk" ]]; then  
+elif [[ -d "${INSTALLER_ROOT}/scripts/script-notify-checkmk" ]]; then  
 # Scripts are in subdirectory of installer  
 SCRIPTS_SRC="${INSTALLER_ROOT}/scripts"  log_debug "Using installer scripts subdirectory: $SCRIPTS_SRC"
-el
-if [[ -d "/mnt/usbdisk/script-notify-checkmk" ]]; then  
+elif [[ -d "/mnt/usbdisk/script-notify-checkmk" ]]; then  
 # Running from USB mount (scripts at same level as checkmk-installer)  
 SCRIPTS_SRC="/mnt/usbdisk"  log_debug "Using USB mount root: $SCRIPTS_SRC"
-el
-if [[ -d "${INSTALLER_ROOT}/../../script-notify-checkmk" ]]; then  
+elif [[ -d "${INSTALLER_ROOT}/../../script-notify-checkmk" ]]; then  
 # Running from local repository (go up 2 levels)  
 SCRIPTS_SRC="$(cd "${INSTALLER_ROOT}/../.." && pwd)"  log_debug "Using local repository: $SCRIPTS_SRC"
 else  

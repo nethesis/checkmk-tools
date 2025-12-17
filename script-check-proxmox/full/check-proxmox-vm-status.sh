@@ -30,8 +30,7 @@ STOPPED=$((TOTAL - RUNNING))
 # --- Riga riepilogativa globale ---if (( RUNNING == 0 )); then    
 STATUS=2    
 MSG="CRIT: nessuna VM o container attivo"
-el
-if (( STOPPED > 0 )); then    
+elif (( STOPPED > 0 )); then    
 STATUS=1    
 MSG="WARN: $RUNNING/$TOTAL attivi ($STOPPED spenti)"else    
 STATUS=0    

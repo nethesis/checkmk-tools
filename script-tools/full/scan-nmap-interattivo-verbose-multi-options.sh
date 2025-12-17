@@ -82,9 +82,7 @@ OUTCSV_TXT="${OUTBASE}_summary_readable.txt"
 OUTSUM="${OUTBASE}_summary.txt"
 # Build nmap flags depending on choices
 NMAP_OPTS=()
-# verbosit├â┬áif [[ "$VLEVEL" -eq 1 ]]; then  NMAP_OPTS+=( -v )el
-if [[ "$VLEVEL" -eq 2 ]]; then  NMAP_OPTS+=( -vv )el
-if [[ "$VLEVEL" -eq 3 ]]; then  NMAP_OPTS+=( -d --packet-trace )fiNMAP_OPTS+=( --reason -T"${NT}" )if [[ "$SCAN_CHOICE" == "2" ]]; then  NMAP_OPTS+=( -sn )else  
+# verbosit├â┬áif [[ "$VLEVEL" -eq 1 ]]; then  NMAP_OPTS+=( -v )elif [[ "$VLEVEL" -eq 2 ]]; then  NMAP_OPTS+=( -vv )elif [[ "$VLEVEL" -eq 3 ]]; then  NMAP_OPTS+=( -d --packet-trace )fiNMAP_OPTS+=( --reason -T"${NT}" )if [[ "$SCAN_CHOICE" == "2" ]]; then  NMAP_OPTS+=( -sn )else  
 # prefer SYN if root, else connect  if [[ "$(id -u)" -eq 0 ]]; then    NMAP_OPTS+=( -sS -p "$PORTS" )  else    NMAP_OPTS+=( -sT -p "$PORTS" )  fi
 fi
 # Process NMAP_EXTRA: split but strip any -o* output flags to force single OUTTXT file.

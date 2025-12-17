@@ -75,11 +75,9 @@ QTS_VERSION=$(grep -oP '
 NAS_VERSION="\K[^"]+' /etc/config/uLinux.conf 2>/dev/null || 
 echo "Unknown")        
 echo -e "${GREEN}Ô£ô QNAP NAS rilevato${NC}"        
-echo -e "   QTS Version: ${CYAN}$QTS_VERSION${NC}"    el
-if [ -f /etc/nethserver-release ]; then        
+echo -e "   QTS Version: ${CYAN}$QTS_VERSION${NC}"    elif [ -f /etc/nethserver-release ]; then        
 NAS_TYPE="nethesis"        
-echo -e "${GREEN}Ô£ô Nethesis NAS rilevato${NC}"        if [ -f /etc/nethserver-release ]; then            cat /etc/nethserver-release        fi    el
-if [ -d /share/CACHEDEV1_DATA ] || [ -d /share/MD0_DATA ]; then        
+echo -e "${GREEN}Ô£ô Nethesis NAS rilevato${NC}"        if [ -f /etc/nethserver-release ]; then            cat /etc/nethserver-release        fi    elif [ -d /share/CACHEDEV1_DATA ] || [ -d /share/MD0_DATA ]; then        
 NAS_TYPE="qnap-like"        
 echo -e "${GREEN}Ô£ô Sistema compatibile QNAP rilevato${NC}"    else        
 echo -e "${YELLOW}ÔÜá´©Å  Sistema NAS generico rilevato${NC}"        
@@ -94,8 +92,7 @@ echo -n "   Continuare comunque? [s/N]: "        read -r CONFIRM        if [[ ! 
 # Verifica spazio disco - prova diverse directory    
 AVAILABLE_SPACE="0"    if [ -d /share/CACHEDEV1_DATA ]; then        
 AVAILABLE_SPACE=$(df -BM /share/CACHEDEV1_DATA 2>/dev/null | tail -1 | awk '{print $4}' | sed 's/M//' || 
-echo "0")    el
-if [ -d /share/MD0_DATA ]; then        
+echo "0")    elif [ -d /share/MD0_DATA ]; then        
 AVAILABLE_SPACE=$(df -BM /share/MD0_DATA 2>/dev/null | tail -1 | awk '{print $4}' | sed 's/M//' || 
 echo "0")    else        
 AVAILABLE_SPACE=$(df -BM /opt 2>/dev/null | tail -1 | awk '{print $4}' | sed 's/M//' || 
@@ -113,9 +110,7 @@ echo -e "   Spazio disponibile: ${GREEN}${AVAILABLE_SPACE}MB${NC}"    fi}
 # =====================================================install_dependencies() {    
 echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ VERIFICA DIPENDENZE ÔòÉÔòÉÔòÉ${NC}"        
 # Verifica wget    if ! command -v wget >/dev/null 2>&1; then        
-echo -e "${YELLOW}ÔÜá´©Å  wget non trovato, tentativo installazione...${NC}"        if command -v opkg >/dev/null 2>&1; then            opkg update && opkg install wget        el
-if command -v yum >/dev/null 2>&1; then            yum install -y wget        el
-if command -v apt-get >/dev/null 2>&1; then            apt-get update && apt-get install -y wget        else            
+echo -e "${YELLOW}ÔÜá´©Å  wget non trovato, tentativo installazione...${NC}"        if command -v opkg >/dev/null 2>&1; then            opkg update && opkg install wget        elif command -v yum >/dev/null 2>&1; then            yum install -y wget        elif command -v apt-get >/dev/null 2>&1; then            apt-get update && apt-get install -y wget        else            
 echo -e "${RED}Ô£ù Impossibile installare wget${NC}"            exit 1        fi    else        
 echo -e "${GREEN}Ô£ô wget disponibile${NC}"    fi        
 # Verifica tar    if ! command -v tar >/dev/null 2>&1; then        
@@ -127,16 +122,13 @@ echo -e "${YELLOW}ÔÜá´©Å  socat non trovato, tentativo installazione...${N
 SOCAT_INSTALLED=false                if command -v opkg >/dev/null 2>&1; then            
 echo -e "${CYAN}   Usan
 do opkg (QNAP/OpenWrt)...${NC}"            opkg update 2>&1 | grep -v "Signature check"            if opkg install socat 2>&1; then                
-SOCAT_INSTALLED=true            fi        el
-if command -v yum >/dev/null 2>&1; then            
+SOCAT_INSTALLED=true            fi        elif command -v yum >/dev/null 2>&1; then            
 echo -e "${CYAN}   Usan
 do yum (CentOS/RHEL)...${NC}"            if yum install -y socat 2>&1 | grep -v "^Loaded plugins"; then                
-SOCAT_INSTALLED=true            fi        el
-if command -v dnf >/dev/null 2>&1; then            
+SOCAT_INSTALLED=true            fi        elif command -v dnf >/dev/null 2>&1; then            
 echo -e "${CYAN}   Usan
 do dnf (Fedora/RHEL 8+)...${NC}"            if dnf install -y socat 2>&1; then                
-SOCAT_INSTALLED=true            fi        el
-if command -v apt-get >/dev/null 2>&1; then            
+SOCAT_INSTALLED=true            fi        elif command -v apt-get >/dev/null 2>&1; then            
 echo -e "${CYAN}   Usan
 do apt-get (Debian/Ubuntu)...${NC}"            if apt-get update && apt-get install -y socat 2>&1; then                
 SOCAT_INSTALLED=true            fi        else            
@@ -144,8 +136,7 @@ echo -e "${YELLOW}ÔÜá´©Å  Package manager non trovato, provo a rilevare il
 # Rileva sistema operativo            if [ -f /etc/redhat-release ] || [ -f /etc/centos-release ] || [ -f /etc/rocky-release ]; then                
 echo -e "${CYAN}   Sistema RHEL-based rilevato, usan
 do yum...${NC}"                if command -v yum >/dev/null 2>&1; then                    yum install -y socat 2>&1 | grep -v "^Loaded plugins"                    
-SOCAT_INSTALLED=true                fi            el
-if [ -f /etc/debian_version ]; then                
+SOCAT_INSTALLED=true                fi            elif [ -f /etc/debian_version ]; then                
 echo -e "${CYAN}   Sistema Debian-based rilevato, usan
 do apt...${NC}"                if command -v apt >/dev/null 2>&1; then                    apt update && apt install -y socat 2>&1                    
 SOCAT_INSTALLED=true                fi            else                
@@ -223,20 +214,16 @@ echo -e "${YELLOW}ÔÜá´©Å  xinetd non trovato, tentativo installazione...${
 XINETD_INSTALLED=false                if command -v opkg >/dev/null 2>&1; then            
 echo -e "${CYAN}   Usan
 do opkg...${NC}"            opkg update 2>&1 | grep -v "Signature check"            opkg install xinetd && 
-XINETD_INSTALLED=true        el
-if command -v yum >/dev/null 2>&1; then            
+XINETD_INSTALLED=true        elif command -v yum >/dev/null 2>&1; then            
 echo -e "${CYAN}   Usan
 do yum...${NC}"            yum install -y xinetd && 
-XINETD_INSTALLED=true        el
-if command -v dnf >/dev/null 2>&1; then            
+XINETD_INSTALLED=true        elif command -v dnf >/dev/null 2>&1; then            
 echo -e "${CYAN}   Usan
 do dnf...${NC}"            dnf install -y xinetd && 
-XINETD_INSTALLED=true        el
-if command -v apt-get >/dev/null 2>&1; then            
+XINETD_INSTALLED=true        elif command -v apt-get >/dev/null 2>&1; then            
 echo -e "${CYAN}   Usan
 do apt-get...${NC}"            apt-get update && apt-get install -y xinetd && 
-XINETD_INSTALLED=true        el
-if [ -f /etc/redhat-release ] || [ -f /etc/centos-release ] || [ -f /etc/rocky-release ]; then            
+XINETD_INSTALLED=true        elif [ -f /etc/redhat-release ] || [ -f /etc/centos-release ] || [ -f /etc/rocky-release ]; then            
 echo -e "${CYAN}   Sistema RHEL-based, usan
 do yum...${NC}"            yum install -y xinetd && 
 XINETD_INSTALLED=true        fi                if ! command -v xinetd >/dev/null 2>&1; then            
@@ -271,8 +258,7 @@ LOG_FILE="/opt/checkmk/log/agent.log"
 echo "$(date): Starting CheckMK Agent via xinetd" >> "$LOG_FILE"
 # Restart xinetd
 if [ -f /etc/init.d/xinetd ]; then    /etc/init.d/xinetd restart
-el
-if command -v systemctl >/dev/null 2>&1; then    systemctl restart xinetd
+elif command -v systemctl >/dev/null 2>&1; then    systemctl restart xinetd
 else    killall xinetd 2>/dev/null    xinetd
 fi
 echo "CheckMK Agent started via xinetd on port 6556"EOF        chmod +x "$AGENT_DIR/start_agent.sh"        
@@ -284,8 +270,7 @@ echo "$(date): Stopping CheckMK Agent (xinetd)" >> "$LOG_FILE"
 # Remove xinetd configrm -f /etc/xinetd.d/check_mk
 # Restart xinetd
 if [ -f /etc/init.d/xinetd ]; then    /etc/init.d/xinetd restart
-el
-if command -v systemctl >/dev/null 2>&1; then    systemctl restart xinetd
+elif command -v systemctl >/dev/null 2>&1; then    systemctl restart xinetd
 fi
 echo "CheckMK Agent stopped"EOF        chmod +x "$AGENT_DIR/stop_agent.sh"        
 echo -e "${GREEN}Ô£ô Configurazione xinetd creata${NC}"}
@@ -329,13 +314,11 @@ LOG_FILE="/opt/checkmk/log/agent.log"
 PID_FILE="/var/run/checkmk_agent.pid"log_msg() {    
 echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >> "$LOG_FILE" 2>/dev/null || true}
 # Prova socat per primo (il migliore)if command -v socat >/dev/null 2>&1; then    log_msg "Starting agent daemon with socat on port $PORT"    while true; do        socat TCP-LISTEN:$PORT,reuseaddr,fork EXEC:"$AGENT_BIN" 2>>"$LOG_FILE" || sleep 1    done
-# Altrimenti usa Python (compatibile con Python 2.7+)el
-if command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then    log_msg "Starting agent daemon with Python on port $PORT"        
+# Altrimenti usa Python (compatibile con Python 2.7+)elif command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then    log_msg "Starting agent daemon with Python on port $PORT"        
 PYTHON_CMD=$(command -v python3 2>/dev/null || command -v python 2>/dev/null)        $PYTHON_CMD -u << 'PYTHON_EOF'import socketimport subprocessimport sysPORT = 6556AGENT_BIN = "/opt/checkmk/bin/check_mk_agent"def handle_client(client_socket):    try:        
 # Python 2.7 compatible subprocess call        proc = subprocess.Popen([AGENT_BIN], stdout=subprocess.PIPE, stderr=subprocess.PIPE)        output, _ = proc.communicate()        client_socket.sendall(output)    except Exception as e:        sys.stderr.write("Error handling client: " + str(e) + "\n")    finally:        try:            client_socket.close()        except:            passdef main():    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)    server.bind(('0.0.0.0', PORT))    server.listen(5)        print("CheckMK Agent listening on port " + str(PORT))    sys.stdout.flush()        while True:        try:            client, addr = server.accept()            handle_client(client)        except KeyboardInterrupt:            break        except Exception as e:            sys.stderr.write("Error: " + str(e) + "\n")            continue        server.close()if __name__ == "__main__":    main()PYTHON_EOF
 # Fallback con xinetd se disponibile
-el
-if [ -f /etc/xinetd.d/ ] && command -v xinetd >/dev/null 2>&1; then    log_msg "Configuring xinetd for CheckMK agent"    cat > /etc/xinetd.d/checkmk <<XINETD_EOFservice checkmk{    type           = UNLISTED    port           = $PORT    socket_type    = stream    protocol       = tcp    wait           = no    user           = root    server         = $AGENT_BIN    disable        = no}XINETD_EOF        /etc/init.d/xinetd restart    log_msg "Agent configured via xinetd"        
+elif [ -f /etc/xinetd.d/ ] && command -v xinetd >/dev/null 2>&1; then    log_msg "Configuring xinetd for CheckMK agent"    cat > /etc/xinetd.d/checkmk <<XINETD_EOFservice checkmk{    type           = UNLISTED    port           = $PORT    socket_type    = stream    protocol       = tcp    wait           = no    user           = root    server         = $AGENT_BIN    disable        = no}XINETD_EOF        /etc/init.d/xinetd restart    log_msg "Agent configured via xinetd"        
 # Loop per mantenere lo script attivo    while true; do        sleep 3600    done
 else    
 # Ultimo fallback: netcat detection migliorato    log_msg "No socat or Python found, trying netcat alternatives"        
@@ -605,9 +588,7 @@ do: $1${NC}"        show_usage        ;;esac
 echo -e "${RED}Ô£ù Questo script deve essere eseguito come root o admin${NC}"    exit 1fi
 # =====================================================
 # Esegui modalit├á richiesta
-# =====================================================if [ "$MODE" = "uninstall-frpc" ]; then    uninstall_frpc    exit 0el
-if [ "$MODE" = "uninstall-agent" ]; then    uninstall_agent    exit 0el
-if [ "$MODE" = "uninstall-all" ]; then    
+# =====================================================if [ "$MODE" = "uninstall-frpc" ]; then    uninstall_frpc    exit 0elif [ "$MODE" = "uninstall-agent" ]; then    uninstall_agent    exit 0elif [ "$MODE" = "uninstall-all" ]; then    
 echo -e "${RED}ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù${NC}"    
 echo -e "${RED}Ôòæ        DISINSTALLAZIONE COMPLETA (Agent + FRPC)          Ôòæ${NC}"    
 echo -e "${RED}ÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ${NC}"    

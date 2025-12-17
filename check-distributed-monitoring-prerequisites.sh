@@ -392,8 +392,7 @@ echo -e "${Y}ÔÜá Port 6557 not listening (will be enabled)${N}"
 echo -e "\n${Y}ÔåÆ Checking firewall rules...${N}"if command -v ufw >/dev/null 2>&1; then    
 echo -e "${B}UFW status:${N}"    su
 do ufw status | grep -E "(6557|Status)" || true
-el
-if command -v firewall-cmd >/dev/null 2>&1; then    
+elif command -v firewall-cmd >/dev/null 2>&1; then    
 echo -e "${B}Firewalld status:${N}"    su
 do firewall-cmd --list-ports | grep 6557 || 
 echo -e "${Y}ÔÜá Port 6557 not open${N}"else    

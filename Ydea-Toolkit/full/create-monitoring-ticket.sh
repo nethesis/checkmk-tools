@@ -36,8 +36,7 @@ echo "$DEFAULT_TIPO"}
 TIPO=$(determine_tipo)log_info "Tipologia determinata: $TIPO"
 # Costruisci titolo e descrizione
 if [[ "$CMK_STATE" == "DOWN" || "$CMK_STATE" == "CRITICAL" ]]; then  
-STATE_ICON="­ƒö┤"el
-if [[ "$CMK_STATE" == "WARNING" ]]; then  
+STATE_ICON="­ƒö┤"elif [[ "$CMK_STATE" == "WARNING" ]]; then  
 STATE_ICON="ÔÜá´©Å"else  
 STATE_ICON="Ôä╣´©Å"fi
 TITOLO="[${CMK_STATE}] ${CMK_HOST}"if [[ -n "$CMK_SERVICE" && "$CMK_SERVICE" != "Host" ]]; then  

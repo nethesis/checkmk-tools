@@ -497,8 +497,7 @@ do bash /cdrom/checkmk-installer/bootstrap-installer.shWHAT IT DOES:------------
 #
 #setup_hybrid_boot() {  local iso_root="$1"    log_info "Setting up hybrid boot support..."    
 # Create isolinux directory if doesn't exist  local isolinux_dir="${iso_root}/isolinux"  mkdir -p "$isolinux_dir"    
-# Copy isolinux files  if [[ -f "/usr/lib/ISOLINUX/isolinux.bin" ]]; then    cp /usr/lib/ISOLINUX/isolinux.bin "$isolinux_dir/"  el
-if [[ -f "/usr/lib/syslinux/modules/bios/isolinux.bin" ]]; then    cp /usr/lib/syslinux/modules/bios/isolinux.bin "$isolinux_dir/"  fi    
+# Copy isolinux files  if [[ -f "/usr/lib/ISOLINUX/isolinux.bin" ]]; then    cp /usr/lib/ISOLINUX/isolinux.bin "$isolinux_dir/"  elif [[ -f "/usr/lib/syslinux/modules/bios/isolinux.bin" ]]; then    cp /usr/lib/syslinux/modules/bios/isolinux.bin "$isolinux_dir/"  fi    
 # Copy required syslinux modules  for module in ldlinux.c32 libcom32.c32 libutil.c32 vesamenu.c32; do    if [[ -f "/usr/lib/syslinux/modules/bios/$module" ]]; then      cp "/usr/lib/syslinux/modules/bios/$module" "$isolinux_dir/"    fi  done    
 # Create isolinux.cfg  cat > "${isolinux_dir}/isolinux.cfg" <<'EOF'DEFAULT vesamenu.c32TIMEOUT 300PROMPT 0MENU TITLE CheckMK Installer Online Boot MenuLABEL ubuntu  MENU LABEL Boot CheckMK Online Installer (Ubuntu Live)  KERNEL /casper/vmlinuz  APPEND initrd=/casper/initrd boot=casper quiet splash ---LABEL grub  MENU LABEL Boot using GRUB (UE
 FI)  COM32 chain.c32  APPEND grubLABEL local  MENU LABEL Boot from local disk  LOCALBOOT 0EOF    log_success "Hybrid boot configured"}

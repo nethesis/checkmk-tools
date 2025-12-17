@@ -144,11 +144,9 @@ echo "$TICKET_DATA" | jq -r '.cliente // "N/A"')"
 echo ""
 echo "­ƒöº Custom Attributes:"if 
 echo "$TICKET_DATA" | jq -e '.customAttributes' >/dev/null 2>&1; then  
-echo "$TICKET_DATA" | jq '.customAttributes'el
-if 
+echo "$TICKET_DATA" | jq '.customAttributes'elif 
 echo "$TICKET_DATA" | jq -e '.custom_attributes' >/dev/null 2>&1; then  
-echo "$TICKET_DATA" | jq '.custom_attributes'el
-if 
+echo "$TICKET_DATA" | jq '.custom_attributes'elif 
 echo "$TICKET_DATA" | jq -e '.campiCustom' >/dev/null 2>&1; then  
 echo "$TICKET_DATA" | jq '.campiCustom'else  
 echo "   Nessun custom attribute trovato"

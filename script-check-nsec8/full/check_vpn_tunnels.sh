@@ -15,10 +15,8 @@ echo "$ipsec_status" | grep -c "ESTABLISHED")        total_tunnels=$((total_tunn
 fi
 # Determina stato
 if [[ $total_tunnels -eq 0 ]]; then    status=0    status_text="No VPN configured"
-el
-if [[ $active_tunnels -eq 0 ]]; then    status=2    status_text="CRITICAL - All VPN down"
-el
-if [[ $active_tunnels -lt $total_tunnels ]]; then    status=1    status_text="WARNING - Some VPN down"
+elif [[ $active_tunnels -eq 0 ]]; then    status=2    status_text="CRITICAL - All VPN down"
+elif [[ $active_tunnels -lt $total_tunnels ]]; then    status=1    status_text="WARNING - Some VPN down"
 else    status=0    status_text="OK - All VPN active"
 fi # Outputdetails_str=$(
 IFS=', '; 

@@ -75,8 +75,7 @@ TH=${TH_NEEDED} checks/s, P95=${P95_EXEC}s ÔåÆ ${CONC_THEO}"
 HARD_CAP=$((CORES*12))if (( $(
 echo "$CPU_NOW > 80" | bc -l) )) || (( $(
 echo "$TIMEOUT_RATE > 2" | bc -l) )); then  
-SCALE=0.8el
-if (( $(
+SCALE=0.8elif (( $(
 echo "$CPU_NOW < 40" | bc -l) )); then  
 SCALE=1.2else  
 SCALE=1.0fi

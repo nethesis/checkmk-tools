@@ -5,12 +5,9 @@ echo "  Configurazione frequenza ticket-monitor"
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo ""
 # Mostra configurazione attualecurrent_freq=$(crontab -l 2>/dev/null | grep "ydea-ticket-monitor.sh" | awk '{print $1}')if [[ "$current_freq" == "*/5" ]]; then  current_text="5 minuti"
-el
-if [[ "$current_freq" == "*/10" ]]; then  current_text="10 minuti"
-el
-if [[ "$current_freq" == "*/15" ]]; then  current_text="15 minuti"
-el
-if [[ "$current_freq" == "*/30" ]]; then  current_text="30 minuti"
+elif [[ "$current_freq" == "*/10" ]]; then  current_text="10 minuti"
+elif [[ "$current_freq" == "*/15" ]]; then  current_text="15 minuti"
+elif [[ "$current_freq" == "*/30" ]]; then  current_text="30 minuti"
 else  current_text="$current_freq (personalizzato)"fi
 echo "­ƒôè Frequenza attuale: $current_text ($current_freq)"
 echo ""

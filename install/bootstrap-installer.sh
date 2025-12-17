@@ -382,8 +382,7 @@ do $0"    exit 1  fi}
 #
 #
 #
-#check_git() {  log_info "Checking git installation..."    if ! command -v git &>/dev/null; then    log_warning "Git not found, installing..."        if command -v apt-get &>/dev/null; then      apt-get update -qq      apt-get install -y git    el
-if command -v yum &>/dev/null; then      yum install -y git    else      log_error "Unable to install git automatically"      exit 1    fi        log_success "Git installed"  else    log_success "Git is already installed"  fi}
+#check_git() {  log_info "Checking git installation..."    if ! command -v git &>/dev/null; then    log_warning "Git not found, installing..."        if command -v apt-get &>/dev/null; then      apt-get update -qq      apt-get install -y git    elif command -v yum &>/dev/null; then      yum install -y git    else      log_error "Unable to install git automatically"      exit 1    fi        log_success "Git installed"  else    log_success "Git is already installed"  fi}
 #
 #
 #

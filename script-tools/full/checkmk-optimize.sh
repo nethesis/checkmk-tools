@@ -42,8 +42,7 @@ fi # ------------------------------------------------------------
 # 4. Ottimizzazione Database (MariaDB o MySQL)read -p "Ottimizzare Database (innodb, cache, log)? (s/n): " opt_db
 if [[ "$opt_db" =~ ^[Ss]$ ]]; then  if systemctl list-unit-files | grep -q mariadb.service; then    
 DB_CONF="/etc/mysql/mariadb.conf.d/50-server.cnf"    
-DB_SERVICE="mariadb"  el
-if systemctl list-unit-files | grep -q mysql.service; then    
+DB_SERVICE="mariadb"  elif systemctl list-unit-files | grep -q mysql.service; then    
 DB_CONF="/etc/mysql/mysql.conf.d/mysqld.cnf"    
 DB_SERVICE="mysql"  else    log "Nessun servizio MariaDB/MySQL trovato ÔÇö salto sezione database."    
 DB_CONF=""  fi  if [[ -n "$DB_CONF" && -f "$DB_CONF" ]]; then    cp -a "$DB_CONF" "$BACKUP_DIR/$(basename $DB_CONF).$DATE.bak"    log "Backup $DB_CONF completato."    sed -i '/innodb_buffer_pool_size/d' "$DB_CONF"    sed -i '/innodb_log_file_size/d' "$DB_CONF"    sed -i '/query_cache_size/d' "$DB_CONF"    sed -i '/query_cache_type/d' "$DB_CONF"    cat <<EOT >> "$DB_CONF"

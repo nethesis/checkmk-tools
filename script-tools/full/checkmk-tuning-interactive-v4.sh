@@ -60,18 +60,15 @@ echo -e "${YELLOW}ÔåÆ Analisi automatica del carico...${NC}"    if (( $(
 echo "$LOAD_NOW > $CORES*2" | bc -l) )); then        
 NEW_CONC=20        
 NEW_SLEEP=0.35        
-COMMENT="Carico molto alto: limito concorrenza e aumento sleep."    el
-if (( $(
+COMMENT="Carico molto alto: limito concorrenza e aumento sleep."    elif (( $(
 echo "$LOAD_NOW > $CORES*1" | bc -l) )); then        
 NEW_CONC=25        
 NEW_SLEEP=0.30        
-COMMENT="Carico medio-alto: leggero bilanciamento."    el
-if (( $(
+COMMENT="Carico medio-alto: leggero bilanciamento."    elif (( $(
 echo "$CPU_NOW > 70" | bc -l) )); then        
 NEW_CONC=25        
 NEW_SLEEP=0.30        
-COMMENT="CPU alta: mantengo concorrenza media, aumento sleep."    el
-if (( $(
+COMMENT="CPU alta: mantengo concorrenza media, aumento sleep."    elif (( $(
 echo "$LOAD_NOW < $CORES*0.6" | bc -l) )) && (( $(
 echo "$CPU_NOW < 40" | bc -l) )); then        
 NEW_CONC=35        

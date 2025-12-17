@@ -77,8 +77,7 @@ UNIQUE_KEY=$(grep -oP 'unique="\K[^"]+' /etc/synoinfo.conf 2>/dev/null ||
 echo "Unknown")                
 echo -e "${GREEN}Ô£ô Synology NAS rilevato${NC}"        
 echo -e "   DSM Version: ${CYAN}${DSM_VERSION}.${DSM_MINOR}${NC}"        
-echo -e "   Unique Key: ${CYAN}${UNIQUE_KEY}${NC}"    el
-if [ -f /etc.defaults/VERSION ]; then        
+echo -e "   Unique Key: ${CYAN}${UNIQUE_KEY}${NC}"    elif [ -f /etc.defaults/VERSION ]; then        
 NAS_TYPE="synology"        
 echo -e "${GREEN}Ô£ô Synology NAS rilevato (alternativo)${NC}"        cat /etc.defaults/VERSION | head -3    else        
 echo -e "${RED}Ô£ù Sistema Synology non rilevato${NC}"        
@@ -114,8 +113,7 @@ echo -e "   Spazio disponibile: ${GREEN}${AVAILABLE_SPACE}MB${NC}"    fi}
 # =====================================================install_dependencies() {    
 echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ VERIFICA DIPENDENZE ÔòÉÔòÉÔòÉ${NC}"        
 # Verifica wget    if ! command -v wget >/dev/null 2>&1; then        
-echo -e "${YELLOW}ÔÜá´©Å  wget non trovato, tentativo installazione...${NC}"        if command -v ipkg >/dev/null 2>&1; then            ipkg update && ipkg install wget        el
-if command -v opkg >/dev/null 2>&1; then            opkg update && opkg install wget        else            
+echo -e "${YELLOW}ÔÜá´©Å  wget non trovato, tentativo installazione...${NC}"        if command -v ipkg >/dev/null 2>&1; then            ipkg update && ipkg install wget        elif command -v opkg >/dev/null 2>&1; then            opkg update && opkg install wget        else            
 echo -e "${RED}Ô£ù Impossibile installare wget${NC}"            
 echo -e "${YELLOW}   Installa manualmente ipkg/Entware prima di continuare${NC}"            exit 1        fi    else        
 echo -e "${GREEN}Ô£ô wget disponibile${NC}"    fi        
@@ -127,8 +125,7 @@ echo -e "${YELLOW}ÔÜá´©Å  socat non trovato, tentativo installazione...${N
 SOCAT_INSTALLED=false                if command -v ipkg >/dev/null 2>&1; then            
 echo -e "${CYAN}   Usan
 do ipkg (Synology)...${NC}"            ipkg update 2>&1 | grep -v "Signature check"            if ipkg install socat 2>&1; then                
-SOCAT_INSTALLED=true            fi        el
-if command -v opkg >/dev/null 2>&1; then            
+SOCAT_INSTALLED=true            fi        elif command -v opkg >/dev/null 2>&1; then            
 echo -e "${CYAN}   Usan
 do opkg (Entware)...${NC}"            opkg update 2>&1 | grep -v "Signature check"            if opkg install socat 2>&1; then                
 SOCAT_INSTALLED=true            fi        else            
@@ -223,8 +220,7 @@ if netstat -tuln 2>/dev/null | grep -q ":$PORT "; then    log_msg "ERRORE: Porta
 echo "ERRORE: Porta $PORT gi├á in uso"    exit 1filog_msg "Avvio CheckMK Agent daemon sulla porta $PORT"
 # Prova con Python (preferito)if command -v python3 >/dev/null 2>&1; then    
 PYTHON_CMD="python3"
-el
-if command -v python >/dev/null 2>&1; then    
+elif command -v python >/dev/null 2>&1; then    
 PYTHON_CMD="python"
 else    
 PYTHON_CMD=""fi

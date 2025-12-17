@@ -50,8 +50,7 @@ echo "$alert_data" | jq -r '.hostname')local valuelocal valuevalue=$(
 echo "$alert_data" | jq -r '.value')local chartlocal chartchart=$(
 echo "$alert_data" | jq -r '.chart')    log_info "Ricevuto alert Netdata: $alarm_name su $hostname (status: $status)"    if [[ "$status" == "CRITICAL" || "$status" == "WARNING" ]]; then    local alert_key="netdata_${hostname}_${alarm_name}"        if ! ticket_exists "$alert_key"; then      local priority="normal"      [[ "$status" == "CRITICAL" ]] && priority="critical"            local title="[NETDATA] $alarm_name su $hostname"      local description="ÔÜá´©Å Alert da Netdata**Dettagli Alert:**- Alarm: $alarm_name- Hostname: $hostname- Status: $status- Chart: $chart- Valore: $value- Data/ora: $(date '+%Y-%m-%d %H:%M:%S')**Dati completi alert:**\`\`\`json$alert_data\`\`\`"local resultlocal resultresult=$($TOOLKIT create "$title" "$description" "$priority")local ticket_idlocal ticket_idticket_id=$(
 echo "$result" | jq -r '.id // empty')            if [[ -n "$ticket_id" ]]; then        save_ticket_cache "$alert_key" "$ticket_id"        log_success "Ticket 
-#$ticket_id creato per alert Netdata"      fi    fi  el
-if [[ "$status" == "CLEAR" ]]; then    
+#$ticket_id creato per alert Netdata"      fi    fi  elif [[ "$status" == "CLEAR" ]]; then    
 # Alert risolto, chiudi ticket se esiste    local alert_key="netdata_${hostname}_${alarm_name}"    init_cachelocal ticket_idlocal ticket_idticket_id=$(jq -r --arg key "$alert_key" '.[$key].ticket_id // empty' "$TICKET_CACHE")        if [[ -n "$ticket_id" ]]; then      log_info "Alert risolto, chiu
 do ticket 
 #$ticket_id"      $TOOLKIT close "$ticket_id" "Alert Netdata risolto automaticamente: $alarm_name"      remove_ticket_cache "$alert_key"    fi  fi}

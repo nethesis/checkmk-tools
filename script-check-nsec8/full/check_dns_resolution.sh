@@ -13,9 +13,7 @@ if [[ ${
 #response_times[@]}))else    avg_time=0fi
 # Determina stato
 if [[ $failed -eq $total ]]; then    status=2    status_text="CRITICAL - DNS non risponde"
-el
-if [[ $failed -gt 0 ]]; then    status=1    status_text="WARNING - Alcuni test falliti"
-el
-if [[ $avg_time -gt 1000 ]]; then    status=1    status_text="WARNING - DNS lento"
+elif [[ $failed -gt 0 ]]; then    status=1    status_text="WARNING - Alcuni test falliti"
+elif [[ $avg_time -gt 1000 ]]; then    status=1    status_text="WARNING - DNS lento"
 else    status=0    status_text="OK"
 fi echo "$status DNS_Resolution response_time=${avg_time}ms;500;1000 Test: $successful/$total OK, tempo medio: ${avg_time}ms - $status_text | successful=$successful failed=$failed total=$total avg_time_ms=$avg_time"

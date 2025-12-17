@@ -11,11 +11,9 @@ echo "=== Installazione FRPC Client ==="
 # 1. Rileva sistema operativo
 # ----------------------------if grep -qi "rocky" /etc/os-release; then    
 OS_TYPE="rockylinux"
-el
-if grep -qi "nethserver" /etc/os-release; then    
+elif grep -qi "nethserver" /etc/os-release; then    
 OS_TYPE="nethserver"
-el
-if grep -qi "debian" /etc/os-release; then    if dpkg -l | grep -q pve-manager; then        
+elif grep -qi "debian" /etc/os-release; then    if dpkg -l | grep -q pve-manager; then        
 OS_TYPE="proxmox"    else        
 OS_TYPE="debian"    fi
 else    
@@ -35,8 +33,7 @@ FRP_URLFRP_URL=${FRP_URL:-$FRP_URL_DEFAULT}read -r -p "Nome host (es: rl94ns8): 
 # 5. Configura servizio
 # ----------------------------if [ "$OS_TYPE" = "rockylinux" ] || [ "$OS_TYPE" = "debian" ] || [ "$OS_TYPE" = "proxmox" ]; then    
 echo "--- Configurazione systemd ($OS_TYPE) ---"    cat > /etc/systemd/system/frpc.service <<EOF[Unit]Description=FRP Client Service ($OS_TYPE)After=network.target[Service]Type=simpleExecStart=/usr/local/bin/frpc -c /etc/frp/frpc.tomlRestart=on-failureRestartSec=5sUser=root[Install]WantedBy=multi-user.targetEOF    systemctl daemon-reload    systemctl enable frpc    systemctl restart frpc
-el
-if [ "$OS_TYPE" = "nethserver" ]; then    
+elif [ "$OS_TYPE" = "nethserver" ]; then    
 echo "--- Configurazione systemd via e-smith (NethServer) ---"    config set frpc service status enabled    mkdir -p /etc/e-smith/templates-custom/etc/systemd/system/frpc.service    cat > /etc/e-smith/templates-custom/etc/systemd/system/frpc.service/10base <<EOF[Unit]Description=FRP Client Service (NethServer)After=network.target[Service]Type=simpleExecStart=/usr/local/bin/frpc -c /etc/frp/frpc.tomlRestart=on-failureRestartSec=5sUser=root[Install]WantedBy=multi-user.targetEOF    signal-event runlevel-adjust    systemctl enable frpc    systemctl restart frpc
 else    
 echo "├ó┼í┬á├»┬©┬Å  Sistema operativo non riconosciuto: configurazione manuale necessaria"

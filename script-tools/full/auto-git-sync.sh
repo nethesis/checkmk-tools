@@ -14,11 +14,9 @@ REPO_URL="https://github.com/Coverup20/checkmk-tools.git"
 # Cerca il repository: prima /opt, poi /root, poi $HOME
 if [[ -d "/opt/checkmk-tools/.git" ]]; then    
 TARGET_DIR="/opt/checkmk-tools"
-el
-if [[ -d "/root/checkmk-tools/.git" ]]; then    
+elif [[ -d "/root/checkmk-tools/.git" ]]; then    
 TARGET_DIR="/root/checkmk-tools"
-el
-if [[ -d "$HOME/checkmk-tools/.git" ]]; then    
+elif [[ -d "$HOME/checkmk-tools/.git" ]]; then    
 TARGET_DIR="$HOME/checkmk-tools"
 else    
 TARGET_DIR="$HOME/checkmk-tools"  

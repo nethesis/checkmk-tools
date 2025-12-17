@@ -76,9 +76,7 @@ OUTTXT="${OUTBASE}.txt"
 OUTSUM="${OUTBASE}_summary.txt"
 # Build nmap flags depending on choices
 NMAP_OPTS=()
-# verbosit├â┬áif [[ "$VLEVEL" -eq 1 ]]; then  NMAP_OPTS+=( -v )el
-if [[ "$VLEVEL" -eq 2 ]]; then  NMAP_OPTS+=( -vv )el
-if [[ "$VLEVEL" -eq 3 ]]; then  NMAP_OPTS+=( -d --packet-trace )fi
+# verbosit├â┬áif [[ "$VLEVEL" -eq 1 ]]; then  NMAP_OPTS+=( -v )elif [[ "$VLEVEL" -eq 2 ]]; then  NMAP_OPTS+=( -vv )elif [[ "$VLEVEL" -eq 3 ]]; then  NMAP_OPTS+=( -d --packet-trace )fi
 # reason to show cause for host/port decisionsNMAP_OPTS+=( --reason -T"${NT}" )if [[ "$SCAN_CHOICE" == "2" ]]; then  
 # discovery-only  NMAP_OPTS+=( -sn )else  
 # port scan: choose SYN if root, altrimenti connect  if [[ "$(id -u)" -eq 0 ]]; then    NMAP_OPTS+=( -sS -p "$PORTS" )  else    NMAP_OPTS+=( -sT -p "$PORTS" )  fi

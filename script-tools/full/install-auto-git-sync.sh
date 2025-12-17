@@ -15,14 +15,12 @@ install_git() {
             echo "❌ Timeout durante installazione git"
             exit 1
         }
-    el
-if command -v yum &> /dev/null; then
+    elif command -v yum &> /dev/null; then
         timeout 300 yum install -y git || {
             echo "❌ Timeout durante installazione git"
             exit 1
         }
-    el
-if command -v dnf &> /dev/null; then
+    elif command -v dnf &> /dev/null; then
         timeout 300 dnf install -y git || {
             echo "❌ Timeout durante installazione git"
             exit 1
@@ -45,11 +43,9 @@ fi
 # Priorità: /opt, poi /root, poi $HOME
 if [[ -d "/opt/checkmk-tools/.git" ]]; then
     REPO_DIR="/opt/checkmk-tools"
-el
-if [[ -d "/root/checkmk-tools/.git" ]]; then
+elif [[ -d "/root/checkmk-tools/.git" ]]; then
     REPO_DIR="/root/checkmk-tools"
-el
-if [[ -d "$HOME/checkmk-tools/.git" ]]; then
+elif [[ -d "$HOME/checkmk-tools/.git" ]]; then
     REPO_DIR="$HOME/checkmk-tools"
 else
     echo "❌ Repository checkmk-tools non trovato"
