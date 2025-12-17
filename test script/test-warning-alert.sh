@@ -31,9 +31,10 @@ echo "Launcher: $LAUNCHER"
 echo "=========================================="
 echo ""
 # Verifica che il launcher esista
-if [[ ! -f "$LAUNCHER" ]]; then  
-echo "ÔØî ERRORE: Launcher non trovato in $LAUNCHER"  exit 1fi
-echo "1. Eseguo launcher..."$
+if [[ ! -f "$LAUNCHER" ]]; then
+    echo "ÔØî ERRORE: Launcher non trovato in $LAUNCHER"
+    exit 1
+fi echo "1. Eseguo launcher..."$
 LAUNCHERRESULT=$?
 echo ""
 echo "2. Exit code: $RESULT"

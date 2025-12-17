@@ -689,11 +689,12 @@ echo "=== Recent Logs ==="journalctl -u frpc.service -n 10 --no-pagerEOF    chmo
 #!/bin/bash
 # FRPC Service Restart
 echo "Restarting FRPC service..."systemctl restart frpc.servicesleep 2
-if systemctl is-active --quiet frpc.service; then  
-echo "Ô£à FRPC service restarted successfully"
+if systemctl is-active --quiet frpc.service; then
+    echo "Ô£à FRPC service restarted successfully"
 else  
 echo "ÔØî FRPC service failed to restart"  
-echo "Check logs: journalctl -u frpc.service -n 20"  exit 1fiEOF    chmod +x /usr/local/bin/frpc-restart    log_success "Management scripts created"}
+echo "Check logs: journalctl -u frpc.service -n 20"
+    exit 1fiEOF    chmod +x /usr/local/bin/frpc-restart    log_success "Management scripts created"}
 #
 #
 #
@@ -787,8 +788,8 @@ echo "Check logs: journalctl -u frpc.service -n 20"  exit 1fiEOF    chmod +x /us
 #create_monitoring_check() {  log_info "Creating monitoring check..."    local check_script="/usr/lib/check_mk_agent/local/frpc_status"    mkdir -p "$(dirname "$check_script")"    cat > "$check_script" <<'EOF'
 #!/bin/bash
 # CheckMK Local Check: FRPC Status
-if systemctl is-active --quiet frpc.service; then  if journalctl -u frpc.service -n 5 | grep -q "login to server success\|start proxy success"; then    
-echo "0 FRPC_Status - FRPC service is running and connected"  else    
+if systemctl is-active --quiet frpc.service; then  if journalctl -u frpc.service -n 5 | grep -q "login to server success\|start proxy success"; then
+    echo "0 FRPC_Status - FRPC service is running and connected"  else    
 echo "1 FRPC_Status - FRPC service is running but connection unclear"  fi
 else  
 echo "2 FRPC_Status - FRPC service is not running"fiEOF    chmod +x "$check_script"    log_success "Monitoring check created"}
@@ -976,7 +977,8 @@ echo ""  print_separator "="}
 #
 #
 #main() {  log_info "Starting FRPC client setup..."    
-# Check configuration  if [[ -z "${FRPC_SERVER_ADDR:-}" ]]; then    log_error "FRPC_SERVER_ADDR not configured"    log_info "Please configure FRPC settings and run this module again"    exit 1  fi    
+# Check configuration  if [[ -z "${FRPC_SERVER_ADDR:-}" ]]; then    log_error "FRPC_SERVER_ADDR not configured"    log_info "Please configure FRPC settings and run this module again"
+    exit 1  fi    
 # Install FRPC  download_frpc  configure_frpc  create_systemd_service  configure_frpc_firewall    
 # Create additional components  create_management_scripts  create_monitoring_check    
 # Test connection  test_frpc_connection || log_warning "Connection test inconclusive"    log_module_end "$MODULE_NAME" "success"    display_installation_summary}

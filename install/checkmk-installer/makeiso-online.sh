@@ -205,8 +205,8 @@ do apt-get install xorriso isolinux squashfs-tools genisoimage p7zip-full wget" 
 #
 #download_ubuntu_iso() {  local iso_cache="${SCRIPT_DIR}/${UBUNTU_ISO_NAME}"    if [[ -f "$iso_cache" ]]; then    log_info "Using cached Ubuntu ISO" >&2    
 echo "$iso_cache"    return 0  fi    log_info "Downloading Ubuntu ${UBUNTU_VERSION} ISO..." >&2  log_warning "This may take several minutes (~2.5GB download)" >&2    if ! wget --progress=bar:force -O "$iso_cache" "$UBUNTU_ISO_URL" 2>&1 |        stdbuf -o0 tr '\r' '\n' |        grep --line-buffered -oP '\d+%' |        while read -r percent; do         
-echo -ne "\r${CYAN}Progress: ${WHITE}${percent}${NC} " >&2       done; then    
-echo "" >&2    log_error "Failed to download Ubuntu ISO" >&2    return 1  fi
+echo -ne "\r${CYAN}Progress: ${WHITE}${percent}${NC} " >&2       done; then
+    echo "" >&2    log_error "Failed to download Ubuntu ISO" >&2    return 1  fi
 echo "" >&2    log_success "Ubuntu ISO downloaded" >&2  
 echo "$iso_cache"}
 #
@@ -991,11 +991,15 @@ fi "$output_iso" 2>/dev/null || log_warning "Hybrid boot setup failed (non-criti
 #
 #
 #main() {  log_info "Starting online ISO build process..."    
-# Check dependencies  if ! check_dependencies; then    exit 1  fi    
-# Download Ubuntu ISO  local ubuntu_iso  ubuntu_iso=$(download_ubuntu_iso)    if [[ ! -f "$ubuntu_iso" ]]; then    log_error "Ubuntu ISO not available"    exit 1  fi    
+# Check dependencies  if ! check_dependencies; then
+    exit 1  fi    
+# Download Ubuntu ISO  local ubuntu_iso  ubuntu_iso=$(download_ubuntu_iso)    if [[ ! -f "$ubuntu_iso" ]]; then    log_error "Ubuntu ISO not available"
+    exit 1  fi    
 # Clean previous work directory  if [[ -d "$WORK_DIR" ]]; then    log_info "Removing previous work directory..."    rm -rf "$WORK_DIR"  fi    
-# Extract ISO  local iso_root="${WORK_DIR}/iso"  if ! extract_iso "$ubuntu_iso" "$iso_root"; then    exit 1  fi    
-# Add bootstrap script (lightweight)  if ! add_bootstrap_to_iso "$iso_root"; then    exit 1  fi    
+# Extract ISO  local iso_root="${WORK_DIR}/iso"  if ! extract_iso "$ubuntu_iso" "$iso_root"; then
+    exit 1  fi    
+# Add bootstrap script (lightweight)  if ! add_bootstrap_to_iso "$iso_root"; then
+    exit 1  fi    
 # Setup boot  setup_hybrid_boot "$iso_root"    
 # Create autostart  create_autostart "$iso_root"    
 # Customize GRUB  customize_grub "$iso_root"    

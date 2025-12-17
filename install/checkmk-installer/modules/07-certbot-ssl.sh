@@ -105,11 +105,11 @@ fi
 echo -n "  - DNS $domain: "  if host "$domain" >/dev/null 2>&1; then    local resolved_ip    resolved_ip=$(host "$domain" | grep 'has address' | awk '{print $NF}' | head -1)    
 echo "OK (risolve a $resolved_ip)"  else    log_warning "Risoluzione DNS fallita per $domain"    return 1  fi    
 # Port 80 check  
-echo -n "  - Porta 80: "  if ss -tulpn | grep -q ':80 '; then    
-echo "OK (in ascolto)"  else    log_warning "Nessun processo in ascolto sulla porta 80"    return 1  fi    
+echo -n "  - Porta 80: "  if ss -tulpn | grep -q ':80 '; then
+    echo "OK (in ascolto)"  else    log_warning "Nessun processo in ascolto sulla porta 80"    return 1  fi    
 # Port 443 check  
-echo -n "  - Porta 443: "  if ss -tulpn | grep -q ':443 '; then    
-echo "OK (in ascolto)"  else    log_warning "Nessun processo in ascolto sulla porta 443"  fi
+echo -n "  - Porta 443: "  if ss -tulpn | grep -q ':443 '; then
+    echo "OK (in ascolto)"  else    log_warning "Nessun processo in ascolto sulla porta 443"  fi
 echo ""  return 0}
 #
 #
@@ -684,7 +684,9 @@ R=301,L]</VirtualHost><VirtualHost *:443>    ServerName $domain
 #
 #
 #main() {  local webserver="${LETSENCRYPT_WEBSERVER:-apache}"  local email="${LETSENCRYPT_EMAIL:-}"  local domain="${LETSENCRYPT_DOMAIN:-}"  local redirect_to_site="${LETSENCRYPT_REDIRECT_TO_SITE:-true}"  local default_site="${CHECKMK_SITE_NAME:-monitoring}"    
-# Validate required variables  if [[ -z "$email" ]]; then    log_error "LETSENCRYPT_EMAIL not set in .env"    exit 1  fi    if [[ -z "$domain" ]]; then    log_error "LETSENCRYPT_DOMAIN not set in .env"    exit 1  fi    
+# Validate required variables  if [[ -z "$email" ]]; then    log_error "LETSENCRYPT_EMAIL not set in .env"
+    exit 1  fi    if [[ -z "$domain" ]]; then    log_error "LETSENCRYPT_DOMAIN not set in .env"
+    exit 1  fi    
 # Install certbot  install_certbot "$webserver"    
 # Configure CLI  configure_certbot_cli "$email"    
 # Request certificate  request_certificate "$webserver" "$domain"    

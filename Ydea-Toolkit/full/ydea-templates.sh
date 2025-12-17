@@ -50,5 +50,5 @@ do: ultima ora\n- Data/Ora: $(date '+%Y-%m-%d %H:%M:%S')\n\n**Azioni immediate:*
 TEMPLATE=$(./ydea-templates.sh server-down "web-prod-01" "nginx")  
 echo "$TEMPLATE" | jq -r '.title, .description, .priority'    
 # Crea ticket direttamente  ./ydea-toolkit.sh api POST /tickets "$(./ydea-templates.sh disk-full server-01 /var 92)"    
-# Usa in script  if [[ $(df / | tail -1 | awk '{print $5}' | sed 's/%//') -gt 90 ]]; then    
-TICKET=$(./ydea-templates.sh disk-full $(hostname) / 92)    ./ydea-toolkit.sh api POST /tickets "$TICKET"  fiUSAGE    exit 1    ;;esac
+# Usa in script  if [[ $(df / | tail -1 | awk '{print $5}' | sed 's/%//') -gt 90 ]]; then
+    TICKET=$(./ydea-templates.sh disk-full $(hostname) / 92)    ./ydea-toolkit.sh api POST /tickets "$TICKET"  fiUSAGE    exit 1    ;;esac

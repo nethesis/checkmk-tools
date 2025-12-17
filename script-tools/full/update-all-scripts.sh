@@ -18,8 +18,9 @@ REPO_DIR="${1:-/opt/checkmk-tools}"
 BACKUP_DIR="/tmp/scripts-backup-$(date +%Y%m%d-%H%M%S)"
 UPDATED=0log "========================================"log "AGGIORNAMENTO SCRIPT ESISTENTI"log "========================================"log "Repository: $REPO_DIR"log "Backup: $BACKUP_DIR"log ""
 # Verifica repository
-if [[ ! -d "$REPO_DIR" ]]; then    log_error "Repository non trovato: $REPO_DIR"    exit 1fi
-# Aggiorna repositorylog "Aggiornamento repository..."cd "$REPO_DIR"
+if [[ ! -d "$REPO_DIR" ]]; then    log_error "Repository non trovato: $REPO_DIR"
+    exit 1
+fi # Aggiorna repositorylog "Aggiornamento repository..."cd "$REPO_DIR"
 if ! git diff --quiet || ! git diff --cached --quiet; then    log_warning "Modifiche locali rilevate, salvataggio..."    git stash push -m "Auto-stash $(date +%Y%m%d-%H%M%S)" >/dev/null 2>&1figit pull origin main 2>&1 | grep -v "Already up to date" || truelog_success "Repository aggiornato"log ""mkdir -p "$BACKUP_DIR"
 # Funzione per aggiornare SOLO file esistentiupdate_existing_scripts() {    local repo_subdir="$1"  
 # es: script-notify-checkmk    local system_dir="$2"   

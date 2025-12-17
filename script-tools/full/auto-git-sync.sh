@@ -12,12 +12,12 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Configurazione
 REPO_URL="https://github.com/Coverup20/checkmk-tools.git"
 # Cerca il repository: prima /opt, poi /root, poi $HOME
-if [[ -d "/opt/checkmk-tools/.git" ]]; then    
-TARGET_DIR="/opt/checkmk-tools"
-elif [[ -d "/root/checkmk-tools/.git" ]]; then    
-TARGET_DIR="/root/checkmk-tools"
-elif [[ -d "$HOME/checkmk-tools/.git" ]]; then    
-TARGET_DIR="$HOME/checkmk-tools"
+if [[ -d "/opt/checkmk-tools/.git" ]]; then
+    TARGET_DIR="/opt/checkmk-tools"
+elif [[ -d "/root/checkmk-tools/.git" ]]; then
+    TARGET_DIR="/root/checkmk-tools"
+elif [[ -d "$HOME/checkmk-tools/.git" ]]; then
+    TARGET_DIR="$HOME/checkmk-tools"
 else    
 TARGET_DIR="$HOME/checkmk-tools"  
 # Default se non esiste ancora
@@ -90,17 +90,20 @@ echo -e "${CYAN}ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔö
 # ==========================================================
 # Gestione segnali
 # ==========================================================cleanup() {    
-echo ""    print_warning "Ricevuto segnale di interruzione"    print_info "Arresto Auto Git Sync..."    log_message "Auto Git Sync terminato"    exit 0}trap cleanup SIGINT SIGTERM
+echo ""    print_warning "Ricevuto segnale di interruzione"    print_info "Arresto Auto Git Sync..."    log_message "Auto Git Sync terminato"
+    exit 0}trap cleanup SIGINT SIGTERM
 # ==========================================================
 # Main
 # ==========================================================main() {    
-# Verifica git installato    if ! command -v git &> /dev/null; then        print_error "Git non ├¿ installato"        exit 1    fi        
+# Verifica git installato    if ! command -v git &> /dev/null; then        print_error "Git non ├¿ installato"
+    exit 1    fi        
 # Crea directory per log se non esiste    if [[ -w "$(dirname "$LOG_FILE")" ]] || su
 do mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null; then        su
 do touch "$LOG_FILE" 2>/dev/null || true    else        
 LOG_FILE="$HOME/auto-git-sync.log"        print_warning "Usan
 do log file alternativo: $LOG_FILE"    fi        print_header "Auto Git Sync - Avvio"    log_message "=== Auto Git Sync Started ==="        
-# Inizializza repository    if ! init_repository; then        print_error "Impossibile inizializzare il repository"        exit 1    fi        
+# Inizializza repository    if ! init_repository; then        print_error "Impossibile inizializzare il repository"
+    exit 1    fi        
 # Esegui primo sync immediato    print_header "Primo Sync"    do_git_pull        
 # Avvia loop di sync    run_sync_loop}
 # Controlla se script eseguito direttamente

@@ -187,8 +187,8 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOOLKIT="${SCRIPT_DIR}/rydea-toolkit.sh"
 # Verifica parametri
-if [ -z "$1" ]; then    
-echo -e "${RED}ÔØî Errore: Devi specificare l'ID del contratto${NC}"    
+if [ -z "$1" ]; then
+    echo -e "${RED}ÔØî Errore: Devi specificare l'ID del contratto${NC}"    
 echo ""    
 echo "Uso: $0 <CONTRATTO_ID>"    
 echo ""    
@@ -198,8 +198,9 @@ echo "2. Vai all'anagrafica 'AZIENDA MONITORATA test' (ID: 2339268)"
 echo "3. Crea un nuovo contratto con SLA 'Premium_Mon'"    
 echo "4. Dopo la creazione, esegui:"    
 echo "   ./rydea-toolkit.sh api GET '/contratti?page=1' | jq '.objs[] | select(.azienda_id == 2339268)'"    
-echo "5. Annota il campo 'id' del contratto"    exit 1fi
-CONTRATTO_ID="$1"
+echo "5. Annota il campo 'id' del contratto"
+    exit 1
+fi CONTRATTO_ID="$1"
 ANAGRAFICA_ID=2339268
 echo -e "${BLUE}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"
 echo -e "${BLUE}  Test Creazione Ticket con Contratto Associato${NC}"
@@ -210,12 +211,13 @@ echo -e "${YELLOW}­ƒôï Step 1: Verifica esistenza contratto ID ${CONTRATTO_I
 CONTRATTO_JSON=$("${TOOLKIT}" api GET "/contratto/${CONTRATTO_ID}" 2>/dev/null || 
 echo "")
 if [ -z "$CONTRATTO_JSON" ] || 
-echo "$CONTRATTO_JSON" | grep -q "404"; then    
-echo -e "${RED}ÔØî Errore: Contratto ${CONTRATTO_ID} non trovato!${NC}"    
+echo "$CONTRATTO_JSON" | grep -q "404"; then
+    echo -e "${RED}ÔØî Errore: Contratto ${CONTRATTO_ID} non trovato!${NC}"    
 echo ""    
 echo "Verifica l'ID del contratto con:"    
-echo "  ./rydea-toolkit.sh api GET '/contratti' | jq '.objs[] | {id, nome, azienda_id}'"    exit 1fi
-CONTRATTO_NOME=$(
+echo "  ./rydea-toolkit.sh api GET '/contratti' | jq '.objs[] | {id, nome, azienda_id}'"
+    exit 1
+fi CONTRATTO_NOME=$(
 echo "$CONTRATTO_JSON" | jq -r '.nome // "N/A"')
 CONTRATTO_AZIENDA_ID=$(
 echo "$CONTRATTO_JSON" | jq -r '.azienda_id // 0')
@@ -225,10 +227,11 @@ echo "   - Nome: ${CONTRATTO_NOME}"
 echo "   - Azienda ID: ${CONTRATTO_AZIENDA_ID}"
 echo ""
 # Step 2: Verifica che il contratto appartenga all'anagrafica corretta
-if [ "$CONTRATTO_AZIENDA_ID" != "$ANAGRAFICA_ID" ]; then    
-echo -e "${RED}ÔØî Errore: Il contratto ${CONTRATTO_ID} non appartiene all'anagrafica ${ANAGRAFICA_ID}!${NC}"    
-echo "   Appartiene invece all'anagrafica ${CONTRATTO_AZIENDA_ID}"    exit 1fi
-echo -e "${GREEN}Ô£à Contratto associato all'anagrafica corretta${NC}"
+if [ "$CONTRATTO_AZIENDA_ID" != "$ANAGRAFICA_ID" ]; then
+    echo -e "${RED}ÔØî Errore: Il contratto ${CONTRATTO_ID} non appartiene all'anagrafica ${ANAGRAFICA_ID}!${NC}"    
+echo "   Appartiene invece all'anagrafica ${CONTRATTO_AZIENDA_ID}"
+    exit 1
+fi echo -e "${GREEN}Ô£à Contratto associato all'anagrafica corretta${NC}"
 echo ""
 # Step 3: Crea il ticket di test con il contratto
 echo -e "${YELLOW}­ƒÄ½ Step 2: Creazione ticket di test con contratto...${NC}"
@@ -238,17 +241,18 @@ echo "$TICKET_PAYLOAD" | jq '.'
 echo ""
 RESPONSE=$("${TOOLKIT}" api POST "/ticket" - <<< "$TICKET_PAYLOAD" 2>&1)
 if 
-echo "$RESPONSE" | grep -q "API call fallita"; then    
-echo -e "${RED}ÔØî Errore durante la creazione del ticket${NC}"    
-echo "$RESPONSE"    exit 1fi
-# Estrai l'ID del ticket creato
+echo "$RESPONSE" | grep -q "API call fallita"; then
+    echo -e "${RED}ÔØî Errore durante la creazione del ticket${NC}"    
+echo "$RESPONSE"
+    exit 1
+fi # Estrai l'ID del ticket creato
 TICKET_ID=$(
 echo "$RESPONSE" | jq -r '.ticket.id // empty')
-if [ -z "$TICKET_ID" ]; then    
-echo -e "${RED}ÔØî Errore: Impossibile estrarre l'ID del ticket dalla risposta${NC}"    
+if [ -z "$TICKET_ID" ]; then
+    echo -e "${RED}ÔØî Errore: Impossibile estrarre l'ID del ticket dalla risposta${NC}"    
 echo "Risposta API:"    
-echo "$RESPONSE" | jq '.'    exit 1fi
-echo -e "${GREEN}Ô£à Ticket creato con successo!${NC}"
+echo "$RESPONSE" | jq '.'    exit 1
+fi echo -e "${GREEN}Ô£à Ticket creato con successo!${NC}"
 echo "   - Ticket ID: ${TICKET_ID}"
 echo ""
 # Step 4: Verifica il ticket creato
@@ -274,8 +278,8 @@ echo ""
 echo -e "${BLUE}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"
 echo -e "${BLUE}  RISULTATO TEST${NC}"
 echo -e "${BLUE}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"
-echo ""if [ "$TICKET_CONTRATTO_ID" = "$CONTRATTO_ID" ] && [ "$TICKET_CONTRATTO_ID" != "0" ] && [ "$TICKET_CONTRATTO_ID" != "null" ]; then    
-echo -e "${GREEN}Ô£à SUCCESSO: Il contratto ├¿ stato associato correttamente al ticket!${NC}"    
+echo ""if [ "$TICKET_CONTRATTO_ID" = "$CONTRATTO_ID" ] && [ "$TICKET_CONTRATTO_ID" != "0" ] && [ "$TICKET_CONTRATTO_ID" != "null" ]; then
+    echo -e "${GREEN}Ô£à SUCCESSO: Il contratto ├¿ stato associato correttamente al ticket!${NC}"    
 echo ""    
 echo -e "${YELLOW}ÔÜá´©Å  VERIFICA MANUALE NECESSARIA:${NC}"    
 echo ""    

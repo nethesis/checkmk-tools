@@ -8,8 +8,9 @@ INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
 # Load configuration
 if [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
-else  log_error "Configuration file not found. Run config-wizard.sh first."  exit 1fi
-# Module startlog_module_start "$MODULE_NAME"
+else  log_error "Configuration file not found. Run config-wizard.sh first."
+    exit 1
+fi # Module startlog_module_start "$MODULE_NAME"
 #
 #
 #
@@ -875,8 +876,8 @@ echo "postfix postfix/mailname string $(hostname -f)" | debconf-set-selections
 # Install postfix  log_command "
 DEBIAN_FRONTEND=noninteractive apt-get install -y postfix mailutils"    
 # Configure as internet site  local postfix_main="/etc/postfix/main.cf"    if [[ -n "${SMTP_RELAY_HOST:-}" ]]; then    log_debug "Configuring SMTP relay: ${SMTP_RELAY_HOST}"    postconf -e "relayhost = [${SMTP_RELAY_HOST}]:587"        
-# Ask for credentials if not provided in .env    local smtp_user="${SMTP_RELAY_USER:-}"    local smtp_pass="${SMTP_RELAY_PASSWORD:-}"        if [[ -z "$smtp_user" ]] || [[ -z "$smtp_pass" ]]; then      
-echo ""      
+# Ask for credentials if not provided in .env    local smtp_user="${SMTP_RELAY_USER:-}"    local smtp_pass="${SMTP_RELAY_PASSWORD:-}"        if [[ -z "$smtp_user" ]] || [[ -z "$smtp_pass" ]]; then
+    echo ""      
 echo "${YELLOW}SMTP relay configured: ${SMTP_RELAY_HOST}${NC}"      
 echo "Authentication credentials required:"      
 echo ""      read -r -p "SMTP username: " smtp_user      read -r -p "SMTP password: " smtp_pass    fi        

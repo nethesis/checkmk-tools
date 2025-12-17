@@ -33,8 +33,8 @@ CPU=${CPU_NOW}% | Load=${LOAD_NOW} | Core=${CORES}"
 # --- Rilevazione Livestatus (timeout 3s) ---
 HAVE_LIVE=0
 if [ -S "$LIVE" ]; then  if timeout 3 bash -c "
-echo -e 'GET status\n' | unixcat '$LIVE' >/dev/null 2>&1"; then    
-HAVE_LIVE=1    
+echo -e 'GET status\n' | unixcat '$LIVE' >/dev/null 2>&1"; then
+    HAVE_LIVE=1    
 echo -e "${G}Ô£ô Livestatus attivo.${N}"  else    
 echo -e "${Y}ÔÜá Livestatus non risponde entro 3s ÔåÆ uso fallback log.${N}"  fi
 else  
@@ -48,11 +48,12 @@ _EXEC=1.8;
 AVG_LAT=0.2; 
 TIMEOUT_RATE=0
 LOG="$SITEPATH/var/nagios/nagios.log"
-if [ $HAVE_LIVE -eq 1 ]; then  
-SRV_COUNT=$(
+if [ $HAVE_LIVE -eq 1 ]; then
+    SRV_COUNT=$(
 echo -e "GET services\nColumns: active_checks_enabled\nOutputFormat: json\n" | timeout 3 unixcat "$LIVE" | jq 'length' 2>/dev/null || 
 echo 0)  [ -z "$SRV_COUNT" ] && 
-SRV_COUNT=0else  
+SRV_COUNT=0
+else  
 SRV_COUNT=$(grep -c "SERVICE.*INITIALIZED" "$LOG" 2>/dev/null || 
 echo 400)  
 NOW=$(date +%s); 
@@ -60,13 +61,13 @@ AGO=$((NOW-3600))
 TOT=$(awk -v t="$AGO" -F'[][]' '$2>=t && /SERVICE ALERT/ {c++} END{print c+0}' "$LOG" 2>/dev/null || 
 echo 0)  
 TO=$(awk -v t="$AGO" -F'[][]' '$2>=t && /SERVICE ALERT/ && /SERVICE CHECK TIMEOUT/ {c++} END{print c+0}' "$LOG" 2>/dev/null || 
-echo 0)  if [ "$TOT" -gt 0 ]; then 
-TIMEOUT_RATE=$(awk -v a="$TO" -v b="$TOT" 'BEGIN{printf("%.2f",(a*100)/b)}'); fi
+echo 0)  if [ "$TOT" -gt 0 ]; then
+    TIMEOUT_RATE=$(awk -v a="$TO" -v b="$TOT" 'BEGIN{printf("%.2f",(a*100)/b)}'); fi
 fi
-# --- Protezione ---if [ "$SRV_COUNT" -le 0 ]; then  
-echo -e "${Y}ÔÜá Nessun servizio rilevato, imposto 400 come valore di default per il tuning.${N}"  
-SRV_COUNT=400fi
-echo -e "${Y}ÔåÆ Metriche servizi:${N} servizi_attivi=${SRV_COUNT} | interval_avg_s=${INTERVAL_SEC_AVG} | p95_exec=${P95_EXEC}s | timeout_rate=${TIMEOUT_RATE}%"echo
+# --- Protezione ---if [ "$SRV_COUNT" -le 0 ]; then
+    echo -e "${Y}ÔÜá Nessun servizio rilevato, imposto 400 come valore di default per il tuning.${N}"  
+SRV_COUNT=400
+fi echo -e "${Y}ÔåÆ Metriche servizi:${N} servizi_attivi=${SRV_COUNT} | interval_avg_s=${INTERVAL_SEC_AVG} | p95_exec=${P95_EXEC}s | timeout_rate=${TIMEOUT_RATE}%"echo
 # --- Decision engine avanzato ---
 TH_NEEDED=$(awk -v n="$SRV_COUNT" -v s="$INTERVAL_SEC_AVG" 'BEGIN{if(s==0)s=300;printf("%.3f",n/s)}')
 CONC_THEO=$(awk -v th="$TH_NEEDED" -v p95="$P95_EXEC" 'BEGIN{v=th*p95*1.3; printf("%.0f", v)}')
@@ -75,12 +76,14 @@ TH=${TH_NEEDED} checks/s, P95=${P95_EXEC}s ÔåÆ ${CONC_THEO}"
 HARD_CAP=$((CORES*12))
 if (( $(
 echo "$CPU_NOW > 80" | bc -l) )) || (( $(
-echo "$TIMEOUT_RATE > 2" | bc -l) )); then  
-SCALE=0.8elif (( $(
-echo "$CPU_NOW < 40" | bc -l) )); then  
-SCALE=1.2else  
-SCALE=1.0fi
-NEW_CONC=$(awk -v c="$CONC_THEO" -v s="$SCALE" 'BEGIN{v=c*s;if(v<10)v=10;printf("%.0f",v)}')[ "$NEW_CONC" -gt "$HARD_CAP" ] && 
+echo "$TIMEOUT_RATE > 2" | bc -l) )); then
+    SCALE=0.8
+elif (( $(
+echo "$CPU_NOW < 40" | bc -l) )); then
+    SCALE=1.2
+else  
+SCALE=1.0
+fi NEW_CONC=$(awk -v c="$CONC_THEO" -v s="$SCALE" 'BEGIN{v=c*s;if(v<10)v=10;printf("%.0f",v)}')[ "$NEW_CONC" -gt "$HARD_CAP" ] && 
 NEW_CONC="$HARD_CAP"
 NEW_SLEEP=$(awk -v c="$NEW_CONC" -v cores="$CORES" 'BEGIN{if(c>cores*10)print 0.35;else print 0.25}')
 NEW_SVC_TO=$(awk -v x="$P95_EXEC" 'BEGIN{v=int(x*2);if(v<45)v=45;if(v>120)v=120;print v}')

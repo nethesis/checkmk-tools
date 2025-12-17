@@ -63,4 +63,6 @@ echo "Agent Client")"log_info "Script Type: $SCRIPT_TYPE"log_info "Target Dir: $
 if [ -f "$CACHE_FILE" ] && [ -x "$CACHE_FILE" ]; then    log_info "Executing cached script"    "$CACHE_FILE"
 else    
 # Fallback: nessun script disponibile    
-echo "2 ${SCRIPT_NAME} - CRITICAL: No script available (cache miss, GitHub unreachable)"    log_info "CRITICAL: No cached script available"    exit 2fi
+echo "2 ${SCRIPT_NAME} - CRITICAL: No script available (cache miss, GitHub unreachable)"    log_info "CRITICAL: No cached script available"
+    exit 2
+fi 

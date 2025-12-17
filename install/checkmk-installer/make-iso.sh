@@ -207,8 +207,8 @@ do apt-get install xorriso isolinux squashfs-tools genisoimage wget"    return 1
 #
 #download_ubuntu_iso() {  local iso_cache="${SCRIPT_DIR}/${UBUNTU_ISO_NAME}"    if [[ -f "$iso_cache" ]]; then    log_info "Using cached Ubuntu ISO" >&2    
 echo "$iso_cache"    return 0  fi    log_info "Downloading Ubuntu ${UBUNTU_VERSION} ISO..." >&2  log_warning "This may take several minutes (~2.5GB download)" >&2    if ! wget --progress=bar:force -O "$iso_cache" "$UBUNTU_ISO_URL" 2>&1 |        stdbuf -o0 tr '\r' '\n' |        grep --line-buffered -oP '\d+%' |        while read -r percent; do         
-echo -ne "\r${CYAN}Progress: ${WHITE}${percent}${NC} " >&2       done; then    
-echo "" >&2    log_error "Failed to download Ubuntu ISO" >&2    return 1  fi
+echo -ne "\r${CYAN}Progress: ${WHITE}${percent}${NC} " >&2       done; then
+    echo "" >&2    log_error "Failed to download Ubuntu ISO" >&2    return 1  fi
 echo "" >&2    log_success "Ubuntu ISO downloaded" >&2  
 echo "$iso_cache"}
 #
@@ -1372,12 +1372,15 @@ echo ""  print_separator "="}
 #main() {  log_module_start "ISO Builder"    
 # Check if running as root  if [[ $EUID -ne 0 ]]; then    log_error "This script must be run as root"    
 echo "Please run: su
-do $0"    exit 1  fi    
-# Check dependencies  if ! check_dependencies; then    exit 1  fi    
+do $0"
+    exit 1  fi    
+# Check dependencies  if ! check_dependencies; then
+    exit 1  fi    
 # Confirm action  
 echo ""  log_warning "This will create a ~3GB bootable ISO file"  log_info "The process will take 10-20 minutes"  
 echo ""    read -p "Continue? (y/n) " -n 1 -r  
-echo ""  if [[ ! $REPLY =~ ^[Yy]$ ]]; then    log_info "Aborted by user"    exit 0  fi    
+echo ""  if [[ ! $REPLY =~ ^[Yy]$ ]]; then    log_info "Aborted by user"
+    exit 0  fi    
 # Create work directory  mkdir -p "$WORK_DIR"    
 # Download Ubuntu ISOlocal ubuntu_isolocal ubuntu_isoubuntu_iso=$(download_ubuntu_iso)    
 # Extract ISO  local iso_root="${WORK_DIR}/iso"  extract_iso "$ubuntu_iso" "$iso_root"    

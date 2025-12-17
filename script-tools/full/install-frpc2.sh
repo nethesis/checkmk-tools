@@ -6,7 +6,7 @@
 if [ "$OS_TYPE" = "debian" ] || [ "$OS_TYPE" = "proxmox" ]; then
     echo ">>> Verifica stato agent Checkmk su $OS_TYPE"
     if systemctl is-active --quiet cmk-agent-ctl-daemon.service; then
-        echo ">>> Disattivo agent TLS (non supportato su Raw Edition)..."
+    echo ">>> Disattivo agent TLS (non supportato su Raw Edition)..."
         systemctl stop cmk-agent-ctl-daemon.service
         systemctl disable cmk-agent-ctl-daemon.service
         pkill -9 -f cmk-agent-ctl || true

@@ -80,7 +80,7 @@ get_script_description() {
         # Cerca commento di descrizione nelle prime 10 righe
         local desc=$(head -n 10 "$full_path" | grep -E "^# (Desc|Description|Purpose):" | sed 's/^# [^:]*: //')
         if [[ -n "$desc" ]]; then
-            echo "$desc"
+    echo "$desc"
         else
             # Fallback: seconda riga (solitamente descrizione)
             desc=$(sed -n '2p' "$full_path" | sed 's/^# //')
@@ -146,7 +146,7 @@ search_scripts() {
     done
     
     if [ ${#results[@]} -eq 0 ]; then
-        echo -e "${RED}✗ Nessun risultato trovato per: '$query'${NC}\n"
+    echo -e "${RED}✗ Nessun risultato trovato per: '$query'${NC}\n"
         return 1
     fi
 echo -e "${GREEN}🔍 Risultati ricerca '$query':${NC}\n"
@@ -163,7 +163,7 @@ show_script_details() {
     local idx="$1"
     
     if [ "$idx" -lt 1 ] || [ "$idx" -gt "${#SCRIPTS[@]}" ]; then
-        echo -e "${RED}✗ Script non vali
+    echo -e "${RED}✗ Script non vali
 do!${NC}\n"
         return 1
     fi
@@ -182,7 +182,7 @@ echo -e "${CYAN}╔════════════════════�
 # Mostra solo preferiti
 show_favorites() {
     if [ ${#FAVORITES[@]} -eq 0 ]; then
-        echo -e "${YELLOW}⭐ Nessun preferito salvato${NC}\n"
+    echo -e "${YELLOW}⭐ Nessun preferito salvato${NC}\n"
         return
     fi
 echo -e "${YELLOW}⭐ Script preferiti:${NC}\n"
@@ -221,7 +221,7 @@ show_statistics() {
     done
     
     if [ ${#top_scripts[@]} -gt 0 ]; then
-        IFS=$'\n' sorted=($(sort -rn <<<"${top_scripts[*]}"))
+    IFS=$'\n' sorted=($(sort -rn <<<"${top_scripts[*]}"))
         unset IFS
         
         local count=0
@@ -252,7 +252,7 @@ show_menu() {
         
         # Stampa intestazione categoria se cambia
         if [ "$category" != "$current_category" ]; then
-            echo -e "\n${YELLOW}▶ $category${NC}"
+    echo -e "\n${YELLOW}▶ $category${NC}"
             current_category="$category"
         fi
         
@@ -277,12 +277,12 @@ execute_script() {
     local selection=$1
     
     if [ "$selection" -eq 0 ]; then
-        echo -e "${GREEN}Arrivederci! 👋${NC}"
-        exit 0
+    echo -e "${GREEN}Arrivederci! 👋${NC}"
+    exit 0
     fi
     
     if [ "$selection" -lt 1 ] || [ "$selection" -gt "${#SCRIPTS[@]}" ]; then
-        echo -e "${RED}✗ Selezione non valida!${NC}\n"
+    echo -e "${RED}✗ Selezione non valida!${NC}\n"
         return 1
     fi
     
@@ -323,7 +323,7 @@ do bash "$TEMP_SCRIPT"
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
     if [ $exit_code -eq 0 ]; then
-        echo -e "${GREEN}✓ Script completato con successo${NC}\n"
+    echo -e "${GREEN}✓ Script completato con successo${NC}\n"
     else
         echo -e "${RED}✗ Script terminato con errore (exit code: $exit_code)${NC}\n"
     fi
@@ -353,7 +353,7 @@ do:${NC} "
         case "$selection" in
             0)
                 echo -e "${GREEN}Arrivederci! 👋${NC}"
-                exit 0
+    exit 0
                 ;;
             s|S)
                 echo -e "${CYAN}🔍 Cerca script:${NC} "

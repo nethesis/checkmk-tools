@@ -3,12 +3,13 @@
 # search-ticket-by-code.sh - Cerca un ticket per codice (es: TK25/003209)set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source del toolkit solo per funzioni helpersource "$SCRIPT_DIR/ydea-toolkit.sh"
-TICKET_CODE="${1:-}"if [[ -z "$TICKET_CODE" ]]; then  
-echo "ÔØî Uso: $0 <ticket_code>"  
+TICKET_CODE="${1:-}"if [[ -z "$TICKET_CODE" ]]; then
+    echo "ÔØî Uso: $0 <ticket_code>"  
 echo ""  
 echo "Esempio:"  
-echo "  $0 TK25/003209"  exit 1fi
-echo "­ƒöì Cercan
+echo "  $0 TK25/003209"
+    exit 1
+fi echo "­ƒöì Cercan
 do ticket con codice: $TICKET_CODE..."
 echo ""
 # Assicurati di avere il tokenensure_token
@@ -19,12 +20,12 @@ RESPONSE=$(curl -s -w '\n%{http_code}' \    -H "Accept: application/json" \    -
 HTTP_BODY="$(
 echo "$RESPONSE" | sed '$d')"  
 HTTP_CODE="$(
-echo "$RESPONSE" | tail -n1)"  if [[ "$HTTP_CODE" != "200" ]]; then    
-echo "ÔØî Errore HTTP $HTTP_CODE"    continue  fi  
+echo "$RESPONSE" | tail -n1)"  if [[ "$HTTP_CODE" != "200" ]]; then
+    echo "ÔØî Errore HTTP $HTTP_CODE"    continue  fi  
 # Cerca il ticket per codice  
 TICKET_DATA=$(
-echo "$HTTP_BODY" | jq --arg code "$TICKET_CODE" '.objs[] | select(.codice == $code)')  if [[ -n "$TICKET_DATA" && "$TICKET_DATA" != "null" ]]; then    
-echo "Ô£à Ticket trovato con limit=$LIMIT!"    
+echo "$HTTP_BODY" | jq --arg code "$TICKET_CODE" '.objs[] | select(.codice == $code)')  if [[ -n "$TICKET_DATA" && "$TICKET_DATA" != "null" ]]; then
+    echo "Ô£à Ticket trovato con limit=$LIMIT!"    
 echo ""        
 TICKET_ID=$(
 echo "$TICKET_DATA" | jq -r '.id')    
@@ -84,10 +85,10 @@ echo "   Stato ID: $(
 echo "$TICKET_DATA" | jq -r '.stato_id // .statoId // "N/A"')"    
 echo ""    
 echo "­ƒöº Custom Attributes:"    if 
-echo "$TICKET_DATA" | jq -e '.customAttributes' >/dev/null 2>&1; then      
-echo "$TICKET_DATA" | jq '.customAttributes'    elif 
-echo "$TICKET_DATA" | jq -e '.custom_attributes' >/dev/null 2>&1; then      
-echo "$TICKET_DATA" | jq '.custom_attributes'    else      
+echo "$TICKET_DATA" | jq -e '.customAttributes' >/dev/null 2>&1; then
+    echo "$TICKET_DATA" | jq '.customAttributes'    elif 
+echo "$TICKET_DATA" | jq -e '.custom_attributes' >/dev/null 2>&1; then
+    echo "$TICKET_DATA" | jq '.custom_attributes'    else      
 echo "   Nessun custom attribute trovato"    fi
 echo ""    
 echo "­ƒæñ Assegnazione:"    
@@ -112,7 +113,8 @@ echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔ
 echo ""    
 echo "$TICKET_DATA" | jq 'to_entries | map(select(.key | test("categoria|sla|premium|categor"; "i"))) | from_entries'    
 echo ""    
-echo "Ô£à Ispezione completata!"    exit 0  fi
+echo "Ô£à Ispezione completata!"
+    exit 0  fi
 done
 echo "ÔØî Ticket $TICKET_CODE non trovato nei primi 1000 ticket"
 echo ""

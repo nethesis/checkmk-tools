@@ -3,12 +3,13 @@
 # inspect-ticket.sh - Ispeziona un singolo ticket per vedere la struttura completaset -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source del toolkit solo per funzioni helpersource "$SCRIPT_DIR/ydea-toolkit.sh"
-TICKET_ID="${1:-}"if [[ -z "$TICKET_ID" ]]; then  
-echo "ÔØî Uso: $0 <ticket_id>"  
+TICKET_ID="${1:-}"if [[ -z "$TICKET_ID" ]]; then
+    echo "ÔØî Uso: $0 <ticket_id>"  
 echo ""  
 echo "Esempio:"  
-echo "  $0 1486125"  exit 1fi
-echo "­ƒöì Ispezionan
+echo "  $0 1486125"
+    exit 1
+fi echo "­ƒöì Ispezionan
 do ticket 
 #$TICKET_ID..."
 echo ""
@@ -23,20 +24,21 @@ echo "$RESPONSE" | sed '$d')"
 HTTP_CODE="$(
 echo "$RESPONSE" | tail -n1)"
 echo "­ƒôè HTTP Status: $HTTP_CODE"
-echo ""if [[ "$HTTP_CODE" != "200" ]]; then  
-echo "ÔØî Errore nella chiamata API"  
+echo ""if [[ "$HTTP_CODE" != "200" ]]; then
+    echo "ÔØî Errore nella chiamata API"  
 echo "$HTTP_BODY" | jq . 2>/dev/null || 
-echo "$HTTP_BODY"  exit 1fi
-# Filtra per il ticket specifico
+echo "$HTTP_BODY"
+    exit 1
+fi # Filtra per il ticket specifico
 TICKET_DATA=$(
 echo "$HTTP_BODY" | jq --arg tid "$TICKET_ID" '.objs[] | select(.id == ($tid|tonumber))')
-if [[ -z "$TICKET_DATA" || "$TICKET_DATA" == "null" ]]; then  
-echo "ÔØî Ticket 
+if [[ -z "$TICKET_DATA" || "$TICKET_DATA" == "null" ]]; then
+    echo "ÔØî Ticket 
 #$TICKET_ID non trovato nei risultati"  
 echo ""  
 echo "Ticket disponibili:"  
-echo "$HTTP_BODY" | jq -r '.objs[] | "\(.id) - \(.codice) - \(.titolo)"' | head -20  exit 1fi
-echo "Ô£à Ticket trovato!"
+echo "$HTTP_BODY" | jq -r '.objs[] | "\(.id) - \(.codice) - \(.titolo)"' | head -20  exit 1
+fi echo "Ô£à Ticket trovato!"
 echo ""
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo "STRUTTURA COMPLETA DEL TICKET"
@@ -88,8 +90,8 @@ echo "   Stato ID: $(
 echo "$TICKET_DATA" | jq -r '.stato_id // .statoId // "N/A"')"
 echo ""
 echo "­ƒöº Custom Attributes:"if 
-echo "$TICKET_DATA" | jq -e '.customAttributes' >/dev/null 2>&1; then  
-echo "$TICKET_DATA" | jq '.customAttributes'else  
+echo "$TICKET_DATA" | jq -e '.customAttributes' >/dev/null 2>&1; then
+    echo "$TICKET_DATA" | jq '.customAttributes'else  
 echo "   Nessun custom attribute trovato"
 fi
 echo ""

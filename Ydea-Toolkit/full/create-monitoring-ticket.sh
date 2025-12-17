@@ -4,17 +4,19 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"source "$SCRIPT_DIR/ydea-toolkit.sh"
 # Carica configurazione Premium_Mon
 CONFIG_FILE="$SCRIPT_DIR/../config/premium-mon-config.json"
-if [[ ! -f "$CONFIG_FILE" ]]; then  log_error "File configurazione non trovato: $CONFIG_FILE"  exit 1fi
-# Leggi parametri da Check
+if [[ ! -f "$CONFIG_FILE" ]]; then  log_error "File configurazione non trovato: $CONFIG_FILE"
+    exit 1
+fi # Leggi parametri da Check
 MKCMK_HOST="${1:-}"
 CMK_SERVICE="${2:-}"
 CMK_STATE="${3:-}"
 CMK_OUTPUT="${4:-}"
-CMK_HOSTIP="${5:-}"if [[ -z "$CMK_HOST" ]]; then  
-echo "ÔØî Uso: $0 <HOST> <SERVICE> <STATE> <OUTPUT> [HOST_IP]"  
+CMK_HOSTIP="${5:-}"if [[ -z "$CMK_HOST" ]]; then
+    echo "ÔØî Uso: $0 <HOST> <SERVICE> <STATE> <OUTPUT> [HOST_IP]"  
 echo ""  
 echo "Esempio:"  
-echo "  $0 'mail.example.com' 'HTTP' 'CRITICAL' 'Connection timeout' '1.2.3.4'"  exit 1filog_info "=== Creazione ticket da CheckMK ==="log_info "Host: $CMK_HOST"log_info "Service: $CMK_SERVICE"log_info "State: $CMK_STATE"log_info "Output: $CMK_OUTPUT"log_info "IP: ${CMK_HOSTIP:-N/A}"
+echo "  $0 'mail.example.com' 'HTTP' 'CRITICAL' 'Connection timeout' '1.2.3.4'"
+    exit 1filog_info "=== Creazione ticket da CheckMK ==="log_info "Host: $CMK_HOST"log_info "Service: $CMK_SERVICE"log_info "State: $CMK_STATE"log_info "Output: $CMK_OUTPUT"log_info "IP: ${CMK_HOSTIP:-N/A}"
 # Carica configurazione
 ANAGRAFICA_ID=$(jq -r '.anagrafica_id' "$CONFIG_FILE")
 PRIORITA_ID=$(jq -r '.priorita_id' "$CONFIG_FILE")
@@ -35,14 +37,14 @@ echo "$service_lower" | grep -qi "$keyword"; then        jq -r ".tipologie.${tip
 echo "$DEFAULT_TIPO"}
 TIPO=$(determine_tipo)log_info "Tipologia determinata: $TIPO"
 # Costruisci titolo e descrizione
-if [[ "$CMK_STATE" == "DOWN" || "$CMK_STATE" == "CRITICAL" ]]; then  
-STATE_ICON="­ƒö┤"elif [[ "$CMK_STATE" == "WARNING" ]]; then  
-STATE_ICON="ÔÜá´©Å"else  
+if [[ "$CMK_STATE" == "DOWN" || "$CMK_STATE" == "CRITICAL" ]]; then
+    STATE_ICON="­ƒö┤"elif [[ "$CMK_STATE" == "WARNING" ]]; then
+    STATE_ICON="ÔÜá´©Å"else  
 STATE_ICON="Ôä╣´©Å"fi
-TITOLO="[${CMK_STATE}] ${CMK_HOST}"if [[ -n "$CMK_SERVICE" && "$CMK_SERVICE" != "Host" ]]; then  
-TITOLO="${TITOLO} - ${CMK_SERVICE}"fi
-if [[ -n "$CMK_HOSTIP" ]]; then  
-TITOLO="${TITOLO} [
+TITOLO="[${CMK_STATE}] ${CMK_HOST}"if [[ -n "$CMK_SERVICE" && "$CMK_SERVICE" != "Host" ]]; then
+    TITOLO="${TITOLO} - ${CMK_SERVICE}"fi
+if [[ -n "$CMK_HOSTIP" ]]; then
+    TITOLO="${TITOLO} [
 IP=${CMK_HOSTIP}]"fi
 # Descrizione generica
 DESCRIZIONE="Allarme da sistema di monitoraggio CheckMK"
@@ -53,11 +55,11 @@ NOTA_PRIVATA="<p><strong>${STATE_ICON} Allarme da CheckMK Monitoring</strong></p
 TICKET_BODY_BASE=$(jq -n \  --arg titolo "$TITOLO" \  --arg descrizione "$DESCRIZIONE" \  --argjson anagrafica "$ANAGRAFICA_ID" \  --argjson priorita "$PRIORITA_ID" \  --arg fonte "$FONTE" \  --arg tipo "$TIPO" \  '{    titolo: $titolo,    descrizione: $descrizione,    anagrafica_id: $anagrafica,    priorita_id: $priorita,    fonte: $fonte,    tipo: $tipo  }')
 # Aggiungi campi opzionali se presenti
 TICKET_BODY="$TICKET_BODY_BASE"
-if [[ -n "$ASSEGNATOA_ID" ]]; then  
-TICKET_BODY=$(
+if [[ -n "$ASSEGNATOA_ID" ]]; then
+    TICKET_BODY=$(
 echo "$TICKET_BODY" | jq --argjson uid "$ASSEGNATOA_ID" '. + {assegnatoa: [$uid]}')fi
-if [[ -n "$SLA_ID" ]]; then  
-TICKET_BODY=$(
+if [[ -n "$SLA_ID" ]]; then
+    TICKET_BODY=$(
 echo "$TICKET_BODY" | jq --argjson sid "$SLA_ID" '. + {sla_id: $sid}')filog_debug "Body: $TICKET_BODY"
 # Chiamata API per creare ticketensure_token
 RESPONSE=$(ydea_api POST "/ticket" "$TICKET_BODY")
@@ -75,6 +77,10 @@ NOTE_BODY=$(jq -n \    --argjson tid "$TICKET_ID" \    --arg desc "$NOTA_PRIVATA
 echo "
 TICKET_ID=$TICKET_ID"  
 echo "
-TICKET_CODE=$TICKET_CODE"    exit 0else  log_error "ÔØî Errore nella creazione del ticket"  
+TICKET_CODE=$TICKET_CODE"
+    exit 0
+else  log_error "ÔØî Errore nella creazione del ticket"  
 echo "$RESPONSE" | jq '.' 2>/dev/null || 
-echo "$RESPONSE"  exit 1fi
+echo "$RESPONSE"
+    exit 1
+fi 

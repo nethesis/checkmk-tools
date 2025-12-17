@@ -9,7 +9,7 @@ echo "=== Lista anagrafiche e cerca ==="curl -s "https://my.ydea.cloud/app_api_v
 echo ""
 echo "=== Dettagli completi ==="
 ANAGRAFICA_ID=$(curl -s "https://my.ydea.cloud/app_api_v2/anagrafica" \  -H "Authorization: Bearer $TOKEN" \  -H "Accept: application/json" | jq -r ".[] | select(.ragioneSociale | test(\"${SEARCH}\"; \"i\")) | .id" | head -1)
-if [[ -n "$ANAGRAFICA_ID" && "$ANAGRAFICA_ID" != "null" ]]; then  
-echo "Trovato ID: $ANAGRAFICA_ID"  curl -s "https://my.ydea.cloud/app_api_v2/anagrafica/${ANAGRAFICA_ID}" \    -H "Authorization: Bearer $TOKEN" \    -H "Accept: application/json" | jq '.'else  
+if [[ -n "$ANAGRAFICA_ID" && "$ANAGRAFICA_ID" != "null" ]]; then
+    echo "Trovato ID: $ANAGRAFICA_ID"  curl -s "https://my.ydea.cloud/app_api_v2/anagrafica/${ANAGRAFICA_ID}" \    -H "Authorization: Bearer $TOKEN" \    -H "Accept: application/json" | jq '.'else  
 echo "Anagrafica non trovata"
 fi 

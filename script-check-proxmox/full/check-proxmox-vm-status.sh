@@ -17,9 +17,10 @@ OUT="0 s"
 echo "$OUT" | xargs}
 # --- Funzione per maiuscolizzare ---uppercase() {    
 echo "$1" | tr '[:lower:]' '[:upper:]'}
-# --- Verifica errori ---if [[ ! -s "$TMP_QEMU" && ! -s "$TMP_LXC" ]]; then    
-echo "2 Proxmox_VM_Global - ERRORE: impossibile ottenere elenco VM/LXC"    rm -f "$TMP_QEMU" "$TMP_LXC"    exit 2fi
-# --- Contatori globali ---
+# --- Verifica errori ---if [[ ! -s "$TMP_QEMU" && ! -s "$TMP_LXC" ]]; then
+    echo "2 Proxmox_VM_Global - ERRORE: impossibile ottenere elenco VM/LXC"    rm -f "$TMP_QEMU" "$TMP_LXC"
+    exit 2
+fi # --- Contatori globali ---
 QEMU_TOTAL=$(jq 'length' "$TMP_QEMU" 2>/dev/null)
 QEMU_RUNNING=$(jq '[.[] | select(.status=="running")] | length' "$TMP_QEMU" 2>/dev/null)
 LXC_TOTAL=$(jq 'length' "$TMP_LXC" 2>/dev/null)
@@ -27,11 +28,11 @@ LXC_RUNNING=$(jq '[.[] | select(.status=="running")] | length' "$TMP_LXC" 2>/dev
 TOTAL=$((QEMU_TOTAL + LXC_TOTAL))
 RUNNING=$((QEMU_RUNNING + LXC_RUNNING))
 STOPPED=$((TOTAL - RUNNING))
-# --- Riga riepilogativa globale ---if (( RUNNING == 0 )); then    
-STATUS=2    
+# --- Riga riepilogativa globale ---if (( RUNNING == 0 )); then
+    STATUS=2    
 MSG="CRIT: nessuna VM o container attivo"
-elif (( STOPPED > 0 )); then    
-STATUS=1    
+elif (( STOPPED > 0 )); then
+    STATUS=1    
 MSG="WARN: $RUNNING/$TOTAL attivi ($STOPPED spenti)"else    
 STATUS=0    
 MSG="OK: tutti i $TOTAL attivi"
@@ -40,15 +41,15 @@ echo "$STATUS Proxmox_VM_Global total_active=$RUNNING;0;$TOTAL;0;$TOTAL total_to
 # --- VM (QEMU) ---if (( QEMU_TOTAL > 0 )); then    jq -r '.[] | "\(.vmid) \(.name) \(.status) \(.uptime)"' "$TMP_QEMU" | while read -r ID NAME STATUSTXT UPTIME; do        
 NAME_UPPER=$(uppercase "$NAME")        
 SERVICE_NAME=$(uppercase "vm_${ID}_${NAME}")        
-UPTIME_HUMAN=$(human_time "$UPTIME")        if [[ "$STATUSTXT" == "running" ]]; then            
-echo "0 ${SERVICE_NAME} uptime=${UPTIME}s;0;;0; VMID:${ID} (${NAME_UPPER}) Running, Uptime ${UPTIME_HUMAN}"        else            
+UPTIME_HUMAN=$(human_time "$UPTIME")        if [[ "$STATUSTXT" == "running" ]]; then
+    echo "0 ${SERVICE_NAME} uptime=${UPTIME}s;0;;0; VMID:${ID} (${NAME_UPPER}) Running, Uptime ${UPTIME_HUMAN}"        else            
 echo "1 ${SERVICE_NAME} uptime=${UPTIME}s;0;;0; VMID:${ID} (${NAME_UPPER}) Stopped, Uptime ${UPTIME_HUMAN}"        fi    done
 fi
 # --- LXC ---if (( LXC_TOTAL > 0 )); then    jq -r '.[] | "\(.vmid) \(.name) \(.status) \(.uptime)"' "$TMP_LXC" | while read -r ID NAME STATUSTXT UPTIME; do        
 NAME_UPPER=$(uppercase "$NAME")        
 SERVICE_NAME=$(uppercase "lxc_${ID}_${NAME}")        
-UPTIME_HUMAN=$(human_time "$UPTIME")        if [[ "$STATUSTXT" == "running" ]]; then            
-echo "0 ${SERVICE_NAME} uptime=${UPTIME}s;0;;0; CTID:${ID} (${NAME_UPPER}) Running, Uptime ${UPTIME_HUMAN}"        else            
+UPTIME_HUMAN=$(human_time "$UPTIME")        if [[ "$STATUSTXT" == "running" ]]; then
+    echo "0 ${SERVICE_NAME} uptime=${UPTIME}s;0;;0; CTID:${ID} (${NAME_UPPER}) Running, Uptime ${UPTIME_HUMAN}"        else            
 echo "1 ${SERVICE_NAME} uptime=${UPTIME}s;0;;0; CTID:${ID} (${NAME_UPPER}) Stopped, Uptime ${UPTIME_HUMAN}"        fi    done
 fi
 # --- Cleanup ---rm -f "$TMP_QEMU" "$TMP_LXC"exit 0

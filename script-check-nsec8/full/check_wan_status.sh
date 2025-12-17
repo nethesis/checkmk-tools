@@ -1,14 +1,14 @@
 #!/bin/bash
 # CheckMK plugin per monitoraggio stato WAN su NSecFirewall8 (OpenWrt)
 # Controlla stato interfacce WAN e connettivit├á
-# Funzione per ottenere lo stato di un'interfaccia via ubusget_interface_status() {    local iface="$1"    local status_json        status_json=$(ubus call network.interface."$iface" status 2>/dev/null)    if [[ $? -ne 0 || -z "$status_json" ]]; then        
-echo "unknown"        return 1    fi        
+# Funzione per ottenere lo stato di un'interfaccia via ubusget_interface_status() {    local iface="$1"    local status_json        status_json=$(ubus call network.interface."$iface" status 2>/dev/null)    if [[ $? -ne 0 || -z "$status_json" ]]; then
+    echo "unknown"        return 1    fi        
 # Estrae lo stato up/down    
 echo "$status_json" | jsonfilter -e '@.up' 2>/dev/null || 
 echo "unknown"}
 # Funzione per verificare connettivit├ácheck_connectivity() {    local target="$1"    local count="${2:-2}"        ping -c "$count" -W 2 "$target" >/dev/null 2>&1    return $?}
-# Funzione per ottenere gatewayget_gateway() {    local iface="$1"    local status_json        status_json=$(ubus call network.interface."$iface" status 2>/dev/null)    if [[ $? -ne 0 || -z "$status_json" ]]; then        
-echo ""        return 1    fi        
+# Funzione per ottenere gatewayget_gateway() {    local iface="$1"    local status_json        status_json=$(ubus call network.interface."$iface" status 2>/dev/null)    if [[ $? -ne 0 || -z "$status_json" ]]; then
+    echo ""        return 1    fi        
 # Estrae il primo gateway dalla lista route    
 echo "$status_json" | jsonfilter -e '@.route[0].nexthop' 2>/dev/null || 
 echo ""}
@@ -16,8 +16,9 @@ echo ""}
 # Lista interfacce via ubus    ubus list | grep '^network\.interface\.' | sed 's/network\.interface\.//' | grep -E '^(wan|wwan|vwan)'}
 # Main
 echo "<<<wan_status>>>"wan_interfaces=$(find_wan_interfaces)
-if [[ -z "$wan_interfaces" ]]; then    
-echo "0 WAN_Status status=ERROR No WAN interfaces found"    exit 0fioverall_status=0status_messages=()details=()
+if [[ -z "$wan_interfaces" ]]; then
+    echo "0 WAN_Status status=ERROR No WAN interfaces found"
+    exit 0fioverall_status=0status_messages=()details=()
 # Controlla ogni interfaccia WANfor iface in $wan_interfaces; do    status=$(get_interface_status "$iface")    gateway=$(get_gateway "$iface")        if [[ "$status" == "true" || "$status" == "1" ]]; then        
 # Interfaccia UP - verifica connettivit├á        if [[ -n "$gateway" ]]; then            if check_connectivity "$gateway"; then                details+=("$iface: UP (gateway $gateway reachable)")                status_messages+=("$iface=OK")            else                details+=("$iface: UP but gateway $gateway unreachable")                status_messages+=("$iface=DEGRADED")                overall_status=1            fi        else            
 # UP ma senza gateway            
@@ -26,8 +27,10 @@ echo "0 WAN_Status status=ERROR No WAN interfaces found"    exit 0fioverall_stat
 # Stato sconosciuto        details+=("$iface: UNKNOWN")        status_messages+=("$iface=UNKNOWN")        overall_status=1    fi
 done
 # Determina stato finale
-if [[ $overall_status -eq 0 ]]; then    final_status="OK"
-elif [[ $overall_status -eq 1 ]]; then    final_status="WARNING"
+if [[ $overall_status -eq 0 ]]; then
+    final_status="OK"
+elif [[ $overall_status -eq 1 ]]; then
+    final_status="WARNING"
 else    final_status="CRITICAL"
 fi # Output CheckMKstatus_line="${status_messages[*]}"detail_line=$(
 IFS=', '; 

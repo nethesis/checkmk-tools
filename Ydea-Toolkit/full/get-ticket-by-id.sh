@@ -3,12 +3,13 @@
 # get-ticket-by-id.sh - Recupera un ticket specifico per ID numericoset -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source del toolkit solo per funzioni helpersource "$SCRIPT_DIR/ydea-toolkit.sh"
-TICKET_ID="${1:-}"if [[ -z "$TICKET_ID" ]]; then  
-echo "ÔØî Uso: $0 <ticket_id>"  
+TICKET_ID="${1:-}"if [[ -z "$TICKET_ID" ]]; then
+    echo "ÔØî Uso: $0 <ticket_id>"  
 echo ""  
 echo "Esempio:"  
-echo "  $0 1486125"  exit 1fi
-echo "­ƒöì Recuperan
+echo "  $0 1486125"
+    exit 1
+fi echo "­ƒöì Recuperan
 do ticket ID: $TICKET_ID..."
 echo ""
 # Assicurati di avere il tokenensure_token
@@ -22,8 +23,8 @@ echo "$RESPONSE" | sed '$d')"
 HTTP_CODE="$(
 echo "$RESPONSE" | tail -n1)"
 echo "   HTTP Status: $HTTP_CODE"
-echo ""if [[ "$HTTP_CODE" == "200" ]]; then  
-TICKET_DATA="$HTTP_BODY"
+echo ""if [[ "$HTTP_CODE" == "200" ]]; then
+    TICKET_DATA="$HTTP_BODY"
 else  
 # Se fallisce, prova con paginazione  
 TICKET_DATA=""  
@@ -37,12 +38,12 @@ RESPONSE=$(curl -s -w '\n%{http_code}' \      -H "Accept: application/json" \   
 HTTP_BODY="$(
 echo "$RESPONSE" | sed '$d')"    
 HTTP_CODE="$(
-echo "$RESPONSE" | tail -n1)"    if [[ "$HTTP_CODE" != "200" ]]; then      
-echo "ÔØî Errore HTTP $HTTP_CODE"      break    fi    
+echo "$RESPONSE" | tail -n1)"    if [[ "$HTTP_CODE" != "200" ]]; then
+    echo "ÔØî Errore HTTP $HTTP_CODE"      break    fi    
 # Controlla se ci sono risultati    
 COUNT=$(
-echo "$HTTP_BODY" | jq -r '.objs | length')    if [[ "$COUNT" -eq 0 ]]; then      
-echo "Nessun ticket, fine ricerca"      break    fi        
+echo "$HTTP_BODY" | jq -r '.objs | length')    if [[ "$COUNT" -eq 0 ]]; then
+    echo "Nessun ticket, fine ricerca"      break    fi        
 # Mostra range ID disponibili    
 MIN_ID=$(
 echo "$HTTP_BODY" | jq -r '.objs | map(.id) | min')    
@@ -51,21 +52,22 @@ echo "$HTTP_BODY" | jq -r '.objs | map(.id) | max')
 echo "Range: $MIN_ID - $MAX_ID ($COUNT ticket)"    
 # Filtra per ID    
 TICKET_DATA=$(
-echo "$HTTP_BODY" | jq --arg tid "$TICKET_ID" '.objs[] | select(.id == ($tid|tonumber))')        if [[ -n "$TICKET_DATA" && "$TICKET_DATA" != "null" ]]; then      
-echo ""      
+echo "$HTTP_BODY" | jq --arg tid "$TICKET_ID" '.objs[] | select(.id == ($tid|tonumber))')        if [[ -n "$TICKET_DATA" && "$TICKET_DATA" != "null" ]]; then
+    echo ""      
 echo "   Ô£à Ticket trovato alla pagina $PAGE!"      break    fi        
 # Se l'ID cercato ├¿ inferiore al minimo, continua con pagina successiva    if [[ "$TICKET_ID" -lt "$MIN_ID" ]]; then      
 # Continua a cercare nelle pagine successive (ticket pi├╣ vecchi)      continue    fi        
-# Se l'ID cercato ├¿ superiore al massimo, il ticket ├¿ nella pagina precedente o non esiste    if [[ "$TICKET_ID" -gt "$MAX_ID" ]]; then      
-echo ""      
-echo "   ÔÜá´©Å  Ticket ID $TICKET_ID > $MAX_ID, cercato oltre il range"      break    fi  done    if [[ -z "$TICKET_DATA" || "$TICKET_DATA" == "null" ]]; then    
-echo ""    
+# Se l'ID cercato ├¿ superiore al massimo, il ticket ├¿ nella pagina precedente o non esiste    if [[ "$TICKET_ID" -gt "$MAX_ID" ]]; then
+    echo ""      
+echo "   ÔÜá´©Å  Ticket ID $TICKET_ID > $MAX_ID, cercato oltre il range"      break    fi  done    if [[ -z "$TICKET_DATA" || "$TICKET_DATA" == "null" ]]; then
+    echo ""    
 echo "ÔØî Ticket ID $TICKET_ID non trovato"    
 echo ""    
 echo "­ƒÆí Il ticket potrebbe essere:"    
 echo "   - Oltre la pagina $MAX_PAGES (pi├╣ di 10000 ticket fa)"    
 echo "   - Stato archiviato o eliminato"    
-echo "   - Con ID errato"    exit 1  fi
+echo "   - Con ID errato"
+    exit 1  fi
 fi
 echo "Ô£à Ticket trovato!"
 echo ""
@@ -143,12 +145,12 @@ echo "   Cliente: $(
 echo "$TICKET_DATA" | jq -r '.cliente // "N/A"')"
 echo ""
 echo "­ƒöº Custom Attributes:"if 
-echo "$TICKET_DATA" | jq -e '.customAttributes' >/dev/null 2>&1; then  
-echo "$TICKET_DATA" | jq '.customAttributes'elif 
-echo "$TICKET_DATA" | jq -e '.custom_attributes' >/dev/null 2>&1; then  
-echo "$TICKET_DATA" | jq '.custom_attributes'elif 
-echo "$TICKET_DATA" | jq -e '.campiCustom' >/dev/null 2>&1; then  
-echo "$TICKET_DATA" | jq '.campiCustom'else  
+echo "$TICKET_DATA" | jq -e '.customAttributes' >/dev/null 2>&1; then
+    echo "$TICKET_DATA" | jq '.customAttributes'elif 
+echo "$TICKET_DATA" | jq -e '.custom_attributes' >/dev/null 2>&1; then
+    echo "$TICKET_DATA" | jq '.custom_attributes'elif 
+echo "$TICKET_DATA" | jq -e '.campiCustom' >/dev/null 2>&1; then
+    echo "$TICKET_DATA" | jq '.campiCustom'else  
 echo "   Nessun custom attribute trovato"
 fi
 echo ""

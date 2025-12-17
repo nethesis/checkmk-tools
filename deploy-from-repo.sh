@@ -28,18 +28,20 @@ echo -e "${RED}ÔØî${RESET} $1"}print_warning() {
 echo -e "${YELLOW}ÔÜá´©Å${RESET}  $1"}print_info() {  
 echo -e "${CYAN}Ôä╣´©Å${RESET}  $1"}
 # ===== Verifica prerequisiti =====check_prerequisites() {  print_step "Verifica prerequisiti..."    
-# Verifica repository  if [[ ! -d "$REPO_PATH" ]]; then    print_error "Repository non trovato: $REPO_PATH"    exit 1  fi    
-# Verifica git  if ! command -v git &> /dev/null; then    print_error "git non installato"    exit 1  fi    print_success "Prerequisiti verificati"}
+# Verifica repository  if [[ ! -d "$REPO_PATH" ]]; then    print_error "Repository non trovato: $REPO_PATH"
+    exit 1  fi    
+# Verifica git  if ! command -v git &> /dev/null; then    print_error "git non installato"
+    exit 1  fi    print_success "Prerequisiti verificati"}
 # ===== Pull dal repository =====update_repository() {  print_step "Aggiornamento repository..."    if [[ "$SCRIPT_USER" != "$DEPLOY_USER" ]]; then    print_info "Switching a utente $DEPLOY_USER per git pull..."    su
 do -u "$DEPLOY_USER" bash -c "cd '$REPO_PATH' && git pull"  else    cd "$REPO_PATH" && git pull  fi    print_success "Repository aggiornato"}
 # ===== Mostra file disponibili =====show_available_files() {  print_header "­ƒôª FILE DISPONIBILI PER DEPLOY"    local index=1  for entry in "${DEPLOY_MAP[@]}"; do    
 IFS=':' read -r src dest needs_su
-do desc <<< "$entry"    local full_src="$REPO_PATH/$src"        if [[ -f "$full_src" ]]; then      
-echo -e "${GREEN}[$index]${RESET} ${BOLD}$desc${RESET}"      
+do desc <<< "$entry"    local full_src="$REPO_PATH/$src"        if [[ -f "$full_src" ]]; then
+    echo -e "${GREEN}[$index]${RESET} ${BOLD}$desc${RESET}"      
 echo -e "    ­ƒôü Source: $src"      
 echo -e "    ­ƒôì Dest:   $dest"            
-# Verifica se gi├á presente      if [[ -f "$dest" ]]; then        
-echo -e "    ${YELLOW}ÔÜá´©Å  File gi├á presente in destinazione${RESET}"      fi    else      
+# Verifica se gi├á presente      if [[ -f "$dest" ]]; then
+    echo -e "    ${YELLOW}ÔÜá´©Å  File gi├á presente in destinazione${RESET}"      fi    else      
 echo -e "${RED}[$index]${RESET} ${BOLD}$desc${RESET} ${RED}(NON TROVATO)${RESET}"      
 echo -e "    ­ƒôü Source: $src"    fi
 echo ""    ((index++))  done}
@@ -65,13 +67,15 @@ echo "  [q] Esci"
 echo ""    read -r -p "Scegli un'opzione [a/s/q]: " choice    case "$choice" in    a|A)      print_info "Deploy di tutti i file..."      local success=0      local failed=0            for entry in "${DEPLOY_MAP[@]}"; do        if deploy_file "$entry"; then          ((success++))        else          ((failed++))        fi
 echo ""      done
 echo -e "\n${BOLD}Riepilogo:${RESET}"      
-echo -e "  ${GREEN}Ô£à Successo: $success${RESET}"      if [[ $failed -gt 0 ]]; then        
-echo -e "  ${RED}ÔØî Falliti: $failed${RESET}"      fi      ;;          s|S)      show_available_files      
+echo -e "  ${GREEN}Ô£à Successo: $success${RESET}"      if [[ $failed -gt 0 ]]; then
+    echo -e "  ${RED}ÔØî Falliti: $failed${RESET}"      fi      ;;          s|S)      show_available_files      
 echo -e "${BOLD}Inserisci i numeri dei file da deployare (es: 1 3 4) o 'a' per tutti:${RESET}"      read -r -p "> " selections            if [[ "$selections" == "a" || "$selections" == "A" ]]; then        for entry in "${DEPLOY_MAP[@]}"; do          deploy_file "$entry"          
 echo ""        done      else        for num in $selections; do          if [[ "$num" =~ ^[0-9]+$ ]] && [[ $num -ge 1 ]] && [[ $num -le ${
 #DEPLOY_MAP[@]} ]]; then            local index=$((num - 1))            deploy_file "${DEPLOY_MAP[$index]}"            
 echo ""          else            print_warning "Numero non vali
-do: $num"          fi        done      fi      ;;          q|Q)      print_info "Uscita..."      exit 0      ;;          *)      print_error "Opzione non valida"      exit 1      ;;  esac}
+do: $num"          fi        done      fi      ;;          q|Q)      print_info "Uscita..."
+    exit 0      ;;          *)      print_error "Opzione non valida"
+    exit 1      ;;  esac}
 # ===== Menu principale =====main_menu() {  print_header "­ƒöä DEPLOY AUTOMATICO DA REPOSITORY"    
 echo -e "${BOLD}Cosa vuoi fare?${RESET}"  
 echo "  [1] Solo git pull (aggiorna repository)"  
@@ -83,7 +87,9 @@ echo "  [q] Esci"
 echo ""    read -r -p "Scegli un'opzione [1-5/q]: " main_choice    case "$main_choice" in    1)      check_prerequisites      update_repository      ;;          2)      check_prerequisites      update_repository      
 echo ""      interactive_deploy      ;;          3)      check_prerequisites      update_repository      
 echo ""      print_info "Deploy automatico di tutti i file..."      for entry in "${DEPLOY_MAP[@]}"; do        deploy_file "$entry"        
-echo ""      done      ;;          4)      check_prerequisites      interactive_deploy      ;;          5)      show_status      ;;          q|Q)      print_info "Uscita..."      exit 0      ;;          *)      print_error "Opzione non valida"      exit 1      ;;  esac    
+echo ""      done      ;;          4)      check_prerequisites      interactive_deploy      ;;          5)      show_status      ;;          q|Q)      print_info "Uscita..."
+    exit 0      ;;          *)      print_error "Opzione non valida"
+    exit 1      ;;  esac    
 echo ""  print_success "Operazione completata!"}
 # ===== Mostra stato =====show_status() {  print_header "­ƒôè STATO ATTUALE"    print_step "Repository: $REPO_PATH"  if [[ "$SCRIPT_USER" != "$DEPLOY_USER" ]]; then    su
 do -u "$DEPLOY_USER" bash -c "cd '$REPO_PATH' && git log -1 --oneline"  else    cd "$REPO_PATH" && git log -1 --oneline  fi
@@ -107,6 +113,7 @@ echo "  --deploy-all   Git pull + deploy tutto"
 echo "  --status       Mostra stato"        
 echo "  --help         Mostra questo help"        
 echo ""        
-echo "Senza opzioni: modalit├á interattiva"        ;;      *)        print_error "Opzione non valida. Usa --help per vedere le opzioni"        exit 1        ;;    esac  else    
+echo "Senza opzioni: modalit├á interattiva"        ;;      *)        print_error "Opzione non valida. Usa --help per vedere le opzioni"
+    exit 1        ;;    esac  else    
 # Modalit├á interattiva    main_menu  fi}
 # Eseguimain "$@"

@@ -34,20 +34,24 @@ echo -e "${RED}ÔØî $1${NC}"}
 # Rileva NethServer 7 (cerca nethserver-release o 
 VERSION_ID="7")    if [[ -f /etc/nethserver-release ]] || \       ( [[ -f /etc/os-release ]] && grep -qE '
 ID="?nethserver|
-VERSION_ID="?7' /etc/os-release ); then        os_type="ns7"        
+VERSION_ID="?7' /etc/os-release ); then
+    os_type="ns7"        
 # Rileva NethServer 8 (cerca 
 VERSION_ID="8" o ns8 nel nome)    elif [[ -f /etc/os-release ]] && grep -qE '
-VERSION_ID="?8|ns8|NethServer 8' /etc/os-release; then        os_type="ns8"        
-# Rileva Proxmox    elif [[ -f /etc/pve/version ]]; then        os_type="proxmox"        
-# Rileva Ubuntu/Debian    elif [[ -f /etc/os-release ]] && grep -qE "Ubuntu|Debian" /etc/os-release; then        os_type="ubuntu"        
+VERSION_ID="?8|ns8|NethServer 8' /etc/os-release; then
+    os_type="ns8"        
+# Rileva Proxmox    elif [[ -f /etc/pve/version ]]; then
+    os_type="proxmox"        
+# Rileva Ubuntu/Debian    elif [[ -f /etc/os-release ]] && grep -qE "Ubuntu|Debian" /etc/os-release; then
+    os_type="ubuntu"        
 # Sistema generico    else        os_type="generic"    fi
 echo "$os_type"}
 # ==========================================================
 # Funzioni di ricerca repository
-# ==========================================================find_repository() {    if [[ -d "/opt/checkmk-tools/.git" ]]; then        
-echo "/opt/checkmk-tools"    elif [[ -d "/root/checkmk-tools/.git" ]]; then        
-echo "/root/checkmk-tools"    elif [[ -d "$HOME/checkmk-tools/.git" ]]; then        
-echo "$HOME/checkmk-tools"    else        
+# ==========================================================find_repository() {    if [[ -d "/opt/checkmk-tools/.git" ]]; then
+    echo "/opt/checkmk-tools"    elif [[ -d "/root/checkmk-tools/.git" ]]; then
+    echo "/root/checkmk-tools"    elif [[ -d "$HOME/checkmk-tools/.git" ]]; then
+    echo "$HOME/checkmk-tools"    else        
 echo ""    fi}
 # ==========================================================
 # Funzioni di selezione script
@@ -120,23 +124,28 @@ echo "  - Falliti: $failed"        return 0}
 # ==========================================================
 # Main
 # ==========================================================main() {    print_header "Deploy Monitoring Scripts"        
-# Verifica esecuzione come root    if [[ $EUID -ne 0 ]]; then        print_error "Questo script deve essere eseguito come root"        exit 1    fi        
+# Verifica esecuzione come root    if [[ $EUID -ne 0 ]]; then        print_error "Questo script deve essere eseguito come root"
+    exit 1    fi        
 # Trova repository    
 REPO_DIR=$(find_repository)    if [[ -z "$REPO_DIR" ]]; then        print_error "Repository checkmk-tools non trovato"        print_info "Posizioni cercate:"        
 echo "  - /opt/checkmk-tools"        
 echo "  - /root/checkmk-tools"        
-echo "  - $HOME/checkmk-tools"        exit 1    fi        print_success "Repository trovato: $REPO_DIR"        
+echo "  - $HOME/checkmk-tools"
+    exit 1    fi        print_success "Repository trovato: $REPO_DIR"        
 # Rileva sistema    
 SYSTEM_TYPE=$(detect_system)        
-# Verifica che SYSTEM_TYPE non sia vuoto    if [[ -z "$SYSTEM_TYPE" ]]; then        print_error "Impossibile rilevare il tipo di sistema"        exit 1    fi        
+# Verifica che SYSTEM_TYPE non sia vuoto    if [[ -z "$SYSTEM_TYPE" ]]; then        print_error "Impossibile rilevare il tipo di sistema"
+    exit 1    fi        
 # Stampa tipo di sistema rilevato    case "$SYSTEM_TYPE" in        ns7)     print_info "Sistema rilevato: NethServer 7" ;;        ns8)     print_info "Sistema rilevato: NethServer 8" ;;        proxmox) print_info "Sistema rilevato: Proxmox VE" ;;        ubuntu)  print_info "Sistema rilevato: Ubuntu/Debian" ;;        *)       print_warning "Sistema non riconosciuto, uso configurazione generica" ;;    esac        
 # Mostra menu e ottieni selezione (usa file temporaneo per evitare problemi con stdin in subshell)    
 TMP_SELECTION="/tmp/deploy-scripts-selection-$$.txt"    show_script_menu "$SYSTEM_TYPE" > "$TMP_SELECTION"        
 # Leggi solo righe non vuote dal file temporaneo    
 SELECTED_SCRIPTS=()    while 
 IFS= read -r line; do        [[ -n "$line" ]] && SELECTED_SCRIPTS+=("$line")    done < "$TMP_SELECTION"    rm -f "$TMP_SELECTION"        if [[ ${
-#SELECTED_SCRIPTS[@]} -eq 0 ]]; then        print_info "Nessuno script da installare"        exit 0    fi        
+#SELECTED_SCRIPTS[@]} -eq 0 ]]; then        print_info "Nessuno script da installare"
+    exit 0    fi        
 # Conferma deployment    
-echo ""    exec < /dev/tty    read -r -p "Procedere con l'installazione degli script selezionati? [S/n]: " confirm    if [[ "$confirm" =~ ^[Nn] ]]; then        print_info "Operazione annullata"        exit 0    fi        
+echo ""    exec < /dev/tty    read -r -p "Procedere con l'installazione degli script selezionati? [S/n]: " confirm    if [[ "$confirm" =~ ^[Nn] ]]; then        print_info "Operazione annullata"
+    exit 0    fi        
 # Deploy    deploy_scripts "${SELECTED_SCRIPTS[@]}"        print_success "Operazione completata!"    print_info "Gli script sono stati installati in: $TARGET_DIR"}
 # Esegui mainmain "$@"

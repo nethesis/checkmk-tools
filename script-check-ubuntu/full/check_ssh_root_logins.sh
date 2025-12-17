@@ -13,8 +13,7 @@ SERVICE="SSH_sessions_count"
 SESSIONS=$(who | awk '$1 == "root" {count++} END {print count+0}')
 
 if [ "$SESSIONS" -gt 0 ]; then
-    
-IPS=$(who | awk '$1=="root"{print $5}' | tr -d '()' | paste -sd "," -)
+    IPS=$(who | awk '$1=="root"{print $5}' | tr -d '()' | paste -sd "," -)
     
 echo "2 $SERVICE - $SESSIONS root session(s) from $IPS"
 else

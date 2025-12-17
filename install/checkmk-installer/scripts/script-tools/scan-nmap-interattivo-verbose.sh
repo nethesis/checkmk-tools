@@ -8,23 +8,24 @@
 #set -euo pipefail
 DEFAULT_OUTDIR="./scans"
 DEFAULT_PORTS="1-1024"TIMESTAMP() { date +%Y%m%dT%H%M%S; }
-NMAP_BIN="$(command -v nmap || true)"if [[ -z "$NMAP_BIN" ]]; then  
-echo "Errore: nmap non trovato nel PATH. Installa nmap e riprova." >&2  
-echo "Su CentOS/NethServer: yum install -y nmap"  exit 2fi
-echo "=== SCAN NMAP INTERATTIVO (opzione discovery verboso) ==="echo
+NMAP_BIN="$(command -v nmap || true)"if [[ -z "$NMAP_BIN" ]]; then
+    echo "Errore: nmap non trovato nel PATH. Installa nmap e riprova." >&2  
+echo "Su CentOS/NethServer: yum install -y nmap"
+    exit 2
+fi echo "=== SCAN NMAP INTERATTIVO (opzione discovery verboso) ==="echo
 # TARGET MODEwhile true; do  read -rp "Vuoi scansionare (1) subnet/range/host oppure (2) file targets? [1/2] (default 1): " MODE  
 MODE="${MODE:-1}"  if [[ "$MODE" == "1" || "$MODE" == "2" ]]; then break; fi
 echo "Risposta non valida. Inserisci 1 o 2."done
 TARGET_ARG=""
 LABEL=""
 TARGET_FILE=""if [[ "$MODE" == "1" ]]; then  read -rp "Inserisci subnet/host/range (es. 192.168.1.0/24 o 10.0.0.1-254 o 192.168.1.10): " RANGE  
-RANGE="${RANGE:-}"  if [[ -z "$RANGE" ]]; then    
-echo "Errore: nessun target fornito. Uscita." >&2    exit 3  fi  
+RANGE="${RANGE:-}"  if [[ -z "$RANGE" ]]; then
+    echo "Errore: nessun target fornito. Uscita." >&2    exit 3  fi  
 TARGET_ARG="$RANGE"  
 LABEL="$(
 echo "$RANGE" | tr -c '[:alnum:]_.' '_')"else  read -rp "Inserisci percorso file targets (uno per riga, IP/host/CIDR): " TARGET_FILE  
-TARGET_FILE="${TARGET_FILE:-}"  if [[ -z "$TARGET_FILE" || ! -f "$TARGET_FILE" ]]; then    
-echo "Errore: file targets non vali
+TARGET_FILE="${TARGET_FILE:-}"  if [[ -z "$TARGET_FILE" || ! -f "$TARGET_FILE" ]]; then
+    echo "Errore: file targets non vali
 do o non esistente: $TARGET_FILE" >&2    exit 4  fi  
 TARGET_ARG="-iL $TARGET_FILE"  
 LABEL="$(basename "$TARGET_FILE" | tr -c '[:alnum:]_-' '_')"fi
@@ -44,19 +45,19 @@ echo "  0) Nessuna verbosit├â┬á extra (default)"
 echo "  1) Verbose (-v)"
 echo "  2) Very verbose (-vv)"
 echo "  3) Debug (+ -d) (dettagli interni) e opzione --packet-trace (traccia pacchetti)"read -rp "Scegli 0|1|2|3 [default 0]: " 
-VLEVELVLEVEL="${VLEVEL:-0}"if ! [[ "$VLEVEL" =~ ^[0-3]$ ]]; then 
-VLEVEL=0; fi
+VLEVELVLEVEL="${VLEVEL:-0}"if ! [[ "$VLEVEL" =~ ^[0-3]$ ]]; then
+    VLEVEL=0; fi
 # OTHER OPTIONSread -rp "Directory output [default: ${DEFAULT_OUTDIR}]: " 
 OUTDIROUTDIR="${OUTDIR:-$DEFAULT_OUTDIR}"read -rp "Timing template nmap 0..5 [default 3]: " 
-NTNT="${NT:-3}"if ! [[ "$NT" =~ ^[0-5]$ ]]; then 
-NT=3; fi
+NTNT="${NT:-3}"if ! [[ "$NT" =~ ^[0-5]$ ]]; then
+    NT=3; fi
 # Confirmecho
-echo "Riepilogo:"if [[ "$MODE" == "1" ]]; then  
-echo "  Target: $TARGET_ARG"
+echo "Riepilogo:"if [[ "$MODE" == "1" ]]; then
+    echo "  Target: $TARGET_ARG"
 else  
 echo "  Targets file: $TARGET_FILE"fi
-if [[ "$SCAN_CHOICE" == "1" ]]; then  
-echo "  Modalit├â┬á: Scan porte"  
+if [[ "$SCAN_CHOICE" == "1" ]]; then
+    echo "  Modalit├â┬á: Scan porte"  
 echo "  Porte: $PORTS"
 else  
 echo "  Modalit├â┬á: Discovery only (no port scan) - equivalente a -sn"ficase "$VLEVEL" in  0) 
@@ -66,11 +67,12 @@ echo "  Verbosit├â┬á: -vv" ;;  3)
 echo "  Verbosit├â┬á: debug (-d) + --packet-trace" ;;esac
 echo "  Output dir: $OUTDIR"
 echo "  Timing template: -T$NT"echoread -rp "Procedere con la scansione? [y/N]: " 
-CONFCONF="${CONF:-N}"if [[ ! "$CONF" =~ ^[Yy]$ ]]; then  
-echo "Annullato dall'utente."  exit 0fimkdir -p "$OUTDIR"
-if [[ ! -w "$OUTDIR" ]]; then  
-echo "Errore: directory $OUTDIR non scrivibile." >&2  exit 5fi
-TS="$(TIMESTAMP)"
+CONFCONF="${CONF:-N}"if [[ ! "$CONF" =~ ^[Yy]$ ]]; then
+    echo "Annullato dall'utente."
+    exit 0fimkdir -p "$OUTDIR"
+if [[ ! -w "$OUTDIR" ]]; then
+    echo "Errore: directory $OUTDIR non scrivibile." >&2  exit 5
+fi TS="$(TIMESTAMP)"
 OUTBASE="${OUTDIR%/}/nmap-${TS}_${LABEL}"
 OUTTXT="${OUTBASE}.txt"
 OUTSUM="${OUTBASE}_summary.txt"
@@ -91,8 +93,9 @@ echo "Eseguo nmap..."
 echo "Coman
 do: ${NMAP_CMD[*]}"echo
 # Run nmap
-if "${NMAP_CMD[@]}"; then  
-EC=0else  
+if "${NMAP_CMD[@]}"; then
+    EC=0
+else  
 EC=$?fi
 # Produce summary: adattivo in base alla modalit├â┬áif [[ "$SCAN_CHOICE" == "2" ]]; then  
 # discovery: includi host up + eventuale MAC/hostname e (se verbose/debug) linee di packet-trace nel file normale  awk '  /^Nmap scan report for/ { host=$0; next }  /Host is up/ { print host " | Host is up " $0 }  /^MAC Address:/ { print "   " $0 }  ' "$OUTTXT" > "$OUTSUM" || true  

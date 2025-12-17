@@ -21,8 +21,7 @@ NOW=$(date +"%Y-%m-%d %H:%M:%S")
 
 # elenco precedente dal file di stato
 if [ -f "$STATEFILE" ]; then
-    
-PREV_IPS=$(cat "$STATEFILE")
+    PREV_IPS=$(cat "$STATEFILE")
 else
     
 PREV_IPS=""
@@ -50,8 +49,7 @@ echo "$CURR_IPS"))
 if [ -n "$NEW_LOGINS" ]; then
     for ip in $NEW_LOGINS; do
         if [ $((RANDOM % 2)) -eq 0 ]; then
-            
-echo "1 $SERVICE - $NOW root login from $ip"
+    echo "1 $SERVICE - $NOW root login from $ip"
         else
             
 echo "2 $SERVICE - $NOW root login from $ip"
@@ -69,8 +67,7 @@ fi
 
 # se nessun evento, mostra numero sessioni attuali
 if [ -z "$NEW_LOGINS" ] && [ -z "$LOGOUTS" ]; then
-    
-COUNT=$(
+    COUNT=$(
 echo "$CURR_IPS" | wc -w)
     
 echo "0 $SERVICE - $COUNT root session(s) active"

@@ -9,9 +9,10 @@ echo ""
 # Test cases per ogni tipologia (inclusi WARNING)declare -A 
 TEST_CASES=(  ["NethVoice-CRIT"]="pbx.example.com|Asterisk Status|CRITICAL|SIP trunk offline"  ["NethSecurity-WARN"]="firewall.example.com|VPN Status|WARNING|VPN tunnel down"  ["NethService-CRIT"]="mail.example.com|SMTP|CRITICAL|Connection timeout"  ["Client-WARN"]="workstation-01|Disk Space|WARNING|Disk C: 90% full"  ["Server-CRIT"]="server-db01|MySQL Status|CRITICAL|Database connection failed"  ["Network-WARN"]="switch-core|Port Status|WARNING|Port 24 down"  ["Hypervisor-CRIT"]="proxmox01|VM Status|CRITICAL|VM web01 not responding"  ["Consulenza-WARN"]="support-request|Manual Check|WARNING|Richiesta assistenza")
 echo "Vuoi eseguire il test? (creer├á 8 ticket di test)"read -p "Procedi? [y/N]: " -n 1 -r
-echo ""if [[ ! $REPLY =~ ^[Yy]$ ]]; then  
-echo "Test annullato"  exit 0fi
-echo ""
+echo ""if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Test annullato"
+    exit 0
+fi echo ""
 echo "­ƒÜÇ Creazione ticket di test..."
 echo ""for tipologia in "${!TEST_CASES[@]}"; do  
 IFS='|' read -r host service state output <<< "${TEST_CASES[$tipologia]}"    

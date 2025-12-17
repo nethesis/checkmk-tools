@@ -36,13 +36,13 @@ SWAPFILE=$(swapon --show=NAME --noheadings | head -n1)
 if [[ -z "$SWAPFILE" ]]; then
     echo -e "${RED}Nessuno swapfile attivo trovato${NC}"
     if [[ "$AUTO_YES" == true ]]; then
-        SWAPFILE="/swapfile"
+    SWAPFILE="/swapfile"
         echo -e "${GREEN}Creazione nuovo swapfile: $SWAPFILE${NC}"
     else
         echo "Vuoi creare un nuovo swapfile da 16GB? (s/n)"
         read -r CREATE_NEW
         if [[ "$CREATE_NEW" =~ ^[Ss]$ ]]; then
-            SWAPFILE="/swapfile"
+    SWAPFILE="/swapfile"
         else
             exit 1
         fi
@@ -61,8 +61,8 @@ if [[ "$AUTO_YES" == false ]]; then
     echo "Procedere? (s/n)"
     read -r CONFIRM
     if [[ ! "$CONFIRM" =~ ^[Ss]$ ]]; then
-        echo "Operazione annullata"
-        exit 0
+    echo "Operazione annullata"
+    exit 0
     fi
 else
     echo -e "${GREEN}Modalità automatica: procedura avviata${NC}"

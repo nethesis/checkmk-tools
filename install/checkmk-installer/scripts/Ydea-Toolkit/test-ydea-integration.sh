@@ -61,8 +61,8 @@ do disponibile: $cmd"  else    test_fail "Coman
 do mancante: $cmd (installa con: apt install $cmd)"  fi
 done
 # ===== TEST 7: Cron Job =====test_start "Verifica cron job health monitor"
-if crontab -l 2>/dev/null | grep -q "ydea-health-monitor"; then  
-CRON_LINE=$(crontab -l | grep "ydea-health-monitor" | head -1)  test_pass "Cron job configurato"  
+if crontab -l 2>/dev/null | grep -q "ydea-health-monitor"; then
+    CRON_LINE=$(crontab -l | grep "ydea-health-monitor" | head -1)  test_pass "Cron job configurato"  
 echo "  Schedule: $CRON_LINE"
 else  test_warn "Cron job non trovato (configura con: crontab -e)"  
 echo "  Aggiungi: */15 * * * * $HEALTH_SCRIPT >> /var/log/ydea_health.log 2>&1"
@@ -86,11 +86,11 @@ NOTIFY_SERVICESTATE="CRIT"  export
 NOTIFY_LASTSERVICESTATE="OK"  export 
 NOTIFY_SERVICEOUTPUT="This is a test alert"  export 
 NOTIFY_SERVICESTATETYPE="HARD"    
-echo "Esecuzione: $NOTIFY_SCRIPT"  if "$NOTIFY_SCRIPT" 2>&1 | tee /tmp/ydea_test_output.log; then    
-echo ""    test_pass "Script eseguito senza errori"    
+echo "Esecuzione: $NOTIFY_SCRIPT"  if "$NOTIFY_SCRIPT" 2>&1 | tee /tmp/ydea_test_output.log; then
+    echo ""    test_pass "Script eseguito senza errori"    
 echo "  Output salvato in: /tmp/ydea_test_output.log"        
-# Verifica se ticket creato    if [[ -f "$TICKET_CACHE" ]]; then      
-TICKET_ID=$(jq -r '.["192.168.99.99:Test Alert"].ticket_id // empty' "$TICKET_CACHE" 2>/dev/null)      if [[ -n "$TICKET_ID" ]]; then        test_pass "Ticket creato: 
+# Verifica se ticket creato    if [[ -f "$TICKET_CACHE" ]]; then
+    TICKET_ID=$(jq -r '.["192.168.99.99:Test Alert"].ticket_id // empty' "$TICKET_CACHE" 2>/dev/null)      if [[ -n "$TICKET_ID" ]]; then        test_pass "Ticket creato: 
 #$TICKET_ID"      else        test_warn "Nessun ticket trovato in cache (verifica output sopra)"      fi    fi  else    test_fail "Script terminato con errore"  fi
 else  test_warn "Test simulazione saltato"
 fi
@@ -111,8 +111,8 @@ echo ""
 echo -e "Test totali:  ${BLUE}$TESTS_TOTAL${NC}"
 echo -e "Test passati: ${GREEN}$TESTS_PASSED${NC}"
 echo -e "Test falliti: ${RED}$TESTS_FAILED${NC}"
-echo ""if [[ $TESTS_FAILED -eq 0 ]]; then  
-echo -e "${GREEN}Ô£à TUTTI I TEST PASSATI!${NC}"  
+echo ""if [[ $TESTS_FAILED -eq 0 ]]; then
+    echo -e "${GREEN}Ô£à TUTTI I TEST PASSATI!${NC}"  
 echo ""  
 echo -e "${GREEN}­ƒÄë Sistema pronto per la produzione!${NC}"  
 echo ""  

@@ -87,8 +87,8 @@ SECONDS_WAITED=0while [ $STABLE_COUNT -lt 2 ]; do    sleep 10
 PROC_NOW=$(ps -eo comm | grep check_ | wc -l)    if [ "$PROC_NOW" == "$PREV_PROC" ] && [ "$PROC_NOW" -ne 0 ]; then        ((STABLE_COUNT++))    else        
 STABLE_COUNT=0    fi    
 PREV_PROC=$PROC_NOW    ((SECONDS_WAITED+=10))    
-echo "  ÔÅ▒  Verifica dopo ${SECONDS_WAITED}s ÔåÆ $PROC_NOW processi check_*"    if [ $SECONDS_WAITED -ge 120 ]; then        
-echo "  ÔÜá´©Å  Timeout di stabilizzazione raggiunto (120s)"        break    fi
+echo "  ÔÅ▒  Verifica dopo ${SECONDS_WAITED}s ÔåÆ $PROC_NOW processi check_*"    if [ $SECONDS_WAITED -ge 120 ]; then
+    echo "  ÔÜá´©Å  Timeout di stabilizzazione raggiunto (120s)"        break    fi
 done
 echo -e "${GREEN}ÔåÆ Processi stabilizzati, misuro ora...${NC}"
 CPU_AFTER=$(mpstat 3 3 | awk '/Average/ && $12 ~ /[0-9.]+/ {sum += 100 - $12; count++} END {if (count>0) print sum/count}')

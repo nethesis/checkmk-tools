@@ -8,8 +8,9 @@ INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
 # Load configuration
 if [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
-else  log_error "Configuration file not found. Run config-wizard.sh first."  exit 1fi
-# Module startlog_module_start "$MODULE_NAME"
+else  log_error "Configuration file not found. Run config-wizard.sh first."
+    exit 1
+fi # Module startlog_module_start "$MODULE_NAME"
 #
 #
 #
@@ -1079,8 +1080,8 @@ R=301,L]</VirtualHost><VirtualHost *:443>    ServerName _default_
 #apply_performance_tuning() {  local site_name="${CHECKMK_SITE_NAME:-monitoring}"  local omd_root="/omd/sites/$site_name"    log_info "Applying performance tuning..."    
 # Apache tuning  cat >> /etc/apache2/conf-available/checkmk-tuning.conf <<EOF
 # CheckMK Performance TuningTimeout 300KeepAlive OnMaxKeepAliveRequests 100KeepAliveTimeout 5<IfModule mpm_prefork_module>    StartServers             10    MinSpareServers          5    MaxSpareServers         20    MaxRequestWorkers      150    MaxConnectionsPerChild   0</IfModule>EOF    a2enconf checkmk-tuning 2>/dev/null || true    
-# Site-specific tuning  if [[ -f "$omd_root/etc/apache/apache.conf" ]]; then    
-echo "
+# Site-specific tuning  if [[ -f "$omd_root/etc/apache/apache.conf" ]]; then
+    echo "
 # Performance tuning" >> "$omd_root/etc/apache/apache.conf"  fi    log_success "Performance tuning applied"}
 #
 #
@@ -1275,7 +1276,8 @@ echo "0 2 * * * /usr/local/bin/backup-checkmk.sh >> /var/log/checkmk-backup.log 
 #
 #
 #display_installation_summary() {  local site_name="${CHECKMK_SITE_NAME:-monitoring}"  local http_port="${CHECKMK_HTTP_PORT:-5000}"  local admin_password="N/A"  local server_ip  server_ip=$(hostname -I | awk '{print $1}')    
-# Try to read password from temporary file  if [[ -f /tmp/checkmk_admin_password.txt ]]; then    admin_password=$(cat /tmp/checkmk_admin_password.txt)  fi
+# Try to read password from temporary file  if [[ -f /tmp/checkmk_admin_password.txt ]]; then
+    admin_password=$(cat /tmp/checkmk_admin_password.txt)  fi
 echo ""  
 echo "=========================================="  
 echo "CheckMK Installation Complete!"  
@@ -1285,8 +1287,8 @@ echo "  Site Name: $site_name"
 echo "  Web Interface (HTTPS): https://${server_ip}/${site_name}/"  
 echo "  Web Interface (HTTP):  http://${server_ip}/${site_name}/ (redirects to HTTPS)"  
 echo "  Internal Port:         http://${server_ip}:${http_port}/${site_name}/"  
-echo "  Admin User: cmkadmin"    if [[ "$admin_password" == "N/A" ]]; then    
-echo "  Admin Password: Could not capture auto-generated password"    
+echo "  Admin User: cmkadmin"    if [[ "$admin_password" == "N/A" ]]; then
+    echo "  Admin Password: Could not capture auto-generated password"    
 echo "  To set password manually, run:"    
 echo "    su
 do su - $site_name -c 'cmk-passwd cmkadmin'"  else    
@@ -1393,7 +1395,8 @@ echo ""}
 #
 #
 #main() {  log_info "Starting CheckMK server installation..."    
-# Auto-detect latest version if URL not provided  local url="${CHECKMK_DEB_URL:-}"  if [[ -z "$url" ]]; then    log_info "No URL provided, auto-detecting latest version..."    url=$(get_latest_checkmk_url)  fi    if [[ -z "${CHECKMK_ADMIN_PASSWORD:-}" ]]; then    log_error "CHECKMK_ADMIN_PASSWORD not set in configuration"    exit 1  fi    
+# Auto-detect latest version if URL not provided  local url="${CHECKMK_DEB_URL:-}"  if [[ -z "$url" ]]; then    log_info "No URL provided, auto-detecting latest version..."    url=$(get_latest_checkmk_url)  fi    if [[ -z "${CHECKMK_ADMIN_PASSWORD:-}" ]]; then    log_error "CHECKMK_ADMIN_PASSWORD not set in configuration"
+    exit 1  fi    
 # Execute installation steps  install_checkmk_dependencies    download_checkmk "$url"  install_checkmk_package "/tmp/check-mk-raw.deb"    create_checkmk_site  configure_checkmk_site  configure_apache  apply_performance_tuning  configure_checkmk_firewall    start_checkmk_site    
 # Optional: install local agent  if [[ "${INSTALL_LOCAL_AGENT:-yes}" == "yes" ]]; then    install_local_agent  fi    create_backup_script    log_module_end "$MODULE_NAME" "success"    display_installation_summary}
 # Run main functionmain "$@"

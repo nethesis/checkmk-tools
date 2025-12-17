@@ -4,15 +4,18 @@ echo -e "\n===== INSTALLAZIONE E CONFIGURAZIONE TIMESHiFT ====="
 LOG_FILE="/var/log/timeshift-rotation.log"
 CRON_FILE="/etc/cron.d/timeshift-rotation"
 # Verifica se timeshift ├â┬¿ gi├â┬á installato
-if command -v timeshift &>/dev/null; then    
-echo "[INFO] Timeshift risulta gi├â┬á installato." | tee -a "$LOG_FILE"
-else    read -rp "Vuoi installare Timeshift e configurare gli snapshot automatici? (s/n): " risposta    if [[ "$risposta" =~ ^[Ss]$ ]]; then        
-echo "[INFO] Installazione Timeshift e dipendenze..." | tee -a "$LOG_FILE"        apt-get update -qq >>"$LOG_FILE" 2>&1        
+if command -v timeshift &>/dev/null; then
+    echo "[INFO] Timeshift risulta gi├â┬á installato." | tee -a "$LOG_FILE"
+else    read -rp "Vuoi installare Timeshift e configurare gli snapshot automatici? (s/n): " risposta    if [[ "$risposta" =~ ^[Ss]$ ]]; then
+    echo "[INFO] Installazione Timeshift e dipendenze..." | tee -a "$LOG_FILE"        apt-get update -qq >>"$LOG_FILE" 2>&1        
 # Se grub-btrfs ├â┬¿ disponibile lo installa, altrimenti lo salta        if apt-cache show grub-btrfs >/dev/null 2>&1; then            apt-get install -y timeshift inotify-tools grub-btrfs >>"$LOG_FILE" 2>&1 || {                
-echo "[ERRORE] Installazione fallita. Controllare il log: $LOG_FILE"                exit 1            }        else            
+echo "[ERRORE] Installazione fallita. Controllare il log: $LOG_FILE"
+    exit 1            }        else            
 echo "[WARN] Pacchetto grub-btrfs non disponibile nei repository. Proseguo senza." | tee -a "$LOG_FILE"            apt-get install -y timeshift inotify-tools >>"$LOG_FILE" 2>&1 || {                
-echo "[ERRORE] Installazione Timeshift non riuscita. Controllare il log: $LOG_FILE"                exit 1            }        fi    else        
-echo "[INFO] Installazione Timeshift saltata su richiesta dell'utente." | tee -a "$LOG_FILE"        exit 0    fi
+echo "[ERRORE] Installazione Timeshift non riuscita. Controllare il log: $LOG_FILE"
+    exit 1            }        fi    else        
+echo "[INFO] Installazione Timeshift saltata su richiesta dell'utente." | tee -a "$LOG_FILE"
+    exit 0    fi
 fi
 # Creazione snapshot iniziale
 echo "[INFO] Creazione snapshot iniziale..." | tee -a "$LOG_FILE"timeshift --create --comments "Snapshot Iniziale Post-Bootstrap" >>"$LOG_FILE" 2>&1 || {    

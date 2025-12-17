@@ -16,8 +16,8 @@ FAILURE_THRESHOLD="${YDEA_FAILURE_THRESHOLD:-3}"
 # ===== UTILITY =====log() { 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }log_error() { 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2; }
-# Inizializza stato se non esisteinit_state() {  if [[ ! -f "$STATE_FILE" ]]; then    
-echo '{"status":"unknown","last_check":0,"consecutive_failures":0,"last_failure":"","notified":false}' > "$STATE_FILE"  fi}
+# Inizializza stato se non esisteinit_state() {  if [[ ! -f "$STATE_FILE" ]]; then
+    echo '{"status":"unknown","last_check":0,"consecutive_failures":0,"last_failure":"","notified":false}' > "$STATE_FILE"  fi}
 # Leggi stato correnteget_state() {  local field="$1"  jq -r ".${field} // empty" "$STATE_FILE" 2>/dev/null || 
 echo ""}
 # Aggiorna statoupdate_state() {  local status="$1"local nowlocal nownow=$(date -u +%s)  local consecutive_failures="${2:-0}"  local notified="${3:-false}"    jq -n \    --arg status "$status" \    --arg now "$now" \    --arg failures "$consecutive_failures" \    --arg notified "$notified" \    '{status: $status, last_check: ($now|tonumber), consecutive_failures: ($failures|tonumber), notified: ($notified == "true"), last_failure: (if $status == "down" then $now else "" end)}' \    > "$STATE_FILE"}
@@ -33,8 +33,8 @@ NOTIFY_CONTACTEMAIL="$ALERT_EMAIL"    export
 NOTIFY_DATE="$(date '+%Y-%m-%d')"    export 
 NOTIFY_SHORTDATETIME="$(date '+%Y-%m-%d %H:%M:%S')"        "$MAIL_SCRIPT" 2>&1 | log  else    
 # Fallback: usa coman
-do mail se disponibile    if command -v mail >/dev/null 2>&1; then      
-echo "$body" | mail -s "$subject" "$ALERT_EMAIL"    else      log_error "N├® $MAIL_SCRIPT n├® coman
+do mail se disponibile    if command -v mail >/dev/null 2>&1; then
+    echo "$body" | mail -s "$subject" "$ALERT_EMAIL"    else      log_error "N├® $MAIL_SCRIPT n├® coman
 do 'mail' disponibili. Impossibile inviare notifica."      return 1    fi  fi}
 # ===== TEST YDEA =====test_ydea_login() {  
 # Carica ambiente  if [[ ! -f "$YDEA_ENV" ]]; then    log_error "File .env non trovato: $YDEA_ENV"    return 1  fi  source "$YDEA_ENV"    if [[ ! -x "$YDEA_TOOLKIT" ]]; then    log_error "Script ydea-toolkit.sh non trovato o non eseguibile: $YDEA_TOOLKIT"    return 1  fi    

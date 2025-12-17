@@ -58,10 +58,10 @@ install_agent_on_host() {
     OS_TYPE=$(ssh -o ConnectTimeout=10 root@"$HOST" "grep -oP '^ID=\K.*' /etc/os-release | tr -d '\"'" 2>/dev/null || echo "unknown")
     
     if [[ "$OS_TYPE" =~ (debian|ubuntu) ]]; then
-        echo -e "${GREEN}✓ Host Debian/Ubuntu rilevato, installo DEB...${NC}"
+    echo -e "${GREEN}✓ Host Debian/Ubuntu rilevato, installo DEB...${NC}"
         ssh root@"$HOST" "wget -qO /tmp/check-mk-agent.deb '$DEB_FULL' && dpkg -i /tmp/check-mk-agent.deb; rm -f /tmp/check-mk-agent.deb"
     elif [[ "$OS_TYPE" =~ (rhel|centos|rocky|almalinux|fedora) ]]; then
-        echo -e "${GREEN}✓ Host RHEL/CentOS/Rocky rilevato, installo RPM...${NC}"
+    echo -e "${GREEN}✓ Host RHEL/CentOS/Rocky rilevato, installo RPM...${NC}"
         ssh root@"$HOST" "wget -qO /tmp/check-mk-agent.rpm '$RPM_FULL' && rpm -Uvh /tmp/check-mk-agent.rpm; rm -f /tmp/check-mk-agent.rpm"
     else
         echo -e "${RED}✗ OS non supportato: $OS_TYPE${NC}"
@@ -112,7 +112,7 @@ EOF'
 # Processa tutti gli host
 for HOST in "${HOSTS[@]}"; do
     if ! install_agent_on_host "$HOST"; then
-        echo -e "${RED}✗ Errore durante installazione su $HOST${NC}\n"
+    echo -e "${RED}✗ Errore durante installazione su $HOST${NC}\n"
         continue
     fi
 done

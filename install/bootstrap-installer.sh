@@ -291,7 +291,8 @@ echo -e "${RED}[ERROR]${NC} $1"}
 #
 #check_root() {  if [[ $EUID -ne 0 ]]; then    log_error "This script must be run as root"    
 echo "Please run: su
-do $0"    exit 1  fi}
+do $0"
+    exit 1  fi}
 #
 #
 #
@@ -382,7 +383,8 @@ do $0"    exit 1  fi}
 #
 #
 #
-#check_git() {  log_info "Checking git installation..."    if ! command -v git &>/dev/null; then    log_warning "Git not found, installing..."        if command -v apt-get &>/dev/null; then      apt-get update -qq      apt-get install -y git    elif command -v yum &>/dev/null; then      yum install -y git    else      log_error "Unable to install git automatically"      exit 1    fi        log_success "Git installed"  else    log_success "Git is already installed"  fi}
+#check_git() {  log_info "Checking git installation..."    if ! command -v git &>/dev/null; then    log_warning "Git not found, installing..."        if command -v apt-get &>/dev/null; then      apt-get update -qq      apt-get install -y git    elif command -v yum &>/dev/null; then      yum install -y git    else      log_error "Unable to install git automatically"
+    exit 1    fi        log_success "Git installed"  else    log_success "Git is already installed"  fi}
 #
 #
 #
@@ -475,9 +477,11 @@ do $0"    exit 1  fi}
 #
 #sync_repository() {  log_info "Synchronizing repository..."    if [[ -d "$REPO_DIR/.git" ]]; then    log_info "Repository exists, updating..."    cd "$REPO_DIR"        
 # Stash any local changes    if ! git diff-index --quiet HEAD -- 2>/dev/null; then      log_warning "Local changes detected, stashing..."      git stash push -m "Auto-stash before bootstrap at $(date '+%Y-%m-%d %H:%M:%S')" || true    fi        
-# Pull latest changes    if git pull origin main; then      log_success "Repository updated successfully"    else      log_error "Failed to update repository"      exit 1    fi  else    log_info "Cloning repository..."        
+# Pull latest changes    if git pull origin main; then      log_success "Repository updated successfully"    else      log_error "Failed to update repository"
+    exit 1    fi  else    log_info "Cloning repository..."        
 # Create parent directory if needed    mkdir -p "$(dirname "$REPO_DIR")"        
-# Clone repository    if git clone "$REPO_URL" "$REPO_DIR"; then      log_success "Repository cloned successfully"    else      log_error "Failed to clone repository"      exit 1    fi  fi}
+# Clone repository    if git clone "$REPO_URL" "$REPO_DIR"; then      log_success "Repository cloned successfully"    else      log_error "Failed to clone repository"
+    exit 1    fi  fi}
 #
 #
 #
@@ -662,7 +666,8 @@ IFS= read -r -d '' script; do    if [[ ! -x "$script" ]]; then      chmod +x "$s
 #
 #
 #
-#verify_installer() {  log_info "Verifying installer..."    if [[ ! -f "$INSTALLER_PATH" ]]; then    log_error "Installer not found at: $INSTALLER_PATH"    exit 1  fi    if [[ ! -x "$INSTALLER_PATH" ]]; then    log_warning "Installer not executable, fixing..."    chmod +x "$INSTALLER_PATH"  fi    log_success "Installer verified: $INSTALLER_PATH"}
+#verify_installer() {  log_info "Verifying installer..."    if [[ ! -f "$INSTALLER_PATH" ]]; then    log_error "Installer not found at: $INSTALLER_PATH"
+    exit 1  fi    if [[ ! -x "$INSTALLER_PATH" ]]; then    log_warning "Installer not executable, fixing..."    chmod +x "$INSTALLER_PATH"  fi    log_success "Installer verified: $INSTALLER_PATH"}
 #
 #
 #

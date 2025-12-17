@@ -13,8 +13,9 @@ echo "ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔ
 echo ""
 # Verifica autenticazione
 echo "­ƒôï Step 1: Autenticazione..."set +eensure_token 2>&1
-if [[ $? -ne 0 ]]; then  
-echo "ÔØî Errore autenticazione"  exit 1fiset -e
+if [[ $? -ne 0 ]]; then
+    echo "ÔØî Errore autenticazione"
+    exit 1fiset -e
 echo "Ô£à Autenticato"
 echo ""
 # Carica token
@@ -27,13 +28,13 @@ echo ""
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"  
 echo "­ƒôí Test: $description"  
 echo "   $method $endpoint"  
-echo ""    local url="${BASE_URL}${endpoint}"  local response  local http_code    set +e  response=$(curl -s -w '\n%{http_code}' \    -X "$method" \    -H "Authorization: Bearer $TOKEN" \    -H "Content-Type: application/json" \    -H "Accept: application/json" \    --connect-timeout 10 \    --max-time 30 \    "$url" 2>&1)  local curl_exit=$?  set -e    if [[ $curl_exit -ne 0 ]]; then    
-echo "ÔØî Errore curl (exit: $curl_exit)"    
+echo ""    local url="${BASE_URL}${endpoint}"  local response  local http_code    set +e  response=$(curl -s -w '\n%{http_code}' \    -X "$method" \    -H "Authorization: Bearer $TOKEN" \    -H "Content-Type: application/json" \    -H "Accept: application/json" \    --connect-timeout 10 \    --max-time 30 \    "$url" 2>&1)  local curl_exit=$?  set -e    if [[ $curl_exit -ne 0 ]]; then
+    echo "ÔØî Errore curl (exit: $curl_exit)"    
 echo "$response"    return 1  fi    http_code=$(
 echo "$response" | tail -1)  response=$(
 echo "$response" | head -n -1)    
-echo "­ƒôè HTTP Status: $http_code"    if [[ "$http_code" == "200" || "$http_code" == "201" ]]; then    
-echo "Ô£à Successo!"    
+echo "­ƒôè HTTP Status: $http_code"    if [[ "$http_code" == "200" || "$http_code" == "201" ]]; then
+    echo "Ô£à Successo!"    
 echo ""    
 echo "Risposta (primi 50 caratteri):"    
 echo "$response" | head -c 500    
@@ -45,9 +46,9 @@ echo "Non ├¿ JSON vali
 do"        
 # Se ha array 'objs', mostra quanti elementi    local count    count=$(
 echo "$response" | jq -r '.objs | length' 2>/dev/null || 
-echo "")    if [[ -n "$count" && "$count" != "null" ]]; then      
-echo "­ƒôª Numero di oggetti (.objs): $count"      if [[ "$count" -gt 0 ]]; then        
-echo ""        
+echo "")    if [[ -n "$count" && "$count" != "null" ]]; then
+    echo "­ƒôª Numero di oggetti (.objs): $count"      if [[ "$count" -gt 0 ]]; then
+    echo ""        
 echo "Esempio primo oggetto:"        
 echo "$response" | jq -r '.objs[0]' 2>/dev/null | head -20      fi    fi  else    
 echo "ÔÜá´©Å  HTTP $http_code"    

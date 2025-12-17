@@ -5,8 +5,8 @@ echo "  Diagnostica Auto Git Sync"
 echo "========================================="
 echo ""
 # Verifica se il servizio esiste
-if systemctl list-unit-files | grep -q auto-git-sync.service; then    
-echo "Ô£à Servizio auto-git-sync.service trovato"    
+if systemctl list-unit-files | grep -q auto-git-sync.service; then
+    echo "Ô£à Servizio auto-git-sync.service trovato"    
 echo ""        
 echo "--- STATUS SERVIZIO ---"    systemctl status auto-git-sync.service --no-pager    
 echo ""        
@@ -16,8 +16,8 @@ echo "ÔØî Servizio auto-git-sync.service NON trovato"
 echo ""fi
 # Verifica repository locale
 REPO_DIR="/opt/checkmk-tools"
-if [ -d "$REPO_DIR" ]; then    
-echo "--- STATO REPOSITORY LOCALE ---"    cd "$REPO_DIR"    
+if [ -d "$REPO_DIR" ]; then
+    echo "--- STATO REPOSITORY LOCALE ---"    cd "$REPO_DIR"    
 echo "­ƒôü Directory: $REPO_DIR"    
 echo ""        
 echo "Branch corrente:"    git branch --show-current    

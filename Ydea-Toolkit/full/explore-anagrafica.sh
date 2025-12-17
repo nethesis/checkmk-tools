@@ -15,8 +15,8 @@ echo -n "   GET $ENDPOINT ... "
 RESPONSE=$(curl -s -w '\n%{http_code}' \    -H "Accept: application/json" \    -H "Authorization: Bearer ${TOKEN}" \    "${YDEA_BASE_URL}${ENDPOINT}" 2>&1 || 
 echo -e "\n000")  
 HTTP_CODE=$(
-echo "$RESPONSE" | tail -n1)    if [[ "$HTTP_CODE" == "200" ]]; then    
-echo "Ô£à HTTP $HTTP_CODE - TROVATO!"        
+echo "$RESPONSE" | tail -n1)    if [[ "$HTTP_CODE" == "200" ]]; then
+    echo "Ô£à HTTP $HTTP_CODE - TROVATO!"        
 HTTP_BODY=$(
 echo "$RESPONSE" | sed '$d')        
 echo ""    
@@ -34,10 +34,10 @@ echo ""
 # Salva il risultato    
 echo "$HTTP_BODY" | jq '.' > "/tmp/anagrafica-${ANAGRAFICA_ID}.json"    
 echo "­ƒÆ¥ Salvato in: /tmp/anagrafica-${ANAGRAFICA_ID}.json"    
-echo ""  elif [[ "$HTTP_CODE" == "404" ]]; then    
-echo "ÔØî HTTP $HTTP_CODE - Non trovato"  elif [[ "$HTTP_CODE" == "401" ]]; then    
-echo "ÔØî HTTP $HTTP_CODE - Non autorizzato"  elif [[ "$HTTP_CODE" == "403" ]]; then    
-echo "ÔØî HTTP $HTTP_CODE - Accesso negato"  else    
+echo ""  elif [[ "$HTTP_CODE" == "404" ]]; then
+    echo "ÔØî HTTP $HTTP_CODE - Non trovato"  elif [[ "$HTTP_CODE" == "401" ]]; then
+    echo "ÔØî HTTP $HTTP_CODE - Non autorizzato"  elif [[ "$HTTP_CODE" == "403" ]]; then
+    echo "ÔØî HTTP $HTTP_CODE - Accesso negato"  else    
 echo "ÔØî HTTP $HTTP_CODE"  fi
 done
 echo ""
@@ -53,8 +53,8 @@ echo "$RESPONSE" | jq --arg aid "$ANAGRAFICA_ID" '[.objs[] | select(.anagrafica_
 COUNT=$(
 echo "$MATCHING_TICKETS" | jq 'length')
 echo "Trovati $COUNT ticket con questa anagrafica"
-if [[ "$COUNT" -gt 0 ]]; then  
-echo ""  
+if [[ "$COUNT" -gt 0 ]]; then
+    echo ""  
 echo "Primo ticket trovato (per analisi campi):"  
 echo "$MATCHING_TICKETS" | jq '.[0]'  
 echo ""    

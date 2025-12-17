@@ -291,8 +291,8 @@ CLIENT_ALIVE_INTERVAL=$(input_text "SSH ClientAliveInterval (seconds)" "300" "^[
 CLIENT_ALIVE_COUNTMAX=$(input_text "SSH ClientAliveCountMax" "3" "^[0-9]+$")  
 LOGIN_GRACE_TIME=$(input_text "SSH LoginGraceTime (seconds)" "60" "^[0-9]+$")  
 SSH_PASSWORD_AUTH=$(select_from_list "Allow SSH password authentication?" "yes" "no")    
-echo ""  if confirm "Change root password?" "n"; then    
-ROOT_PASSWORD=$(input_password "New root password" true)  else    
+echo ""  if confirm "Change root password?" "n"; then
+    ROOT_PASSWORD=$(input_password "New root password" true)  else    
 ROOT_PASSWORD=""  fi
 echo ""  
 NTP_SERVERS=$(input_text "NTP servers (space-separated)" "0.pool.ntp.org 1.pool.ntp.org 2.pool.ntp.org 3.pool.ntp.org")    
@@ -300,8 +300,8 @@ echo ""
 OPEN_HTTP_HTTPS=$(select_from_list "Open HTTP/HTTPS ports in firewall?" "no" "yes")  FAIL2
 BAN_EMAIL=$(input_email "Fail2Ban notification email" "root@localhost")    
 echo ""  
-SMTP_RELAY_HOST=$(input_text "SMTP relay host" "smtp-relay.nethesis.it")    if [[ -n "$SMTP_RELAY_HOST" ]]; then    
-echo ""    
+SMTP_RELAY_HOST=$(input_text "SMTP relay host" "smtp-relay.nethesis.it")    if [[ -n "$SMTP_RELAY_HOST" ]]; then
+    echo ""    
 echo "SMTP relay configured: $SMTP_RELAY_HOST"    
 echo "Please provide authentication credentials:"    
 SMTP_RELAY_USER=$(input_text "SMTP username" "")    
@@ -400,8 +400,8 @@ echo ""  DISABLE_IPV6=$(select_from_list "Disable IPv6?" "no" "yes")    print_su
 #
 #
 #configure_checkmk_server() {  print_header "CheckMK Server Configuration"  
-echo ""    if ! confirm "Will this be a CheckMK server?" "y"; then    
-INSTALL_CHECKMK_SERVER="no"    return 0  fi    
+echo ""    if ! confirm "Will this be a CheckMK server?" "y"; then
+    INSTALL_CHECKMK_SERVER="no"    return 0  fi    
 INSTALL_CHECKMK_SERVER="yes"    
 echo ""  print_info "CheckMK download URL"  
 echo "Example: https://download.checkmk.com/checkmk/2.4.0p15/check-mk-raw-2.4.0p15_0.jammy_amd64.deb"  
@@ -1517,20 +1517,20 @@ echo "${CYAN}System Base:${NC}"
 echo "  Timezone: ${TIMEZONE}"  
 echo "  SSH Port: ${SSH_PORT}"  
 echo "  Root Login: ${PERMIT_ROOT_LOGIN}"  
-echo ""    if [[ "${INSTALL_CHECKMK_SERVER:-no}" == "yes" ]]; then    
-echo "${CYAN}CheckMK Server:${NC}"    
+echo ""    if [[ "${INSTALL_CHECKMK_SERVER:-no}" == "yes" ]]; then
+    echo "${CYAN}CheckMK Server:${NC}"    
 echo "  Site Name: ${CHECKMK_SITE_NAME}"    
 echo "  HTTP Port: ${CHECKMK_HTTP_PORT}"    
-echo ""  fi    if [[ -n "${CHECKMK_SERVER:-}" ]]; then    
-echo "${CYAN}CheckMK Agent:${NC}"    
+echo ""  fi    if [[ -n "${CHECKMK_SERVER:-}" ]]; then
+    echo "${CYAN}CheckMK Agent:${NC}"    
 echo "  Server: ${CHECKMK_SERVER}"    
 echo "  Method: ${USE_SYSTEMD_SOCKET}"    
-echo ""  fi    if [[ -n "${YDEA_ID:-}" ]]; then    
-echo "${CYAN}Ydea Toolkit:${NC}"    
+echo ""  fi    if [[ -n "${YDEA_ID:-}" ]]; then
+    echo "${CYAN}Ydea Toolkit:${NC}"    
 echo "  Ydea ID: ${YDEA_ID}"    
 echo "  Monitoring: Every ${YDEA_MONITOR_INTERVAL} min"    
-echo ""  fi    if [[ -n "${FRPC_SERVER_ADDR:-}" ]]; then    
-echo "${CYAN}FRPC Client:${NC}"    
+echo ""  fi    if [[ -n "${FRPC_SERVER_ADDR:-}" ]]; then
+    echo "${CYAN}FRPC Client:${NC}"    
 echo "  Server: ${FRPC_SERVER_ADDR}:${FRPC_SERVER_PORT}"    
 echo "  Remote Port: ${FRPC_REMOTE_PORT}"    
 echo ""  fi    press_any_key}

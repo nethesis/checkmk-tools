@@ -6,9 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 YDEA_TOOLKIT="${SCRIPT_DIR}/ydea-toolkit.sh"
 echo "DEBUG: Script dir: $SCRIPT_DIR" >&2
 echo "DEBUG: Toolkit path: $YDEA_TOOLKIT" >&2
-if [[ ! -f "$YDEA_TOOLKIT" ]]; then  
-echo "ÔØî Errore: ydea-toolkit.sh non trovato in $SCRIPT_DIR" >&2  exit 1fi
-# Carica le funzioni da ydea-toolkit
+if [[ ! -f "$YDEA_TOOLKIT" ]]; then
+    echo "ÔØî Errore: ydea-toolkit.sh non trovato in $SCRIPT_DIR" >&2  exit 1
+fi # Carica le funzioni da ydea-toolkit
 # shellcheck disable=SC1090source "$YDEA_TOOLKIT"
 echo "DEBUG: Toolkit caricato con successo" >&2
 echo ""
@@ -20,17 +20,19 @@ echo ""
 echo "­ƒôï Autenticazione..."set +eensure_token_output=$(ensure_token 2>&1)ensure_exit=$?set -e
 echo "DEBUG: ensure_token exit code: $ensure_exit" >&2
 echo "DEBUG: ensure_token output: $ensure_token_output" >&2
-if [[ $ensure_exit -ne 0 ]]; then  
-echo "ÔØî Errore autenticazione"  
-echo "$ensure_token_output"  exit 1fi
-echo "Ô£à Autenticato"
+if [[ $ensure_exit -ne 0 ]]; then
+    echo "ÔØî Errore autenticazione"  
+echo "$ensure_token_output"
+    exit 1
+fi echo "Ô£à Autenticato"
 echo ""
 echo "­ƒôï Recupero ticket (limit 100)..."set +etickets_data=$(ydea_api GET "/tickets?limit=100" 2>&1)api_exit=$?set -e
 echo "DEBUG: ydea_api exit code: $api_exit" >&2
-if [[ $api_exit -ne 0 ]]; then  
-echo "ÔØî Errore nel recupero ticket (exit: $api_exit)"  
-echo "$tickets_data"  exit 1fi
-echo "DEBUG: Dati ricevuti, lunghezza: ${
+if [[ $api_exit -ne 0 ]]; then
+    echo "ÔØî Errore nel recupero ticket (exit: $api_exit)"  
+echo "$tickets_data"
+    exit 1
+fi echo "DEBUG: Dati ricevuti, lunghezza: ${
 #tickets_data}" >&2
 # Salva dump completo
 echo "$tickets_data" > "${SCRIPT_DIR}/tickets-dump.json"

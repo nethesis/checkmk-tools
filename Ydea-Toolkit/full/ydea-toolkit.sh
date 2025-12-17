@@ -11,8 +11,7 @@ set -euo pipefail
 
 # Carica .env solo se le variabili critiche non sono giÔö£├í impostate
 if [[ -z "${YDEA_ID:-}" ]] || [[ -z "${YDEA_API_KEY:-}" ]]; then
-  
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   if [[ -f "$SCRIPT_DIR/.env" ]]; then
     
 # shellcheck disable=SC1090,SC1091
@@ -527,8 +526,7 @@ list_users() {
 # Inizializza il file di tracking se non esiste
 init_tracking_file() {
   if [[ ! -f "$YDEA_TRACKING_FILE" ]]; then
-    
-echo '{"tickets":[],"last_update":""}' > "$YDEA_TRACKING_FILE"
+    echo '{"tickets":[],"last_update":""}' > "$YDEA_TRACKING_FILE"
     log_debug "File tracking inizializzato: $YDEA_TRACKING_FILE"
   fi
 }
@@ -780,8 +778,7 @@ echo "  ├ö├Â├Â├ö├Â├ç Risolti: $resolved"
 echo ""
   
   if [[ $open -gt 0 ]]; then
-    
-echo "┬¡ãÆ├ÂÔöñ Ticket Aperti:"
+    echo "┬¡ãÆ├ÂÔöñ Ticket Aperti:"
     jq -r '.tickets[] | select(.resolved_at == null) | "  [
 #\(.ticket_id)] \(.codice) - \(.host)/\(.service) - Stato: \(.stato) - Creato: \(.created_at)"' "$YDEA_TRACKING_FILE"
     
@@ -789,8 +786,7 @@ echo ""
   fi
   
   if [[ $resolved -gt 0 ]]; then
-    
-echo "├ö┬ú├á Ultimi 5 Ticket Risolti:"
+    echo "├ö┬ú├á Ultimi 5 Ticket Risolti:"
     jq -r '.tickets[] | select(.resolved_at != null) | "\(.resolved_at) | 
 #\(.ticket_id) | \(.codice) | \(.host)/\(.service)"' "$YDEA_TRACKING_FILE" | sort -r | head -5 | while 
 IFS='|' read -r date tid code host; do
@@ -809,8 +805,7 @@ echo ""
 echo "0")
   
   if [[ "$avg_resolution" != "0" ]]; then
-    
-echo "├ö├àÔûÆ┬┤┬®├à  Tempo medio risoluzione: ~$avg_resolution ore"
+    echo "├ö├àÔûÆ┬┤┬®├à  Tempo medio risoluzione: ~$avg_resolution ore"
   fi
 }
 

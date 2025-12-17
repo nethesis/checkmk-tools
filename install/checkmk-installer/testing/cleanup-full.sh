@@ -14,9 +14,10 @@ echo "  - All monitoring scripts"
 echo "  - Ydea Toolkit"
 echo "  - Configuration files"
 echo ""read -r -p "Continue? (y/n): " confirm
-if [[ "$confirm" != "y" ]]; then  
-echo "Cleanup cancelled."  exit 0fi
-echo ""
+if [[ "$confirm" != "y" ]]; then
+    echo "Cleanup cancelled."
+    exit 0
+fi echo ""
 echo "Starting cleanup..."
 # Stop all services
 echo "[1/12] Stopping services..."su
@@ -29,8 +30,8 @@ do systemctl stop ydea-ticket-monitor.timer 2>/dev/null || truesu
 do systemctl stop ydea-ticket-monitor.service 2>/dev/null || true
 # Stop CheckMK site
 echo "[2/12] Stopping CheckMK site..."if [ -d /omd/sites/monitoring ]; then  su
-do omd stop monitoring 2>/dev/null || true  sleep 2fi
-# Kill all CheckMK/OMD processes BEFORE attempting removal
+do omd stop monitoring 2>/dev/null || true  sleep 2
+fi # Kill all CheckMK/OMD processes BEFORE attempting removal
 echo "[2.5/12] Force killing all CheckMK processes..."su
 do pkill -9 -f "omd\|monitoring\|/omd/sites" 2>/dev/null || truesleep 2
 # Skip omd rm entirely - just clean up manually
@@ -42,14 +43,14 @@ echo "[4/12] Unmounting locked directories..."su
 do umount /omd/sites/monitoring/tmp 2>/dev/null || truesu
 do umount /opt/omd/sites/monitoring/tmp 2>/dev/null || true
 # Clean /etc/fstab from monitoring entries
-echo "[4.5/12] Cleaning /etc/fstab from monitoring entries..."if grep -q "monitoring" /etc/fstab 2>/dev/null; then  
-echo "Removing monitoring entries from /etc/fstab..."  su
+echo "[4.5/12] Cleaning /etc/fstab from monitoring entries..."if grep -q "monitoring" /etc/fstab 2>/dev/null; then
+    echo "Removing monitoring entries from /etc/fstab..."  su
 do sed -i '/monitoring/d' /etc/fstab  su
 do systemctl daemon-reload
 fi
 # Remove site directories BEFORE uninstalling package
-echo "[4.6/12] Removing CheckMK site directories..."if [[ -d /omd/sites/monitoring ]]; then  
-echo "Removing /omd/sites/monitoring..."  su
+echo "[4.6/12] Removing CheckMK site directories..."if [[ -d /omd/sites/monitoring ]]; then
+    echo "Removing /omd/sites/monitoring..."  su
 do rm -rf /omd/sites/monitoring
 fi
 # Uninstall CheckMK Server
@@ -71,8 +72,8 @@ do apt-get autoremove -y 2>/dev/null || true  su
 do apt-get autoclean 2>/dev/null || true
 fi
 # Final cleanup of any remaining check-mk-agent corruption
-echo "Final check for check-mk-agent corruption..."if dpkg -l | grep -q check-mk-agent; then  
-echo "Forcing final removal of check-mk-agent..."  su
+echo "Final check for check-mk-agent corruption..."if dpkg -l | grep -q check-mk-agent; then
+    echo "Forcing final removal of check-mk-agent..."  su
 do rm -rf /var/lib/dpkg/info/check-mk-agent.* 2>/dev/null || true  su
 do dpkg --remove --force-remove-reinstreq check-mk-agent 2>/dev/null || true  su
 do dpkg --purge check-mk-agent 2>/dev/null || true

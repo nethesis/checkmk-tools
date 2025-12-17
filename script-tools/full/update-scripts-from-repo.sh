@@ -23,8 +23,8 @@ echo -e "${RED}Ô£ù${NC} $1"}
 REPO_DIR="${1:-/opt/checkmk-tools}"
 AUTO_MODE=false
 # Check per modalit├á auto
-if [[ "$2" == "--auto" ]] || [[ "$3" == "--auto" ]]; then    
-AUTO_MODE=true    
+if [[ "$2" == "--auto" ]] || [[ "$3" == "--auto" ]]; then
+    AUTO_MODE=true    
 SEARCH_PATHS=("/")  
 # Cerca in tutto il sistema
 else    
@@ -32,7 +32,8 @@ SEARCH_PATH="${2:-/opt/omd}"
 SEARCH_PATHS=("$SEARCH_PATH")fi
 BACKUP_DIR="/tmp/script-backup-$(date +%Y%m%d-%H%M%S)"
 # Verifica che le directory esistano
-if [[ ! -d "$REPO_DIR" ]]; then    log_error "Directory repository non trovata: $REPO_DIR"    exit 1filog "========================================"log "UPDATE SCRIPT DA REPOSITORY"log "========================================"log "Repository: $REPO_DIR"
+if [[ ! -d "$REPO_DIR" ]]; then    log_error "Directory repository non trovata: $REPO_DIR"
+    exit 1filog "========================================"log "UPDATE SCRIPT DA REPOSITORY"log "========================================"log "Repository: $REPO_DIR"
 if $AUTO_MODE; then    log "Modalit├á: AUTOMATICA (sistema completo)"    log "Ricerca in: / (tutto il filesystem)"    log ""    log "ÔÜá´©Å  ATTENZIONE: La scansione completa pu├▓ richiedere alcuni minuti"
 else    log "Modalit├á: MANUALE"    log "Ricerca in: ${SEARCH_PATHS[0]}"filog ""
 # Aggiorna il repositorylog "Aggiornamento repository..."cd "$REPO_DIR"
@@ -51,7 +52,8 @@ IFS= read -r -d '' target_script; do        script_name=$(basename "$target_scri
 # Salta file di backup e temporanei        if [[ "$script_name" =~ \.(backup|bak|old|tmp)$ ]] || [[ "$script_name" =~ ^\..*$ ]]; then            continue        fi                
 # Salta se gi├á ├¿ una versione "r*"        if [[ "$script_name" =~ ^r.* ]]; then            continue        fi                
 # Salta file nel repository stesso per evitare conflitti        if [[ "$target_script" == "$REPO_DIR"* ]]; then            continue        fi                
-# Cerca la versione "r*" nel repo (in tutte le sottodirectory)        repo_script=$(find "$REPO_DIR" -type f -name "r${script_name}" 2>/dev/null | head -1)                if [[ -n "$repo_script" && -f "$repo_script" ]]; then            repo_subdir=$(basename "$(dirname "$repo_script")")            log "Trovato: ${YELLOW}$script_dir/$script_name${NC}"            log "      -> ${GREEN}${repo_subdir}/r${script_name}${NC}"                        
+# Cerca la versione "r*" nel repo (in tutte le sottodirectory)        repo_script=$(find "$REPO_DIR" -type f -name "r${script_name}" 2>/dev/null | head -1)                if [[ -n "$repo_script" && -f "$repo_script" ]]; then
+    repo_subdir=$(basename "$(dirname "$repo_script")")            log "Trovato: ${YELLOW}$script_dir/$script_name${NC}"            log "      -> ${GREEN}${repo_subdir}/r${script_name}${NC}"                        
 # Backup dello script originale            backup_path="$BACKUP_DIR${script_dir}"            mkdir -p "$backup_path"            cp "$target_script" "$backup_path/"                        
 # Verifica che lo script repo sia vali
 do (bash o eseguibile generico)            if bash -n "$repo_script" 2>/dev/null || [[ -x "$repo_script" ]]; then                

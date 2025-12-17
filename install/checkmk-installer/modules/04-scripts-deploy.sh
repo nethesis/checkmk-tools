@@ -24,8 +24,8 @@ elif [[ -d "${INSTALLER_ROOT}/../../script-notify-checkmk" ]]; then
 # Running from local repository (go up 2 levels)  
 SCRIPTS_SRC="$(cd "${INSTALLER_ROOT}/../.." && pwd)"  log_debug "Using local repository: $SCRIPTS_SRC"
 else  
-# Check one level up from installer root  parent_dir="$(dirname "$INSTALLER_ROOT")"  if [[ -d "$parent_dir/script-notify-checkmk" ]]; then    
-SCRIPTS_SRC="$parent_dir"    log_debug "Using parent directory: $SCRIPTS_SRC"  else    
+# Check one level up from installer root  parent_dir="$(dirname "$INSTALLER_ROOT")"  if [[ -d "$parent_dir/script-notify-checkmk" ]]; then
+    SCRIPTS_SRC="$parent_dir"    log_debug "Using parent directory: $SCRIPTS_SRC"  else    
 # Fallback to installer root    
 SCRIPTS_SRC="$INSTALLER_ROOT"    log_warning "Scripts not found in expected locations, using: $SCRIPTS_SRC"  fifilog_info "Script source: $SCRIPTS_SRC"
 #
@@ -699,8 +699,8 @@ BACKUP_FILE="$BACKUP_DIR/scripts-backup-$(date +%Y%m%d_%H%M%S).tar.gz"tar czf "$
 echo "Backup created: $BACKUP_FILE"
 echo ""
 # Update from GitHub or local
-if [[ -d "$LOCAL_REPO" ]]; then  
-echo "Updating from local repository..."  cd "$LOCAL_REPO"  git pull origin main
+if [[ -d "$LOCAL_REPO" ]]; then
+    echo "Updating from local repository..."  cd "$LOCAL_REPO"  git pull origin main
 else  
 echo "Cloning repository..."  git clone "$REPO_URL" "$LOCAL_REPO"
 fi
@@ -709,8 +709,9 @@ echo "Deploying updated scripts..."
 # Re-run deployment
 if [[ -f "$LOCAL_REPO/Install/checkmk-installer/modules/04-scripts-deploy.sh" ]]; then  bash "$LOCAL_REPO/Install/checkmk-installer/modules/04-scripts-deploy.sh"
 else  
-echo "ERROR: Deployment script not found"  exit 1fi
-echo ""
+echo "ERROR: Deployment script not found"
+    exit 1
+fi echo ""
 echo "Update completed!"EOF    chmod +x /usr/local/bin/update-checkmk-scripts 2>/dev/null || true    log_success "Update script created: /usr/local/bin/update-checkmk-scripts"}
 #
 #
@@ -1184,7 +1185,8 @@ echo ""  print_separator "="}
 #
 #
 #main() {  log_info "Starting scripts deployment..."    
-# Check if scripts directory exists  if [[ ! -d "$SCRIPTS_SRC" ]]; then    log_error "Scripts directory not found: $SCRIPTS_SRC"    exit 1  fi    
+# Check if scripts directory exists  if [[ ! -d "$SCRIPTS_SRC" ]]; then    log_error "Scripts directory not found: $SCRIPTS_SRC"
+    exit 1  fi    
 # Deploy all script categories  deploy_notify_scripts    
 # Deploy check scripts based on detected OS  if detect_os_type "ns7"; then    deploy_check_scripts "ns7"  fi    if detect_os_type "ns8"; then    deploy_check_scripts "ns8"  fi    if detect_os_type "ubuntu"; then    deploy_check_scripts "ubuntu"  fi    if detect_os_type "windows"; then    deploy_check_scripts "windows"  fi    deploy_tool_scripts    if detect_os_type "proxmox"; then    deploy_proxmox_scripts  fi    deploy_fix_scripts    
 # Install additional components  install_remote_launchers  create_update_script  create_script_inventory    

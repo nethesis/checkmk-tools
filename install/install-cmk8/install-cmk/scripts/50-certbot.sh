@@ -11,7 +11,8 @@ echo ">>> Installazione plugin Apache..."    apt-get install -y apache2 python3-
 echo ">>> Installazione plugin Nginx..."    apt-get install -y nginx python3-certbot-nginx >/dev/null    ;;  standalone)    
 echo ">>> Modalit├â┬á standalone selezionata (nessun webserver installato)."    ;;  *)    
 echo "ERRORE: Valore WEBSERVER non vali
-do: $WS"    exit 1    ;;esac
+do: $WS"
+    exit 1    ;;esac
 # Dati utenteread -r -p "Inserisci email Let's Encrypt (lascia vuoto per nessuna): " LETSENCRYPT_EMAILread -r -p "Inserisci domini separati da virgola (es. example.com,www.example.com): " LETSENCRYPT_DOMAINSmkdir -p /etc/letsencrypt
 CLI_INI="/etc/letsencrypt/cli.ini"
 echo ">>> Creazione configurazione globale in $CLI_INI"{  [[ -n "$LETSENCRYPT_EMAIL" ]] && 
@@ -21,16 +22,17 @@ echo "non-interactive = true"
 echo "quiet = true"} > "$CLI_INI"
 echo ">>> Certbot installato e configurato."
 # Esecuzione challenge opzionaleread -r -p "Vuoi eseguire subito la challenge Let's Encrypt per ottenere il certificato? (s/n): " RUN_CHALLENGE
-if [[ "$RUN_CHALLENGE" =~ ^[sS]$ ]]; then  if [[ -z "$LETSENCRYPT_DOMAINS" ]]; then    
-echo "ERRORE: Nessun dominio specificato. Impossibile procedere con la challenge."    exit 1  fi
+if [[ "$RUN_CHALLENGE" =~ ^[sS]$ ]]; then  if [[ -z "$LETSENCRYPT_DOMAINS" ]]; then
+    echo "ERRORE: Nessun dominio specificato. Impossibile procedere con la challenge."
+    exit 1  fi
 echo ">>> Avvio richiesta certificato..."  
 IFS=',' read -r -a DOM_ARRAY <<< "$LETSENCRYPT_DOMAINS"  
 DOMAIN_ARGS=()  for D in "${DOM_ARRAY[@]}"; do    DOMAIN_ARGS+=("-d" "$D")  done  certbot certonly --"$WS" "${DOMAIN_ARGS[@]}"  
 echo ">>> Challenge completata (se non ci sono errori sopra)."    
-# Configurazione Apache con il certificato Let's Encrypt  if [[ "$WS" == "apache" ]] && [[ -n "${DOM_ARRAY[0]}" ]]; then    
-MAIN_DOMAIN="${DOM_ARRAY[0]}"    
-APACHE_CONF="/etc/apache2/sites-available/checkmk.conf"    if [[ -f "$APACHE_CONF" ]]; then      
-echo ">>> Aggiornamento configurazione Apache per usare il certificato Let's Encrypt..."      
+# Configurazione Apache con il certificato Let's Encrypt  if [[ "$WS" == "apache" ]] && [[ -n "${DOM_ARRAY[0]}" ]]; then
+    MAIN_DOMAIN="${DOM_ARRAY[0]}"    
+APACHE_CONF="/etc/apache2/sites-available/checkmk.conf"    if [[ -f "$APACHE_CONF" ]]; then
+    echo ">>> Aggiornamento configurazione Apache per usare il certificato Let's Encrypt..."      
 # Backup della configurazione esistente      
 BACKUP_FILE="${APACHE_CONF}.backup-$(date +%Y%m%d-%H%M%S)"      cp "$APACHE_CONF" "$BACKUP_FILE"      
 # Opzione: redirect root -> site di default (es. monitoring)      read -r -p "Vuoi che https://$MAIN_DOMAIN/ apra direttamente un site CheckMK (es. monitoring)? (s/n) [s]: " REDIR_TO_SITE      

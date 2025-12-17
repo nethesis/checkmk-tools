@@ -63,86 +63,91 @@ echo -e "  ÔÇó QNAP (QTS 4.x/5.x), Nethesis NAS o sistema Linux compatibile"
 echo -e "  ÔÇó Accesso SSH attivo"    
 echo -e "  ÔÇó Utente admin o root"    
 echo -e "  ÔÇó Almeno 100MB di spazio disco disponibile"    
-echo ""    exit 0}
+echo ""
+    exit 0}
 # =====================================================
 # Funzione: Verifica sistema QNAP/NAS
 # =====================================================check_qnap_system() {    
 echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ VERIFICA SISTEMA NAS ÔòÉÔòÉÔòÉ${NC}"        
 # Rileva tipo di NAS    
-NAS_TYPE="generic"        if [ -f /etc/config/uLinux.conf ]; then        
-NAS_TYPE="qnap"        
+NAS_TYPE="generic"        if [ -f /etc/config/uLinux.conf ]; then
+    NAS_TYPE="qnap"        
 QTS_VERSION=$(grep -oP '
 NAS_VERSION="\K[^"]+' /etc/config/uLinux.conf 2>/dev/null || 
 echo "Unknown")        
 echo -e "${GREEN}Ô£ô QNAP NAS rilevato${NC}"        
-echo -e "   QTS Version: ${CYAN}$QTS_VERSION${NC}"    elif [ -f /etc/nethserver-release ]; then        
-NAS_TYPE="nethesis"        
-echo -e "${GREEN}Ô£ô Nethesis NAS rilevato${NC}"        if [ -f /etc/nethserver-release ]; then            cat /etc/nethserver-release        fi    elif [ -d /share/CACHEDEV1_DATA ] || [ -d /share/MD0_DATA ]; then        
-NAS_TYPE="qnap-like"        
+echo -e "   QTS Version: ${CYAN}$QTS_VERSION${NC}"    elif [ -f /etc/nethserver-release ]; then
+    NAS_TYPE="nethesis"        
+echo -e "${GREEN}Ô£ô Nethesis NAS rilevato${NC}"        if [ -f /etc/nethserver-release ]; then            cat /etc/nethserver-release        fi    elif [ -d /share/CACHEDEV1_DATA ] || [ -d /share/MD0_DATA ]; then
+    NAS_TYPE="qnap-like"        
 echo -e "${GREEN}Ô£ô Sistema compatibile QNAP rilevato${NC}"    else        
 echo -e "${YELLOW}ÔÜá´©Å  Sistema NAS generico rilevato${NC}"        
 echo -e "${YELLOW}   Lo script continuer├á con configurazione generica${NC}"    fi        
 # Rileva architettura    
 ARCH=$(uname -m)    
 echo -e "   Architettura: ${CYAN}$ARCH${NC}"        
-# Verifica se l'architettura ├¿ supportata    if [[ "$ARCH" != "x86_64" ]] && [[ "$ARCH" != "aarch64" ]]; then        
-echo -e "${YELLOW}ÔÜá´©Å  Architettura $ARCH potrebbe non essere completamente supportata${NC}"        
+# Verifica se l'architettura ├¿ supportata    if [[ "$ARCH" != "x86_64" ]] && [[ "$ARCH" != "aarch64" ]]; then
+    echo -e "${YELLOW}ÔÜá´©Å  Architettura $ARCH potrebbe non essere completamente supportata${NC}"        
 echo -e "${YELLOW}   Lo script continuer├á ma potrebbero esserci problemi${NC}"        
-echo -n "   Continuare comunque? [s/N]: "        read -r CONFIRM        if [[ ! "$CONFIRM" =~ ^[sS]$ ]]; then            exit 1        fi    fi        
+echo -n "   Continuare comunque? [s/N]: "        read -r CONFIRM        if [[ ! "$CONFIRM" =~ ^[sS]$ ]]; then
+    exit 1        fi    fi        
 # Verifica spazio disco - prova diverse directory    
-AVAILABLE_SPACE="0"    if [ -d /share/CACHEDEV1_DATA ]; then        
-AVAILABLE_SPACE=$(df -BM /share/CACHEDEV1_DATA 2>/dev/null | tail -1 | awk '{print $4}' | sed 's/M//' || 
-echo "0")    elif [ -d /share/MD0_DATA ]; then        
-AVAILABLE_SPACE=$(df -BM /share/MD0_DATA 2>/dev/null | tail -1 | awk '{print $4}' | sed 's/M//' || 
+AVAILABLE_SPACE="0"    if [ -d /share/CACHEDEV1_DATA ]; then
+    AVAILABLE_SPACE=$(df -BM /share/CACHEDEV1_DATA 2>/dev/null | tail -1 | awk '{print $4}' | sed 's/M//' || 
+echo "0")    elif [ -d /share/MD0_DATA ]; then
+    AVAILABLE_SPACE=$(df -BM /share/MD0_DATA 2>/dev/null | tail -1 | awk '{print $4}' | sed 's/M//' || 
 echo "0")    else        
 AVAILABLE_SPACE=$(df -BM /opt 2>/dev/null | tail -1 | awk '{print $4}' | sed 's/M//' || 
 echo "1000")    fi        
 # Rimuovi eventuali caratteri non numerici    
 AVAILABLE_SPACE=$(
 echo "$AVAILABLE_SPACE" | grep -oE '[0-9]+' || 
-echo "1000")        if [ "$AVAILABLE_SPACE" -lt 100 ]; then        
-echo -e "${YELLOW}ÔÜá´©Å  Spazio disco limitato: ${AVAILABLE_SPACE}MB${NC}"        
+echo "1000")        if [ "$AVAILABLE_SPACE" -lt 100 ]; then
+    echo -e "${YELLOW}ÔÜá´©Å  Spazio disco limitato: ${AVAILABLE_SPACE}MB${NC}"        
 echo -e "${YELLOW}   Continuare comunque? Lo script richiede almeno 100MB${NC}"        
-echo -n "   Continuare? [s/N]: "        read -r CONFIRM        if [[ ! "$CONFIRM" =~ ^[sS]$ ]]; then            exit 1        fi    else        
+echo -n "   Continuare? [s/N]: "        read -r CONFIRM        if [[ ! "$CONFIRM" =~ ^[sS]$ ]]; then
+    exit 1        fi    else        
 echo -e "   Spazio disponibile: ${GREEN}${AVAILABLE_SPACE}MB${NC}"    fi}
 # =====================================================
 # Funzione: Installa dipendenze
 # =====================================================install_dependencies() {    
 echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ VERIFICA DIPENDENZE ÔòÉÔòÉÔòÉ${NC}"        
-# Verifica wget    if ! command -v wget >/dev/null 2>&1; then        
-echo -e "${YELLOW}ÔÜá´©Å  wget non trovato, tentativo installazione...${NC}"        if command -v opkg >/dev/null 2>&1; then            opkg update && opkg install wget        elif command -v yum >/dev/null 2>&1; then            yum install -y wget        elif command -v apt-get >/dev/null 2>&1; then            apt-get update && apt-get install -y wget        else            
-echo -e "${RED}Ô£ù Impossibile installare wget${NC}"            exit 1        fi    else        
+# Verifica wget    if ! command -v wget >/dev/null 2>&1; then
+    echo -e "${YELLOW}ÔÜá´©Å  wget non trovato, tentativo installazione...${NC}"        if command -v opkg >/dev/null 2>&1; then            opkg update && opkg install wget        elif command -v yum >/dev/null 2>&1; then            yum install -y wget        elif command -v apt-get >/dev/null 2>&1; then            apt-get update && apt-get install -y wget        else            
+echo -e "${RED}Ô£ù Impossibile installare wget${NC}"
+    exit 1        fi    else        
 echo -e "${GREEN}Ô£ô wget disponibile${NC}"    fi        
-# Verifica tar    if ! command -v tar >/dev/null 2>&1; then        
-echo -e "${RED}Ô£ù tar non disponibile${NC}"        exit 1    else        
+# Verifica tar    if ! command -v tar >/dev/null 2>&1; then
+    echo -e "${RED}Ô£ù tar non disponibile${NC}"
+    exit 1    else        
 echo -e "${GREEN}Ô£ô tar disponibile${NC}"    fi        
-# Verifica socat (necessario per agent plain)    if ! command -v socat >/dev/null 2>&1; then        
-echo -e "${YELLOW}ÔÜá´©Å  socat non trovato, tentativo installazione...${NC}"                
+# Verifica socat (necessario per agent plain)    if ! command -v socat >/dev/null 2>&1; then
+    echo -e "${YELLOW}ÔÜá´©Å  socat non trovato, tentativo installazione...${NC}"                
 # Prova diversi package manager        
-SOCAT_INSTALLED=false                if command -v opkg >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usan
-do opkg (QNAP/OpenWrt)...${NC}"            opkg update 2>&1 | grep -v "Signature check"            if opkg install socat 2>&1; then                
-SOCAT_INSTALLED=true            fi        elif command -v yum >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usan
-do yum (CentOS/RHEL)...${NC}"            if yum install -y socat 2>&1 | grep -v "^Loaded plugins"; then                
-SOCAT_INSTALLED=true            fi        elif command -v dnf >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usan
-do dnf (Fedora/RHEL 8+)...${NC}"            if dnf install -y socat 2>&1; then                
-SOCAT_INSTALLED=true            fi        elif command -v apt-get >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usan
-do apt-get (Debian/Ubuntu)...${NC}"            if apt-get update && apt-get install -y socat 2>&1; then                
-SOCAT_INSTALLED=true            fi        else            
+SOCAT_INSTALLED=false                if command -v opkg >/dev/null 2>&1; then
+    echo -e "${CYAN}   Usan
+do opkg (QNAP/OpenWrt)...${NC}"            opkg update 2>&1 | grep -v "Signature check"            if opkg install socat 2>&1; then
+    SOCAT_INSTALLED=true            fi        elif command -v yum >/dev/null 2>&1; then
+    echo -e "${CYAN}   Usan
+do yum (CentOS/RHEL)...${NC}"            if yum install -y socat 2>&1 | grep -v "^Loaded plugins"; then
+    SOCAT_INSTALLED=true            fi        elif command -v dnf >/dev/null 2>&1; then
+    echo -e "${CYAN}   Usan
+do dnf (Fedora/RHEL 8+)...${NC}"            if dnf install -y socat 2>&1; then
+    SOCAT_INSTALLED=true            fi        elif command -v apt-get >/dev/null 2>&1; then
+    echo -e "${CYAN}   Usan
+do apt-get (Debian/Ubuntu)...${NC}"            if apt-get update && apt-get install -y socat 2>&1; then
+    SOCAT_INSTALLED=true            fi        else            
 echo -e "${YELLOW}ÔÜá´©Å  Package manager non trovato, provo a rilevare il sistema...${NC}"                        
-# Rileva sistema operativo            if [ -f /etc/redhat-release ] || [ -f /etc/centos-release ] || [ -f /etc/rocky-release ]; then                
-echo -e "${CYAN}   Sistema RHEL-based rilevato, usan
+# Rileva sistema operativo            if [ -f /etc/redhat-release ] || [ -f /etc/centos-release ] || [ -f /etc/rocky-release ]; then
+    echo -e "${CYAN}   Sistema RHEL-based rilevato, usan
 do yum...${NC}"                if command -v yum >/dev/null 2>&1; then                    yum install -y socat 2>&1 | grep -v "^Loaded plugins"                    
-SOCAT_INSTALLED=true                fi            elif [ -f /etc/debian_version ]; then                
-echo -e "${CYAN}   Sistema Debian-based rilevato, usan
+SOCAT_INSTALLED=true                fi            elif [ -f /etc/debian_version ]; then
+    echo -e "${CYAN}   Sistema Debian-based rilevato, usan
 do apt...${NC}"                if command -v apt >/dev/null 2>&1; then                    apt update && apt install -y socat 2>&1                    
 SOCAT_INSTALLED=true                fi            else                
 echo -e "${RED}Ô£ù Impossibile determinare il package manager${NC}"            fi        fi                
-# Verifica installazione        if ! command -v socat >/dev/null 2>&1; then            
-echo -e "${YELLOW}ÔÜá´©Å  socat non disponibile, uso meto
+# Verifica installazione        if ! command -v socat >/dev/null 2>&1; then
+    echo -e "${YELLOW}ÔÜá´©Å  socat non disponibile, uso meto
 do alternativo${NC}"            
 echo -e "${GREEN}Ô£ô Useremo script bash standalone (netcat/bash nativo)${NC}"            
 USE_STANDALONE_MODE=true        else            
@@ -155,17 +160,20 @@ echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ DOWNLOAD CHECKMK AGENT ÔòÉÔòÉÔòÉ${
 # URL dello script agent (versione universale)    
 AGENT_URL="https://monitoring.nethlab.it/monitoring/check_mk/agents/check_mk_agent.linux"        
 echo -e "${YELLOW}­ƒôª Download agent v${CHECKMK_VERSION}...${NC}"    
-echo -e "   URL: ${CYAN}$AGENT_URL${NC}"        cd /tmp || exit 1    rm -f check_mk_agent.linux 2>/dev/null        if wget -q --show-progress "$AGENT_URL" -O check_mk_agent.linux 2>&1; then        
-echo -e "${GREEN}Ô£ô Download completato${NC}"    else        
-echo -e "${RED}Ô£ù Errore durante il download dell'agent${NC}"        exit 1    fi        
+echo -e "   URL: ${CYAN}$AGENT_URL${NC}"        cd /tmp || exit 1    rm -f check_mk_agent.linux 2>/dev/null        if wget -q --show-progress "$AGENT_URL" -O check_mk_agent.linux 2>&1; then
+    echo -e "${GREEN}Ô£ô Download completato${NC}"    else        
+echo -e "${RED}Ô£ù Errore durante il download dell'agent${NC}"
+    exit 1    fi        
 # Verifica che il file sia vali
-do    if [ ! -f check_mk_agent.linux ] || [ ! -s check_mk_agent.linux ]; then        
-echo -e "${RED}Ô£ù File agent non vali
-do o vuoto${NC}"        exit 1    fi        
+do    if [ ! -f check_mk_agent.linux ] || [ ! -s check_mk_agent.linux ]; then
+    echo -e "${RED}Ô£ù File agent non vali
+do o vuoto${NC}"
+    exit 1    fi        
 # Verifica che sia uno script bash    if ! head -n 1 check_mk_agent.linux | grep -q "^
-#!"; then        
-echo -e "${RED}Ô£ù File scaricato non ├¿ uno script vali
-do${NC}"        exit 1    fi
+#!"; then
+    echo -e "${RED}Ô£ù File scaricato non ├¿ uno script vali
+do${NC}"
+    exit 1    fi
 echo -e "${GREEN}Ô£ô Agent scaricato e verificato${NC}"}
 # =====================================================
 # Funzione: Installa CheckMK Agent
@@ -177,9 +185,10 @@ echo -e "${YELLOW}­ƒôª Installazione agent...${NC}"    cp /tmp/check_mk_agen
 # Crea symlink in /usr/bin per compatibilit├á    ln -sf "$AGENT_DIR/bin/check_mk_agent" /usr/bin/check_mk_agent        
 echo -e "${GREEN}Ô£ô Agent installato in $AGENT_DIR${NC}"        
 # Test agent    
-echo -e "\n${CYAN}­ƒôè Test agent locale:${NC}"    if "$AGENT_DIR/bin/check_mk_agent" | head -n 5; then        
-echo -e "${GREEN}Ô£ô Agent funzionante${NC}"    else        
-echo -e "${RED}Ô£ù Errore nel test dell'agent${NC}"        exit 1    fi}
+echo -e "\n${CYAN}­ƒôè Test agent locale:${NC}"    if "$AGENT_DIR/bin/check_mk_agent" | head -n 5; then
+    echo -e "${GREEN}Ô£ô Agent funzionante${NC}"    else        
+echo -e "${RED}Ô£ù Errore nel test dell'agent${NC}"
+    exit 1    fi}
 # =====================================================
 # Funzione: Configura servizio agent
 # =====================================================configure_agent_service() {    
@@ -209,25 +218,25 @@ echo -e "${GREEN}Ô£ô Script di controllo creati (socat mode)${NC}"}
 # Funzione: Configura agent con xinetd
 # =====================================================configure_agent_xinetd() {    
 echo -e "${CYAN}Configurazione con xinetd...${NC}"        
-# Verifica se xinetd ├¿ installato    if ! command -v xinetd >/dev/null 2>&1; then        
-echo -e "${YELLOW}ÔÜá´©Å  xinetd non trovato, tentativo installazione...${NC}"                
-XINETD_INSTALLED=false                if command -v opkg >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usan
+# Verifica se xinetd ├¿ installato    if ! command -v xinetd >/dev/null 2>&1; then
+    echo -e "${YELLOW}ÔÜá´©Å  xinetd non trovato, tentativo installazione...${NC}"                
+XINETD_INSTALLED=false                if command -v opkg >/dev/null 2>&1; then
+    echo -e "${CYAN}   Usan
 do opkg...${NC}"            opkg update 2>&1 | grep -v "Signature check"            opkg install xinetd && 
-XINETD_INSTALLED=true        elif command -v yum >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usan
+XINETD_INSTALLED=true        elif command -v yum >/dev/null 2>&1; then
+    echo -e "${CYAN}   Usan
 do yum...${NC}"            yum install -y xinetd && 
-XINETD_INSTALLED=true        elif command -v dnf >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usan
+XINETD_INSTALLED=true        elif command -v dnf >/dev/null 2>&1; then
+    echo -e "${CYAN}   Usan
 do dnf...${NC}"            dnf install -y xinetd && 
-XINETD_INSTALLED=true        elif command -v apt-get >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usan
+XINETD_INSTALLED=true        elif command -v apt-get >/dev/null 2>&1; then
+    echo -e "${CYAN}   Usan
 do apt-get...${NC}"            apt-get update && apt-get install -y xinetd && 
-XINETD_INSTALLED=true        elif [ -f /etc/redhat-release ] || [ -f /etc/centos-release ] || [ -f /etc/rocky-release ]; then            
-echo -e "${CYAN}   Sistema RHEL-based, usan
+XINETD_INSTALLED=true        elif [ -f /etc/redhat-release ] || [ -f /etc/centos-release ] || [ -f /etc/rocky-release ]; then
+    echo -e "${CYAN}   Sistema RHEL-based, usan
 do yum...${NC}"            yum install -y xinetd && 
-XINETD_INSTALLED=true        fi                if ! command -v xinetd >/dev/null 2>&1; then            
-echo -e "${RED}Ô£ù Impossibile installare xinetd${NC}"            
+XINETD_INSTALLED=true        fi                if ! command -v xinetd >/dev/null 2>&1; then
+    echo -e "${RED}Ô£ù Impossibile installare xinetd${NC}"            
 echo -e "${YELLOW}ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù${NC}"            
 echo -e "${YELLOW}Ôòæ  IMPOSSIBILE CONTINUARE SENZA SOCAT O XINETD             Ôòæ${NC}"            
 echo -e "${YELLOW}ÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ${NC}"            
@@ -247,7 +256,8 @@ echo -e "  opkg install xinetd socat"
 echo -e ""            
 echo -e "  ${GREEN}
 # Poi riesegui questo script${NC}"            
-echo -e ""            exit 1        else            
+echo -e ""
+    exit 1        else            
 echo -e "${GREEN}Ô£ô xinetd installato con successo${NC}"        fi    fi        
 # Crea directory xinetd.d se non esiste    mkdir -p /etc/xinetd.d        
 # Crea configurazione xinetd    cat > /etc/xinetd.d/check_mk <<EOFservice check_mk{    type           = UNLISTED    port           = 6556    socket_type    = stream    protocol       = tcp    wait           = no    user           = root    server         = $AGENT_DIR/bin/check_mk_agent    disable        = no}EOF        
@@ -278,8 +288,9 @@ echo -e "${GREEN}Ô£ô Configurazione xinetd creata${NC}"}
 # Funzione: Configura agent con systemd socket
 # =====================================================configure_agent_systemd() {    
 echo -e "${CYAN}Configurazione con systemd socket...${NC}"        
-# Verifica che systemd sia disponibile    if ! command -v systemctl >/dev/null 2>&1; then        
-echo -e "${RED}Ô£ù systemd non disponibile${NC}"        exit 1    fi
+# Verifica che systemd sia disponibile    if ! command -v systemctl >/dev/null 2>&1; then
+    echo -e "${RED}Ô£ù systemd non disponibile${NC}"
+    exit 1    fi
 echo -e "${GREEN}Ô£ô systemd rilevato${NC}"        
 # Crea unit socket    cat > /etc/systemd/system/check-mk-agent-plain.socket <<EOF[Unit]Description=CheckMK Agent Socket (Plain TCP 6556)Documentation=https://docs.checkmk.com/[Socket]ListenStream=6556Accept=yes[Install]WantedBy=sockets.targetEOF        
 # Crea unit service    cat > /etc/systemd/system/check-mk-agent-plain@.service <<EOF[Unit]Description=CheckMK Agent Plain ConnectionDocumentation=https://docs.checkmk.com/[Service]Type=simpleExecStart=$AGENT_DIR/bin/check_mk_agentStandardInput=socketUser=rootEOF        
@@ -326,7 +337,8 @@ elif [ -f /etc/xinetd.d/ ] && command -v xinetd >/dev/null 2>&1; then    log_msg
 else    
 # Ultimo fallback: netcat detection migliorato    log_msg "No socat or Python found, trying netcat alternatives"        
 # Cerca tutte le possibili varianti di netcat    for NC_CMD in netcat ncat nc.traditional /usr/bin/nc /bin/nc; do        if command -v $NC_CMD >/dev/null 2>&1; then            
-# Test se supporta -l (listen)            if $NC_CMD -h 2>&1 | grep -qi "listen"; then                log_msg "Using $NC_CMD"                while true; do                    $NC_CMD -l -p $PORT -e "$AGENT_BIN" 2>/dev/null || \                    $NC_CMD -l $PORT -e "$AGENT_BIN" 2>/dev/null || \                    $NC_CMD -l -p $PORT -c "$AGENT_BIN" 2>/dev/null || \                    sleep 1                done            fi        fi    done        log_msg "ERROR: No suitable method found to listen on TCP port"    exit 1fiEOF        chmod +x "$AGENT_DIR/agent_daemon.sh"        
+# Test se supporta -l (listen)            if $NC_CMD -h 2>&1 | grep -qi "listen"; then                log_msg "Using $NC_CMD"                while true; do                    $NC_CMD -l -p $PORT -e "$AGENT_BIN" 2>/dev/null || \                    $NC_CMD -l $PORT -e "$AGENT_BIN" 2>/dev/null || \                    $NC_CMD -l -p $PORT -c "$AGENT_BIN" 2>/dev/null || \                    sleep 1                done            fi        fi    done        log_msg "ERROR: No suitable method found to listen on TCP port"
+    exit 1fiEOF        chmod +x "$AGENT_DIR/agent_daemon.sh"        
 # Crea script di avvio    cat > "$AGENT_DIR/start_agent.sh" <<'EOFSTART'
 #!/bin/bash
 # Start CheckMK Agent Standalone Daemon
@@ -367,19 +379,21 @@ do usa netcat o bash puro, nessuna dipendenza richiesta${NC}"}
 # Funzione: Scarica e installa FRPC
 # =====================================================install_frpc() {    
 echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ INSTALLAZIONE FRPC CLIENT ÔòÉÔòÉÔòÉ${NC}"        
-# Adatta URL in base all'architettura    if [[ "$ARCH" == "aarch64" ]]; then        
-FRP_URL="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_arm64.tar.gz"        
+# Adatta URL in base all'architettura    if [[ "$ARCH" == "aarch64" ]]; then
+    FRP_URL="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_arm64.tar.gz"        
 FRP_ARCHIVE="frp_${FRP_VERSION}_linux_arm64.tar.gz"        
 FRP_FOLDER="frp_${FRP_VERSION}_linux_arm64"    else        
 FRP_ARCHIVE="frp_${FRP_VERSION}_linux_amd64.tar.gz"        
 FRP_FOLDER="frp_${FRP_VERSION}_linux_amd64"    fi
 echo -e "${YELLOW}­ƒôª Download FRPC v${FRP_VERSION} per $ARCH...${NC}"    
-echo -e "   URL: ${CYAN}$FRP_URL${NC}"        cd /tmp || exit 1    rm -f "$FRP_ARCHIVE" 2>/dev/null    rm -rf "$FRP_FOLDER" 2>/dev/null        if wget -q --show-progress "$FRP_URL" -O "$FRP_ARCHIVE" 2>&1; then        
-echo -e "${GREEN}Ô£ô Download completato${NC}"    else        
-echo -e "${RED}Ô£ù Errore durante il download di FRPC${NC}"        exit 1    fi        
+echo -e "   URL: ${CYAN}$FRP_URL${NC}"        cd /tmp || exit 1    rm -f "$FRP_ARCHIVE" 2>/dev/null    rm -rf "$FRP_FOLDER" 2>/dev/null        if wget -q --show-progress "$FRP_URL" -O "$FRP_ARCHIVE" 2>&1; then
+    echo -e "${GREEN}Ô£ô Download completato${NC}"    else        
+echo -e "${RED}Ô£ù Errore durante il download di FRPC${NC}"
+    exit 1    fi        
 # Estrai archivio    
 echo -e "${YELLOW}­ƒôª Estrazione archivio...${NC}"    tar -xzf "$FRP_ARCHIVE" || {        
-echo -e "${RED}Ô£ù Errore durante l'estrazione${NC}"        exit 1    }        
+echo -e "${RED}Ô£ù Errore durante l'estrazione${NC}"
+    exit 1    }        
 # Crea directory FRPC    mkdir -p "$FRPC_DIR/bin"    mkdir -p "$FRPC_DIR/conf"    mkdir -p "$FRPC_DIR/log"        
 # Copia eseguibile    
 echo -e "${YELLOW}­ƒôª Installazione FRPC...${NC}"    cp "$FRP_FOLDER/frpc" "$FRPC_DIR/bin/frpc"    chmod +x "$FRPC_DIR/bin/frpc"        
@@ -487,31 +501,31 @@ echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ AVVIO SERVIZI ÔòÉÔòÉÔòÉ${NC}"
 # Avvia CheckMK Agent    
 echo -e "${YELLOW}­ƒÜÇ Avvio CheckMK Agent...${NC}"    "$AGENT_DIR/start_agent.sh"    sleep 2        
 # Verifica in base al meto
-do usato    if [ "${USE_STANDALONE_MODE:-false}" = "true" ]; then        if is_process_running "agent_daemon.sh" || is_process_running "nc.*6556"; then            
-echo -e "${GREEN}Ô£ô CheckMK Agent attivo su porta 6556 (standalone daemon)${NC}"        else            
-echo -e "${YELLOW}ÔÜá´©Å  Agent daemon potrebbe non essere attivo${NC}"        fi    else        if is_process_running "socat.*6556"; then            
-echo -e "${GREEN}Ô£ô CheckMK Agent attivo su porta 6556 (socat)${NC}"        else            
+do usato    if [ "${USE_STANDALONE_MODE:-false}" = "true" ]; then        if is_process_running "agent_daemon.sh" || is_process_running "nc.*6556"; then
+    echo -e "${GREEN}Ô£ô CheckMK Agent attivo su porta 6556 (standalone daemon)${NC}"        else            
+echo -e "${YELLOW}ÔÜá´©Å  Agent daemon potrebbe non essere attivo${NC}"        fi    else        if is_process_running "socat.*6556"; then
+    echo -e "${GREEN}Ô£ô CheckMK Agent attivo su porta 6556 (socat)${NC}"        else            
 echo -e "${YELLOW}ÔÜá´©Å  CheckMK Agent potrebbe non essere attivo${NC}"        fi    fi        
-# Avvia FRPC se richiesto    if [ "$INSTALL_FRPC" = "yes" ]; then        
-echo -e "${YELLOW}­ƒÜÇ Avvio FRPC Client...${NC}"        "$FRPC_DIR/start_frpc.sh"        sleep 3                if is_process_running "frpc"; then            
-echo -e "${GREEN}Ô£ô FRPC Client attivo${NC}"        else            
+# Avvia FRPC se richiesto    if [ "$INSTALL_FRPC" = "yes" ]; then
+    echo -e "${YELLOW}­ƒÜÇ Avvio FRPC Client...${NC}"        "$FRPC_DIR/start_frpc.sh"        sleep 3                if is_process_running "frpc"; then
+    echo -e "${GREEN}Ô£ô FRPC Client attivo${NC}"        else            
 echo -e "${RED}Ô£ù FRPC Client non avviato${NC}"        fi    fi}
 # =====================================================
 # Funzione: Test finale
 # =====================================================run_tests() {    
 echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ TEST FINALE ÔòÉÔòÉÔòÉ${NC}"        
 # Test agent locale    
-echo -e "\n${CYAN}­ƒôè Test CheckMK Agent locale:${NC}"    if /usr/bin/check_mk_agent | head -n 10; then        
-echo -e "${GREEN}Ô£ô Agent risponde correttamente${NC}"    else        
+echo -e "\n${CYAN}­ƒôè Test CheckMK Agent locale:${NC}"    if /usr/bin/check_mk_agent | head -n 10; then
+    echo -e "${GREEN}Ô£ô Agent risponde correttamente${NC}"    else        
 echo -e "${RED}Ô£ù Agent non risponde${NC}"    fi        
 # Test porta 6556    
 echo -e "\n${CYAN}­ƒôè Test porta 6556:${NC}"    if 
-echo "exit" | timeout 2 nc localhost 6556 2>/dev/null | head -n 3; then        
-echo -e "${GREEN}Ô£ô Porta 6556 accessibile${NC}"    else        
+echo "exit" | timeout 2 nc localhost 6556 2>/dev/null | head -n 3; then
+    echo -e "${GREEN}Ô£ô Porta 6556 accessibile${NC}"    else        
 echo -e "${YELLOW}ÔÜá´©Å  Porta 6556 non risponde (potrebbe essere normale)${NC}"    fi        
-# Test FRPC se installato    if [ "$INSTALL_FRPC" = "yes" ]; then        
-echo -e "\n${CYAN}­ƒôè Test FRPC:${NC}"        if is_process_running "frpc"; then            
-echo -e "${GREEN}Ô£ô Processo FRPC attivo${NC}"            
+# Test FRPC se installato    if [ "$INSTALL_FRPC" = "yes" ]; then
+    echo -e "\n${CYAN}­ƒôè Test FRPC:${NC}"        if is_process_running "frpc"; then
+    echo -e "${GREEN}Ô£ô Processo FRPC attivo${NC}"            
 echo -e "   Verifica log: ${CYAN}$FRPC_DIR/log/frpc.log${NC}"        else            
 echo -e "${RED}Ô£ù Processo FRPC non attivo${NC}"        fi    fi}
 # =====================================================
@@ -526,20 +540,20 @@ echo -e "   ÔÇó Tipo sistema: ${YELLOW}$NAS_TYPE${NC}"
 echo -e "   ÔÇó Agent directory: ${YELLOW}$AGENT_DIR${NC}"    
 echo -e "   ÔÇó Agent porta: ${YELLOW}6556 (TCP)${NC}"        
 # Mostra il meto
-do di avvio usato    if [ "${USE_STANDALONE_MODE:-false}" = "true" ]; then        
-echo -e "   ÔÇó Meto
+do di avvio usato    if [ "${USE_STANDALONE_MODE:-false}" = "true" ]; then
+    echo -e "   ÔÇó Meto
 do avvio: ${YELLOW}standalone daemon (netcat/bash)${NC}"    else        
 echo -e "   ÔÇó Meto
-do avvio: ${YELLOW}socat${NC}"    fi        if [ -f "$QNAP_AUTORUN" ]; then        
-echo -e "   ÔÇó Autostart: ${YELLOW}$QNAP_AUTORUN${NC}"    fi        if [ "$INSTALL_FRPC" = "yes" ]; then        
-echo -e "   ÔÇó FRPC directory: ${YELLOW}$FRPC_DIR${NC}"        
+do avvio: ${YELLOW}socat${NC}"    fi        if [ -f "$QNAP_AUTORUN" ]; then
+    echo -e "   ÔÇó Autostart: ${YELLOW}$QNAP_AUTORUN${NC}"    fi        if [ "$INSTALL_FRPC" = "yes" ]; then
+    echo -e "   ÔÇó FRPC directory: ${YELLOW}$FRPC_DIR${NC}"        
 echo -e "   ÔÇó FRPC config: ${YELLOW}$FRPC_DIR/conf/frpc.toml${NC}"        
 echo -e "   ÔÇó FRPC porta remota: ${YELLOW}$REMOTE_PORT${NC}"    fi
 echo ""    
 echo -e "${CYAN}­ƒöº Comandi utili:${NC}"    
 echo -e "   ÔÇó Avvia agent:  ${YELLOW}$AGENT_DIR/start_agent.sh${NC}"    
-echo -e "   ÔÇó Ferma agent:  ${YELLOW}$AGENT_DIR/stop_agent.sh${NC}"        if [ "$INSTALL_FRPC" = "yes" ]; then        
-echo -e "   ÔÇó Avvia FRPC:   ${YELLOW}$FRPC_DIR/start_frpc.sh${NC}"        
+echo -e "   ÔÇó Ferma agent:  ${YELLOW}$AGENT_DIR/stop_agent.sh${NC}"        if [ "$INSTALL_FRPC" = "yes" ]; then
+    echo -e "   ÔÇó Avvia FRPC:   ${YELLOW}$FRPC_DIR/start_frpc.sh${NC}"        
 echo -e "   ÔÇó Ferma FRPC:   ${YELLOW}$FRPC_DIR/stop_frpc.sh${NC}"        
 echo -e "   ÔÇó Log FRPC:     ${YELLOW}tail -f $FRPC_DIR/log/frpc.log${NC}"    fi
 echo -e "   ÔÇó Test agent:   ${YELLOW}/usr/bin/check_mk_agent${NC}"    
@@ -591,20 +605,23 @@ echo -e "${RED}Ô£ù Parametro non vali
 do: $1${NC}"        show_usage        ;;esac
 # =====================================================
 # Verifica permessi root
-# =====================================================if [ "$(id -u)" -ne 0 ]; then    
-echo -e "${RED}Ô£ù Questo script deve essere eseguito come root o admin${NC}"    exit 1fi
-# =====================================================
+# =====================================================if [ "$(id -u)" -ne 0 ]; then
+    echo -e "${RED}Ô£ù Questo script deve essere eseguito come root o admin${NC}"
+    exit 1
+fi # =====================================================
 # Esegui modalit├á richiesta
-# =====================================================if [ "$MODE" = "uninstall-frpc" ]; then    uninstall_frpc    exit 0elif [ "$MODE" = "uninstall-agent" ]; then    uninstall_agent    exit 0elif [ "$MODE" = "uninstall-all" ]; then    
-echo -e "${RED}ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù${NC}"    
+# =====================================================if [ "$MODE" = "uninstall-frpc" ]; then    uninstall_frpc    exit 0
+elif [ "$MODE" = "uninstall-agent" ]; then    uninstall_agent    exit 0
+elif [ "$MODE" = "uninstall-all" ]; then
+    echo -e "${RED}ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù${NC}"    
 echo -e "${RED}Ôòæ        DISINSTALLAZIONE COMPLETA (Agent + FRPC)          Ôòæ${NC}"    
 echo -e "${RED}ÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ${NC}"    
 echo ""    
 echo -ne "${YELLOW}Sei sicuro di voler rimuovere tutto? ${NC}[s/N]: "    read -r CONFIRM    if [[ "$CONFIRM" =~ ^[sS]$ ]]; then        uninstall_frpc        
 echo ""        uninstall_agent        
 echo -e "\n${GREEN}­ƒÄë Disinstallazione completa terminata!${NC}\n"    else        
-echo -e "${CYAN}ÔØî Operazione annullata${NC}"    fi    exit 0fi
-# =====================================================
+echo -e "${CYAN}ÔØî Operazione annullata${NC}"    fi    exit 0
+fi # =====================================================
 # Modalit├á installazione
 # =====================================================show_banner
 # Verifica sistemacheck_qnap_system
@@ -618,8 +635,8 @@ echo -e "\n${CYAN}Vuoi installare anche FRPC Client per il tunneling remoto?${NC
 echo -e "${YELLOW}FRPC permette di accedere all'agent attraverso un tunnel FRP${NC}"
 echo -ne "\n${YELLOW}Installare FRPC? ${NC}[s/N]: "read -r 
 INSTALL_FRPC_INPUTINSTALL_FRPC="no"
-if [[ "$INSTALL_FRPC_INPUT" =~ ^[sS]$ ]]; then    
-INSTALL_FRPC="yes"    
+if [[ "$INSTALL_FRPC_INPUT" =~ ^[sS]$ ]]; then
+    INSTALL_FRPC="yes"    
 # Installa e configura FRPC    install_frpc    configure_frpc
 fi
 # Configura autostartconfigure_autostart

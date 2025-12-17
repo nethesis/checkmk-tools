@@ -10,16 +10,14 @@ SERVICE="Fail2ban"
 
 # Verifica se fail2ban ├¿ installato
 if ! command -v fail2ban-client &> /dev/null; then
-    
-echo "3 $SERVICE - fail2ban not installed"
+    echo "3 $SERVICE - fail2ban not installed"
     exit 0
 fi
 
 
 # Verifica se fail2ban ├¿ in esecuzione
 if ! systemctl is-active --quiet fail2ban 2>/dev/null && ! service fail2ban status &>/dev/null; then
-    
-echo "2 $SERVICE - fail2ban service is not running"
+    echo "2 $SERVICE - fail2ban service is not running"
     exit 0
 fi
 
@@ -39,8 +37,7 @@ TOTAL_BANNED=$((TOTAL_BANNED + BANNED))
     done
     
     if [ "$TOTAL_BANNED" -gt 0 ]; then
-        
-echo "1 $SERVICE - running, $TOTAL_BANNED IP(s) banned"
+    echo "1 $SERVICE - running, $TOTAL_BANNED IP(s) banned"
     else
         
 echo "0 $SERVICE - running, no banned IPs"

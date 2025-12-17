@@ -12,11 +12,12 @@ echo "  Installazione Auto Git Sync Service"
 echo "========================================="
 echo ""
 # Verifica esecuzione come root
-if [[ $EUID -ne 0 ]]; then    
-echo "ÔØî Questo script deve essere eseguito come root"    
+if [[ $EUID -ne 0 ]]; then
+    echo "ÔØî Questo script deve essere eseguito come root"    
 echo "   Usa: su
-do bash install-auto-git-sync.sh"    exit 1fi
-echo "Ô£à Esecuzione come root"
+do bash install-auto-git-sync.sh"
+    exit 1
+fi echo "Ô£à Esecuzione come root"
 # Chiedi intervallo di sync
 echo ""
 echo "ÔÅ▒´©Å  Configurazione intervallo di sync"
@@ -33,8 +34,8 @@ SYNC_INTERVAL=30 ;;    2|"")
 SYNC_INTERVAL=60 ;;    3) 
 SYNC_INTERVAL=300 ;;    4) 
 SYNC_INTERVAL=600 ;;    5) 
-SYNC_INTERVAL=1800 ;;    6)        read -r -p "Inserisci intervallo in secondi: " SYNC_INTERVAL        if ! [[ "$SYNC_INTERVAL" =~ ^[0-9]+$ ]] || [ "$SYNC_INTERVAL" -lt 10 ]; then            
-echo "ÔØî Valore non vali
+SYNC_INTERVAL=1800 ;;    6)        read -r -p "Inserisci intervallo in secondi: " SYNC_INTERVAL        if ! [[ "$SYNC_INTERVAL" =~ ^[0-9]+$ ]] || [ "$SYNC_INTERVAL" -lt 10 ]; then
+    echo "ÔØî Valore non vali
 do, uso default 60 secondi"            
 SYNC_INTERVAL=60        fi        ;;    *)        
 echo "ÔØî Scelta non valida, uso default 60 secondi"        
@@ -52,9 +53,10 @@ echo "Ôä╣´©Å  Repository path: $REPO_DIR"
 echo "Ôä╣´©Å  Home directory: $REPO_OWNER_HOME"
 echo ""
 # Verifica esistenza script
-if [[ ! -f "$SCRIPT_DIR/$SCRIPT_FILE" ]]; then    
-echo "ÔØî File non trovato: $SCRIPT_FILE"    exit 1fi
-echo "Ô£à Script trovato"
+if [[ ! -f "$SCRIPT_DIR/$SCRIPT_FILE" ]]; then
+    echo "ÔØî File non trovato: $SCRIPT_FILE"
+    exit 1
+fi echo "Ô£à Script trovato"
 # Rendi eseguibile lo scriptchmod +x "$SCRIPT_DIR/$SCRIPT_FILE"
 echo "Ô£à Permessi di esecuzione impostati"
 # Crea directory log se non esistemkdir -p /var/logtouch /var/log/auto-git-sync.logchown "$REPO_OWNER:$REPO_OWNER" /var/log/auto-git-sync.log 2>/dev/null || true
@@ -71,8 +73,8 @@ echo "Ô£à Systemd ricaricato"
 # Abilita il servizio all'avviosystemctl enable auto-git-sync.service
 echo "Ô£à Servizio abilitato all'avvio"
 # Riavvia il servizio se gi├á attivo
-if systemctl is-active --quiet auto-git-sync.service; then    
-echo "Ôä╣´©Å  Servizio gi├á attivo, riavvio in corso..."    systemctl restart auto-git-sync.service    
+if systemctl is-active --quiet auto-git-sync.service; then
+    echo "Ôä╣´©Å  Servizio gi├á attivo, riavvio in corso..."    systemctl restart auto-git-sync.service    
 echo "Ô£à Servizio riavviato con nuova configurazione"
 fi # Mostra menu opzioni
 echo ""

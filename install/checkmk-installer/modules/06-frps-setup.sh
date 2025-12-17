@@ -104,16 +104,19 @@ FRP_LOG_DIR="/var/log"
 #
 #
 #
-#check_existing_installation() {  local frps_exists=false  local service_exists=false    if [[ -f "$FRP_INSTALL_DIR/frps" ]]; then    frps_exists=true  fi    if systemctl list-units --full --all | grep -q "frps.service"; then    service_exists=true  fi    if [[ "$frps_exists" == "true" ]] || [[ "$service_exists" == "true" ]]; then    
-echo ""    
+#check_existing_installation() {  local frps_exists=false  local service_exists=false    if [[ -f "$FRP_INSTALL_DIR/frps" ]]; then
+    frps_exists=true  fi    if systemctl list-units --full --all | grep -q "frps.service"; then
+    service_exists=true  fi    if [[ "$frps_exists" == "true" ]] || [[ "$service_exists" == "true" ]]; then
+    echo ""    
 echo "${YELLOW}ÔÜá´©Å  FRPS installation detected${NC}"    
-echo ""        if [[ "$frps_exists" == "true" ]]; then      
-echo "Binary found: $FRP_INSTALL_DIR/frps"    fi        if [[ "$service_exists" == "true" ]]; then      
-echo "Service found: frps.service"      if systemctl is-active --quiet frps.service; then        
-echo "Status: ${GREEN}Active${NC}"      else        
-echo "Status: ${RED}Inactive${NC}"      fi    fi        if [[ -f "$FRP_CONFIG_DIR/frps.toml" ]]; then      
-echo "Config found: $FRP_CONFIG_DIR/frps.toml"    fi
-echo ""    read -r -p "Reinstall FRPS? This will overwrite existing installation (y/n): " reinstall        if [[ "$reinstall" != "y" ]]; then      log_info "Installation cancelled by user"      exit 0    fi        
+echo ""        if [[ "$frps_exists" == "true" ]]; then
+    echo "Binary found: $FRP_INSTALL_DIR/frps"    fi        if [[ "$service_exists" == "true" ]]; then
+    echo "Service found: frps.service"      if systemctl is-active --quiet frps.service; then
+    echo "Status: ${GREEN}Active${NC}"      else        
+echo "Status: ${RED}Inactive${NC}"      fi    fi        if [[ -f "$FRP_CONFIG_DIR/frps.toml" ]]; then
+    echo "Config found: $FRP_CONFIG_DIR/frps.toml"    fi
+echo ""    read -r -p "Reinstall FRPS? This will overwrite existing installation (y/n): " reinstall        if [[ "$reinstall" != "y" ]]; then      log_info "Installation cancelled by user"
+    exit 0    fi        
 # Stop existing service    if systemctl is-active --quiet frps.service; then      log_info "Stopping existing FRPS service..."      systemctl stop frps.service    fi        log_info "Proceeding with reinstallation..."  fi}
 #
 #
@@ -396,8 +399,8 @@ echo "arm"      ;;    *)      log_error "Unsupported architecture: $arch"      r
 #
 #configure_frps() {  log_info "Configuring FRPS server..."    
 # Get configuration from .env or ask interactively  local bind_port="${FRPC_SERVER_PORT:-}"  local token="${FRPC_TOKEN:-}"  local dashboard_port="7500"  local dashboard_user="${FRPC_ADMIN_USER:-}"  local dashboard_pwd="${FRPC_ADMIN_PWD:-}"  local enable_tls="n"  local cert_file=""  local key_file=""    
-# Ask for missing configuration  if [[ -z "$bind_port" ]] || [[ -z "$token" ]] || [[ -z "$dashboard_user" ]] || [[ -z "$dashboard_pwd" ]]; then    
-echo ""    
+# Ask for missing configuration  if [[ -z "$bind_port" ]] || [[ -z "$token" ]] || [[ -z "$dashboard_user" ]] || [[ -z "$dashboard_pwd" ]]; then
+    echo ""    
 echo "${YELLOW}FRPS Server Configuration${NC}"    
 echo ""        if [[ -z "$bind_port" ]]; then      read -r -p "Bind port [7000]: " bind_port      bind_port="${bind_port:-7000}"    fi        if [[ -z "$token" ]]; then      read -r -p "Authentication token: " token    fi
 read -r -p "Dashboard port [7500]: " dashboard_port    dashboard_port="${dashboard_port:-7500}"        if [[ -z "$dashboard_user" ]]; then      read -r -p "Dashboard username [admin]: " dashboard_user      dashboard_user="${dashboard_user:-admin}"    fi        if [[ -z "$dashboard_pwd" ]]; then      read -r -p "Dashboard password: " dashboard_pwd    fi

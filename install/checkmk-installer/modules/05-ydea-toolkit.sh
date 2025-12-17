@@ -430,9 +430,9 @@ YDEA_TRACKING_RETENTION_DAYS="${YDEA_TRACKING_RETENTION_DAYS:-365}"
 # Monitoring Configurationexport 
 YDEA_MONITOR_INTERVAL="${YDEA_MONITOR_INTERVAL:-30}"  
 # minutesEOF        chmod 600 "$env_file_ag"    log_success "Created .env.ag for Alessandro Gaggiano"  fi    
-# Initialize tracking files  local tracking_file="${YDEA_LOG_DIR}/ydea-tickets-tracking.json"  if [[ ! -f "$tracking_file" ]] && ([[ "$user_selection" == "lorenzo" ]] || [[ "$user_selection" == "both" ]]); then    
-echo '{"tickets":[],"last_update":""}' > "$tracking_file"    chmod 666 "$tracking_file"  fi    local tracking_file_ag="${YDEA_LOG_DIR}/ydea-tickets-tracking-ag.json"  if [[ ! -f "$tracking_file_ag" ]] && ([[ "$user_selection" == "alessandro" ]] || [[ "$user_selection" == "both" ]]); then    
-echo '{"tickets":[],"last_update":""}' > "$tracking_file_ag"    chmod 666 "$tracking_file_ag"  fi    log_success "Ydea Toolkit configured"}
+# Initialize tracking files  local tracking_file="${YDEA_LOG_DIR}/ydea-tickets-tracking.json"  if [[ ! -f "$tracking_file" ]] && ([[ "$user_selection" == "lorenzo" ]] || [[ "$user_selection" == "both" ]]); then
+    echo '{"tickets":[],"last_update":""}' > "$tracking_file"    chmod 666 "$tracking_file"  fi    local tracking_file_ag="${YDEA_LOG_DIR}/ydea-tickets-tracking-ag.json"  if [[ ! -f "$tracking_file_ag" ]] && ([[ "$user_selection" == "alessandro" ]] || [[ "$user_selection" == "both" ]]); then
+    echo '{"tickets":[],"last_update":""}' > "$tracking_file_ag"    chmod 666 "$tracking_file_ag"  fi    log_success "Ydea Toolkit configured"}
 #
 #
 #
@@ -528,9 +528,10 @@ echo '{"tickets":[],"last_update":""}' > "$tracking_file_ag"    chmod 666 "$trac
 # Ydea Ticket Monitor
 # Updates tracked tickets statusset -euo pipefail
 TOOLKIT="/usr/local/bin/ydea-toolkit"
-if [[ ! -f "$TOOLKIT" ]]; then  
-echo "ERROR: Ydea toolkit not found"  exit 1fi
-# Update tracking"$TOOLKIT" update-tracking
+if [[ ! -f "$TOOLKIT" ]]; then
+    echo "ERROR: Ydea toolkit not found"
+    exit 1
+fi # Update tracking"$TOOLKIT" update-tracking
 # Cleanup old resolved tickets"$TOOLKIT" cleanup-trackingexit 0EOF        chmod +x "$monitor_script"  fi    log_success "Monitoring script installed"}
 #
 #
@@ -909,9 +910,10 @@ echo "ERROR: Ydea toolkit not found"  exit 1fi
 # Quick ticket creation for CheckMK alerts
 YDEA_TOOLKIT="/usr/local/bin/ydea-toolkit"
 if [[ $
-# -lt 2 ]]; then  
-echo "Usage: $0 <host> <service> [description]"  exit 1fi
-HOST="$1"
+# -lt 2 ]]; then
+    echo "Usage: $0 <host> <service> [description]"
+    exit 1
+fi HOST="$1"
 SERVICE="$2"
 DESCRIPTION="${3:-Alert from CheckMK}""$YDEA_TOOLKIT" create \  --codice "$HOST" \  --host "$HOST" \  --service "$SERVICE" \  --titolo "[$SERVICE] $HOST" \  --descrizione "$DESCRIPTION" \  --priorita "Urgente" \  --tipo "Nethserver"EOF    chmod +x /usr/local/bin/create-checkmk-ticket    
 # Create ticket status checker  cat > /usr/local/bin/check-ticket-status <<'EOF'
@@ -919,8 +921,9 @@ DESCRIPTION="${3:-Alert from CheckMK}""$YDEA_TOOLKIT" create \  --codice "$HOST"
 # Check status of a ticket
 YDEA_TOOLKIT="/usr/local/bin/ydea-toolkit"
 if [[ $
-# -lt 1 ]]; then  
-echo "Usage: $0 <ticket_id>"  exit 1fi"$YDEA_TOOLKIT" get "$1"EOF    chmod +x /usr/local/bin/check-ticket-status    log_success "Helper scripts created"}
+# -lt 1 ]]; then
+    echo "Usage: $0 <ticket_id>"
+    exit 1fi"$YDEA_TOOLKIT" get "$1"EOF    chmod +x /usr/local/bin/check-ticket-status    log_success "Helper scripts created"}
 #
 #
 #

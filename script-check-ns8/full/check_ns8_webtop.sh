@@ -7,15 +7,17 @@ echo "<<<local>>>"
 FQDN=$(hostname -f)
 DOMAIN=$(
 echo "$FQDN" | cut -d. -f2-)
-if [[ -z "$DOMAIN" ]]; then    
-echo "2 Webtop5 - Nessun dominio rilevato da hostname -f"    exit 1fi
-# Verifica istanze WebTop
+if [[ -z "$DOMAIN" ]]; then
+    echo "2 Webtop5 - Nessun dominio rilevato da hostname -f"
+    exit 1
+fi # Verifica istanze WebTop
 INSTANCES=$(runagent -l | grep -E '^webtop')
-if [[ -z "$INSTANCES" ]]; then    
-echo "2 Webtop5 - Nessuna istanza WebTop trovata"    exit 0fi
-# Controllo raggiungibilit├â┬á interfaccia
+if [[ -z "$INSTANCES" ]]; then
+    echo "2 Webtop5 - Nessuna istanza WebTop trovata"
+    exit 0
+fi # Controllo raggiungibilit├â┬á interfaccia
 URL="https://webtop.${DOMAIN}/webtop/"
 CODE=$(curl -sk -o /dev/null -w "%{http_code}" "$URL")
-if [[ "$CODE" == "200" ]]; then    
-echo "0 Webtop5 - WebTop risponde su $URL (HTTP 200)"else    
+if [[ "$CODE" == "200" ]]; then
+    echo "0 Webtop5 - WebTop risponde su $URL (HTTP 200)"else    
 echo "2 Webtop5 - WebTop NON risponde su $URL (HTTP $CODE)"fi

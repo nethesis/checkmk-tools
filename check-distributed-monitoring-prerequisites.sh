@@ -103,9 +103,10 @@ SITE="${1:-monitoring}"
 #
 #
 #
-echo -e "${Y}ÔåÆ Checking site '$SITE'...${N}"if ! omd sites | grep -q "^$SITE"; then    
-echo -e "${R}Ô£ù Site '$SITE' not found${N}"    exit 1fi
-echo -e "${G}Ô£ô Site found${N}"
+echo -e "${Y}ÔåÆ Checking site '$SITE'...${N}"if ! omd sites | grep -q "^$SITE"; then
+    echo -e "${R}Ô£ù Site '$SITE' not found${N}"
+    exit 1
+fi echo -e "${G}Ô£ô Site found${N}"
 #
 #
 #
@@ -389,11 +390,11 @@ echo -e "${Y}ÔÜá Port 6557 not listening (will be enabled)${N}"
 #
 #
 #
-echo -e "\n${Y}ÔåÆ Checking firewall rules...${N}"if command -v ufw >/dev/null 2>&1; then    
-echo -e "${B}UFW status:${N}"    su
+echo -e "\n${Y}ÔåÆ Checking firewall rules...${N}"if command -v ufw >/dev/null 2>&1; then
+    echo -e "${B}UFW status:${N}"    su
 do ufw status | grep -E "(6557|Status)" || true
-elif command -v firewall-cmd >/dev/null 2>&1; then    
-echo -e "${B}Firewalld status:${N}"    su
+elif command -v firewall-cmd >/dev/null 2>&1; then
+    echo -e "${B}Firewalld status:${N}"    su
 do firewall-cmd --list-ports | grep 6557 || 
 echo -e "${Y}ÔÜá Port 6557 not open${N}"else    
 echo -e "${Y}ÔÜá No firewall manager detected${N}"fi
@@ -488,8 +489,8 @@ echo -e "${Y}ÔÜá No firewall manager detected${N}"fi
 #
 #
 #
-echo -e "\n${Y}ÔåÆ Checking Apache/HTTPS configuration...${N}"if [[ -f /etc/apache2/sites-available/checkmk.conf ]]; then    
-echo -e "${G}Ô£ô Apache vhost found${N}"    
+echo -e "\n${Y}ÔåÆ Checking Apache/HTTPS configuration...${N}"if [[ -f /etc/apache2/sites-available/checkmk.conf ]]; then
+    echo -e "${G}Ô£ô Apache vhost found${N}"    
 echo -e "${B}SSL Certificate:${N}"    su
 do grep -E "SSLCertificate" /etc/apache2/sites-available/checkmk.conf || true
 else    
@@ -681,8 +682,8 @@ do -u "$SITE" bash <<EOFcd /omd/sites/$SITEsource .profileomd versionEOF
 #
 #
 echo -e "\n${Y}ÔåÆ Checking distributed monitoring support...${N}"if su
-do -u "$SITE" ls /omd/sites/$SITE/etc/check_mk/multisite.d/ >/dev/null 2>&1; then    
-echo -e "${G}Ô£ô Multisite configuration directory exists${N}"else    
+do -u "$SITE" ls /omd/sites/$SITE/etc/check_mk/multisite.d/ >/dev/null 2>&1; then
+    echo -e "${G}Ô£ô Multisite configuration directory exists${N}"else    
 echo -e "${R}Ô£ù Multisite not available${N}"fi
 #
 #

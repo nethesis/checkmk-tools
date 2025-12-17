@@ -55,23 +55,23 @@ CURRENT_SLEEP="(non impostato)"[ -z "$CURRENT_DELAY" ] &&
 CURRENT_DELAY="(non impostato)"
 # ---------------------------------------------------------------
 # 3´©ÅÔâú Calcolo suggerimenti automatici
-# ---------------------------------------------------------------if [[ "$MODE" == "auto" ]]; then    
-echo -e "${YELLOW}ÔåÆ Analisi automatica del carico...${NC}"    if (( $(
-echo "$LOAD_NOW > $CORES*2" | bc -l) )); then        
-NEW_CONC=20        
+# ---------------------------------------------------------------if [[ "$MODE" == "auto" ]]; then
+    echo -e "${YELLOW}ÔåÆ Analisi automatica del carico...${NC}"    if (( $(
+echo "$LOAD_NOW > $CORES*2" | bc -l) )); then
+    NEW_CONC=20        
 NEW_SLEEP=0.35        
 COMMENT="Carico molto alto: limito concorrenza e aumento sleep."    elif (( $(
-echo "$LOAD_NOW > $CORES*1" | bc -l) )); then        
-NEW_CONC=25        
+echo "$LOAD_NOW > $CORES*1" | bc -l) )); then
+    NEW_CONC=25        
 NEW_SLEEP=0.30        
 COMMENT="Carico medio-alto: leggero bilanciamento."    elif (( $(
-echo "$CPU_NOW > 70" | bc -l) )); then        
-NEW_CONC=25        
+echo "$CPU_NOW > 70" | bc -l) )); then
+    NEW_CONC=25        
 NEW_SLEEP=0.30        
 COMMENT="CPU alta: mantengo concorrenza media, aumento sleep."    elif (( $(
 echo "$LOAD_NOW < $CORES*0.6" | bc -l) )) && (( $(
-echo "$CPU_NOW < 40" | bc -l) )); then        
-NEW_CONC=35        
+echo "$CPU_NOW < 40" | bc -l) )); then
+    NEW_CONC=35        
 NEW_SLEEP=0.20        
 COMMENT="Sottoutilizzato: aumento concorrenza."    else        
 NEW_CONC=30        
@@ -102,9 +102,10 @@ NEW_DELAY=${NEW_DELAY:-s}fi
 echo -e "${CYAN}=== Riepilogo tuning $MODE ===${NC}"printf "  ÔÇó CPU: %s%% | Load: %s | Core: %s | Processi check: %s\n" "$CPU_NOW" "$LOAD_NOW" "$CORES" "$CHECKS_NOW"printf "  ÔÇó Parametri correnti: conc=%s, sleep=%s\n" "$CURRENT_CONC" "$CURRENT_SLEEP"echo
 echo -e "${GREEN}Nuovi parametri:${NC}"cat <<EOF  max_concurrent_checks = $NEW_CONC  service_check_timeout = $NEW_SERV_TMOUT  host_check_timeout    = $NEW_HOST_TMOUT  sleep_time            = $NEW_SLEEP  service_inter_check_delay_method = $NEW_DELAYEOFecho
 if [[ "$MODE" != "auto" ]]; then    read -r -p "Applico queste modifiche? (s/n): " CONFIRM    [[ "$CONFIRM" != "s" && "$CONFIRM" != "S" ]] && 
-echo -e "${RED}ÔØî Operazione annullata.${NC}" && exit 0else    
-echo -e "${YELLOW}ÔåÆ Applicazione automatica senza conferma utente.${NC}"    sleep 2fi
-# ---------------------------------------------------------------
+echo -e "${RED}ÔØî Operazione annullata.${NC}" && exit 0
+else    
+echo -e "${YELLOW}ÔåÆ Applicazione automatica senza conferma utente.${NC}"    sleep 2
+fi # ---------------------------------------------------------------
 # 5´©ÅÔâú Applicazione modifiche
 # ---------------------------------------------------------------
 echo -e "${YELLOW}ÔåÆ Scrittura configurazione...${NC}"cat > "$NAGIOS_CFG" <<EOF
@@ -125,8 +126,8 @@ SECONDS_WAITED=0while [ $STABLE_COUNT -lt 2 ]; do    sleep 10
 PROC_NOW=$(ps -eo comm | grep check_ | wc -l)    if [ "$PROC_NOW" == "$PREV_PROC" ] && [ "$PROC_NOW" -ne 0 ]; then        ((STABLE_COUNT++))    else        
 STABLE_COUNT=0    fi    
 PREV_PROC=$PROC_NOW    ((SECONDS_WAITED+=10))    
-echo "  ÔÅ▒ Verifica dopo ${SECONDS_WAITED}s ÔåÆ $PROC_NOW processi check_*"    if [ $SECONDS_WAITED -ge 120 ]; then        
-echo "  ÔÜá´©Å Timeout di stabilizzazione raggiunto (120s)"        break    fi
+echo "  ÔÅ▒ Verifica dopo ${SECONDS_WAITED}s ÔåÆ $PROC_NOW processi check_*"    if [ $SECONDS_WAITED -ge 120 ]; then
+    echo "  ÔÜá´©Å Timeout di stabilizzazione raggiunto (120s)"        break    fi
 done
 echo -e "${YELLOW}ÔåÆ Atten
 do 60s di quiete prima del benchmark finale...${NC}"sleep 60

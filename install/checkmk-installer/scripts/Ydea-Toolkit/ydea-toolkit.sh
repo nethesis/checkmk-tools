@@ -36,9 +36,11 @@ YDEA_ID='tuo_id'" >&2
 echo "  export 
 YDEA_API_KEY='tua_chiave'" >&2    exit 2  }    local url="${YDEA_BASE_URL%/}${YDEA_LOGIN_PATH}"  local body  body="$(jq -n --arg i "$YDEA_ID" --arg k "$YDEA_API_KEY" '{id:$i, api_key:$k}')"  log_debug "POST $url"  local resp  resp="$(curl "${CURL_OPTS[@]}" -X POST \    -H "Content-Type: application/json" \    -H "Accept: application/json" \    -d "$body" \    "$url" 2>&1)" || {    log_error "Login fallito: curl error $?"    log_write "API" "POST $url ÔåÆ FAILED"    
 echo "$resp" | jq . 2>/dev/null || 
-echo "$resp"    exit 1  }    log_api_call "POST" "$url" "200"  local token  token="$(printf '%s' "$resp" | jq -r '.token // .access_token // .jwt // .id_token // empty')"  if [[ -z "$token" || "$token" == "null" ]]; then    log_error "Login fallito: risposta senza token"    
+echo "$resp"
+    exit 1  }    log_api_call "POST" "$url" "200"  local token  token="$(printf '%s' "$resp" | jq -r '.token // .access_token // .jwt // .id_token // empty')"  if [[ -z "$token" || "$token" == "null" ]]; then    log_error "Login fallito: risposta senza token"    
 echo "$resp" | jq . 2>/dev/null || 
-echo "$resp"    exit 1  fi    save_token "$token"  log_success "Login effettuato (token vali
+echo "$resp"
+    exit 1  fi    save_token "$token"  log_success "Login effettuato (token vali
 do ~1h)"}ensure_token() {  if token_is_fresh; then    log_debug "Token ancora vali
 do"  else    log_info "Token scaduto o mancante, effettuo il login..."    ydea_login  fi}
 # ===== Chiamate API Generiche =====ydea_api() {  need curl; need jq  local method="${1:-}"; shift || true  local path="${1:-}"; shift || true  [[ -n "$method" && -n "$path" ]] || {     log_error "Uso: ydea_api <GET|POST|PUT|PATCH|DELETE> </path> [json_body]"    return 2  }  ensure_token  local token url  token="$(load_token)"  url="${YDEA_BASE_URL%/}/${path
@@ -68,8 +70,8 @@ do"  else    log_info "Token scaduto o mancante, effettuo il login..."    ydea_l
 # Lista categorie disponibililist_categories() {  log_info "Recupero categorie..."  ydea_api GET "/categories"}
 # Lista utentilist_users() {  local limit="${1:-50}"  log_info "Recupero utenti (limit: $limit)..."  ydea_api GET "/users?limit=$limit"}
 # ===== Tracking Ticket System =====
-# Inizializza il file di tracking se non esisteinit_tracking_file() {  if [[ ! -f "$YDEA_TRACKING_FILE" ]]; then    
-echo '{"tickets":[],"last_update":""}' > "$YDEA_TRACKING_FILE"    log_debug "File tracking inizializzato: $YDEA_TRACKING_FILE"  fi}
+# Inizializza il file di tracking se non esisteinit_tracking_file() {  if [[ ! -f "$YDEA_TRACKING_FILE" ]]; then
+    echo '{"tickets":[],"last_update":""}' > "$YDEA_TRACKING_FILE"    log_debug "File tracking inizializzato: $YDEA_TRACKING_FILE"  fi}
 # Aggiungi ticket al trackingtrack_ticket() {  local ticket_id="$1"  local codice="${2:-}"  local host="${3:-}"  local service="${4:-}"  local description="${5:-}"    init_tracking_file  local nowlocal nownow=$(date -u +"%Y-%m-%dT%H:%M:%SZ")    
 # Recupera dettagli ticket da API  local ticket_data  ticket_data=$(ydea_api GET "/tickets/$ticket_id" 2>/dev/null || 
 echo "{}")  local statolocal statostato=$(
@@ -102,18 +104,18 @@ echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔ
 echo "Totale ticket tracciati: $total"  
 echo "  Ôö£ÔöÇ Aperti: $open"  
 echo "  ÔööÔöÇ Risolti: $resolved"  
-echo ""    if [[ $open -gt 0 ]]; then    
-echo "­ƒö┤ Ticket Aperti:"    jq -r '.tickets[] | select(.resolved_at == null) | "  [
+echo ""    if [[ $open -gt 0 ]]; then
+    echo "­ƒö┤ Ticket Aperti:"    jq -r '.tickets[] | select(.resolved_at == null) | "  [
 #\(.ticket_id)] \(.codice) - \(.host)/\(.service) - Stato: \(.stato) - Creato: \(.created_at)"' "$YDEA_TRACKING_FILE"    
-echo ""  fi    if [[ $resolved -gt 0 ]]; then    
-echo "Ô£à Ultimi 5 Ticket Risolti:"    jq -r '.tickets[] | select(.resolved_at != null) | "\(.resolved_at) | 
+echo ""  fi    if [[ $resolved -gt 0 ]]; then
+    echo "Ô£à Ultimi 5 Ticket Risolti:"    jq -r '.tickets[] | select(.resolved_at != null) | "\(.resolved_at) | 
 #\(.ticket_id) | \(.codice) | \(.host)/\(.service)"' "$YDEA_TRACKING_FILE" | sort -r | head -5 | while 
 IFS='|' read -r date tid code host; do      
 echo "  [$date] $tid $code - $host"    done
 echo ""  fi    
 # Tempo medio di risoluzione  local avg_resolution  avg_resolution=$(jq -r '[.tickets[] | select(.resolved_at != null) |     (((.resolved_at | fromdateiso8601) - (.created_at | fromdateiso8601)) / 3600)] |     if length > 0 then (add / length | floor) else 0 end' "$YDEA_TRACKING_FILE" 2>/dev/null || 
-echo "0")    if [[ "$avg_resolution" != "0" ]]; then    
-echo "ÔÅ▒´©Å  Tempo medio risoluzione: ~$avg_resolution ore"  fi}
+echo "0")    if [[ "$avg_resolution" != "0" ]]; then
+    echo "ÔÅ▒´©Å  Tempo medio risoluzione: ~$avg_resolution ore"  fi}
 # Lista tutti i ticket tracciatilist_tracked_tickets() {  init_tracking_file  jq '.' "$YDEA_TRACKING_FILE"}
 # ===== Configurazione Interattiva =====interactive_config() {  
 # Usa la directory dello script, non la working directory  local env_file="$SCRIPT_DIR/.env"    

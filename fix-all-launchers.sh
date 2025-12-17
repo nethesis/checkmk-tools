@@ -8,10 +8,10 @@ IFS= read -r launcher; do
 #r}"  
 # rimuove 'r' iniziale    
 # Determina il path dello script full corrispondente  dir=$(dirname "$launcher")  full_dir="${dir/\/remote/\/full}"  full_script="$full_dir/$script_name"    
-# Verifica che lo script full esista  if [[ ! -f "$full_script" ]]; then    
-echo "ÔÜá´©Å  Skip $launcher_name - script full non trovato: $full_script"    continue  fi    
-# Leggi il launcher attuale  if ! grep -q "curl.*githubusercontent" "$launcher" 2>/dev/null; then    
-echo "Ô£ô $launcher_name - gi├á fixato o non usa GitHub"    continue  fi    
+# Verifica che lo script full esista  if [[ ! -f "$full_script" ]]; then
+    echo "ÔÜá´©Å  Skip $launcher_name - script full non trovato: $full_script"    continue  fi    
+# Leggi il launcher attuale  if ! grep -q "curl.*githubusercontent" "$launcher" 2>/dev/null; then
+    echo "Ô£ô $launcher_name - gi├á fixato o non usa GitHub"    continue  fi    
 # Genera path relativo per /opt/checkmk-tools/  relative_path="${full_script
 #$(pwd)/}"  deployed_path="/opt/checkmk-tools/$relative_path"    
 # Crea nuovo launcher  cat > "$launcher" << EOF
@@ -23,7 +23,7 @@ echo "Ô£à Fixed: $launcher_name ÔåÆ $deployed_path"  ((fixed++))  done < <
 echo ""
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo "Ô£à Completato! $fixed launcher fixati"
-if [[ $errors -gt 0 ]]; then  
-echo "ÔÜá´©Å  $errors errori riscontrati"
+if [[ $errors -gt 0 ]]; then
+    echo "ÔÜá´©Å  $errors errori riscontrati"
 fi
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"

@@ -382,7 +382,8 @@ echo -e "${YELLOW}[WARNING]${NC} $1"}
 #
 #check_dependencies() {  log_info "Checking dependencies..."    local missing=()    if ! command -v genisoimage &>/dev/null && ! command -v mkisofs &>/dev/null; then    missing+=("genisoimage or mkisofs")  fi    if [[ ${
 #missing[@]} -gt 0 ]]; then    log_error "Missing dependencies: ${missing[*]}"    log_info "Install with: su
-do apt-get install genisoimage"    exit 1  fi    log_success "All dependencies satisfied"}
+do apt-get install genisoimage"
+    exit 1  fi    log_success "All dependencies satisfied"}
 #
 #
 #
@@ -475,7 +476,8 @@ do apt-get install genisoimage"    exit 1  fi    log_success "All dependencies s
 #
 #create_iso_structure() {  log_info "Creating ISO structure..."    
 # Create directories  mkdir -p "$WORK_DIR"    
-# Copy bootstrap script  if [[ ! -f "${SCRIPT_DIR}/bootstrap-installer.sh" ]]; then    log_error "bootstrap-installer.sh not found!"    exit 1  fi    cp "${SCRIPT_DIR}/bootstrap-installer.sh" "$WORK_DIR/"  chmod +x "$WORK_DIR/bootstrap-installer.sh"    
+# Copy bootstrap script  if [[ ! -f "${SCRIPT_DIR}/bootstrap-installer.sh" ]]; then    log_error "bootstrap-installer.sh not found!"
+    exit 1  fi    cp "${SCRIPT_DIR}/bootstrap-installer.sh" "$WORK_DIR/"  chmod +x "$WORK_DIR/bootstrap-installer.sh"    
 # Create README  cat > "$WORK_DIR/README.txt" <<'EOF'ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòùÔòæ                                                              ÔòæÔòæ         CheckMK Installer Bootstrap ISO                     ÔòæÔòæ                                                              ÔòæÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØThis ISO contains the bootstrap script for CheckMK Installer.USAGE:------1. Mount this ISO on your Linux system:   su
 do mount -o loop checkmk-bootstrap.iso /mnt2. Run the bootstrap script:   su
 do bash /mnt/bootstrap-installer.shThe script will:- Clone/update the repository to /opt/checkmk-tools/- Make all .sh files executable- Launch the interactive installerREQUIREMENTS:-------------- Internet connection (to clone repository)- Git (will be installed if missing)- Root privilegesREPOSITORY:-----------https://github.com/Coverup20/checkmk-toolsEOF    
@@ -575,8 +577,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"exec bash "${SCRIPT_DI
 #
 #build_iso() {  log_info "Building ISO image..."    
 # Create output directory  mkdir -p "$ISO_OUTPUT_DIR"    local iso_path="${ISO_OUTPUT_DIR}/${ISO_NAME}"    
-# Choose tool  local iso_tool=""  if command -v genisoimage &>/dev/null; then    iso_tool="genisoimage"  elif command -v mkisofs &>/dev/null; then    iso_tool="mkisofs"  fi    
-# Build ISO  $iso_tool \    -o "$iso_path" \    -V "CHECKMK_BOOTSTRAP" \    -J -R -v \    -input-charset utf-8 \    "$WORK_DIR" 2>&1 | grep -v "^$" || true    if [[ ! -f "$iso_path" ]]; then    log_error "Failed to create ISO"    exit 1  fi    
+# Choose tool  local iso_tool=""  if command -v genisoimage &>/dev/null; then
+    iso_tool="genisoimage"  elif command -v mkisofs &>/dev/null; then
+    iso_tool="mkisofs"  fi    
+# Build ISO  $iso_tool \    -o "$iso_path" \    -V "CHECKMK_BOOTSTRAP" \    -J -R -v \    -input-charset utf-8 \    "$WORK_DIR" 2>&1 | grep -v "^$" || true    if [[ ! -f "$iso_path" ]]; then    log_error "Failed to create ISO"
+    exit 1  fi    
 # Get ISO size  local iso_size  iso_size=$(du -h "$iso_path" | cut -f1)    log_success "ISO created: $iso_path"  log_info "ISO size: $iso_size"}
 #
 #

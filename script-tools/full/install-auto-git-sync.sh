@@ -13,23 +13,23 @@ install_git() {
     if command -v apt-get &> /dev/null; then
         timeout 300 apt-get update -qq && timeout 300 apt-get install -y git || {
             echo "❌ Timeout durante installazione git"
-            exit 1
+    exit 1
         }
     elif command -v yum &> /dev/null; then
         timeout 300 yum install -y git || {
             echo "❌ Timeout durante installazione git"
-            exit 1
+    exit 1
         }
     elif command -v dnf &> /dev/null; then
         timeout 300 dnf install -y git || {
             echo "❌ Timeout durante installazione git"
-            exit 1
+    exit 1
         }
     else
         echo "❌ Package manager non supportato. Installa git manualmente:"
         echo "   - Debian/Ubuntu: apt-get install git"
         echo "   - CentOS/RHEL: yum install git"
-        exit 1
+    exit 1
     fi
 echo "✅ Git installato"
 }
@@ -64,8 +64,8 @@ else
     if [[ ! -d "$REPO_DIR/.git" ]]; then
         read -r -p "Repository non trovato. Vuoi clonarlo in $REPO_DIR? [S/n]: " clone_choice
         if [[ "$clone_choice" =~ ^[Nn] ]]; then
-            echo "❌ Installazione annullata"
-            exit 1
+    echo "❌ Installazione annullata"
+    exit 1
         fi
         
         # Crea directory parent se non esiste
@@ -74,14 +74,14 @@ else
         
         echo "📥 Clonazione repository in $REPO_DIR..."
         if ! timeout 120 git clone https://github.com/Coverup20/checkmk-tools.git "$REPO_DIR" 2>&1; then
-            echo "❌ Errore durante la clonazione (timeout o errore rete)"
-            exit 1
+    echo "❌ Errore durante la clonazione (timeout o errore rete)"
+    exit 1
         fi
         
         # Verifica che il clone sia riuscito
         if [[ ! -d "$REPO_DIR/.git" ]]; then
-            echo "❌ Repository clonato ma .git non trovato"
-            exit 1
+    echo "❌ Repository clonato ma .git non trovato"
+    exit 1
         fi
 echo "✅ Repository clonato con successo"
     fi
@@ -123,7 +123,7 @@ case "$interval_choice" in
     6)
         read -r -p "Inserisci intervallo in secondi (10-3600): " SYNC_INTERVAL
         if ! [[ "$SYNC_INTERVAL" =~ ^[0-9]+$ ]] || [ "$SYNC_INTERVAL" -lt 10 ] || [ "$SYNC_INTERVAL" -gt 3600 ]; then
-            echo "❌ Valore non vali
+    echo "❌ Valore non vali
 do (deve essere tra 10 e 3600), uso default 60 secondi"
             SYNC_INTERVAL=60
         fi

@@ -5,8 +5,9 @@ TOOLKIT="./ydea-toolkit.sh"
 # Carica credenziali
 if [[ -f .env ]]; then  source .env
 else  
-echo "ÔØî File .env non trovato. Copia .env.example in .env e compila le credenziali."  exit 1fi
-echo "=== ESEMPI DI USO YDEA TOOLKIT ==="echo
+echo "ÔØî File .env non trovato. Copia .env.example in .env e compila le credenziali."
+    exit 1
+fi echo "=== ESEMPI DI USO YDEA TOOLKIT ==="echo
 # === ESEMPIO 1: Report giornaliero ticket ===esempio_report_giornaliero() {  
 echo "­ƒôè REPORT TICKET GIORNALIERO"  
 echo "================================"    
@@ -29,8 +30,8 @@ echo "­ƒÜ¿ CREAZIONE TICKET DA ALERT"
 echo "================================"    
 # Simula un alert di sistema  local hostname="server-prod-01"  local alert_type="CPU usage high"  local current_value="95%"    local title="[ALERT] $alert_type su $hostname"  local description="Alert automatico dal sistema di monitoraggio:  Hostname: $hostnameTipo alert: $alert_typeValore corrente: $current_valueData/ora: $(date '+%Y-%m-%d %H:%M:%S')Azione richiesta: Verificare carico CPU e processi in esecuzione."  
 echo "Creo ticket: $title"  local resultlocal resultresult=$($TOOLKIT create "$title" "$description" "high")local ticket_idlocal ticket_idticket_id=$(
-echo "$result" | jq -r '.id // empty')    if [[ -n "$ticket_id" ]]; then    
-echo "Ô£à Ticket creato: 
+echo "$result" | jq -r '.id // empty')    if [[ -n "$ticket_id" ]]; then
+    echo "Ô£à Ticket creato: 
 #$ticket_id"    
 echo "$result" | jq '.'  else    
 echo "ÔØî Errore nella creazione"    
@@ -42,8 +43,8 @@ echo "Cerco ticket contenenti: '$query'"local ticketslocal ticketstickets=$($TOO
 echo "$tickets" | jq -r '.data[]? | "  
 #\(.id) - \(.title) [\(.status)]"'    
 # Prendi il primo ticket (esempio)local first_idlocal first_idfirst_id=$(
-echo "$tickets" | jq -r '.data[0].id // empty')    if [[ -n "$first_id" ]]; then    
-echo    
+echo "$tickets" | jq -r '.data[0].id // empty')    if [[ -n "$first_id" ]]; then
+    echo    
 echo "Aggiungo commento al ticket 
 #$first_id"    $TOOLKIT comment "$first_id" "Ticket rivisto durante manutenzione programmata"  fi}
 # === ESEMPIO 4: Workflow completo ===esempio_workflow_completo() {  
@@ -51,8 +52,8 @@ echo "­ƒöä WORKFLOW COMPLETO"
 echo "================================"    
 # 1. Crea ticket  
 echo "1´©ÅÔâú Creazione ticket..."local resultlocal resultresult=$($TOOLKIT create "Test workflow" "Ticket di test per workflow automatico" "normal")local ticket_idlocal ticket_idticket_id=$(
-echo "$result" | jq -r '.id // empty')    if [[ -z "$ticket_id" ]]; then    
-echo "ÔØî Errore nella creazione"    return 1  fi
+echo "$result" | jq -r '.id // empty')    if [[ -z "$ticket_id" ]]; then
+    echo "ÔØî Errore nella creazione"    return 1  fi
 echo "   Ô£à Creato ticket 
 #$ticket_id"    
 # 2. Recupera dettagli  
