@@ -290,7 +290,8 @@ echo -e "${RED}[ERROR]${NC} $1"}
 #
 #
 #check_root() {  if [[ $EUID -ne 0 ]]; then    log_error "This script must be run as root"    
-echo "Please run: sudo $0"    exit 1  fi}
+echo "Please run: su
+do $0"    exit 1  fi}
 #
 #
 #

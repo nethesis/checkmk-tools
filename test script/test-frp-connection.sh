@@ -9,12 +9,14 @@ echo "1. Verifica che FRP server sia in ascolto su porta 6045..."netstat -tlnp 2
 echo "   Ô£ô FRP server in ascolto su porta 6045"else    
 echo "   Ô£ù FRP server NON in ascolto su porta 6045!"    
 echo ""    
-echo "Verifica il servizio frps:"    systemctl status frps 2>/dev/null || service frps status 2>/dev/nullfi
+echo "Verifica il servizio frps:"    systemctl status frps 2>/dev/null || service frps status 2>/dev/null
+fi
 echo ""
 # 2. Test connessione diretta a localhost:6045
 echo "2. Test connessione diretta a localhost:6045..."timeout 5 bash -c '
 echo "<<<check_mk>>>" | nc localhost 6045' > /tmp/frp_test.txt 2>&1if [ -s /tmp/frp_test.txt ]; then    
-echo "   Ô£ô Connessione riuscita! Output ricevuto:"    head -10 /tmp/frp_test.txtelse    
+echo "   Ô£ô Connessione riuscita! Output ricevuto:"    head -10 /tmp/frp_test.txt
+else    
 echo "   Ô£ù Nessun output ricevuto da localhost:6045"    
 echo "   Errore: $(cat /tmp/frp_test.txt 2>/dev/null || 
 echo 'Timeout o connessione rifiutata')"fi

@@ -5,7 +5,8 @@ LEASE_FILE="/tmp/dhcp.leases"if [[ ! -f "$LEASE_FILE" ]]; then
 echo "<<<dhcp_leases>>>"    
 echo "1 DHCP_Leases - File leases non trovato"    exit 0fi
 # Conta lease attivi (non expired)current_time=$(date +%s)active_leases=0expired_leases=0total_leases=0while 
-IFS=' ' read -r expire_time mac ip hostname client_id; do    total_leases=$((total_leases + 1))        if [[ $expire_time -gt $current_time ]]; then        active_leases=$((active_leases + 1))    else        expired_leases=$((expired_leases + 1))    fidone < "$LEASE_FILE"
+IFS=' ' read -r expire_time mac ip hostname client_id; do    total_leases=$((total_leases + 1))        if [[ $expire_time -gt $current_time ]]; then        active_leases=$((active_leases + 1))    else        expired_leases=$((expired_leases + 1))    fi
+done < "$LEASE_FILE"
 # Leggi configurazione DHCP per trovare pool sizedhcp_start=$(uci get dhcp.lan.start 2>/dev/null || 
 echo 100)dhcp_limit=$(uci get dhcp.lan.limit 2>/dev/null || 
 echo 150)max_leases=$dhcp_limit

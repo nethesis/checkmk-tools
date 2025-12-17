@@ -40,11 +40,13 @@ NAME_UPPER=$(uppercase "$NAME")
 SERVICE_NAME=$(uppercase "vm_${ID}_${NAME}")        
 UPTIME_HUMAN=$(human_time "$UPTIME")        if [[ "$STATUSTXT" == "running" ]]; then            
 echo "0 ${SERVICE_NAME} uptime=${UPTIME}s;0;;0; VMID:${ID} (${NAME_UPPER}) Running, Uptime ${UPTIME_HUMAN}"        else            
-echo "1 ${SERVICE_NAME} uptime=${UPTIME}s;0;;0; VMID:${ID} (${NAME_UPPER}) Stopped, Uptime ${UPTIME_HUMAN}"        fi    donefi
+echo "1 ${SERVICE_NAME} uptime=${UPTIME}s;0;;0; VMID:${ID} (${NAME_UPPER}) Stopped, Uptime ${UPTIME_HUMAN}"        fi    done
+fi
 # --- LXC ---if (( LXC_TOTAL > 0 )); then    jq -r '.[] | "\(.vmid) \(.name) \(.status) \(.uptime)"' "$TMP_LXC" | while read -r ID NAME STATUSTXT UPTIME; do        
 NAME_UPPER=$(uppercase "$NAME")        
 SERVICE_NAME=$(uppercase "lxc_${ID}_${NAME}")        
 UPTIME_HUMAN=$(human_time "$UPTIME")        if [[ "$STATUSTXT" == "running" ]]; then            
 echo "0 ${SERVICE_NAME} uptime=${UPTIME}s;0;;0; CTID:${ID} (${NAME_UPPER}) Running, Uptime ${UPTIME_HUMAN}"        else            
-echo "1 ${SERVICE_NAME} uptime=${UPTIME}s;0;;0; CTID:${ID} (${NAME_UPPER}) Stopped, Uptime ${UPTIME_HUMAN}"        fi    donefi
+echo "1 ${SERVICE_NAME} uptime=${UPTIME}s;0;;0; CTID:${ID} (${NAME_UPPER}) Stopped, Uptime ${UPTIME_HUMAN}"        fi    done
+fi
 # --- Cleanup ---rm -f "$TMP_QEMU" "$TMP_LXC"exit 0

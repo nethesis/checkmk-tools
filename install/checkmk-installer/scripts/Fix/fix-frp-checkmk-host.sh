@@ -39,7 +39,8 @@ echo ""
 # 3. Alternativa: configurazione tramite REST API (se hai le credenziali)
 echo "=== ALTERNATIVA: Configurazione tramite REST API ==="
 echo ""
-echo "Se hai un automation user configurato, puoi usare questo comando:"
+echo "Se hai un automation user configurato, puoi usare questo coman
+do:"
 echo ""cat << 'EOF'
 # Sostituisci USER e PASSWORD con le tue credenziali automationcurl -X PUT \  "http://localhost/monitoring/check_mk/api/1.0/objects/host_config/$HOST" \  -H "Authorization: Bearer USER PASSWORD" \  -H "Content-Type: application/json" \  -d '{    "attributes": {      "ipaddress": "127.0.0.1",      "tag_agent": "cmk-agent",      "tag_snmp_ds": "no-snmp"    },    "update_attributes": {      "ipaddress": "127.0.0.1"    }  }'EOF
 echo ""

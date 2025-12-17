@@ -6,7 +6,8 @@ MODULE_NAME="FRPC Client Setup"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
-# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +afi
+# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
+fi
 # Module startlog_module_start "$MODULE_NAME"
 # Installation paths
 FRPC_INSTALL_DIR="/usr/local/bin"
@@ -782,7 +783,8 @@ echo "Check logs: journalctl -u frpc.service -n 20"  exit 1fiEOF    chmod +x /us
 #!/bin/bash
 # CheckMK Local Check: FRPC Statusif systemctl is-active --quiet frpc.service; then  if journalctl -u frpc.service -n 5 | grep -q "login to server success\|start proxy success"; then    
 echo "0 FRPC_Status - FRPC service is running and connected"  else    
-echo "1 FRPC_Status - FRPC service is running but connection unclear"  fielse  
+echo "1 FRPC_Status - FRPC service is running but connection unclear"  fi
+else  
 echo "2 FRPC_Status - FRPC service is not running"fiEOF    chmod +x "$check_script"    log_success "Monitoring check created"}
 #
 #

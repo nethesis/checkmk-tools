@@ -1,6 +1,7 @@
 #!/bin/bash
 /usr/bin/env bashset -euo pipefail
-# Installa Checkmk Raw chiedendo interattivamente l'URL del .deb e crea/avvia il site "monitoring".
+# Installa Checkmk Raw chieden
+do interattivamente l'URL del .deb e crea/avvia il site "monitoring".
 # Variabili opzionali (.env):
 #   
 CHECKMK_ADMIN_PASSWORD=   
@@ -19,7 +20,8 @@ echo "==> Risolvo dipendenze (apt -f install)"  apt-get -f install -y  apt-get i
 echo "==> Creo il site '${SITE}'"  omd create "$SITE"fi
 # Avvia il siteomd start "$SITE" || true
 # Password admin opzionaleif [[ -n "${CHECKMK_ADMIN_PASSWORD:-}" ]]; then  
-echo "==> Imposto password cmkadmin per '${SITE}'"  omd su "${SITE}" -c "htpasswd -b etc/htpasswd cmkadmin '${CHECKMK_ADMIN_PASSWORD}'"  omd su "${SITE}" -c "omd reload apache" || truefi
+echo "==> Imposto password cmkadmin per '${SITE}'"  omd su "${SITE}" -c "htpasswd -b etc/htpasswd cmkadmin '${CHECKMK_ADMIN_PASSWORD}'"  omd su "${SITE}" -c "omd reload apache" || true
+fi
 IP="$(hostname -I | awk '{print $1}')"
 echo ""
 echo "├ó┼ôÔÇª Checkmk installato e site avviato."

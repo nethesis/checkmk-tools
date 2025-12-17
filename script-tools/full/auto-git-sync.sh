@@ -16,7 +16,8 @@ TARGET_DIR="/opt/checkmk-tools"elif [[ -d "/root/checkmk-tools/.git" ]]; then
 TARGET_DIR="/root/checkmk-tools"elif [[ -d "$HOME/checkmk-tools/.git" ]]; then    
 TARGET_DIR="$HOME/checkmk-tools"else    
 TARGET_DIR="$HOME/checkmk-tools"  
-# Default se non esiste ancorafi
+# Default se non esiste ancora
+fi
 SYNC_INTERVAL="${1:-60}"  
 # Primo parametro o default 60 secondi
 LOG_FILE="/var/log/auto-git-sync.log"
@@ -44,8 +45,10 @@ echo -e "${CYAN}========================================${NC}\n"}
 # Verifica e clona repository se necessario
 # ==========================================================init_repository() {    print_header "Inizializzazione Repository"        
 # Verifica se la directory esiste    if [[ -d "$TARGET_DIR" ]]; then        
-# Verifica se ├¿ un repository git valido        if [[ -d "$TARGET_DIR/.git" ]]; then            print_success "Repository gi├á esistente in: $TARGET_DIR"                        
-# Verifica il remote            cd "$TARGET_DIR" || exit 1            local current_remote            current_remote=$(timeout 10 git remote get-url origin 2>/dev/null)                        if [[ "$current_remote" == "$REPO_URL" ]]; then                print_success "Remote corretto: $REPO_URL"            else                print_warning "Remote diverso rilevato: $current_remote"                print_info "Aggiorno remote a: $REPO_URL"                git remote set-url origin "$REPO_URL"            fi                        return 0        else            print_warning "Directory esistente ma non ├¿ un repository git"            print_info "Rimuovo directory e procedo con il clone..."            rm -rf "$TARGET_DIR"        fi    fi        
+# Verifica se ├¿ un repository git vali
+do        if [[ -d "$TARGET_DIR/.git" ]]; then            print_success "Repository gi├á esistente in: $TARGET_DIR"                        
+# Verifica il remote            cd "$TARGET_DIR" || exit 1            local current_remote            current_remote=$(timeout 10 git remote get-url origin 2>/dev/null)                        if [[ "$current_remote" == "$REPO_URL" ]]; then                print_success "Remote corretto: $REPO_URL"            else                print_warning "Remote diverso rilevato: $current_remote"                print_info "Aggiorno remote a: $REPO_URL"                git remote set-url origin "$REPO_URL"            fi                        return 0        else            print_warning "Directory esistente ma non ├¿ un repository git"            print_info "Rimuovo directory e proce
+do con il clone..."            rm -rf "$TARGET_DIR"        fi    fi        
 # Clone del repository    print_info "Clonazione repository da: $REPO_URL"    print_info "Destinazione: $TARGET_DIR"        if timeout 120 git clone "$REPO_URL" "$TARGET_DIR"; then        print_success "Repository clonato con successo!"        cd "$TARGET_DIR" || exit 1                
 # Mostra informazioni sul repository        local branch        branch=$(git branch --show-current)        local commit        commit=$(git rev-parse --short HEAD)        print_info "Branch: $branch"        print_info "Commit: $commit"                return 0    else        print_error "Errore durante il clone del repository"        return 1    fi}
 # ==========================================================
@@ -53,12 +56,14 @@ echo -e "${CYAN}========================================${NC}\n"}
 # ==========================================================do_git_pull() {    cd "$TARGET_DIR" || {        print_error "Impossibile accedere alla directory: $TARGET_DIR"        return 1    }        
 # Verifica integrit├á repository    if ! git rev-parse --git-dir > /dev/null 2>&1; then        print_error "Repository corrotto, riclonazione necessaria"        cd ..        rm -rf "$TARGET_DIR"        init_repository        return $?    fi        
 # Salva commit corrente    local old_commit    old_commit=$(git rev-parse --short HEAD 2>/dev/null)    local current_branch    current_branch=$(git branch --show-current 2>/dev/null)        
-# Verifica se siamo su un branch valido    if [[ -z "$current_branch" ]]; then        print_warning "Detached HEAD rilevato, checkout forzato su main..."        
+# Verifica se siamo su un branch vali
+do    if [[ -z "$current_branch" ]]; then        print_warning "Detached HEAD rilevato, checkout forzato su main..."        
 # Usa -B per forzare creazione/reset del branch locale a origin/main        if ! git checkout -B main origin/main 2>&1 | tee -a "$LOG_FILE"; then            print_error "Impossibile fare checkout su main"            return 1        fi        current_branch="main"    fi        
 # Verifica se ci sono modifiche locali o file non tracciati    if ! git diff-index --quiet HEAD -- 2>/dev/null || [[ -n $(git ls-files --others --exclude-standard) ]]; then        print_warning "Modifiche locali o file non tracciati rilevati"                
 # Reset HARD per allineare completamente al remote        print_info "Reset HARD per allineare al remote (modifiche locali PERSE)..."        git reset --hard HEAD >/dev/null 2>&1        git clean -fd >/dev/null 2>&1        print_success "Repository locale pulito"    fi        
 # Fetch per vedere aggiornamenti remoti    print_info "Verifica aggiornamenti remoti..."    if ! timeout 60 git fetch origin 2>&1 | tee -a "$LOG_FILE"; then        print_error "Errore durante fetch (timeout o errore rete)"        return 1    fi        
-# Verifica se siamo dietro al remote    local local_commit    local_commit=$(git rev-parse HEAD)    local remote_commit    remote_commit=$(git rev-parse origin/$current_branch 2>/dev/null)        if [[ -z "$remote_commit" ]]; then        print_warning "Branch remoto non trovato: origin/$current_branch"        print_info "Tento con origin/main..."        current_branch="main"        remote_commit=$(git rev-parse origin/main 2>/dev/null)                if [[ -z "$remote_commit" ]]; then            print_error "Impossibile trovare branch remoto valido"            return 1        fi                git checkout main 2>/dev/null || return 1    fi        
+# Verifica se siamo dietro al remote    local local_commit    local_commit=$(git rev-parse HEAD)    local remote_commit    remote_commit=$(git rev-parse origin/$current_branch 2>/dev/null)        if [[ -z "$remote_commit" ]]; then        print_warning "Branch remoto non trovato: origin/$current_branch"        print_info "Tento con origin/main..."        current_branch="main"        remote_commit=$(git rev-parse origin/main 2>/dev/null)                if [[ -z "$remote_commit" ]]; then            print_error "Impossibile trovare branch remoto vali
+do"            return 1        fi                git checkout main 2>/dev/null || return 1    fi        
 # Se locale e remote divergono, FORZA allineamento al remote    if [[ "$local_commit" != "$remote_commit" ]]; then        local behind_count        behind_count=$(git rev-list --count HEAD..origin/$current_branch 2>/dev/null || 
 echo "?")        local ahead_count        ahead_count=$(git rev-list --count origin/$current_branch..HEAD 2>/dev/null || 
 echo "0")                if [[ "$ahead_count" != "0" ]] && [[ "$ahead_count" != "?" ]]; then            print_warning "Repository locale ├¿ AVANTI di $ahead_count commit rispetto al remote"            print_info "RESET FORZATO al remote per allineamento..."        else            print_info "Repository locale ├¿ DIETRO di $behind_count commit"        fi                
@@ -86,8 +91,11 @@ echo ""    print_warning "Ricevuto segnale di interruzione"    print_info "Arres
 # Main
 # ==========================================================main() {    
 # Verifica git installato    if ! command -v git &> /dev/null; then        print_error "Git non ├¿ installato"        exit 1    fi        
-# Crea directory per log se non esiste    if [[ -w "$(dirname "$LOG_FILE")" ]] || sudo mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null; then        sudo touch "$LOG_FILE" 2>/dev/null || true    else        
-LOG_FILE="$HOME/auto-git-sync.log"        print_warning "Usando log file alternativo: $LOG_FILE"    fi        print_header "Auto Git Sync - Avvio"    log_message "=== Auto Git Sync Started ==="        
+# Crea directory per log se non esiste    if [[ -w "$(dirname "$LOG_FILE")" ]] || su
+do mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null; then        su
+do touch "$LOG_FILE" 2>/dev/null || true    else        
+LOG_FILE="$HOME/auto-git-sync.log"        print_warning "Usan
+do log file alternativo: $LOG_FILE"    fi        print_header "Auto Git Sync - Avvio"    log_message "=== Auto Git Sync Started ==="        
 # Inizializza repository    if ! init_repository; then        print_error "Impossibile inizializzare il repository"        exit 1    fi        
 # Esegui primo sync immediato    print_header "Primo Sync"    do_git_pull        
 # Avvia loop di sync    run_sync_loop}

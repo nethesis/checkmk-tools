@@ -21,7 +21,8 @@ echo "$PREV_IPS") <(
 echo "$CURR_IPS"))if [ -n "$NEW_LOGINS" ]; then    for ip in $NEW_LOGINS; do        if [ $((RANDOM % 2)) -eq 0 ]; then            
 echo "1 $SERVICE - $NOW root login from $ip"        else            
 echo "2 $SERVICE - $NOW root login from $ip"        fi    donefiif [ -n "$LOGOUTS" ]; then    for ip in $LOGOUTS; do        
-echo "0 $SERVICE - $NOW root logout from $ip"    donefi
+echo "0 $SERVICE - $NOW root logout from $ip"    done
+fi
 # se nessun evento, mostra numero sessioni attualiif [ -z "$NEW_LOGINS" ] && [ -z "$LOGOUTS" ]; then    
 COUNT=$(
 echo "$CURR_IPS" | wc -w)    

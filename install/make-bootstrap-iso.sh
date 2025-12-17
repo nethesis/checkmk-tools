@@ -381,7 +381,8 @@ echo -e "${YELLOW}[WARNING]${NC} $1"}
 #
 #
 #check_dependencies() {  log_info "Checking dependencies..."    local missing=()    if ! command -v genisoimage &>/dev/null && ! command -v mkisofs &>/dev/null; then    missing+=("genisoimage or mkisofs")  fi    if [[ ${
-#missing[@]} -gt 0 ]]; then    log_error "Missing dependencies: ${missing[*]}"    log_info "Install with: sudo apt-get install genisoimage"    exit 1  fi    log_success "All dependencies satisfied"}
+#missing[@]} -gt 0 ]]; then    log_error "Missing dependencies: ${missing[*]}"    log_info "Install with: su
+do apt-get install genisoimage"    exit 1  fi    log_success "All dependencies satisfied"}
 #
 #
 #
@@ -475,7 +476,9 @@ echo -e "${YELLOW}[WARNING]${NC} $1"}
 #create_iso_structure() {  log_info "Creating ISO structure..."    
 # Create directories  mkdir -p "$WORK_DIR"    
 # Copy bootstrap script  if [[ ! -f "${SCRIPT_DIR}/bootstrap-installer.sh" ]]; then    log_error "bootstrap-installer.sh not found!"    exit 1  fi    cp "${SCRIPT_DIR}/bootstrap-installer.sh" "$WORK_DIR/"  chmod +x "$WORK_DIR/bootstrap-installer.sh"    
-# Create README  cat > "$WORK_DIR/README.txt" <<'EOF'ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòùÔòæ                                                              ÔòæÔòæ         CheckMK Installer Bootstrap ISO                     ÔòæÔòæ                                                              ÔòæÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØThis ISO contains the bootstrap script for CheckMK Installer.USAGE:------1. Mount this ISO on your Linux system:   sudo mount -o loop checkmk-bootstrap.iso /mnt2. Run the bootstrap script:   sudo bash /mnt/bootstrap-installer.shThe script will:- Clone/update the repository to /opt/checkmk-tools/- Make all .sh files executable- Launch the interactive installerREQUIREMENTS:-------------- Internet connection (to clone repository)- Git (will be installed if missing)- Root privilegesREPOSITORY:-----------https://github.com/Coverup20/checkmk-toolsEOF    
+# Create README  cat > "$WORK_DIR/README.txt" <<'EOF'ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòùÔòæ                                                              ÔòæÔòæ         CheckMK Installer Bootstrap ISO                     ÔòæÔòæ                                                              ÔòæÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØThis ISO contains the bootstrap script for CheckMK Installer.USAGE:------1. Mount this ISO on your Linux system:   su
+do mount -o loop checkmk-bootstrap.iso /mnt2. Run the bootstrap script:   su
+do bash /mnt/bootstrap-installer.shThe script will:- Clone/update the repository to /opt/checkmk-tools/- Make all .sh files executable- Launch the interactive installerREQUIREMENTS:-------------- Internet connection (to clone repository)- Git (will be installed if missing)- Root privilegesREPOSITORY:-----------https://github.com/Coverup20/checkmk-toolsEOF    
 # Create autorun script for convenience  cat > "$WORK_DIR/install.sh" <<'EOF'
 #!/bin/bash
 # Quick install script - symlink to bootstrap-installer.sh
@@ -676,11 +679,14 @@ echo -e "${GREEN}ISO Size:${NC} $(du -h "$iso_path" | cut -f1)"
 echo ""  
 echo -e "${YELLOW}Usage:${NC}"  
 echo "  1. Copy ISO to target system"  
-echo "  2. Mount: sudo mount -o loop $ISO_NAME /mnt"  
-echo "  3. Run: sudo bash /mnt/bootstrap-installer.sh"  
+echo "  2. Mount: su
+do mount -o loop $ISO_NAME /mnt"  
+echo "  3. Run: su
+do bash /mnt/bootstrap-installer.sh"  
 echo ""  
 echo -e "${YELLOW}Or use the convenience script:${NC}"  
-echo "  sudo bash /mnt/install.sh"  
+echo "  su
+do bash /mnt/install.sh"  
 echo ""}
 #
 #

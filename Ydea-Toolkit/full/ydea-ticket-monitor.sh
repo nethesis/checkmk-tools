@@ -27,7 +27,8 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] ­ƒôè Stato: $total_tickets totali ($ope
 IFS='|' read -r tid stato host service codice desc prio assegnato _extra; do      if [[ -n "$tid" ]]; then        previous_states["$tid"]="$stato"        previous_descrizioni["$tid"]="${desc:-}"        previous_priorita["$tid"]="${prio:-Normale}"        previous_assegnato["$tid"]="${assegnato:-Non assegnato}"      fi    done < <(jq -r '.tickets[] | select(.resolved_at == null) | "\(.ticket_id)|\(.stato)|\(.host)|\(.service)|\(.codice)|\(.descrizione_ticket // "")|\(.priorita // "Normale")|\(.assegnatoA // "Non assegnato")"' "$TRACKING_FILE" 2>/dev/null || true)  fi    
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] ­ƒöä Aggiornamento stati ticket..."    
 # Aggiorna stati ticket  "$YDEA_TOOLKIT" update-tracking    
-# Rileva e logga cambiamenti leggendo CURRENT dall'API invece che dal tracking  
+# Rileva e logga cambiamenti leggen
+do CURRENT dall'API invece che dal tracking  
 # Ottieni dati aggiornati dall'API  local api_data  api_data=$("$YDEA_TOOLKIT" api GET "/tickets?limit=100" 2>/dev/null || 
 echo '{"objs":[]}')    if [[ -f "$TRACKING_FILE" ]]; then    
 # Per ogni ticket tracciato, confronta con i dati API    while 

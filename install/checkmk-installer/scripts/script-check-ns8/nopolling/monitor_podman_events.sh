@@ -24,4 +24,5 @@ LOGFILE="/var/log/podman_events.log"mkdir -p "$(dirname "$LOGFILE")"podman event
 echo "$event" | grep -qi "redis"; then        continue    fi    
 # prendi solo create/start/stop/remove    if 
 echo "$event" | grep -Eq " create | start | stop | remove "; then        
-echo "$(date '+%F %T') - $event" >> "$LOGFILE"    fidone
+echo "$(date '+%F %T') - $event" >> "$LOGFILE"    fi
+done

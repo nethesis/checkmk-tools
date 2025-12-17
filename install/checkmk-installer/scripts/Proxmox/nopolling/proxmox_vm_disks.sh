@@ -8,4 +8,5 @@ echo "$vm" | jq -r '.name')
 echo "$d" | cut -d= -f1)        size=$(
 echo "$d" | cut -d= -f2 | sed 's/,.*//')        [[ "$size" == "" ]] && size="unknownG"        
 # Qui puoi calcolare uso se vuoi, per ora mettiamo 0%        used=0        
-echo "0 vm_${vmid}_${name} Disk disk_used=${used}%;80;90 disk_alloc=${size} - VM ${vmid} (${name}) disco ${size}"    donedone
+echo "0 vm_${vmid}_${name} Disk disk_used=${used}%;80;90 disk_alloc=${size} - VM ${vmid} (${name}) disco ${size}"    done
+done

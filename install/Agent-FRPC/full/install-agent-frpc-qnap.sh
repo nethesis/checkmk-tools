@@ -120,23 +120,30 @@ echo -e "${GREEN}Ô£ô tar disponibile${NC}"    fi
 echo -e "${YELLOW}ÔÜá´©Å  socat non trovato, tentativo installazione...${NC}"                
 # Prova diversi package manager        
 SOCAT_INSTALLED=false                if command -v opkg >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usando opkg (QNAP/OpenWrt)...${NC}"            opkg update 2>&1 | grep -v "Signature check"            if opkg install socat 2>&1; then                
+echo -e "${CYAN}   Usan
+do opkg (QNAP/OpenWrt)...${NC}"            opkg update 2>&1 | grep -v "Signature check"            if opkg install socat 2>&1; then                
 SOCAT_INSTALLED=true            fi        elif command -v yum >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usando yum (CentOS/RHEL)...${NC}"            if yum install -y socat 2>&1 | grep -v "^Loaded plugins"; then                
+echo -e "${CYAN}   Usan
+do yum (CentOS/RHEL)...${NC}"            if yum install -y socat 2>&1 | grep -v "^Loaded plugins"; then                
 SOCAT_INSTALLED=true            fi        elif command -v dnf >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usando dnf (Fedora/RHEL 8+)...${NC}"            if dnf install -y socat 2>&1; then                
+echo -e "${CYAN}   Usan
+do dnf (Fedora/RHEL 8+)...${NC}"            if dnf install -y socat 2>&1; then                
 SOCAT_INSTALLED=true            fi        elif command -v apt-get >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usando apt-get (Debian/Ubuntu)...${NC}"            if apt-get update && apt-get install -y socat 2>&1; then                
+echo -e "${CYAN}   Usan
+do apt-get (Debian/Ubuntu)...${NC}"            if apt-get update && apt-get install -y socat 2>&1; then                
 SOCAT_INSTALLED=true            fi        else            
 echo -e "${YELLOW}ÔÜá´©Å  Package manager non trovato, provo a rilevare il sistema...${NC}"                        
 # Rileva sistema operativo            if [ -f /etc/redhat-release ] || [ -f /etc/centos-release ] || [ -f /etc/rocky-release ]; then                
-echo -e "${CYAN}   Sistema RHEL-based rilevato, usando yum...${NC}"                if command -v yum >/dev/null 2>&1; then                    yum install -y socat 2>&1 | grep -v "^Loaded plugins"                    
+echo -e "${CYAN}   Sistema RHEL-based rilevato, usan
+do yum...${NC}"                if command -v yum >/dev/null 2>&1; then                    yum install -y socat 2>&1 | grep -v "^Loaded plugins"                    
 SOCAT_INSTALLED=true                fi            elif [ -f /etc/debian_version ]; then                
-echo -e "${CYAN}   Sistema Debian-based rilevato, usando apt...${NC}"                if command -v apt >/dev/null 2>&1; then                    apt update && apt install -y socat 2>&1                    
+echo -e "${CYAN}   Sistema Debian-based rilevato, usan
+do apt...${NC}"                if command -v apt >/dev/null 2>&1; then                    apt update && apt install -y socat 2>&1                    
 SOCAT_INSTALLED=true                fi            else                
 echo -e "${RED}Ô£ù Impossibile determinare il package manager${NC}"            fi        fi                
 # Verifica installazione        if ! command -v socat >/dev/null 2>&1; then            
-echo -e "${YELLOW}ÔÜá´©Å  socat non disponibile, uso metodo alternativo${NC}"            
+echo -e "${YELLOW}ÔÜá´©Å  socat non disponibile, uso meto
+do alternativo${NC}"            
 echo -e "${GREEN}Ô£ô Useremo script bash standalone (netcat/bash nativo)${NC}"            
 USE_STANDALONE_MODE=true        else            
 echo -e "${GREEN}Ô£ô socat installato con successo${NC}"        fi    else        
@@ -151,11 +158,14 @@ echo -e "${YELLOW}­ƒôª Download agent v${CHECKMK_VERSION}...${NC}"
 echo -e "   URL: ${CYAN}$AGENT_URL${NC}"        cd /tmp || exit 1    rm -f check_mk_agent.linux 2>/dev/null        if wget -q --show-progress "$AGENT_URL" -O check_mk_agent.linux 2>&1; then        
 echo -e "${GREEN}Ô£ô Download completato${NC}"    else        
 echo -e "${RED}Ô£ù Errore durante il download dell'agent${NC}"        exit 1    fi        
-# Verifica che il file sia valido    if [ ! -f check_mk_agent.linux ] || [ ! -s check_mk_agent.linux ]; then        
-echo -e "${RED}Ô£ù File agent non valido o vuoto${NC}"        exit 1    fi        
+# Verifica che il file sia vali
+do    if [ ! -f check_mk_agent.linux ] || [ ! -s check_mk_agent.linux ]; then        
+echo -e "${RED}Ô£ù File agent non vali
+do o vuoto${NC}"        exit 1    fi        
 # Verifica che sia uno script bash    if ! head -n 1 check_mk_agent.linux | grep -q "^
 #!"; then        
-echo -e "${RED}Ô£ù File scaricato non ├¿ uno script valido${NC}"        exit 1    fi        
+echo -e "${RED}Ô£ù File scaricato non ├¿ uno script vali
+do${NC}"        exit 1    fi        
 echo -e "${GREEN}Ô£ô Agent scaricato e verificato${NC}"}
 # =====================================================
 # Funzione: Installa CheckMK Agent
@@ -202,15 +212,20 @@ echo -e "${CYAN}Configurazione con xinetd...${NC}"
 # Verifica se xinetd ├¿ installato    if ! command -v xinetd >/dev/null 2>&1; then        
 echo -e "${YELLOW}ÔÜá´©Å  xinetd non trovato, tentativo installazione...${NC}"                
 XINETD_INSTALLED=false                if command -v opkg >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usando opkg...${NC}"            opkg update 2>&1 | grep -v "Signature check"            opkg install xinetd && 
+echo -e "${CYAN}   Usan
+do opkg...${NC}"            opkg update 2>&1 | grep -v "Signature check"            opkg install xinetd && 
 XINETD_INSTALLED=true        elif command -v yum >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usando yum...${NC}"            yum install -y xinetd && 
+echo -e "${CYAN}   Usan
+do yum...${NC}"            yum install -y xinetd && 
 XINETD_INSTALLED=true        elif command -v dnf >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usando dnf...${NC}"            dnf install -y xinetd && 
+echo -e "${CYAN}   Usan
+do dnf...${NC}"            dnf install -y xinetd && 
 XINETD_INSTALLED=true        elif command -v apt-get >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usando apt-get...${NC}"            apt-get update && apt-get install -y xinetd && 
+echo -e "${CYAN}   Usan
+do apt-get...${NC}"            apt-get update && apt-get install -y xinetd && 
 XINETD_INSTALLED=true        elif [ -f /etc/redhat-release ] || [ -f /etc/centos-release ] || [ -f /etc/rocky-release ]; then            
-echo -e "${CYAN}   Sistema RHEL-based, usando yum...${NC}"            yum install -y xinetd && 
+echo -e "${CYAN}   Sistema RHEL-based, usan
+do yum...${NC}"            yum install -y xinetd && 
 XINETD_INSTALLED=true        fi                if ! command -v xinetd >/dev/null 2>&1; then            
 echo -e "${RED}Ô£ù Impossibile installare xinetd${NC}"            
 echo -e "${YELLOW}ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù${NC}"            
@@ -241,7 +256,10 @@ echo -e "${GREEN}Ô£ô xinetd installato con successo${NC}"        fi    fi
 # Start CheckMK Agent via xinetd
 LOG_FILE="/opt/checkmk/log/agent.log"
 echo "$(date): Starting CheckMK Agent via xinetd" >> "$LOG_FILE"
-# Restart xinetdif [ -f /etc/init.d/xinetd ]; then    /etc/init.d/xinetd restartelif command -v systemctl >/dev/null 2>&1; then    systemctl restart xinetdelse    killall xinetd 2>/dev/null    xinetdfi
+# Restart xinetdif [ -f /etc/init.d/xinetd ]; then    /etc/init.d/xinetd restart
+elif command -v systemctl >/dev/null 2>&1; then    systemctl restart xinetd
+else    killall xinetd 2>/dev/null    xinetd
+fi
 echo "CheckMK Agent started via xinetd on port 6556"EOF        chmod +x "$AGENT_DIR/start_agent.sh"        
 # Crea script di stop    cat > "$AGENT_DIR/stop_agent.sh" <<'EOF'
 #!/bin/bash
@@ -249,7 +267,9 @@ echo "CheckMK Agent started via xinetd on port 6556"EOF        chmod +x "$AGENT_
 LOG_FILE="/opt/checkmk/log/agent.log"
 echo "$(date): Stopping CheckMK Agent (xinetd)" >> "$LOG_FILE"
 # Remove xinetd configrm -f /etc/xinetd.d/check_mk
-# Restart xinetdif [ -f /etc/init.d/xinetd ]; then    /etc/init.d/xinetd restartelif command -v systemctl >/dev/null 2>&1; then    systemctl restart xinetdfi
+# Restart xinetdif [ -f /etc/init.d/xinetd ]; then    /etc/init.d/xinetd restart
+elif command -v systemctl >/dev/null 2>&1; then    systemctl restart xinetd
+fi
 echo "CheckMK Agent stopped"EOF        chmod +x "$AGENT_DIR/stop_agent.sh"        
 echo -e "${GREEN}Ô£ô Configurazione xinetd creata${NC}"}
 # =====================================================
@@ -295,8 +315,10 @@ echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >> "$LOG_FILE" 2>/dev/null || true}
 # Altrimenti usa Python (compatibile con Python 2.7+)elif command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then    log_msg "Starting agent daemon with Python on port $PORT"        
 PYTHON_CMD=$(command -v python3 2>/dev/null || command -v python 2>/dev/null)        $PYTHON_CMD -u << 'PYTHON_EOF'import socketimport subprocessimport sysPORT = 6556AGENT_BIN = "/opt/checkmk/bin/check_mk_agent"def handle_client(client_socket):    try:        
 # Python 2.7 compatible subprocess call        proc = subprocess.Popen([AGENT_BIN], stdout=subprocess.PIPE, stderr=subprocess.PIPE)        output, _ = proc.communicate()        client_socket.sendall(output)    except Exception as e:        sys.stderr.write("Error handling client: " + str(e) + "\n")    finally:        try:            client_socket.close()        except:            passdef main():    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)    server.bind(('0.0.0.0', PORT))    server.listen(5)        print("CheckMK Agent listening on port " + str(PORT))    sys.stdout.flush()        while True:        try:            client, addr = server.accept()            handle_client(client)        except KeyboardInterrupt:            break        except Exception as e:            sys.stderr.write("Error: " + str(e) + "\n")            continue        server.close()if __name__ == "__main__":    main()PYTHON_EOF
-# Fallback con xinetd se disponibileelif [ -f /etc/xinetd.d/ ] && command -v xinetd >/dev/null 2>&1; then    log_msg "Configuring xinetd for CheckMK agent"    cat > /etc/xinetd.d/checkmk <<XINETD_EOFservice checkmk{    type           = UNLISTED    port           = $PORT    socket_type    = stream    protocol       = tcp    wait           = no    user           = root    server         = $AGENT_BIN    disable        = no}XINETD_EOF        /etc/init.d/xinetd restart    log_msg "Agent configured via xinetd"        
-# Loop per mantenere lo script attivo    while true; do        sleep 3600    doneelse    
+# Fallback con xinetd se disponibile
+elif [ -f /etc/xinetd.d/ ] && command -v xinetd >/dev/null 2>&1; then    log_msg "Configuring xinetd for CheckMK agent"    cat > /etc/xinetd.d/checkmk <<XINETD_EOFservice checkmk{    type           = UNLISTED    port           = $PORT    socket_type    = stream    protocol       = tcp    wait           = no    user           = root    server         = $AGENT_BIN    disable        = no}XINETD_EOF        /etc/init.d/xinetd restart    log_msg "Agent configured via xinetd"        
+# Loop per mantenere lo script attivo    while true; do        sleep 3600    done
+else    
 # Ultimo fallback: netcat detection migliorato    log_msg "No socat or Python found, trying netcat alternatives"        
 # Cerca tutte le possibili varianti di netcat    for NC_CMD in netcat ncat nc.traditional /usr/bin/nc /bin/nc; do        if command -v $NC_CMD >/dev/null 2>&1; then            
 # Test se supporta -l (listen)            if $NC_CMD -h 2>&1 | grep -qi "listen"; then                log_msg "Using $NC_CMD"                while true; do                    $NC_CMD -l -p $PORT -e "$AGENT_BIN" 2>/dev/null || \                    $NC_CMD -l $PORT -e "$AGENT_BIN" 2>/dev/null || \                    $NC_CMD -l -p $PORT -c "$AGENT_BIN" 2>/dev/null || \                    sleep 1                done            fi        fi    done        log_msg "ERROR: No suitable method found to listen on TCP port"    exit 1fiEOF        chmod +x "$AGENT_DIR/agent_daemon.sh"        
@@ -306,9 +328,11 @@ PYTHON_CMD=$(command -v python3 2>/dev/null || command -v python 2>/dev/null)   
 DAEMON="/opt/checkmk/agent_daemon.sh"
 LOG_FILE="/opt/checkmk/log/agent.log"
 PID_FILE="/var/run/checkmk_agent.pid"
-# Kill existing instances (compatibile senza pkill)if command -v pkill >/dev/null 2>&1; then    pkill -f "agent_daemon.sh" 2>/dev/null    pkill -f "nc.*6556" 2>/dev/nullelse    ps aux 2>/dev/null | grep -v grep | grep "agent_daemon.sh" | while read line; do        pid=$(
+# Kill existing instances (compatibile senza pkill)if command -v pkill >/dev/null 2>&1; then    pkill -f "agent_daemon.sh" 2>/dev/null    pkill -f "nc.*6556" 2>/dev/null
+else    ps aux 2>/dev/null | grep -v grep | grep "agent_daemon.sh" | while read line; do        pid=$(
 echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    done    ps aux 2>/dev/null | grep -v grep | grep "nc.*6556" | while read line; do        pid=$(
-echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    donefi
+echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    done
+fi
 # Start daemon in background (senza nohup per compatibilit├á QNAP)
 echo "$(date): Starting CheckMK Agent Standalone Daemon" >> "$LOG_FILE"if command -v nohup >/dev/null 2>&1; then    nohup "$DAEMON" >> "$LOG_FILE" 2>&1 &else    
 # Fallback senza nohup    "$DAEMON" >> "$LOG_FILE" 2>&1 </dev/null &fi
@@ -320,14 +344,17 @@ echo "CheckMK Agent Standalone Daemon started on port 6556 with PID $(cat $PID_F
 LOG_FILE="/opt/checkmk/log/agent.log"
 PID_FILE="/var/run/checkmk_agent.pid"
 echo "$(date): Stopping CheckMK Agent Standalone Daemon" >> "$LOG_FILE"
-# Kill daemon (compatibile senza pkill)if command -v pkill >/dev/null 2>&1; then    pkill -f "agent_daemon.sh" 2>/dev/null    pkill -f "nc.*6556" 2>/dev/null    pkill -f "ncat.*6556" 2>/dev/nullelse    ps aux 2>/dev/null | grep -v grep | grep "agent_daemon.sh" | while read line; do        pid=$(
+# Kill daemon (compatibile senza pkill)if command -v pkill >/dev/null 2>&1; then    pkill -f "agent_daemon.sh" 2>/dev/null    pkill -f "nc.*6556" 2>/dev/null    pkill -f "ncat.*6556" 2>/dev/null
+else    ps aux 2>/dev/null | grep -v grep | grep "agent_daemon.sh" | while read line; do        pid=$(
 echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    done    ps aux 2>/dev/null | grep -v grep | grep "nc.*6556" | while read line; do        pid=$(
 echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    done    ps aux 2>/dev/null | grep -v grep | grep "ncat.*6556" | while read line; do        pid=$(
-echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    donefi
+echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    done
+fi
 # Remove PID filerm -f "$PID_FILE"
 echo "CheckMK Agent Standalone Daemon stopped"EOF        chmod +x "$AGENT_DIR/stop_agent.sh"        
 echo -e "${GREEN}Ô£ô Configurazione standalone creata${NC}"    
-echo -e "${CYAN}  Questo metodo usa netcat o bash puro, nessuna dipendenza richiesta${NC}"}
+echo -e "${CYAN}  Questo meto
+do usa netcat o bash puro, nessuna dipendenza richiesta${NC}"}
 # =====================================================
 # Funzione: Scarica e installa FRPC
 # =====================================================install_frpc() {    
@@ -394,8 +421,10 @@ FRPC_BIN="/opt/frpc/bin/frpc"
 FRPC_CONF="/opt/frpc/conf/frpc.toml"
 LOG_FILE="/opt/frpc/log/startup.log"
 PID_FILE="/var/run/frpc.pid"
-# Kill existing instances (compatibile senza pkill)if command -v pkill >/dev/null 2>&1; then    pkill -f "frpc -c" 2>/dev/nullelse    ps aux 2>/dev/null | grep -v grep | grep "frpc -c" | while read line; do        pid=$(
-echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    donefi
+# Kill existing instances (compatibile senza pkill)if command -v pkill >/dev/null 2>&1; then    pkill -f "frpc -c" 2>/dev/null
+else    ps aux 2>/dev/null | grep -v grep | grep "frpc -c" | while read line; do        pid=$(
+echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    done
+fi
 # Start FRPC (senza nohup per compatibilit├á QNAP)
 echo "$(date): Starting FRPC client" >> "$LOG_FILE"if command -v nohup >/dev/null 2>&1; then    nohup "$FRPC_BIN" -c "$FRPC_CONF" >> "$LOG_FILE" 2>&1 &else    
 # Fallback senza nohup    "$FRPC_BIN" -c "$FRPC_CONF" >> "$LOG_FILE" 2>&1 </dev/null &fi
@@ -407,8 +436,10 @@ echo "FRPC client started with PID $(cat $PID_FILE)"EOFSTART        chmod +x "$F
 LOG_FILE="/opt/frpc/log/startup.log"
 PID_FILE="/var/run/frpc.pid"
 echo "$(date): Stopping FRPC client" >> "$LOG_FILE"
-# Kill process (compatibile senza pkill)if command -v pkill >/dev/null 2>&1; then    pkill -f "frpc -c" 2>/dev/nullelse    ps aux 2>/dev/null | grep -v grep | grep "frpc -c" | while read line; do        pid=$(
-echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    donefi
+# Kill process (compatibile senza pkill)if command -v pkill >/dev/null 2>&1; then    pkill -f "frpc -c" 2>/dev/null
+else    ps aux 2>/dev/null | grep -v grep | grep "frpc -c" | while read line; do        pid=$(
+echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    done
+fi
 # Remove PID filerm -f "$PID_FILE"
 echo "FRPC client stopped"EOFSTOP        chmod +x "$FRPC_DIR/stop_frpc.sh"        
 echo -e "${GREEN}Ô£ô Script di controllo FRPC creati${NC}"}
@@ -427,10 +458,12 @@ echo -e "${YELLOW}Ô£ô Backup di autorun.sh creato${NC}"    fi
 #!/bin/sh
 # QNAP Autorun ScriptEOF        chmod +x "$QNAP_AUTORUN"    fi        
 # Aggiungi startup per CheckMK Agent    cat >> "$QNAP_AUTORUN" <<EOF
-# CheckMK Agent autostartif [ -f "$AGENT_DIR/start_agent.sh" ]; then    sleep 10    $AGENT_DIR/start_agent.shfi
+# CheckMK Agent autostartif [ -f "$AGENT_DIR/start_agent.sh" ]; then    sleep 10    $AGENT_DIR/start_agent.sh
+fi
 # End CheckMK AgentEOF        
 # Aggiungi startup per FRPC se installato    if [ "$INSTALL_FRPC" = "yes" ]; then        cat >> "$QNAP_AUTORUN" <<EOF
-# FRPC Client autostartif [ -f "$FRPC_DIR/start_frpc.sh" ]; then    sleep 15    $FRPC_DIR/start_frpc.shfi
+# FRPC Client autostartif [ -f "$FRPC_DIR/start_frpc.sh" ]; then    sleep 15    $FRPC_DIR/start_frpc.sh
+fi
 # End FRPC ClientEOF    fi        chmod +x "$QNAP_AUTORUN"        
 echo -e "${GREEN}Ô£ô Autostart configurato${NC}"    
 echo -e "   File: ${CYAN}$QNAP_AUTORUN${NC}"}
@@ -440,7 +473,8 @@ echo -e "   File: ${CYAN}$QNAP_AUTORUN${NC}"}
 echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ AVVIO SERVIZI ÔòÉÔòÉÔòÉ${NC}"        
 # Avvia CheckMK Agent    
 echo -e "${YELLOW}­ƒÜÇ Avvio CheckMK Agent...${NC}"    "$AGENT_DIR/start_agent.sh"    sleep 2        
-# Verifica in base al metodo usato    if [ "${USE_STANDALONE_MODE:-false}" = "true" ]; then        if is_process_running "agent_daemon.sh" || is_process_running "nc.*6556"; then            
+# Verifica in base al meto
+do usato    if [ "${USE_STANDALONE_MODE:-false}" = "true" ]; then        if is_process_running "agent_daemon.sh" || is_process_running "nc.*6556"; then            
 echo -e "${GREEN}Ô£ô CheckMK Agent attivo su porta 6556 (standalone daemon)${NC}"        else            
 echo -e "${YELLOW}ÔÜá´©Å  Agent daemon potrebbe non essere attivo${NC}"        fi    else        if is_process_running "socat.*6556"; then            
 echo -e "${GREEN}Ô£ô CheckMK Agent attivo su porta 6556 (socat)${NC}"        else            
@@ -478,9 +512,12 @@ echo -e "${CYAN}­ƒôï Informazioni installazione:${NC}"
 echo -e "   ÔÇó Tipo sistema: ${YELLOW}$NAS_TYPE${NC}"    
 echo -e "   ÔÇó Agent directory: ${YELLOW}$AGENT_DIR${NC}"    
 echo -e "   ÔÇó Agent porta: ${YELLOW}6556 (TCP)${NC}"        
-# Mostra il metodo di avvio usato    if [ "${USE_STANDALONE_MODE:-false}" = "true" ]; then        
-echo -e "   ÔÇó Metodo avvio: ${YELLOW}standalone daemon (netcat/bash)${NC}"    else        
-echo -e "   ÔÇó Metodo avvio: ${YELLOW}socat${NC}"    fi        if [ -f "$QNAP_AUTORUN" ]; then        
+# Mostra il meto
+do di avvio usato    if [ "${USE_STANDALONE_MODE:-false}" = "true" ]; then        
+echo -e "   ÔÇó Meto
+do avvio: ${YELLOW}standalone daemon (netcat/bash)${NC}"    else        
+echo -e "   ÔÇó Meto
+do avvio: ${YELLOW}socat${NC}"    fi        if [ -f "$QNAP_AUTORUN" ]; then        
 echo -e "   ÔÇó Autostart: ${YELLOW}$QNAP_AUTORUN${NC}"    fi        if [ "$INSTALL_FRPC" = "yes" ]; then        
 echo -e "   ÔÇó FRPC directory: ${YELLOW}$FRPC_DIR${NC}"        
 echo -e "   ÔÇó FRPC config: ${YELLOW}$FRPC_DIR/conf/frpc.toml${NC}"        
@@ -537,7 +574,8 @@ MODE="uninstall-frpc"        ;;    --uninstall-agent)
 MODE="uninstall-agent"        ;;    --uninstall)        
 MODE="uninstall-all"        ;;    "")        
 MODE="install"        ;;    *)        
-echo -e "${RED}Ô£ù Parametro non valido: $1${NC}"        show_usage        ;;esac
+echo -e "${RED}Ô£ù Parametro non vali
+do: $1${NC}"        show_usage        ;;esac
 # =====================================================
 # Verifica permessi root
 # =====================================================if [ "$(id -u)" -ne 0 ]; then    
@@ -568,7 +606,8 @@ echo -e "${YELLOW}FRPC permette di accedere all'agent attraverso un tunnel FRP${
 echo -ne "\n${YELLOW}Installare FRPC? ${NC}[s/N]: "read -r 
 INSTALL_FRPC_INPUTINSTALL_FRPC="no"if [[ "$INSTALL_FRPC_INPUT" =~ ^[sS]$ ]]; then    
 INSTALL_FRPC="yes"    
-# Installa e configura FRPC    install_frpc    configure_frpcfi
+# Installa e configura FRPC    install_frpc    configure_frpc
+fi
 # Configura autostartconfigure_autostart
 # Avvia servizistart_services
 # Test finalerun_tests

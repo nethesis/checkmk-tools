@@ -79,7 +79,8 @@ echo "use_cache_for_checking = True" >> "$GLOBAL_MK"
 # 6´©ÅÔâú Riavvio e benchmark post-modifica (v3.1 con attesa dinamica)
 # ---------------------------------------------------------------echo
 echo -e "${YELLOW}ÔåÆ Riavvio del sito $SITE...${NC}"omd restart "$SITE"
-echo -e "${YELLOW}ÔåÆ Attendo stabilizzazione dei processi (min 60s)...${NC}"
+echo -e "${YELLOW}ÔåÆ Atten
+do stabilizzazione dei processi (min 60s)...${NC}"
 STABLE_COUNT=0
 PREV_PROC=0
 SECONDS_WAITED=0while [ $STABLE_COUNT -lt 2 ]; do    sleep 10    
@@ -87,7 +88,8 @@ PROC_NOW=$(ps -eo comm | grep check_ | wc -l)    if [ "$PROC_NOW" == "$PREV_PROC
 STABLE_COUNT=0    fi    
 PREV_PROC=$PROC_NOW    ((SECONDS_WAITED+=10))    
 echo "  ÔÅ▒  Verifica dopo ${SECONDS_WAITED}s ÔåÆ $PROC_NOW processi check_*"    if [ $SECONDS_WAITED -ge 120 ]; then        
-echo "  ÔÜá´©Å  Timeout di stabilizzazione raggiunto (120s)"        break    fidone
+echo "  ÔÜá´©Å  Timeout di stabilizzazione raggiunto (120s)"        break    fi
+done
 echo -e "${GREEN}ÔåÆ Processi stabilizzati, misuro ora...${NC}"
 CPU_AFTER=$(mpstat 3 3 | awk '/Average/ && $12 ~ /[0-9.]+/ {sum += 100 - $12; count++} END {if (count>0) print sum/count}')
 LOAD_AFTER=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}')

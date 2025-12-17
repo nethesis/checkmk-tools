@@ -45,7 +45,8 @@ echo "  Nessuna opzione extra trovata in global.mk"echo
 # ---------------------------------------------------------------
 # 2´©ÅÔâú Inserimento nuovi valori
 # ---------------------------------------------------------------
-echo -e "${YELLOW}ÔåÆ Inserisci i nuovi valori (invio per usare i default suggeriti):${NC}"read -r -p "  Nuovo valore per max_concurrent_checks [30]: " NEW_CONCread -r -p "  Nuovo valore per service_check_timeout (sec) [60]: " NEW_SERV_TMOUTread -r -p "  Nuovo valore per host_check_timeout (sec) [60]: " NEW_HOST_TMOUTread -r -p "  Nuovo valore per sleep_time (sec fra i check) [0.25]: " NEW_SLEEPread -r -p "  Metodo inter_check_delay (n = none / s = spread / d = smart) [s]: " 
+echo -e "${YELLOW}ÔåÆ Inserisci i nuovi valori (invio per usare i default suggeriti):${NC}"read -r -p "  Nuovo valore per max_concurrent_checks [30]: " NEW_CONCread -r -p "  Nuovo valore per service_check_timeout (sec) [60]: " NEW_SERV_TMOUTread -r -p "  Nuovo valore per host_check_timeout (sec) [60]: " NEW_HOST_TMOUTread -r -p "  Nuovo valore per sleep_time (sec fra i check) [0.25]: " NEW_SLEEPread -r -p "  Meto
+do inter_check_delay (n = none / s = spread / d = smart) [s]: " 
 NEW_DELAYNEW_CONC=${NEW_CONC:-30}
 NEW_SERV_TMOUT=${NEW_SERV_TMOUT:-60}
 NEW_HOST_TMOUT=${NEW_HOST_TMOUT:-60}
@@ -71,7 +72,8 @@ echo "use_cache_for_checking = True" >> "$GLOBAL_MK"
 # 5´©ÅÔâú Riavvio e verifica
 # ---------------------------------------------------------------echo
 echo -e "${YELLOW}ÔåÆ Riavvio del sito $SITE...${NC}"omd restart "$SITE"echo
-echo -e "${CYAN}Ultime righe del log Nagios:${NC}"sudo -u "$SITE" tail -n 10 "$SITEPATH/var/nagios/nagios.log" 2>/dev/null || tail -n 10 "$SITEPATH/var/nagios/nagios.log"echo
+echo -e "${CYAN}Ultime righe del log Nagios:${NC}"su
+do -u "$SITE" tail -n 10 "$SITEPATH/var/nagios/nagios.log" 2>/dev/null || tail -n 10 "$SITEPATH/var/nagios/nagios.log"echo
 echo -e "${CYAN}Processi di check attivi:${NC}"ps -eo comm | grep check_ | wc -lecho
 echo -e "${GREEN}Ô£à Ottimizzazione completata!${NC}"
 echo "Backup salvato in: $BACKUP_DIR"echo

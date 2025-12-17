@@ -6,7 +6,8 @@ MODULE_NAME="Monitoring Scripts Deployment"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
-# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +afi
+# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
+fi
 # Module startlog_module_start "$MODULE_NAME"
 # Script source directory - check multiple possible locationsif [[ -d "/cdrom/script-notify-checkmk" ]]; then  
 # Running from ISO mount point  
@@ -692,7 +693,8 @@ BACKUP_FILE="$BACKUP_DIR/scripts-backup-$(date +%Y%m%d_%H%M%S).tar.gz"tar czf "$
 echo "Backup created: $BACKUP_FILE"
 echo ""
 # Update from GitHub or localif [[ -d "$LOCAL_REPO" ]]; then  
-echo "Updating from local repository..."  cd "$LOCAL_REPO"  git pull origin mainelse  
+echo "Updating from local repository..."  cd "$LOCAL_REPO"  git pull origin main
+else  
 echo "Cloning repository..."  git clone "$REPO_URL" "$LOCAL_REPO"fi
 echo ""
 echo "Deploying updated scripts..."

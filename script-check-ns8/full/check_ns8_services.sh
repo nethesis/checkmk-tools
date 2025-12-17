@@ -1,6 +1,7 @@
 #!/bin/bash
 # check_ns8_mail_services.sh
-# Controllo servizi mail principali leggendo lo stato dei container
+# Controllo servizi mail principali leggen
+do lo stato dei container
 # + numero sessioni IMAP attive da doveadm
 # + stato critico se rilevato vsz_limit nei log di Dovecot
 # + warning se VszLimit non ├â┬¿ impostato
@@ -33,4 +34,5 @@ echo "2 dovecot_vszlimit - CRIT: rilevato vsz_limit (${OCCURRENCES} occorrenze n
 echo "0 dovecot_vszlimit - Nessun allarme nei log (limite configurato=${VSZ})"                        else                            
 echo "1 dovecot_vszlimit - WARNING: Nessun allarme nei log (limite non impostato)"                        fi                    fi                fi            else                
 echo "2 ${SVC} - ${SVC} non attivo"            fi        else            
-echo "3 ${SVC} - ${SVC} non trovato"        fi    donedone
+echo "3 ${SVC} - ${SVC} non trovato"        fi    done
+done

@@ -113,7 +113,8 @@ UBUNTU_ISO_NAME="ubuntu-${UBUNTU_VERSION}-live-server-amd64.iso"init_loggingprin
 #
 #check_dependencies() {  log_info "Checking dependencies..."    local deps=("wget" "xorriso" "mksquashfs" "genisoimage" "7z")  local missing=()    for dep in "${deps[@]}"; do    if ! command -v "$dep" &>/dev/null; then      missing+=("$dep")    fi  done    
 # Check for isolinux files  if [[ ! -f "/usr/lib/ISOLINUX/isolinux.bin" ]] && [[ ! -f "/usr/lib/isolinux/isolinux.bin" ]]; then    missing+=("isolinux")  fi    if [[ ${
-#missing[@]} -gt 0 ]]; then    log_error "Missing dependencies: ${missing[*]}"    log_info "Install with: sudo apt-get install xorriso isolinux squashfs-tools genisoimage wget"    return 1  fi    log_success "All dependencies installed"}
+#missing[@]} -gt 0 ]]; then    log_error "Missing dependencies: ${missing[*]}"    log_info "Install with: su
+do apt-get install xorriso isolinux squashfs-tools genisoimage wget"    return 1  fi    log_success "All dependencies installed"}
 #
 #
 #
@@ -495,7 +496,8 @@ echo -ne "\r${CYAN}Extracting... Done!${NC}\n"    cd - > /dev/null    if [ $exit
 # Create isolinux directory if doesn't exist  local isolinux_dir="${iso_root}/isolinux"  mkdir -p "$isolinux_dir"    
 # Copy isolinux files  if [[ -f "/usr/lib/ISOLINUX/isolinux.bin" ]]; then    cp /usr/lib/ISOLINUX/isolinux.bin "$isolinux_dir/"  elif [[ -f "/usr/lib/syslinux/modules/bios/isolinux.bin" ]]; then    cp /usr/lib/syslinux/modules/bios/isolinux.bin "$isolinux_dir/"  fi    
 # Copy required syslinux modules  for module in ldlinux.c32 libcom32.c32 libutil.c32 vesamenu.c32; do    if [[ -f "/usr/lib/syslinux/modules/bios/$module" ]]; then      cp "/usr/lib/syslinux/modules/bios/$module" "$isolinux_dir/"    fi  done    
-# Create isolinux.cfg  cat > "${isolinux_dir}/isolinux.cfg" <<'EOF'DEFAULT vesamenu.c32TIMEOUT 300PROMPT 0MENU TITLE CheckMK Installer Boot MenuLABEL ubuntu  MENU LABEL Boot CheckMK Installer (Ubuntu Live)  KERNEL /casper/vmlinuz  APPEND initrd=/casper/initrd boot=casper quiet splash ---LABEL grub  MENU LABEL Boot using GRUB (UEFI)  COM32 chain.c32  APPEND grubLABEL local  MENU LABEL Boot from local disk  LOCALBOOT 0EOF    log_success "Hybrid boot configured"}
+# Create isolinux.cfg  cat > "${isolinux_dir}/isolinux.cfg" <<'EOF'DEFAULT vesamenu.c32TIMEOUT 300PROMPT 0MENU TITLE CheckMK Installer Boot MenuLABEL ubuntu  MENU LABEL Boot CheckMK Installer (Ubuntu Live)  KERNEL /casper/vmlinuz  APPEND initrd=/casper/initrd boot=casper quiet splash ---LABEL grub  MENU LABEL Boot using GRUB (UE
+FI)  COM32 chain.c32  APPEND grubLABEL local  MENU LABEL Boot from local disk  LOCALBOOT 0EOF    log_success "Hybrid boot configured"}
 #
 #
 #
@@ -600,12 +602,14 @@ echo "  /cdrom/checkmk-installer/"
 echo ""
 echo "To start the installation, run:"
 echo "  cd /cdrom/checkmk-installer"
-echo "  sudo ./installer.sh"
+echo "  su
+do ./installer.sh"
 echo ""
 echo "Or copy to local system:"
 echo "  cp -r /cdrom/checkmk-installer ~/"
 echo "  cd ~/checkmk-installer"
-echo "  sudo ./installer.sh"
+echo "  su
+do ./installer.sh"
 echo ""EOF    chmod +x "${iso_root}/autostart.sh"    
 # Add to boot message  if [[ -f "${iso_root}/isolinux/txt.cfg" ]]; then    sed -i '1i default live\nlabel live\n  menu label ^Start Ubuntu with CheckMK Installer\n  kernel /casper/vmlinuz\n  append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd quiet splash ---\n' \      "${iso_root}/isolinux/txt.cfg"  fi    log_success "Autostart configured"}
 #
@@ -801,7 +805,8 @@ echo "CheckMK Installer copied to /root/checkmk-installer" > /target/root/INSTAL
 #
 #
 #update_boot_menu() {  local iso_root="$1"    log_info "Updating boot menu..."    
-# Update grub.cfg for UEFI  if [[ -f "${iso_root}/boot/grub/grub.cfg" ]]; then    cat > "${iso_root}/boot/grub/grub.cfg" <<'EOF'set timeout=10set default=0menuentry "Install Ubuntu with CheckMK Installer" {    set gfxpayload=keep    linux   /casper/vmlinuz file=/cdrom/preseed/checkmk-installer.seed boot=casper automatic-ubiquity quiet splash ---    initrd  /casper/initrd}menuentry "Try Ubuntu (with installer available)" {    set gfxpayload=keep    linux   /casper/vmlinuz boot=casper quiet splash ---    initrd  /casper/initrd}menuentry "Boot from local disk" {    exit}EOF  fi    log_success "Boot menu updated"}
+# Update grub.cfg for UE
+FI  if [[ -f "${iso_root}/boot/grub/grub.cfg" ]]; then    cat > "${iso_root}/boot/grub/grub.cfg" <<'EOF'set timeout=10set default=0menuentry "Install Ubuntu with CheckMK Installer" {    set gfxpayload=keep    linux   /casper/vmlinuz file=/cdrom/preseed/checkmk-installer.seed boot=casper automatic-ubiquity quiet splash ---    initrd  /casper/initrd}menuentry "Try Ubuntu (with installer available)" {    set gfxpayload=keep    linux   /casper/vmlinuz boot=casper quiet splash ---    initrd  /casper/initrd}menuentry "Boot from local disk" {    exit}EOF  fi    log_success "Boot menu updated"}
 #
 #
 #
@@ -895,7 +900,10 @@ echo "CheckMK Installer copied to /root/checkmk-installer" > /target/root/INSTAL
 #build_iso() {  local iso_root="$1"  local output_iso="$2"    log_info "Building ISO image..."  log_info "This may take several minutes..."  
 echo -ne "${CYAN}Progress: ${WHITE}0%${NC} "    
 # Create output directory  mkdir -p "$(dirname "$output_iso")"    
-# Build ISO with xorriso (UEFI + Legacy BIOS via isolinux)  xorriso -as mkisofs \    -r -V "CheckMK_Installer" \    -o "$output_iso" \    -J -joliet-long \    -b isolinux/isolinux.bin \    -c isolinux/boot.cat \    -no-emul-boot \    -boot-load-size 4 \    -boot-info-table \    -eltorito-alt-boot \    -e EFI/boot/bootx64.efi \    -no-emul-boot \    -isohybrid-gpt-basdat \    "$iso_root" 2>&1 | \    grep --line-buffered -oP '\d+\.\d+%' | \    while read -r percent; do      
+# Build ISO with xorriso (UE
+FI + Legacy BIOS via isolinux)  xorriso -as mkisofs \    -r -V "CheckMK_Installer" \    -o "$output_iso" \    -J -joliet-long \    -b isolinux/isolinux.bin \    -c isolinux/boot.cat \    -no-emul-boot \    -boot-load-size 4 \    -boot-info-table \    -eltorito-alt-boot \    -e E
+FI/boot/bootx64.e
+fi \    -no-emul-boot \    -isohybrid-gpt-basdat \    "$iso_root" 2>&1 | \    grep --line-buffered -oP '\d+\.\d+%' | \    while read -r percent; do      
 echo -ne "\r${CYAN}Progress: ${WHITE}${percent}${NC} "    done    local exit_code=${PIPESTATUS[0]}  
 echo ""    if [ $exit_code -ne 0 ]; then    log_error "Failed to build ISO"    return 1  fi    log_success "ISO built successfully"}
 #
@@ -988,7 +996,8 @@ echo ""    if [ $exit_code -ne 0 ]; then    log_error "Failed to build ISO"    r
 #
 #
 #
-#make_hybrid() {  local iso_file="$1"    log_info "Making ISO hybrid (USB bootable)..."    if command -v isohybrid &>/dev/null; then    isohybrid --uefi "$iso_file" 2>&1 | tee -a "$LOG_FILE" || true    log_success "ISO is now hybrid (can boot from USB)"  else    log_warning "isohybrid not found, ISO may not boot from USB"  fi}
+#make_hybrid() {  local iso_file="$1"    log_info "Making ISO hybrid (USB bootable)..."    if command -v isohybrid &>/dev/null; then    isohybrid --ue
+fi "$iso_file" 2>&1 | tee -a "$LOG_FILE" || true    log_success "ISO is now hybrid (can boot from USB)"  else    log_warning "isohybrid not found, ISO may not boot from USB"  fi}
 #
 #
 #
@@ -1173,7 +1182,11 @@ echo "  SHA256: $(cat "$sha256sum_file")"}
 #
 #
 #display_final_info() {  local iso_file="$1"local iso_sizelocal iso_sizeiso_size=$(du -h "$iso_file" | cut -f1)    print_separator "="  
-echo ""  display_box "ISO Build Complete!" \    "" \    "ISO File: $iso_file" \    "Size: $iso_size" \    "" \    "Write to USB:" \    "  Linux: sudo dd if=$iso_file of=/dev/sdX bs=4M status=progress" \    "  Windows: Use Rufus or Etcher" \    "  Mac: sudo dd if=$iso_file of=/dev/diskX bs=4m" \    "" \    "Boot from USB and run:" \    "  cd /cdrom/checkmk-installer" \    "  sudo ./installer.sh" \    "" \    "Or copy to installed system:" \    "  cp -r /cdrom/checkmk-installer ~/" \    "  cd ~/checkmk-installer && sudo ./installer.sh"  
+echo ""  display_box "ISO Build Complete!" \    "" \    "ISO File: $iso_file" \    "Size: $iso_size" \    "" \    "Write to USB:" \    "  Linux: su
+do dd if=$iso_file of=/dev/sdX bs=4M status=progress" \    "  Windows: Use Rufus or Etcher" \    "  Mac: su
+do dd if=$iso_file of=/dev/diskX bs=4m" \    "" \    "Boot from USB and run:" \    "  cd /cdrom/checkmk-installer" \    "  su
+do ./installer.sh" \    "" \    "Or copy to installed system:" \    "  cp -r /cdrom/checkmk-installer ~/" \    "  cd ~/checkmk-installer && su
+do ./installer.sh"  
 echo ""  print_separator "="}
 #
 #
@@ -1358,7 +1371,8 @@ echo ""  print_separator "="}
 #
 #main() {  log_module_start "ISO Builder"    
 # Check if running as root  if [[ $EUID -ne 0 ]]; then    log_error "This script must be run as root"    
-echo "Please run: sudo $0"    exit 1  fi    
+echo "Please run: su
+do $0"    exit 1  fi    
 # Check dependencies  if ! check_dependencies; then    exit 1  fi    
 # Confirm action  
 echo ""  log_warning "This will create a ~3GB bootable ISO file"  log_info "The process will take 10-20 minutes"  

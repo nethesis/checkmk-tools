@@ -49,7 +49,8 @@ DETAIL=$(curl -s \    -H "Accept: application/json" \    -H "Authorization: Bear
 echo "$DETAIL" | jq '.'    
 echo ""  
 echo "Tutte le chiavi disponibili in un contratto:"  
-echo "$DETAIL" | jq 'keys[]' | sortfi
+echo "$DETAIL" | jq 'keys[]' | sort
+fi
 echo ""
 echo "­ƒÆ¥ File salvato: $ALL_CONTRACTS"
 echo ""

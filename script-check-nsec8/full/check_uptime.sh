@@ -3,7 +3,8 @@
 echo "<<<firewall_uptime>>>"
 # Leggi uptime in secondiif [[ -f /proc/uptime ]]; then    uptime_seconds=$(cut -d. -f1 /proc/uptime)else    uptime_seconds=0fi
 # Converti in giorni, ore, minutidays=$((uptime_seconds / 86400))hours=$(( (uptime_seconds % 86400) / 3600 ))minutes=$(( (uptime_seconds % 3600) / 60 ))
-# Leggi load averageif [[ -f /proc/loadavg ]]; then    read -r load1 load5 load15 rest < /proc/loadavgelse    load1=0    load5=0    load15=0fi
+# Leggi load averageif [[ -f /proc/loadavg ]]; then    read -r load1 load5 load15 rest < /proc/loadavg
+else    load1=0    load5=0    load15=0fi
 # Numero di CPUcpu_count=$(nproc 2>/dev/null || 
 echo 1)
 # Calcola load normalizzato per CPUload1_norm=$(awk "BEGIN {printf \"%.2f\", $load1 / $cpu_count}")load5_norm=$(awk "BEGIN {printf \"%.2f\", $load5 / $cpu_count}")

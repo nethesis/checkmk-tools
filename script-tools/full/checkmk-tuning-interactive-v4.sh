@@ -87,7 +87,8 @@ echo "  service_check_timeout = $NEW_SERV_TMOUT"
 echo "  host_check_timeout    = $NEW_HOST_TMOUT"    
 echo "  sleep_time            = $NEW_SLEEP"    
 echo "  inter_check_delay     = $NEW_DELAY"    
-echo "  Commento: $COMMENT"    echoelse    
+echo "  Commento: $COMMENT"    echo
+else    
 # Interattivo    
 echo -e "${YELLOW}ÔåÆ Inserisci i nuovi valori (invio = default):${NC}"    read -r -p "  max_concurrent_checks [30]: " NEW_CONC    read -r -p "  service_check_timeout [60]: " NEW_SERV_TMOUT    read -r -p "  host_check_timeout [60]: " NEW_HOST_TMOUT    read -r -p "  sleep_time [0.25]: " NEW_SLEEP    read -r -p "  inter_check_delay (n/s/d) [s]: " NEW_DELAY    
 NEW_CONC=${NEW_CONC:-30}    
@@ -115,7 +116,8 @@ echo "use_cache_for_checking = True" >> "$GLOBAL_MK"
 # 6´©ÅÔâú Riavvio + Benchmark post
 # ---------------------------------------------------------------
 echo -e "${YELLOW}ÔåÆ Riavvio del sito $SITE...${NC}"omd restart "$SITE"
-echo -e "${YELLOW}ÔåÆ Attendo stabilizzazione dei processi...${NC}"
+echo -e "${YELLOW}ÔåÆ Atten
+do stabilizzazione dei processi...${NC}"
 STABLE_COUNT=0
 PREV_PROC=0
 SECONDS_WAITED=0while [ $STABLE_COUNT -lt 2 ]; do    sleep 10    
@@ -123,8 +125,10 @@ PROC_NOW=$(ps -eo comm | grep check_ | wc -l)    if [ "$PROC_NOW" == "$PREV_PROC
 STABLE_COUNT=0    fi    
 PREV_PROC=$PROC_NOW    ((SECONDS_WAITED+=10))    
 echo "  ÔÅ▒ Verifica dopo ${SECONDS_WAITED}s ÔåÆ $PROC_NOW processi check_*"    if [ $SECONDS_WAITED -ge 120 ]; then        
-echo "  ÔÜá´©Å Timeout di stabilizzazione raggiunto (120s)"        break    fidone
-echo -e "${YELLOW}ÔåÆ Attendo 60s di quiete prima del benchmark finale...${NC}"sleep 60
+echo "  ÔÜá´©Å Timeout di stabilizzazione raggiunto (120s)"        break    fi
+done
+echo -e "${YELLOW}ÔåÆ Atten
+do 60s di quiete prima del benchmark finale...${NC}"sleep 60
 CPU_SUM=0
 COUNT=0for i in {1..3}; do    
 SAMPLE=$(mpstat 3 3 | awk '/Average/ && $12 ~ /[0-9.]+/ {sum += 100 - $12; count++} END {if (count>0) print sum/count}')    

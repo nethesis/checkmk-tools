@@ -2,7 +2,8 @@
 /usr/bin/env bash
 # esempi-ydea.sh - Script di esempio per operazioni comuni
 TOOLKIT="./ydea-toolkit.sh"
-# Carica credenzialiif [[ -f .env ]]; then  source .envelse  
+# Carica credenzialiif [[ -f .env ]]; then  source .env
+else  
 echo "ÔØî File .env non trovato. Copia .env.example in .env e compila le credenziali."  exit 1fi
 echo "=== ESEMPI DI USO YDEA TOOLKIT ==="echo
 # === ESEMPIO 1: Report giornaliero ticket ===esempio_report_giornaliero() {  
@@ -84,7 +85,8 @@ echo  read -r -p "Scelta [0-5]: " choice    case $choice in    1) esempio_report
 echo "Ciao!"; exit 0 ;;    *) 
 echo "ÔØî Scelta non valida"; show_menu ;;  esac    
 echo  read -r -p "Premi INVIO per continuare..."  show_menu}
-# Avvioif [[ "${1:-}" == "--menu" ]]; then  show_menuelse  
+# Avvioif [[ "${1:-}" == "--menu" ]]; then  show_menu
+else  
 echo "Esegui con --menu per il menu interattivo"  
 echo "Oppure esegui singole funzioni:"  
 echo "  source $0 && esempio_report_giornaliero"  

@@ -6,7 +6,8 @@ MODULE_NAME="CheckMK Agent Installation"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
-# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +aelse  log_error "Configuration file not found. Run config-wizard.sh first."  exit 1fi
+# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
+else  log_error "Configuration file not found. Run config-wizard.sh first."  exit 1fi
 # Module startlog_module_start "$MODULE_NAME"
 #
 #

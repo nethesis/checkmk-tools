@@ -26,4 +26,7 @@ echo "WARNING: nessun processo in ascolto"  fi
 echo -n "  - Porta 443: "  if ss -tulpn | grep -q ':443 '; then    
 echo "OK (in ascolto)"  else    
 echo "WARNING: nessun processo in ascolto"  fi    
-echo ""fiif [[ "$EUID" -ne 0 ]]; then  exec sudo --preserve-env=WS,LETSENCRYPT_EMAIL,LETSENCRYPT_DOMAINS,REDIRECT_TO_SITE,DEFAULT_SITE,CHECK_PREREQS \    bash "$AUTO_SCRIPT" --interactiveelse  exec bash "$AUTO_SCRIPT" --interactivefi
+echo ""fiif [[ "$EUID" -ne 0 ]]; then  exec su
+do --preserve-env=WS,LETSENCRYPT_EMAIL,LETSENCRYPT_DOMAINS,REDIRECT_TO_SITE,DEFAULT_SITE,CHECK_PREREQS \    bash "$AUTO_SCRIPT" --interactive
+else  exec bash "$AUTO_SCRIPT" --interactive
+fi

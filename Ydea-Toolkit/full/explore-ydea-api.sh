@@ -40,7 +40,8 @@ echo ""
 echo ""    
 echo "Struttura JSON:"    
 echo "$response" | jq -r 'keys' 2>/dev/null || 
-echo "Non ├¿ JSON valido"        
+echo "Non ├¿ JSON vali
+do"        
 # Se ha array 'objs', mostra quanti elementi    local count    count=$(
 echo "$response" | jq -r '.objs | length' 2>/dev/null || 
 echo "")    if [[ -n "$count" && "$count" != "null" ]]; then      

@@ -18,7 +18,8 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Ô£à $*"; }
 echo '{}' > "$TICKET_CACHE"}
 # Verifica se esiste gi├á un ticket aperto per questo alertticket_exists() {  local alert_key="$1"  init_cache  jq -e --arg key "$alert_key" '.[$key] != null' "$TICKET_CACHE" >/dev/null 2>&1}
 # Salva ticket in cachesave_ticket_cache() {  local alert_key="$1"  local ticket_id="$2"  init_cache  jq --arg key "$alert_key" --arg id "$ticket_id" --arg ts "$(date -u +%s)" \    '.[$key] = {ticket_id: $id, created_at: $ts}' \    "$TICKET_CACHE" > "${TICKET_CACHE}.tmp" && mv "${TICKET_CACHE}.tmp" "$TICKET_CACHE"}
-# Rimuovi ticket dalla cache (quando viene chiuso)remove_ticket_cache() {  local alert_key="$1"  init_cache  jq --arg key "$alert_key" 'del(.[$key])' \    "$TICKET_CACHE" > "${TICKET_CACHE}.tmp" && mv "${TICKET_CACHE}.tmp" "$TICKET_CACHE"}
+# Rimuovi ticket dalla cache (quan
+do viene chiuso)remove_ticket_cache() {  local alert_key="$1"  init_cache  jq --arg key "$alert_key" 'del(.[$key])' \    "$TICKET_CACHE" > "${TICKET_CACHE}.tmp" && mv "${TICKET_CACHE}.tmp" "$TICKET_CACHE"}
 # Pulisci cache da ticket vecchi (>24h)cleanup_cache() {  init_cachelocal nowlocal nownow=$(date -u +%s)  local max_age=$((24 * 3600))    jq --arg now "$now" --arg max "$max_age" '    to_entries |     map(select(($now | tonumber) - (.value.created_at | tonumber) < ($max | tonumber))) |     from_entries  ' "$TICKET_CACHE" > "${TICKET_CACHE}.tmp" && mv "${TICKET_CACHE}.tmp" "$TICKET_CACHE"}
 # ===== FUNZIONI DI MONITORAGGIO =====
 # Monitora CPUcheck_cpu_usage() {  local hostname="${1:-$(hostname)}"  local cpu_usage    
@@ -50,7 +51,8 @@ echo "$alert_data" | jq -r '.value')local chartlocal chartchart=$(
 echo "$alert_data" | jq -r '.chart')    log_info "Ricevuto alert Netdata: $alarm_name su $hostname (status: $status)"    if [[ "$status" == "CRITICAL" || "$status" == "WARNING" ]]; then    local alert_key="netdata_${hostname}_${alarm_name}"        if ! ticket_exists "$alert_key"; then      local priority="normal"      [[ "$status" == "CRITICAL" ]] && priority="critical"            local title="[NETDATA] $alarm_name su $hostname"      local description="ÔÜá´©Å Alert da Netdata**Dettagli Alert:**- Alarm: $alarm_name- Hostname: $hostname- Status: $status- Chart: $chart- Valore: $value- Data/ora: $(date '+%Y-%m-%d %H:%M:%S')**Dati completi alert:**\`\`\`json$alert_data\`\`\`"local resultlocal resultresult=$($TOOLKIT create "$title" "$description" "$priority")local ticket_idlocal ticket_idticket_id=$(
 echo "$result" | jq -r '.id // empty')            if [[ -n "$ticket_id" ]]; then        save_ticket_cache "$alert_key" "$ticket_id"        log_success "Ticket 
 #$ticket_id creato per alert Netdata"      fi    fi  elif [[ "$status" == "CLEAR" ]]; then    
-# Alert risolto, chiudi ticket se esiste    local alert_key="netdata_${hostname}_${alarm_name}"    init_cachelocal ticket_idlocal ticket_idticket_id=$(jq -r --arg key "$alert_key" '.[$key].ticket_id // empty' "$TICKET_CACHE")        if [[ -n "$ticket_id" ]]; then      log_info "Alert risolto, chiudo ticket 
+# Alert risolto, chiudi ticket se esiste    local alert_key="netdata_${hostname}_${alarm_name}"    init_cachelocal ticket_idlocal ticket_idticket_id=$(jq -r --arg key "$alert_key" '.[$key].ticket_id // empty' "$TICKET_CACHE")        if [[ -n "$ticket_id" ]]; then      log_info "Alert risolto, chiu
+do ticket 
 #$ticket_id"      $TOOLKIT close "$ticket_id" "Alert Netdata risolto automaticamente: $alarm_name"      remove_ticket_cache "$alert_key"    fi  fi}
 # ===== COMANDI CLI =====case "${1:-}" in  monitor)    
 # Monitoring completo    log_info "Avvio monitoring completo..."    cleanup_cache    check_cpu_usage    check_memory_usage    check_disk_usage    log_success "Monitoring completato"    ;;      service)    

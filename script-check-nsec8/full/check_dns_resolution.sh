@@ -5,7 +5,8 @@ echo "<<<dns_resolution>>>"
 # Domini da testaretest_domains=("google.com" "cloudflare.com" "dns.google")dns_server="127.0.0.1"successful=0failed=0total=${
 #test_domains[@]}response_times=()for domain in "${test_domains[@]}"; do    
 # Test risoluzione con timeout    start_time=$(date +%s%N)    result=$(nslookup "$domain" "$dns_server" 2>/dev/null | grep -A1 "Name:" | tail -1 | grep "Address")    end_time=$(date +%s%N)        if [[ -n "$result" ]]; then        successful=$((successful + 1))        response_time=$(( (end_time - start_time) / 1000000 )) 
-# ms        response_times+=($response_time)    else        failed=$((failed + 1))    fidone
+# ms        response_times+=($response_time)    else        failed=$((failed + 1))    fi
+done
 # Calcola tempo medioif [[ ${
 #response_times[@]} -gt 0 ]]; then    avg_time=0    for time in "${response_times[@]}"; do        avg_time=$((avg_time + time))    done    avg_time=$((avg_time / ${
 #response_times[@]}))else    avg_time=0fi

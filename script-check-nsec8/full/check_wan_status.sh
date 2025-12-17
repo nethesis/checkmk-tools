@@ -22,7 +22,8 @@ echo "0 WAN_Status status=ERROR No WAN interfaces found"    exit 0fioverall_stat
 # UP ma senza gateway            
 # Prova DNS pubblici            if check_connectivity "8.8.8.8" || check_connectivity "1.1.1.1"; then                details+=("$iface: UP (internet reachable)")                status_messages+=("$iface=OK")            else                details+=("$iface: UP but no connectivity")                status_messages+=("$iface=DEGRADED")                overall_status=1            fi        fi    elif [[ "$status" == "false" || "$status" == "0" ]]; then        
 # Interfaccia DOWN        details+=("$iface: DOWN")        status_messages+=("$iface=DOWN")        overall_status=2    else        
-# Stato sconosciuto        details+=("$iface: UNKNOWN")        status_messages+=("$iface=UNKNOWN")        overall_status=1    fidone
+# Stato sconosciuto        details+=("$iface: UNKNOWN")        status_messages+=("$iface=UNKNOWN")        overall_status=1    fi
+done
 # Determina stato finaleif [[ $overall_status -eq 0 ]]; then    final_status="OK"elif [[ $overall_status -eq 1 ]]; then    final_status="WARNING"else    final_status="CRITICAL"fi
 # Output CheckMKstatus_line="${status_messages[*]}"detail_line=$(
 IFS=', '; 

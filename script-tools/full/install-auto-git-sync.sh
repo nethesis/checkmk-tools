@@ -96,7 +96,8 @@ echo ""
 # Verifica esecuzione come root
 if [[ $EUID -ne 0 ]]; then
     echo "❌ Questo script deve essere eseguito come root"
-    echo "   Usa: sudo bash install-auto-git-sync.sh"
+    echo "   Usa: su
+do bash install-auto-git-sync.sh"
     exit 1
 fi
 echo "✅ Esecuzione come root"
@@ -124,7 +125,8 @@ case "$interval_choice" in
     6)
         read -r -p "Inserisci intervallo in secondi (10-3600): " SYNC_INTERVAL
         if ! [[ "$SYNC_INTERVAL" =~ ^[0-9]+$ ]] || [ "$SYNC_INTERVAL" -lt 10 ] || [ "$SYNC_INTERVAL" -gt 3600 ]; then
-            echo "❌ Valore non valido (deve essere tra 10 e 3600), uso default 60 secondi"
+            echo "❌ Valore non vali
+do (deve essere tra 10 e 3600), uso default 60 secondi"
             SYNC_INTERVAL=60
         fi
         ;;

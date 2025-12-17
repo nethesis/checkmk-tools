@@ -1,6 +1,7 @@
 #!/bin/bash
 # check_cockpit_sessions.sh
-# Notifica login/logout Cockpit leggendo /var/log/messages
+# Notifica login/logout Cockpit leggen
+do /var/log/messages
 # e mostra quante sessioni sono attive
 SERVICE="Cockpit_sessions"
 STATEFILE="/var/lib/check_mk_agent/cockpit_sessions.state"

@@ -18,8 +18,10 @@ echo -e "\n├ó┬Å┬░ NTP / Ora di sistema:"timedatectl status || true
 echo "Server NTP in uso: $(timedatectl show-timesync --property=ServerName --value 2>/dev/null || 
 echo 'nd')"
 echo -e "\n├░┼©ÔÇØ┬Å Certbot:"if command -v certbot >/dev/null 2>&1; then  certbot --version  
-echo "Certificati presenti:"  certbot certificates || trueelse  
+echo "Certificati presenti:"  certbot certificates || true
+else  
 echo "Certbot non installato"fi
-echo -e "\n├░┼©ÔÇ£┼á Checkmk site:"if command -v omd >/dev/null 2>&1; then  omd status || trueelse  
+echo -e "\n├░┼©ÔÇ£┼á Checkmk site:"if command -v omd >/dev/null 2>&1; then  omd status || true
+else  
 echo "Checkmk non installato"fi
 echo -e "\n===== VERIFICA COMPLETATA ====="

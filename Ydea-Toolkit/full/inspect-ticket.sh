@@ -8,7 +8,8 @@ echo "ÔØî Uso: $0 <ticket_id>"
 echo ""  
 echo "Esempio:"  
 echo "  $0 1486125"  exit 1fi
-echo "­ƒöì Ispezionando ticket 
+echo "­ƒöì Ispezionan
+do ticket 
 #$TICKET_ID..."
 echo ""
 # Assicurati di avere il tokenensure_token

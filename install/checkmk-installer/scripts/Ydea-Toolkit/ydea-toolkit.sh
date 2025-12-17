@@ -26,7 +26,8 @@ echo "Ô£à $*" >&2  log_write "INFO" "SUCCESS: $*"}log_warn() {
 echo "ÔÜá´©Å  $*" >&2  log_write "WARN" "$*"}log_error() {   
 echo "ÔØî $*" >&2  log_write "ERROR" "$*"}log_api_call() {  local method="$1"  local url="$2"  local status="${3:-}"  log_write "API" "$method $url ÔåÆ HTTP $status"}
 # Compatibility aliases (manteniamo retrocompatibilit├á)need() { command -v "$1" >/dev/null 2>&1 || { log_error "Manca '$1' nel PATH"; exit 127; }; }debug() { log_debug "$@"; }info() { log_info "$@"; }success() { log_success "$@"; }error() { log_error "$@"; }
-# ===== Persistenza Token =====save_token() {  local token="$1"  local now exp  now="$(date -u +%s)"  exp="$(( now + 3600 ))"  jq -n --arg token "$token" --arg now "$now" --arg exp "$exp" \     '{token:$token, scheme:"Bearer", obtained_at: ($now|tonumber), expires_at: ($exp|tonumber)}' \     > "$YDEA_TOKEN_FILE"  log_debug "Token salvato in $YDEA_TOKEN_FILE (scade: $(date -d "@$exp" 2>/dev/null || date -r "$exp"))"  log_write "AUTH" "Token ottenuto e salvato, scadenza: $(date -d "@$exp" 2>/dev/null || date -r "$exp")"}load_token() { [[ -f "$YDEA_TOKEN_FILE" ]] && jq -r '.token // empty' "$YDEA_TOKEN_FILE"; }expires_at() { [[ -f "$YDEA_TOKEN_FILE" ]] && jq -r '.expires_at // 0' "$YDEA_TOKEN_FILE"; }token_is_fresh() {  [[ -f "$YDEA_TOKEN_FILE" ]] || return 1  local now exp skew  now="$(date -u +%s)"  exp="$(expires_at)"  skew="${YDEA_EXPIRY_SKEW}"  if [[ "$now" -lt $(( exp - skew )) ]]; then    log_debug "Token valido (scade tra $(( exp - now )) secondi)"    return 0  else    log_debug "Token scaduto o in scadenza"    return 1  fi}
+# ===== Persistenza Token =====save_token() {  local token="$1"  local now exp  now="$(date -u +%s)"  exp="$(( now + 3600 ))"  jq -n --arg token "$token" --arg now "$now" --arg exp "$exp" \     '{token:$token, scheme:"Bearer", obtained_at: ($now|tonumber), expires_at: ($exp|tonumber)}' \     > "$YDEA_TOKEN_FILE"  log_debug "Token salvato in $YDEA_TOKEN_FILE (scade: $(date -d "@$exp" 2>/dev/null || date -r "$exp"))"  log_write "AUTH" "Token ottenuto e salvato, scadenza: $(date -d "@$exp" 2>/dev/null || date -r "$exp")"}load_token() { [[ -f "$YDEA_TOKEN_FILE" ]] && jq -r '.token // empty' "$YDEA_TOKEN_FILE"; }expires_at() { [[ -f "$YDEA_TOKEN_FILE" ]] && jq -r '.expires_at // 0' "$YDEA_TOKEN_FILE"; }token_is_fresh() {  [[ -f "$YDEA_TOKEN_FILE" ]] || return 1  local now exp skew  now="$(date -u +%s)"  exp="$(expires_at)"  skew="${YDEA_EXPIRY_SKEW}"  if [[ "$now" -lt $(( exp - skew )) ]]; then    log_debug "Token vali
+do (scade tra $(( exp - now )) secondi)"    return 0  else    log_debug "Token scaduto o in scadenza"    return 1  fi}
 # ===== Login =====ydea_login() {  need curl; need jq  log_info "Tentativo login a Ydea Cloud..."    [[ -n "${YDEA_ID}" && -n "${YDEA_API_KEY}" ]] || {    log_error "YDEA_ID e YDEA_API_KEY non impostati"    
 echo "Esempio:" >&2    
 echo "  export 
@@ -36,7 +37,9 @@ YDEA_API_KEY='tua_chiave'" >&2    exit 2  }    local url="${YDEA_BASE_URL%/}${YD
 echo "$resp" | jq . 2>/dev/null || 
 echo "$resp"    exit 1  }    log_api_call "POST" "$url" "200"  local token  token="$(printf '%s' "$resp" | jq -r '.token // .access_token // .jwt // .id_token // empty')"  if [[ -z "$token" || "$token" == "null" ]]; then    log_error "Login fallito: risposta senza token"    
 echo "$resp" | jq . 2>/dev/null || 
-echo "$resp"    exit 1  fi    save_token "$token"  log_success "Login effettuato (token valido ~1h)"}ensure_token() {  if token_is_fresh; then    log_debug "Token ancora valido"  else    log_info "Token scaduto o mancante, effettuo il login..."    ydea_login  fi}
+echo "$resp"    exit 1  fi    save_token "$token"  log_success "Login effettuato (token vali
+do ~1h)"}ensure_token() {  if token_is_fresh; then    log_debug "Token ancora vali
+do"  else    log_info "Token scaduto o mancante, effettuo il login..."    ydea_login  fi}
 # ===== Chiamate API Generiche =====ydea_api() {  need curl; need jq  local method="${1:-}"; shift || true  local path="${1:-}"; shift || true  [[ -n "$method" && -n "$path" ]] || {     log_error "Uso: ydea_api <GET|POST|PUT|PATCH|DELETE> </path> [json_body]"    return 2  }  ensure_token  local token url  token="$(load_token)"  url="${YDEA_BASE_URL%/}/${path
 #/}"  log_debug "$method $url"    
 # Log request body se presente  if [[ "$
@@ -205,7 +208,8 @@ YDEA_LOG_FILE=/path/log.log
 # Lista ultimi 10 ticket aperti  ./ydea-toolkit.sh list 10 open | jq .  
 # Crea nuovo ticket  ./ydea-toolkit.sh create "Server down" "Il server web non risponde" high  
 # Cerca ticket  ./ydea-toolkit.sh search "errore database" | jq '.data[] | {id, title, status}'  
-# Aggiungi commento  ./ydea-toolkit.sh comment 12345 "Problema risolto riavviando il servizio"  
+# Aggiungi commento  ./ydea-toolkit.sh comment 12345 "Problema risolto riavvian
+do il servizio"  
 # Chiudi ticket  ./ydea-toolkit.sh close 12345 "Risolto con riavvio"  
 # Tracking ticket da CheckMK  ./ydea-toolkit.sh track 12345 "TK25/003376" "server-web" "Apache Status" "Alert da CheckMK"    
 # Visualizza statistiche tracking  ./ydea-toolkit.sh stats    

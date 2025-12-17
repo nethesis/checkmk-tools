@@ -5,7 +5,8 @@
 # =====================================================
 # Lista degli host (hostname o IP)
 HOSTS=("marziodemo" "proxmox01" "rocky01" "ns8demo")
-# Utente SSH (deve avere sudo/root)
+# Utente SSH (deve avere su
+do/root)
 USER="root"
 # Flag 
 FORCEFORCE=0if [[ "$1" == "--force" ]]; then    

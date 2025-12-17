@@ -38,7 +38,8 @@ echo ""  elif [[ "$HTTP_CODE" == "404" ]]; then
 echo "ÔØî HTTP $HTTP_CODE - Non trovato"  elif [[ "$HTTP_CODE" == "401" ]]; then    
 echo "ÔØî HTTP $HTTP_CODE - Non autorizzato"  elif [[ "$HTTP_CODE" == "403" ]]; then    
 echo "ÔØî HTTP $HTTP_CODE - Accesso negato"  else    
-echo "ÔØî HTTP $HTTP_CODE"  fidone
+echo "ÔØî HTTP $HTTP_CODE"  fi
+done
 echo ""
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo "RICERCA NEI TICKET CON QUESTA ANAGRAFICA"

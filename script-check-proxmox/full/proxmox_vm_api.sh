@@ -14,4 +14,5 @@ echo "0 vm_${vmid}_${name} Stato - VM ${vmid} (${name}) spenta"    fi
 echo "0 vm_${vmid}_${name} RAM used=${mem};;;0;${maxmem} RAM: ${used_percent}%"    else        conf="/etc/pve/qemu-server/${vmid}.conf"        if [[ -f "$conf" ]]; then            conf_mem=$(grep -i '^memory:' "$conf" | awk '{print $2}')            if [[ -n "$conf_mem" ]]; then                maxmem_conf=$(( conf_mem * 1024 * 1024 ))                
 echo "0 vm_${vmid}_${name} RAM used=0;;;0;${maxmem_conf} RAM: 0% (VM spenta)"            else                
 echo "0 vm_${vmid}_${name} RAM - RAM non configurata (VM spenta)"            fi        else            
-echo "0 vm_${vmid}_${name} RAM - Config mancante (VM spenta)"        fi    fidone
+echo "0 vm_${vmid}_${name} RAM - Config mancante (VM spenta)"        fi    fi
+done

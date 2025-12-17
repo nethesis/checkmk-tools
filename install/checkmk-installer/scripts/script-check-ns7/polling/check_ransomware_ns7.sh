@@ -15,7 +15,8 @@ IFS= read -r F; do
 FOUND="$FOUND$F\n"        done < <(find "$SHARE_PATH" -type f -iname "*$NOTE*" 2>/dev/null)    done    if [ -n "$FOUND" ]; then        
 echo "[$DATE] [SHARE:$SHARE] [PATH:$SHARE_PATH] File sospetti trovati:" >> "$LOGFILE"        
 echo -e "$FOUND" | while read -r F; do            [ -n "$F" ] && 
-echo "  $F" >> "$LOGFILE"        done    fidone
+echo "  $F" >> "$LOGFILE"        done    fi
+done
 # Output per CheckMKif grep -q "File sospetti trovati:" "$LOGFILE"; then    
 echo "2 CRITICAL - Ransomware: file sospetti rilevati. Vedi $LOGFILE"else    
 echo "0 OK - Nessun ransomware rilevato"fi

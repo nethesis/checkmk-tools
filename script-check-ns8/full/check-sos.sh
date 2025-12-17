@@ -1,6 +1,7 @@
 #!/bin/bash
 # check-sos - Local check per Checkmk
-# Verifica sessione SOS leggendo /var/log/messages
+# Verifica sessione SOS leggen
+do /var/log/messages
 LOGFILE="/var/log/messages"
 STATUS="INACTIVE"
 SESSION_ID="N/A"
@@ -23,5 +24,6 @@ echo "$STOP_LINE" | awk '{print $1" "$2" "$3}')
 START_EPOCH=$(date -d "$START_DATE" +%s)        
 STOP_EPOCH=$(date -d "$STOP_DATE" +%s)        if [ "$START_EPOCH" -gt "$STOP_EPOCH" ]; then            
 STATUS="ACTIVE"            
-STATE=1        fi    fifi
+STATE=1        fi    fi
+fi
 echo "$STATE SOS_session - SOS Session: $STATUS (ID: $SESSION_ID)"

@@ -34,13 +34,20 @@ echo -e "${YELLOW}  ÔÜá´©Å  WARN${NC}: $1"}
 # ===== TEST 1: Verifica File =====test_start "Verifica esistenza file necessari"if [[ -f "$NOTIFY_SCRIPT" ]]; then  test_pass "Script notifica trovato: $NOTIFY_SCRIPT"else  test_fail "Script notifica non trovato: $NOTIFY_SCRIPT"fiif [[ -f "$HEALTH_SCRIPT" ]]; then  test_pass "Health monitor trovato: $HEALTH_SCRIPT"else  test_fail "Health monitor non trovato: $HEALTH_SCRIPT"fiif [[ -f "$YDEA_TOOLKIT" ]]; then  test_pass "Ydea toolkit trovato: $YDEA_TOOLKIT"else  test_fail "Ydea toolkit non trovato: $YDEA_TOOLKIT"fi
 # ===== TEST 2: Permessi =====test_start "Verifica permessi esecuzione"if [[ -x "$NOTIFY_SCRIPT" ]]; then  test_pass "ydea_realip ├¿ eseguibile"else  test_fail "ydea_realip NON ├¿ eseguibile (usa: chmod +x)"fiif [[ -x "$HEALTH_SCRIPT" ]]; then  test_pass "ydea-health-monitor.sh ├¿ eseguibile"else  test_fail "ydea-health-monitor.sh NON ├¿ eseguibile"fi
 # ===== TEST 3: Configurazione =====test_start "Verifica configurazione .env"
-ENV_FILE="/opt/ydea-toolkit/.env"if [[ -f "$ENV_FILE" ]]; then  source "$ENV_FILE"    if [[ -n "${YDEA_ID:-}" && "${YDEA_ID}" != "ID" ]]; then    test_pass "YDEA_ID configurato"  else    test_fail "YDEA_ID non configurato o ancora placeholder"  fi    if [[ -n "${YDEA_API_KEY:-}" && "${YDEA_API_KEY}" != "TOKEN" ]]; then    test_pass "YDEA_API_KEY configurato"  else    test_fail "YDEA_API_KEY non configurato o ancora placeholder"  fi    if [[ -n "${YDEA_ALERT_EMAIL:-}" ]]; then    test_pass "YDEA_ALERT_EMAIL configurato: ${YDEA_ALERT_EMAIL}"  else    test_warn "YDEA_ALERT_EMAIL non configurato (opzionale)"  fielse  test_fail "File .env non trovato: $ENV_FILE"fi
-# ===== TEST 4: Connessione Ydea =====test_start "Test connessione Ydea API"if [[ -f "$YDEA_TOOLKIT" && -f "$ENV_FILE" ]]; then  cd "$(dirname "$YDEA_TOOLKIT")"  if source "$ENV_FILE" && "$YDEA_TOOLKIT" login 2>&1 | grep -q "Login effettuato"; then    test_pass "Login Ydea riuscito"  else    test_fail "Login Ydea fallito - verifica credenziali"  fielse  test_warn "Skip test login (file mancanti)"fi
+ENV_FILE="/opt/ydea-toolkit/.env"if [[ -f "$ENV_FILE" ]]; then  source "$ENV_FILE"    if [[ -n "${YDEA_ID:-}" && "${YDEA_ID}" != "ID" ]]; then    test_pass "YDEA_ID configurato"  else    test_fail "YDEA_ID non configurato o ancora placeholder"  fi    if [[ -n "${YDEA_API_KEY:-}" && "${YDEA_API_KEY}" != "TOKEN" ]]; then    test_pass "YDEA_API_KEY configurato"  else    test_fail "YDEA_API_KEY non configurato o ancora placeholder"  fi    if [[ -n "${YDEA_ALERT_EMAIL:-}" ]]; then    test_pass "YDEA_ALERT_EMAIL configurato: ${YDEA_ALERT_EMAIL}"  else    test_warn "YDEA_ALERT_EMAIL non configurato (opzionale)"  fi
+else  test_fail "File .env non trovato: $ENV_FILE"fi
+# ===== TEST 4: Connessione Ydea =====test_start "Test connessione Ydea API"if [[ -f "$YDEA_TOOLKIT" && -f "$ENV_FILE" ]]; then  cd "$(dirname "$YDEA_TOOLKIT")"  if source "$ENV_FILE" && "$YDEA_TOOLKIT" login 2>&1 | grep -q "Login effettuato"; then    test_pass "Login Ydea riuscito"  else    test_fail "Login Ydea fallito - verifica credenziali"  fi
+else  test_warn "Skip test login (file mancanti)"fi
 # ===== TEST 5: Cache Files =====test_start "Verifica file cache"
 TICKET_CACHE="/tmp/ydea_checkmk_tickets.json"
 FLAPPING_CACHE="/tmp/ydea_checkmk_flapping.json"
-HEALTH_STATE="/tmp/ydea_health_state.json"for cache_file in "$TICKET_CACHE" "$FLAPPING_CACHE"; do  if [[ -f "$cache_file" ]]; then    if jq . "$cache_file" >/dev/null 2>&1; then      test_pass "Cache valido: $(basename $cache_file)"    else      test_fail "Cache corrotto: $cache_file"    fi  else    test_warn "Cache non inizializzato: $cache_file (verr├á creato al primo uso)"  fidone
-# ===== TEST 6: Dipendenze =====test_start "Verifica dipendenze sistema"for cmd in jq curl bash date; do  if command -v "$cmd" >/dev/null 2>&1; then    test_pass "Comando disponibile: $cmd"  else    test_fail "Comando mancante: $cmd (installa con: apt install $cmd)"  fidone
+HEALTH_STATE="/tmp/ydea_health_state.json"for cache_file in "$TICKET_CACHE" "$FLAPPING_CACHE"; do  if [[ -f "$cache_file" ]]; then    if jq . "$cache_file" >/dev/null 2>&1; then      test_pass "Cache vali
+do: $(basename $cache_file)"    else      test_fail "Cache corrotto: $cache_file"    fi  else    test_warn "Cache non inizializzato: $cache_file (verr├á creato al primo uso)"  fi
+done
+# ===== TEST 6: Dipendenze =====test_start "Verifica dipendenze sistema"for cmd in jq curl bash date; do  if command -v "$cmd" >/dev/null 2>&1; then    test_pass "Coman
+do disponibile: $cmd"  else    test_fail "Coman
+do mancante: $cmd (installa con: apt install $cmd)"  fi
+done
 # ===== TEST 7: Cron Job =====test_start "Verifica cron job health monitor"if crontab -l 2>/dev/null | grep -q "ydea-health-monitor"; then  
 CRON_LINE=$(crontab -l | grep "ydea-health-monitor" | head -1)  test_pass "Cron job configurato"  
 echo "  Schedule: $CRON_LINE"else  test_warn "Cron job non trovato (configura con: crontab -e)"  
@@ -64,11 +71,13 @@ echo ""    test_pass "Script eseguito senza errori"
 echo "  Output salvato in: /tmp/ydea_test_output.log"        
 # Verifica se ticket creato    if [[ -f "$TICKET_CACHE" ]]; then      
 TICKET_ID=$(jq -r '.["192.168.99.99:Test Alert"].ticket_id // empty' "$TICKET_CACHE" 2>/dev/null)      if [[ -n "$TICKET_ID" ]]; then        test_pass "Ticket creato: 
-#$TICKET_ID"      else        test_warn "Nessun ticket trovato in cache (verifica output sopra)"      fi    fi  else    test_fail "Script terminato con errore"  fielse  test_warn "Test simulazione saltato"fi
+#$TICKET_ID"      else        test_warn "Nessun ticket trovato in cache (verifica output sopra)"      fi    fi  else    test_fail "Script terminato con errore"  fi
+else  test_warn "Test simulazione saltato"fi
 echo ""
 # ===== TEST 10: Health Monitor =====test_start "Test health monitor (opzionale)"
 echo -e "${YELLOW}Vuoi testare il health monitor? (y/n)${NC}"read -n 1 -rechoif [[ $REPLY =~ ^[Yy]$ ]]; then  if "$HEALTH_SCRIPT" 2>&1 | tee /tmp/ydea_health_test.log; then    test_pass "Health monitor eseguito"    
-echo "  Output salvato in: /tmp/ydea_health_test.log"  else    test_fail "Health monitor fallito"  fielse  test_warn "Test health monitor saltato"fi
+echo "  Output salvato in: /tmp/ydea_health_test.log"  else    test_fail "Health monitor fallito"  fi
+else  test_warn "Test health monitor saltato"fi
 echo ""
 # ===== RIEPILOGO =====
 echo ""

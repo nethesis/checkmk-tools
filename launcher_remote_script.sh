@@ -10,5 +10,6 @@ fi
 SCRIPT_URL="$1"
 shift
 
-# Esegue lo script remoto passando eventuali parametri
+# Esegue lo script remoto passan
+do eventuali parametri
 bash <(curl -fsSL "$SCRIPT_URL") "$@"

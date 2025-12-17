@@ -33,4 +33,5 @@ echo "0 ${NAME}_RAM - RAM ${MEM_USED} (${MEM_PCT}%)"    fi
 # Sessioni IMAP (solo per Mail con doveadm)    if [[ "$NAME" == "Mail" ]]; then        
 IMAP_COUNT=$(runagent -m "$C" doveadm who 2>/dev/null | tail -n +2 | wc -l)        if [[ "$IMAP_COUNT" -gt 0 ]]; then            
 echo "0 Mail_IMAP - Sessioni IMAP attive: $IMAP_COUNT"        else            
-echo "1 Mail_IMAP - Nessuna sessione IMAP attiva"        fi    fidone
+echo "1 Mail_IMAP - Nessuna sessione IMAP attiva"        fi    fi
+done

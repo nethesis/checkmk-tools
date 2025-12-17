@@ -197,7 +197,8 @@ echo -e "${G}Ô£ô Site found${N}"
 #
 #
 #
-echo -e "\n${Y}ÔåÆ Checking Livestatus configuration...${N}"sudo -u "$SITE" bash <<EOFset -ecd /omd/sites/$SITEsource .profile
+echo -e "\n${Y}ÔåÆ Checking Livestatus configuration...${N}"su
+do -u "$SITE" bash <<EOFset -ecd /omd/sites/$SITEsource .profile
 echo -e "${B}Current Livestatus settings:${N}"omd config show LIVESTATUS_TCPomd config show LIVESTATUS_TCP_PORTomd config show LIVESTATUS_TCP_TLSEOF
 #
 #
@@ -291,9 +292,11 @@ echo -e "${B}Current Livestatus settings:${N}"omd config show LIVESTATUS_TCPomd 
 #
 #
 echo -e "\n${Y}ÔåÆ Checking listening ports...${N}"
-echo -e "${B}Port 5000 (Apache/CheckMK Web):${N}"sudo ss -tlnp | grep ':5000' || 
+echo -e "${B}Port 5000 (Apache/CheckMK Web):${N}"su
+do ss -tlnp | grep ':5000' || 
 echo -e "${Y}ÔÜá Port 5000 not listening${N}"
-echo -e "\n${B}Port 6557 (Livestatus TCP):${N}"sudo ss -tlnp | grep ':6557' || 
+echo -e "\n${B}Port 6557 (Livestatus TCP):${N}"su
+do ss -tlnp | grep ':6557' || 
 echo -e "${Y}ÔÜá Port 6557 not listening (will be enabled)${N}"
 #
 #
@@ -387,8 +390,11 @@ echo -e "${Y}ÔÜá Port 6557 not listening (will be enabled)${N}"
 #
 #
 echo -e "\n${Y}ÔåÆ Checking firewall rules...${N}"if command -v ufw >/dev/null 2>&1; then    
-echo -e "${B}UFW status:${N}"    sudo ufw status | grep -E "(6557|Status)" || trueelif command -v firewall-cmd >/dev/null 2>&1; then    
-echo -e "${B}Firewalld status:${N}"    sudo firewall-cmd --list-ports | grep 6557 || 
+echo -e "${B}UFW status:${N}"    su
+do ufw status | grep -E "(6557|Status)" || true
+elif command -v firewall-cmd >/dev/null 2>&1; then    
+echo -e "${B}Firewalld status:${N}"    su
+do firewall-cmd --list-ports | grep 6557 || 
 echo -e "${Y}ÔÜá Port 6557 not open${N}"else    
 echo -e "${Y}ÔÜá No firewall manager detected${N}"fi
 #
@@ -484,9 +490,12 @@ echo -e "${Y}ÔÜá No firewall manager detected${N}"fi
 #
 echo -e "\n${Y}ÔåÆ Checking Apache/HTTPS configuration...${N}"if [[ -f /etc/apache2/sites-available/checkmk.conf ]]; then    
 echo -e "${G}Ô£ô Apache vhost found${N}"    
-echo -e "${B}SSL Certificate:${N}"    sudo grep -E "SSLCertificate" /etc/apache2/sites-available/checkmk.conf || trueelse    
+echo -e "${B}SSL Certificate:${N}"    su
+do grep -E "SSLCertificate" /etc/apache2/sites-available/checkmk.conf || true
+else    
 echo -e "${Y}ÔÜá Apache vhost not found at standard location${N}"fi
-echo -e "\n${B}Apache modules:${N}"sudo apache2ctl -M | grep -E "(ssl|proxy|rewrite)" || true
+echo -e "\n${B}Apache modules:${N}"su
+do apache2ctl -M | grep -E "(ssl|proxy|rewrite)" || true
 #
 #
 #
@@ -578,7 +587,8 @@ echo -e "\n${B}Apache modules:${N}"sudo apache2ctl -M | grep -E "(ssl|proxy|rewr
 #
 #
 #
-echo -e "\n${Y}ÔåÆ Checking CheckMK version...${N}"sudo -u "$SITE" bash <<EOFcd /omd/sites/$SITEsource .profileomd versionEOF
+echo -e "\n${Y}ÔåÆ Checking CheckMK version...${N}"su
+do -u "$SITE" bash <<EOFcd /omd/sites/$SITEsource .profileomd versionEOF
 #
 #
 #
@@ -670,7 +680,8 @@ echo -e "\n${Y}ÔåÆ Checking CheckMK version...${N}"sudo -u "$SITE" bash <<EOF
 #
 #
 #
-echo -e "\n${Y}ÔåÆ Checking distributed monitoring support...${N}"if sudo -u "$SITE" ls /omd/sites/$SITE/etc/check_mk/multisite.d/ >/dev/null 2>&1; then    
+echo -e "\n${Y}ÔåÆ Checking distributed monitoring support...${N}"if su
+do -u "$SITE" ls /omd/sites/$SITE/etc/check_mk/multisite.d/ >/dev/null 2>&1; then    
 echo -e "${G}Ô£ô Multisite configuration directory exists${N}"else    
 echo -e "${R}Ô£ù Multisite not available${N}"fi
 #

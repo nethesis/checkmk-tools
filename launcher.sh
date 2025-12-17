@@ -164,7 +164,8 @@ show_script_details() {
     local idx="$1"
     
     if [ "$idx" -lt 1 ] || [ "$idx" -gt "${#SCRIPTS[@]}" ]; then
-        echo -e "${RED}✗ Script non valido!${NC}\n"
+        echo -e "${RED}✗ Script non vali
+do!${NC}\n"
         return 1
     fi
     
@@ -306,14 +307,18 @@ execute_script() {
     
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
     
-    # Esegui script remoto con sudo usando file temporaneo
+    # Esegui script remoto con su
+do usan
+do file temporaneo
     TEMP_SCRIPT=$(mktemp)
     curl -fsSL "$remote_url" -o "$TEMP_SCRIPT"
     
     if [ -n "$params" ]; then
-        sudo bash "$TEMP_SCRIPT" $params
+        su
+do bash "$TEMP_SCRIPT" $params
     else
-        sudo bash "$TEMP_SCRIPT"
+        su
+do bash "$TEMP_SCRIPT"
     fi
     
     rm -f "$TEMP_SCRIPT"
@@ -345,7 +350,8 @@ main() {
         print_header
         show_menu
         
-        echo -e "${YELLOW}Seleziona uno script o comando:${NC} "
+        echo -e "${YELLOW}Seleziona uno script o coman
+do:${NC} "
         read -r selection
         
         # Comandi speciali
@@ -372,7 +378,8 @@ main() {
                 if [[ "$idx" =~ ^[0-9]+$ ]]; then
                     show_script_details "$idx"
                 else
-                    echo -e "${RED}✗ Numero non valido${NC}"
+                    echo -e "${RED}✗ Numero non vali
+do${NC}"
                 fi
                 echo -e "${YELLOW}Premi INVIO per continuare...${NC}"
                 read -r
@@ -397,7 +404,8 @@ main() {
                 if [[ "$selection" =~ ^[0-9]+$ ]]; then
                     execute_script "$selection"
                 else
-                    echo -e "${RED}✗ Comando non riconosciuto!${NC}\n"
+                    echo -e "${RED}✗ Coman
+do non riconosciuto!${NC}\n"
                     sleep 2
                 fi
                 ;;

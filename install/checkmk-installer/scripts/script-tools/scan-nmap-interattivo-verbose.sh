@@ -24,7 +24,8 @@ TARGET_ARG="$RANGE"
 LABEL="$(
 echo "$RANGE" | tr -c '[:alnum:]_.' '_')"else  read -rp "Inserisci percorso file targets (uno per riga, IP/host/CIDR): " TARGET_FILE  
 TARGET_FILE="${TARGET_FILE:-}"  if [[ -z "$TARGET_FILE" || ! -f "$TARGET_FILE" ]]; then    
-echo "Errore: file targets non valido o non esistente: $TARGET_FILE" >&2    exit 4  fi  
+echo "Errore: file targets non vali
+do o non esistente: $TARGET_FILE" >&2    exit 4  fi  
 TARGET_ARG="-iL $TARGET_FILE"  
 LABEL="$(basename "$TARGET_FILE" | tr -c '[:alnum:]_-' '_')"fi
 # SCAN TYPEwhile true; do  
@@ -73,17 +74,20 @@ NMAP_OPTS=()
 # verbosit├â┬áif [[ "$VLEVEL" -eq 1 ]]; then  NMAP_OPTS+=( -v )elif [[ "$VLEVEL" -eq 2 ]]; then  NMAP_OPTS+=( -vv )elif [[ "$VLEVEL" -eq 3 ]]; then  NMAP_OPTS+=( -d --packet-trace )fi
 # reason to show cause for host/port decisionsNMAP_OPTS+=( --reason -T"${NT}" )if [[ "$SCAN_CHOICE" == "2" ]]; then  
 # discovery-only  NMAP_OPTS+=( -sn )else  
-# port scan: choose SYN if root, altrimenti connect  if [[ "$(id -u)" -eq 0 ]]; then    NMAP_OPTS+=( -sS -p "$PORTS" )  else    NMAP_OPTS+=( -sT -p "$PORTS" )  fifi
+# port scan: choose SYN if root, altrimenti connect  if [[ "$(id -u)" -eq 0 ]]; then    NMAP_OPTS+=( -sS -p "$PORTS" )  else    NMAP_OPTS+=( -sT -p "$PORTS" )  fi
+fi
 # assemble command
 NMAP_CMD=( "$NMAP_BIN" "${NMAP_OPTS[@]}" )if [[ "$MODE" == "2" ]]; then  NMAP_CMD+=( -iL "$TARGET_FILE" )else  NMAP_CMD+=( "$TARGET_ARG" )fiNMAP_CMD+=( -oN "$OUTTXT" )echo
 echo "Eseguo nmap..."
-echo "Comando: ${NMAP_CMD[*]}"echo
+echo "Coman
+do: ${NMAP_CMD[*]}"echo
 # Run nmapif "${NMAP_CMD[@]}"; then  
 EC=0else  
 EC=$?fi
 # Produce summary: adattivo in base alla modalit├â┬áif [[ "$SCAN_CHOICE" == "2" ]]; then  
 # discovery: includi host up + eventuale MAC/hostname e (se verbose/debug) linee di packet-trace nel file normale  awk '  /^Nmap scan report for/ { host=$0; next }  /Host is up/ { print host " | Host is up " $0 }  /^MAC Address:/ { print "   " $0 }  ' "$OUTTXT" > "$OUTSUM" || true  
-# fallback se vuoto  if [[ ! -s "$OUTSUM" ]]; then    grep -E "Nmap scan report for|Host is up|MAC Address" "$OUTTXT" > "$OUTSUM" || true  fielse  
+# fallback se vuoto  if [[ ! -s "$OUTSUM" ]]; then    grep -E "Nmap scan report for|Host is up|MAC Address" "$OUTTXT" > "$OUTSUM" || true  fi
+else  
 # port scan summary: host + porte aperte compatto  awk '  /^Nmap scan report for/ { host=$0 }/^PORT/ { inports=1; next }/^$/ { inports=0 }inports && NF { print host " | " $0 }' "$OUTTXT" > "$OUTSUM" || truefiecho
 echo "Fine scansione (exit code: $EC)"
 echo "Output: $OUTTXT"

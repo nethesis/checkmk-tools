@@ -92,7 +92,8 @@ echo -e "${YELLOW}   Lo script continuer├á ma potrebbero esserci problemi${NC
 echo -n "   Continuare comunque? [s/N]: "        read -r CONFIRM        if [[ ! "$CONFIRM" =~ ^[sS]$ ]]; then            exit 1        fi    fi        
 # Adatta URL FRP in base all'architettura    if [[ "$ARCH" == "aarch64" ]]; then        
 FRP_URL="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_arm64.tar.gz"        
-echo -e "   ${CYAN}Usando FRP per ARM64${NC}"    fi        
+echo -e "   ${CYAN}Usan
+do FRP per ARM64${NC}"    fi        
 # Verifica spazio disco    
 AVAILABLE_SPACE="0"    if [ -d "$SYNOLOGY_VOLUME" ]; then        
 AVAILABLE_SPACE=$(df -BM "$SYNOLOGY_VOLUME" 2>/dev/null | tail -1 | awk '{print $4}' | sed 's/M//' || 
@@ -122,15 +123,18 @@ echo -e "${GREEN}Ô£ô tar disponibile${NC}"    fi
 # Verifica socat (necessario per agent plain)    if ! command -v socat >/dev/null 2>&1; then        
 echo -e "${YELLOW}ÔÜá´©Å  socat non trovato, tentativo installazione...${NC}"                
 SOCAT_INSTALLED=false                if command -v ipkg >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usando ipkg (Synology)...${NC}"            ipkg update 2>&1 | grep -v "Signature check"            if ipkg install socat 2>&1; then                
+echo -e "${CYAN}   Usan
+do ipkg (Synology)...${NC}"            ipkg update 2>&1 | grep -v "Signature check"            if ipkg install socat 2>&1; then                
 SOCAT_INSTALLED=true            fi        elif command -v opkg >/dev/null 2>&1; then            
-echo -e "${CYAN}   Usando opkg (Entware)...${NC}"            opkg update 2>&1 | grep -v "Signature check"            if opkg install socat 2>&1; then                
+echo -e "${CYAN}   Usan
+do opkg (Entware)...${NC}"            opkg update 2>&1 | grep -v "Signature check"            if opkg install socat 2>&1; then                
 SOCAT_INSTALLED=true            fi        else            
 echo -e "${RED}Ô£ù Package manager non trovato${NC}"            
 echo -e "${YELLOW}   Installa Entware per aggiungere pacchetti aggiuntivi${NC}"            
 echo -e "${YELLOW}   Visita: https://github.com/Entware/Entware${NC}"        fi                
 # Verifica installazione        if ! command -v socat >/dev/null 2>&1; then            
-echo -e "${YELLOW}ÔÜá´©Å  socat non disponibile, uso metodo alternativo${NC}"            
+echo -e "${YELLOW}ÔÜá´©Å  socat non disponibile, uso meto
+do alternativo${NC}"            
 echo -e "${GREEN}Ô£ô Useremo script bash standalone (netcat/bash nativo)${NC}"            
 USE_STANDALONE_MODE=true        else            
 echo -e "${GREEN}Ô£ô socat installato con successo${NC}"        fi    else        
@@ -145,11 +149,14 @@ echo -e "${YELLOW}­ƒôª Download agent v${CHECKMK_VERSION}...${NC}"
 echo -e "   URL: ${CYAN}$AGENT_URL${NC}"        cd /tmp || exit 1    rm -f check_mk_agent.linux 2>/dev/null        if wget -q --show-progress "$AGENT_URL" -O check_mk_agent.linux 2>&1; then        
 echo -e "${GREEN}Ô£ô Download completato${NC}"    else        
 echo -e "${RED}Ô£ù Errore durante il download dell'agent${NC}"        exit 1    fi        
-# Verifica che il file sia valido    if [ ! -f check_mk_agent.linux ] || [ ! -s check_mk_agent.linux ]; then        
-echo -e "${RED}Ô£ù File agent non valido o vuoto${NC}"        exit 1    fi        
+# Verifica che il file sia vali
+do    if [ ! -f check_mk_agent.linux ] || [ ! -s check_mk_agent.linux ]; then        
+echo -e "${RED}Ô£ù File agent non vali
+do o vuoto${NC}"        exit 1    fi        
 # Verifica che sia uno script bash    if ! head -n 1 check_mk_agent.linux | grep -q "^
 #!"; then        
-echo -e "${RED}Ô£ù File scaricato non ├¿ uno script valido${NC}"        exit 1    fi        
+echo -e "${RED}Ô£ù File scaricato non ├¿ uno script vali
+do${NC}"        exit 1    fi        
 echo -e "${GREEN}Ô£ô Agent scaricato e verificato${NC}"}
 # =====================================================
 # Funzione: Installa CheckMK Agent
@@ -205,13 +212,15 @@ PID_FILE="/var/run/checkmk_agent.pid"
 echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >> "$LOG_FILE"}
 # Controlla se gi├á in esecuzioneif [ -f "$PID_FILE" ]; then    
 OLD_PID=$(cat "$PID_FILE")    if ps -p "$OLD_PID" > /dev/null 2>&1; then        log_msg "Agent gi├á in esecuzione (PID: $OLD_PID)"        
-echo "Agent gi├á in esecuzione (PID: $OLD_PID)"        exit 0    else        rm -f "$PID_FILE"    fifi
+echo "Agent gi├á in esecuzione (PID: $OLD_PID)"        exit 0    else        rm -f "$PID_FILE"    fi
+fi
 # Verifica se la porta ├¿ gi├á in usoif netstat -tuln 2>/dev/null | grep -q ":$PORT "; then    log_msg "ERRORE: Porta $PORT gi├á in uso"    
 echo "ERRORE: Porta $PORT gi├á in uso"    exit 1filog_msg "Avvio CheckMK Agent daemon sulla porta $PORT"
 # Prova con Python (preferito)if command -v python3 >/dev/null 2>&1; then    
 PYTHON_CMD="python3"elif command -v python >/dev/null 2>&1; then    
 PYTHON_CMD="python"else    
-PYTHON_CMD=""fiif [ -n "$PYTHON_CMD" ]; then    log_msg "Usando Python daemon"        
+PYTHON_CMD=""fiif [ -n "$PYTHON_CMD" ]; then    log_msg "Usan
+do Python daemon"        
 # Daemon Python    cat > /tmp/checkmk_daemon_$$.py <<'PYEOF'
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-import socketimport subprocessimport sysimport osimport signalimport timePORT = 6556AGENT_BIN = "/opt/checkmk/bin/check_mk_agent"LOG_FILE = "/opt/checkmk/log/agent.log"PID_FILE = "/var/run/checkmk_agent.pid"def log(msg):    with open(LOG_FILE, 'a') as f:        f.write("{}: {}\n".format(time.strftime("%Y-%m-%d %H:%M:%S"), msg))def cleanup(signum=None, frame=None):    log("Ricevuto segnale di terminazione, chiusura...")    try:        os.remove(PID_FILE)    except:        pass    sys.exit(0)signal.signal(signal.SIGTERM, cleanup)signal.signal(signal.SIGINT, cleanup)
@@ -222,7 +231,8 @@ PYTHON_CMD=""fiif [ -n "$PYTHON_CMD" ]; then    log_msg "Usando Python daemon"
 DAEMON_PID=$!    
 echo $DAEMON_PID > "$PID_FILE"        sleep 2        if ps -p $DAEMON_PID > /dev/null 2>&1; then        log_msg "Daemon avviato con successo (PID: $DAEMON_PID)"        
 echo "Daemon avviato con successo (PID: $DAEMON_PID)"    else        log_msg "ERRORE: Impossibile avviare il daemon"        
-echo "ERRORE: Impossibile avviare il daemon"        rm -f "$PID_FILE"        exit 1    fielse    log_msg "ERRORE: Python non disponibile e socat non installato"    
+echo "ERRORE: Impossibile avviare il daemon"        rm -f "$PID_FILE"        exit 1    fi
+else    log_msg "ERRORE: Python non disponibile e socat non installato"    
 echo "ERRORE: Python non disponibile e socat non installato"    exit 1fiDAEMON_EOF        chmod +x "$AGENT_DIR/agent_daemon.sh"        
 # Crea script di avvio che usa il daemon    cat > "$AGENT_DIR/start_agent.sh" <<'EOF'
 #!/bin/bash/opt/checkmk/agent_daemon.shEOF        chmod +x "$AGENT_DIR/start_agent.sh"        
@@ -233,7 +243,8 @@ PID_FILE="/var/run/checkmk_agent.pid"
 echo "$(date): Stopping CheckMK Agent" >> "$LOG_FILE"if [ -f "$PID_FILE" ]; then    
 PID=$(cat "$PID_FILE")    if ps -p "$PID" > /dev/null 2>&1; then        kill "$PID" 2>/dev/null        rm -f "$PID_FILE"        
 echo "CheckMK Agent stopped (PID: $PID)"    else        
-echo "Agent non in esecuzione"        rm -f "$PID_FILE"    fielse    
+echo "Agent non in esecuzione"        rm -f "$PID_FILE"    fi
+else    
 # Fallback: kill tutti i processi    killall -9 python 2>/dev/null | grep checkmk    
 echo "Agent stopped (fallback)"fiEOF        chmod +x "$AGENT_DIR/stop_agent.sh"        
 echo -e "${GREEN}Ô£ô Script di controllo creati (standalone mode)${NC}"}
@@ -344,7 +355,8 @@ LOG_FILE="/opt/frpc/log/startup.log"
 PID_FILE="/var/run/frpc.pid"
 # Controlla se gi├á in esecuzioneif [ -f "$PID_FILE" ]; then    
 OLD_PID=$(cat "$PID_FILE")    if ps -p "$OLD_PID" > /dev/null 2>&1; then        
-echo "FRPC gi├á in esecuzione (PID: $OLD_PID)"        exit 0    else        rm -f "$PID_FILE"    fifi
+echo "FRPC gi├á in esecuzione (PID: $OLD_PID)"        exit 0    else        rm -f "$PID_FILE"    fi
+fi
 echo "$(date): Starting FRPC" >> "$LOG_FILE"
 # Start FRPC (senza nohup per compatibilit├á Synology)$FRPC_BIN -c "$FRPC_CONF" >> "$LOG_FILE" 2>&1 &
 FRPC_PID=$!
@@ -359,7 +371,8 @@ PID_FILE="/var/run/frpc.pid"
 echo "$(date): Stopping FRPC" >> "$LOG_FILE"if [ -f "$PID_FILE" ]; then    
 PID=$(cat "$PID_FILE")    if ps -p "$PID" > /dev/null 2>&1; then        kill "$PID" 2>/dev/null        rm -f "$PID_FILE"        
 echo "FRPC stopped (PID: $PID)"    else        
-echo "FRPC not running"        rm -f "$PID_FILE"    fielse    
+echo "FRPC not running"        rm -f "$PID_FILE"    fi
+else    
 # Fallback    killall frpc 2>/dev/null    
 echo "FRPC stopped (fallback)"fiEOF        chmod +x "$FRPC_DIR/stop_frpc.sh"        
 # Script di restart    cat > "$FRPC_DIR/restart_frpc.sh" <<'EOF'
@@ -459,7 +472,8 @@ echo ""}
 # =====================================================
 # Verifica se rootif [ "$EUID" -ne 0 ] && [ "$(id -u)" -ne 0 ]; then    
 echo -e "${RED}Ô£ù Questo script deve essere eseguito come root${NC}"    
-echo -e "${YELLOW}   Usa: sudo $0${NC}"    exit 1fi
+echo -e "${YELLOW}   Usa: su
+do $0${NC}"    exit 1fi
 # Parsing parametricase "${1:-}" in    --help|-h)        show_usage        ;;    --uninstall)        show_banner        
 echo -e "${RED}ÔÜá´©Å  ATTENZIONE: Rimozione completa di CheckMK Agent e FRPC${NC}"        
 echo -n "Confermi? [s/N]: "        read -r CONFIRM        if [[ "$CONFIRM" =~ ^[sS]$ ]]; then            uninstall_agent            uninstall_frpc            
@@ -488,7 +502,8 @@ echo -e "${YELLOW}FRPC permette di esporre l'agent CheckMK attraverso un tunnel$
 echo -e "${YELLOW}verso un server FRP, utile per monitoraggio di sistemi in NAT.${NC}"
 echo ""
 echo -n "Installare FRPC? [S/n]: "read -r INSTALL_FRPCif [[ ! "$INSTALL_FRPC" =~ ^[nN]$ ]]; then    
-# Installa FRPC    download_frpc    install_frpc    configure_frpc    create_frpc_scripts    setup_frpc_autostartfi
+# Installa FRPC    download_frpc    install_frpc    configure_frpc    create_frpc_scripts    setup_frpc_autostart
+fi
 # Mostra riepilogoshow_summary
 echo -e "${GREEN}Ô£¿ Installazione terminata!${NC}"
 echo ""

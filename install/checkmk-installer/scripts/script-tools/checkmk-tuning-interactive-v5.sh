@@ -35,7 +35,8 @@ HAVE_LIVE=0if [ -S "$LIVE" ]; then  if timeout 3 bash -c "
 echo -e 'GET status\n' | unixcat '$LIVE' >/dev/null 2>&1"; then    
 HAVE_LIVE=1    
 echo -e "${G}Ô£ô Livestatus attivo.${N}"  else    
-echo -e "${Y}ÔÜá Livestatus non risponde entro 3s ÔåÆ uso fallback log.${N}"  fielse  
+echo -e "${Y}ÔÜá Livestatus non risponde entro 3s ÔåÆ uso fallback log.${N}"  fi
+else  
 echo -e "${Y}ÔÜá Nessun socket Livestatus trovato ÔåÆ uso fallback log.${N}"fiecho
 # --- Metriche servizi (usa sempre fallback se 
 HAVE_LIVE=0) ---
@@ -58,7 +59,8 @@ TOT=$(awk -v t="$AGO" -F'[][]' '$2>=t && /SERVICE ALERT/ {c++} END{print c+0}' "
 echo 0)  
 TO=$(awk -v t="$AGO" -F'[][]' '$2>=t && /SERVICE ALERT/ && /SERVICE CHECK TIMEOUT/ {c++} END{print c+0}' "$LOG" 2>/dev/null || 
 echo 0)  if [ "$TOT" -gt 0 ]; then 
-TIMEOUT_RATE=$(awk -v a="$TO" -v b="$TOT" 'BEGIN{printf("%.2f",(a*100)/b)}'); fifi
+TIMEOUT_RATE=$(awk -v a="$TO" -v b="$TOT" 'BEGIN{printf("%.2f",(a*100)/b)}'); fi
+fi
 # --- Protezione ---if [ "$SRV_COUNT" -le 0 ]; then  
 echo -e "${Y}ÔÜá Nessun servizio rilevato, imposto 400 come valore di default per il tuning.${N}"  
 SRV_COUNT=400fi

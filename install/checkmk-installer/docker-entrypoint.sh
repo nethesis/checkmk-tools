@@ -10,4 +10,5 @@ echo ""
 echo "Per generare l'ISO, esegui:"    
 echo "  ./make-iso.sh"    
 echo ""    exec "$@"else    
-# Esegui direttamente il comando passato    exec "$@"fi
+# Esegui direttamente il coman
+do passato    exec "$@"fi

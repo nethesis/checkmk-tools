@@ -41,7 +41,8 @@ CACHE_FILE="$CACHE_DIR/$SCRIPT_NAME.sh"
 # FUNZIONE DI UPDATE
 # =====================================================update_script() {    local temp_file="$CACHE_FILE.tmp"        
 # Prova download con timeout    if curl -s --max-time "$TIMEOUT" --fail "$GITHUB_URL" -o "$temp_file" 2>/dev/null; then        
-# Verifica che il file sia valido (contiene shebang bash)        if head -n 1 "$temp_file" | grep -q "^
+# Verifica che il file sia vali
+do (contiene shebang bash)        if head -n 1 "$temp_file" | grep -q "^
 #!/.*bash"; then            mv "$temp_file" "$CACHE_FILE"            chmod +x "$CACHE_FILE"            
 echo "
 # Script updated from GitHub $(date)" > "$CACHE_FILE.info"            return 0        else            rm -f "$temp_file"            return 1        fi    else        rm -f "$temp_file" 2>/dev/null        return 1    fi}

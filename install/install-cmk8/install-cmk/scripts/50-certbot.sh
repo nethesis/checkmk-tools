@@ -10,7 +10,8 @@ WSWS="${WS:-apache}"case "$WS" in  apache)
 echo ">>> Installazione plugin Apache..."    apt-get install -y apache2 python3-certbot-apache >/dev/null    ;;  nginx)    
 echo ">>> Installazione plugin Nginx..."    apt-get install -y nginx python3-certbot-nginx >/dev/null    ;;  standalone)    
 echo ">>> Modalit├â┬á standalone selezionata (nessun webserver installato)."    ;;  *)    
-echo "ERRORE: Valore WEBSERVER non valido: $WS"    exit 1    ;;esac
+echo "ERRORE: Valore WEBSERVER non vali
+do: $WS"    exit 1    ;;esac
 # Dati utenteread -r -p "Inserisci email Let's Encrypt (lascia vuoto per nessuna): " LETSENCRYPT_EMAILread -r -p "Inserisci domini separati da virgola (es. example.com,www.example.com): " LETSENCRYPT_DOMAINSmkdir -p /etc/letsencrypt
 CLI_INI="/etc/letsencrypt/cli.ini"
 echo ">>> Creazione configurazione globale in $CLI_INI"{  [[ -n "$LETSENCRYPT_EMAIL" ]] && 
@@ -54,7 +55,8 @@ R=301,L]</VirtualHost><VirtualHost *:443>    ServerName $MAIN_DOMAIN
 echo ">>> Apache riavviato con il nuovo certificato Let's Encrypt."        
 echo ">>> Certificato configurato per: $MAIN_DOMAIN"      else        
 echo "ERRORE: Configurazione Apache non valida. Ripristino backup..."        mv "$BACKUP_FILE" "$APACHE_CONF" 2>/dev/null || true      fi    else      
-echo ">>> File $APACHE_CONF non trovato. Configurazione Apache da fare manualmente."    fi  fielse  
+echo ">>> File $APACHE_CONF non trovato. Configurazione Apache da fare manualmente."    fi  fi
+else  
 echo ">>> Challenge non eseguita. Potrai lanciarla manualmente in seguito, es.:"  
 echo "    certbot certonly --$WS -d dominio.it"fi
 echo ">>> Installazione Certbot completata."

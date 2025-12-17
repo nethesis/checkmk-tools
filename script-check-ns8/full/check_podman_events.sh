@@ -16,5 +16,6 @@ NAME=$(
 echo "$LAST_EVENT" | awk '{print $6}')        
 # WARNING: mostra solo Nome + Azione        
 echo "1 ${SVC} - ${NAME^} ${ACTION^}"    else        
-echo "0 ${SVC} - Nessun Evento"    fielse    
+echo "0 ${SVC} - Nessun Evento"    fi
+else    
 echo "0 ${SVC} - Nessun Evento"fi

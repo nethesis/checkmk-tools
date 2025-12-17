@@ -1,6 +1,7 @@
 #!/bin/bash
 /usr/bin/env bash
-# quick-test-ydea-api.sh ÔÇö Test rapido connessione API Ydea
+# quick-test-ydea-api.sh ÔÇö Test rapi
+do connessione API Ydea
 # Verifica che le credenziali funzionino prima di eseguire la discovery completaset -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 YDEA_TOOLKIT="${SCRIPT_DIR}/ydea-toolkit.sh"
@@ -38,10 +39,12 @@ echo ""
 echo "Possibili cause:"  
 echo "  - Endpoint /categories non esiste o non ├¿ accessibile"  
 echo "  - Problema di connessione o timeout"  
-echo "  - Token scaduto o non valido"  exit 1fi
+echo "  - Token scaduto o non vali
+do"  exit 1fi
 # Verifica se la risposta ├¿ JSON validoif ! 
 echo "$categories_data" | jq empty 2>/dev/null; then  
-echo "ÔØî Risposta non ├¿ JSON valido"  
+echo "ÔØî Risposta non ├¿ JSON vali
+do"  
 echo ""  
 echo "Risposta ricevuta:"  
 echo "$categories_data" | head -30  exit 1fi

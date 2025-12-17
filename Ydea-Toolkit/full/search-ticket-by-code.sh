@@ -8,7 +8,8 @@ echo "ÔØî Uso: $0 <ticket_code>"
 echo ""  
 echo "Esempio:"  
 echo "  $0 TK25/003209"  exit 1fi
-echo "­ƒöì Cercando ticket con codice: $TICKET_CODE..."
+echo "­ƒöì Cercan
+do ticket con codice: $TICKET_CODE..."
 echo ""
 # Assicurati di avere il tokenensure_token
 TOKEN="$(load_token)"
@@ -111,7 +112,8 @@ echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔ
 echo ""    
 echo "$TICKET_DATA" | jq 'to_entries | map(select(.key | test("categoria|sla|premium|categor"; "i"))) | from_entries'    
 echo ""    
-echo "Ô£à Ispezione completata!"    exit 0  fidone
+echo "Ô£à Ispezione completata!"    exit 0  fi
+done
 echo "ÔØî Ticket $TICKET_CODE non trovato nei primi 1000 ticket"
 echo ""
 echo "­ƒÆí Suggerimento: Potrebbe essere un ticket molto vecchio o archiviato."

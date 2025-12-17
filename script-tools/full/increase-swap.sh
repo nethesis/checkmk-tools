@@ -1,6 +1,7 @@
 #!/bin/bash
 # Aumenta swap da 8GB a 16GB su server CheckMK
-# Uso: sudo ./increase-swap.sh [--yes]
+# Uso: su
+do ./increase-swap.sh [--yes]
 
 set -euo pipefail
 
@@ -106,7 +107,8 @@ else
     echo -e "${GREEN}✓ Entry già presente in /etc/fstab${NC}"
 fi
 
-# Ottimizza swappiness (usa swap solo quando necessario)
+# Ottimizza swappiness (usa swap solo quan
+do necessario)
 echo -e "${YELLOW}7. Ottimizzazione swappiness...${NC}"
 if ! grep -q "vm.swappiness" /etc/sysctl.conf; then
     echo "vm.swappiness=10" >> /etc/sysctl.conf
@@ -124,4 +126,5 @@ echo ""
 swapon --show
 echo ""
 echo -e "${GREEN}✓ Swap aumentato a 16GB con successo!${NC}"
-echo -e "${YELLOW}Nota: Il sistema userà lo swap solo quando necessario (swappiness=10)${NC}"
+echo -e "${YELLOW}Nota: Il sistema userà lo swap solo quan
+do necessario (swappiness=10)${NC}"

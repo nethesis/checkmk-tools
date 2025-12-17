@@ -161,7 +161,8 @@ token_is_fresh() {
   exp="$(expires_at)"
   skew="${YDEA_EXPIRY_SKEW}"
   if [[ "$now" -lt $(( exp - skew )) ]]; then
-    log_debug "Token valido (scade tra $(( exp - now )) secondi)"
+    log_debug "Token vali
+do (scade tra $(( exp - now )) secondi)"
     return 0
   else
     log_debug "Token scaduto o in scadenza"
@@ -221,12 +222,14 @@ echo "$resp"
   fi
   
   save_token "$token"
-  log_success "Login effettuato (token valido ~1h)"
+  log_success "Login effettuato (token vali
+do ~1h)"
 }
 
 ensure_token() {
   if token_is_fresh; then
-    log_debug "Token ancora valido"
+    log_debug "Token ancora vali
+do"
   else
     log_info "Token scaduto o mancante, effettuo il login..."
     ydea_login
@@ -546,7 +549,8 @@ local now
 now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   
   
-# Recupera dettagli ticket da API usando /tickets?limit=100 (endpoint /tickets/{id} non accessibile)
+# Recupera dettagli ticket da API usan
+do /tickets?limit=100 (endpoint /tickets/{id} non accessibile)
   local ticket_data
   ticket_data=$(ydea_api GET "/tickets?limit=100" 2>/dev/null | jq --arg tid "$ticket_id" '.objs[] | select(.id == ($tid|tonumber))' || 
 echo "{}")
@@ -1144,7 +1148,8 @@ ESEMPI:
 
   
 # Aggiungi commento
-  ./ydea-toolkit.sh comment 12345 "Problema risolto riavviando il servizio"
+  ./ydea-toolkit.sh comment 12345 "Problema risolto riavvian
+do il servizio"
 
   
 # Chiudi ticket

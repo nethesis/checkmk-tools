@@ -6,7 +6,8 @@ MODULE_NAME="System Base Configuration"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
-# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +aelse  log_error "Configuration file not found. Run config-wizard.sh first."  exit 1fi
+# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
+else  log_error "Configuration file not found. Run config-wizard.sh first."  exit 1fi
 # Module startlog_module_start "$MODULE_NAME"
 #
 #
@@ -484,7 +485,8 @@ NTP=time.cloudflare.com time.google.comEOF
 #install_base_packages() {  log_info "Installing base packages..."    
 # Clean any corrupted packages first  clean_corrupted_agent    
 # Update package lists  log_command "apt-get update"    
-# Base packages  local packages=(    "curl"    "wget"    "git"    "vim"    "nano"    "htop"    "net-tools"    "dnsutils"    "jq"    "unzip"    "build-essential"    "software-properties-common"    "apt-transport-https"    "ca-certificates"    "gnupg"    "lsb-release"    "sudo"    "rsync"    "screen"    "tmux"  )    log_command "
+# Base packages  local packages=(    "curl"    "wget"    "git"    "vim"    "nano"    "htop"    "net-tools"    "dnsutils"    "jq"    "unzip"    "build-essential"    "software-properties-common"    "apt-transport-https"    "ca-certificates"    "gnupg"    "lsb-release"    "su
+do"    "rsync"    "screen"    "tmux"  )    log_command "
 DEBIAN_FRONTEND=noninteractive apt-get install -y ${packages[*]}"    log_success "Base packages installed"}
 #
 #

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Smart Deploy per CheckMK Scripts - Sistema Ibrido
+# Smart Deploy per CheckMK Scripts - Sistema Ibri
+do
 # Deploy iniziale + wrapper intelligenti per auto-updateset -euo pipefail
 # =====================================================
 # CONFIGURAZIONE
@@ -37,7 +38,8 @@ echo "[$(date '+%H:%M:%S')] $1"}add_version_metadata() {    local script_file="$
 CMK_VERSION="'"$version"'"' "$script_file"        sed -i '3i 
 # Auto-deployed via smart-deploy-hybrid' "$script_file"        sed -i '4i 
 # Last-update: '"$(date '+%Y-%m-%d %H:%M:%S')" "$script_file"    fi}create_smart_wrapper() {    local script_name="$1"    local github_path="$2"    local script_type="$3"        
-# Determina directory target in base al tipo    local target_dir    case "$script_type" in        "local")        target_dir="$CHECKMK_LOCAL_DIR" ;;        "spool")        target_dir="$CHECKMK_SPOOL_DIR" ;;        "plugin")       target_dir="$CHECKMK_PLUGIN_DIR" ;;        "notification") target_dir="$CHECKMK_NOTIFICATION_DIR" ;;        *)              target_dir="$CHECKMK_LOCAL_DIR" ;;    esac        local wrapper_file="$target_dir/${script_name}"        log "­ƒôØ Creando wrapper smart per $script_name ($script_type) in $target_dir..."        
+# Determina directory target in base al tipo    local target_dir    case "$script_type" in        "local")        target_dir="$CHECKMK_LOCAL_DIR" ;;        "spool")        target_dir="$CHECKMK_SPOOL_DIR" ;;        "plugin")       target_dir="$CHECKMK_PLUGIN_DIR" ;;        "notification") target_dir="$CHECKMK_NOTIFICATION_DIR" ;;        *)              target_dir="$CHECKMK_LOCAL_DIR" ;;    esac        local wrapper_file="$target_dir/${script_name}"        log "­ƒôØ Crean
+do wrapper smart per $script_name ($script_type) in $target_dir..."        
 # Crea directory se non esiste    mkdir -p "$target_dir" 2>/dev/null || true        cat > "$wrapper_file" << EOF
 #!/bin/bash
 # Smart CheckMK Script Wrapper - $script_name
@@ -85,8 +87,10 @@ echo "2 \$SCRIPT_NAME - CRITICAL: No script available (GitHub unreachable, no ca
 echo "${!SCRIPTS[@]}" | wc -w),    "directories": {        "local": "$CHECKMK_LOCAL_DIR",        "plugins": "$CHECKMK_PLUGIN_DIR",        "spool": "$CHECKMK_SPOOL_DIR",        "notifications": "$CHECKMK_NOTIFICATION_DIR"    }}EOF        log "­ƒôï Status saved to $status_file"}
 # =====================================================
 # SETUP INIZIALE
-# =====================================================log "­ƒÜÇ CheckMK Smart Deploy - Sistema Ibrido"log "­ƒÅù´©Å  Environment: $ENV_TYPE"log "­ƒôü Cache: $CACHE_DIR"
-# Verifica permessi baseif [ ! -w "/usr/lib/check_mk_agent" ] 2>/dev/null; then    log "ÔØî Errore: Non hai permessi di scrittura su /usr/lib/check_mk_agent"    log "­ƒÆí Esegui come root o con sudo"    exit 1fi
+# =====================================================log "­ƒÜÇ CheckMK Smart Deploy - Sistema Ibri
+do"log "­ƒÅù´©Å  Environment: $ENV_TYPE"log "­ƒôü Cache: $CACHE_DIR"
+# Verifica permessi baseif [ ! -w "/usr/lib/check_mk_agent" ] 2>/dev/null; then    log "ÔØî Errore: Non hai permessi di scrittura su /usr/lib/check_mk_agent"    log "­ƒÆí Esegui come root o con su
+do"    exit 1fi
 # Crea directory cachemkdir -p "$CACHE_DIR"log "­ƒôé Cache directory: $CACHE_DIR"
 # =====================================================
 # DEPLOY SCRIPTS
@@ -97,7 +101,8 @@ IFS=':' read -r github_path script_type <<< "${SCRIPTS[$script_entry]}"        l
 # Crea wrapper smart    create_smart_wrapper "$script_entry" "$github_path" "$script_type"done
 # =====================================================
 # POST-DEPLOYMENT: STATUS E MAINTENANCE
-# =====================================================log "­ƒöº Creando script di manutenzione..."cat > "$CACHE_DIR/update-all.sh" << 'EOF'
+# =====================================================log "­ƒöº Crean
+do script di manutenzione..."cat > "$CACHE_DIR/update-all.sh" << 'EOF'
 #!/bin/bash
 # Aggiorna manualmente tutti gli script CheckMK
 # Pattern basato su CheckMK ufficiale
@@ -111,7 +116,8 @@ echo "Ô¼¼ Updating $script_name..."        if curl -s --max-time 10 --fail "$
 #!/.*bash"; then            mv "$cache_file.tmp" "$cache_file"            chmod +x "$cache_file"            
 echo "Ô£à $script_name updated"        else            rm -f "$cache_file.tmp"            
 echo "ÔØî $script_name invalid format"        fi    else        rm -f "$cache_file.tmp" 2>/dev/null        
-echo "ÔØî $script_name download failed"    fidone
+echo "ÔØî $script_name download failed"    fi
+done
 echo "­ƒÅü Update completed"EOFchmod +x "$CACHE_DIR/update-all.sh"
 # Crea script di status checkcat > "$CACHE_DIR/check-status.sh" << 'EOF'
 #!/bin/bash
@@ -121,7 +127,8 @@ echo "­ƒôè CheckMK Scripts Health Status"
 echo "=================================="
 # Check directoriesfor dir in "/usr/lib/check_mk_agent/local" "/usr/lib/check_mk_agent/plugins" "/usr/lib/check_mk_agent/spool"; do    if [ -d "$dir" ]; then        count=$(find "$dir" -maxdepth 1 -type f -executable | wc -l)        
 echo "­ƒôü $dir: $count scripts"    else        
-echo "ÔØî $dir: not found"    fidone
+echo "ÔØî $dir: not found"    fi
+done
 # Check cacheif [ -d "${CACHE_DIR:-/var/cache/checkmk-scripts}" ]; then    cache_count=$(find "${CACHE_DIR:-/var/cache/checkmk-scripts}" -name "*.sh" | wc -l)    
 echo "­ƒÆ¥ Cache: $cache_count files"else    
 echo "ÔØî Cache directory not found"fi
@@ -136,10 +143,13 @@ echo "${!SCRIPTS[@]}" | wc -w)"log "   ­ƒôü Cache directory: $CACHE_DIR"log 
 # Health check finalecheck_plugin_health "$CHECKMK_LOCAL_DIR" "local"check_plugin_health "$CHECKMK_PLUGIN_DIR" "plugins"
 # Crea deployment status JSONcreate_deployment_statuslog ""log "Ô£à Setup completed successfully!"log "­ƒÆí Run '$CACHE_DIR/check-status.sh' to verify status"log "­ƒöä Run '$CACHE_DIR/update-all.sh' to manually update all scripts"
 echo "­ƒöä Aggiornamento manuale script CheckMK..."for info_file in *.info; do    [ -f "$info_file" ] || continue    script_name=$(basename "$info_file" .info)    
-echo "­ƒôÑ Aggiornando $script_name..."        
-# Forza update eseguendo il wrapper    if /usr/lib/check_mk_agent/local/"$script_name" >/dev/null 2>&1; then        
+echo "­ƒôÑ Aggiornan
+do $script_name..."        
+# Forza update eseguen
+do il wrapper    if /usr/lib/check_mk_agent/local/"$script_name" >/dev/null 2>&1; then        
 echo "Ô£à $script_name aggiornato"    else        
-echo "ÔÜá´©Å  $script_name: problema nell'aggiornamento"    fidone
+echo "ÔÜá´©Å  $script_name: problema nell'aggiornamento"    fi
+done
 echo "­ƒÄë Aggiornamento completato!"EOFchmod +x "$CACHE_DIR/update-all.sh"
 # =====================================================
 # RIEPILOGO

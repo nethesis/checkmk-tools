@@ -1,6 +1,7 @@
 #!/bin/bash
 /usr/bin/env bash
-# Test rapido per verificare log_ticket_event
+# Test rapi
+do per verificare log_ticket_event
 echo "­ƒº¬ Test 1: Funzione log_ticket_event in ydea_realip"
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 # Simula la funzione loglog() { 

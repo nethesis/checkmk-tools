@@ -63,7 +63,8 @@ INSTALL_FRPINSTALL_FRP=$(
 echo "$INSTALL_FRP" | tr '[:upper:]' '[:lower:]')if [[ "$INSTALL_FRP" =~ ^(s|si|y|yes)$ ]]; then    
 SERVER_ADDR="monitor.nethlab.it"    
 SERVER_PORT="7000"    while true; do        read -rp "Inserisci la remote_port da assegnare (es. 6020): " REMOTE_PORT        [[ "$REMOTE_PORT" =~ ^[0-9]+$ ]] && break || 
-echo "ÔÜá´©Å Inserisci un numero valido."    done    read -rp "Inserisci la chiave/token FRP: " FRP_TOKEN    
+echo "ÔÜá´©Å Inserisci un numero vali
+do."    done    read -rp "Inserisci la chiave/token FRP: " FRP_TOKEN    
 DEFAULT_NAME=$(hostname 2>/dev/null || 
 echo "openwrt-host")    
 echo ""    
@@ -80,7 +81,8 @@ STOP=10
 USE_PROCD=1start_service() {    procd_open_instance    procd_set_param command /usr/local/bin/frpc -c /etc/frp/frpc.toml    procd_set_param respawn    procd_close_instance}stop_service() {    killall frpc >/dev/null 2>&1 || true}INIT    chmod +x "$FRPC_INIT"    /etc/init.d/frpc enable >/dev/null 2>&1 || true    /etc/init.d/frpc start || /usr/local/bin/frpc -c "$FRPC_CONF" &    sleep 2    
 echo ""    if pgrep -f frpc >/dev/null 2>&1; then        
 echo "Ô£à FRP attivo per proxy [$PROXY_NAME] ÔåÆ porta remota $REMOTE_PORT"    else        
-echo "ÔÜá´©Å  FRP non attivo. Controlla log: tail -f $FRPC_LOG"    fifi
+echo "ÔÜá´©Å  FRP non attivo. Controlla log: tail -f $FRPC_LOG"    fi
+fi
 # ============================================================
 # 6´©ÅÔâú Fine
 # ============================================================

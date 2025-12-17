@@ -111,7 +111,8 @@ UBUNTU_ISO_NAME="ubuntu-${UBUNTU_VERSION}-live-server-amd64.iso"init_loggingprin
 #
 #check_dependencies() {  log_info "Checking dependencies..."    local deps=("wget" "xorriso" "mksquashfs" "genisoimage" "7z")  local missing=()    for dep in "${deps[@]}"; do    if ! command -v "$dep" &>/dev/null; then      missing+=("$dep")    fi  done    
 # Check for isolinux files  if [[ ! -f "/usr/lib/ISOLINUX/isolinux.bin" ]] && [[ ! -f "/usr/lib/isolinux/isolinux.bin" ]]; then    missing+=("isolinux")  fi    if [[ ${
-#missing[@]} -gt 0 ]]; then    log_error "Missing dependencies: ${missing[*]}"    log_info "Install with: sudo apt-get install xorriso isolinux squashfs-tools genisoimage p7zip-full wget"    return 1  fi    log_success "All dependencies installed"}
+#missing[@]} -gt 0 ]]; then    log_error "Missing dependencies: ${missing[*]}"    log_info "Install with: su
+do apt-get install xorriso isolinux squashfs-tools genisoimage p7zip-full wget"    return 1  fi    log_success "All dependencies installed"}
 #
 #
 #
@@ -401,7 +402,9 @@ echo -ne "\r${CYAN}Extracting... Done!${NC}\n"    cd - > /dev/null    if [ $exit
 #!/bin/bash
 # Quick install launcher
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"exec bash "${SCRIPT_DIR}/bootstrap-installer.sh" "$@"EOF    chmod +x "${installer_dir}/install.sh"    
-# Create README  cat > "${installer_dir}/README.txt" <<'EOF'ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòùÔòæ                                                              ÔòæÔòæ         CheckMK Installer - Online Edition                  ÔòæÔòæ                                                              ÔòæÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØThis is a lightweight online installer that downloads the completeCheckMK installation tools from GitHub.QUICK START:------------After booting from this ISO, open a terminal and run:  sudo bash /cdrom/checkmk-installer/install.shOr the full command:  sudo bash /cdrom/checkmk-installer/bootstrap-installer.shWHAT IT DOES:-------------1. Clones/updates repository to /opt/checkmk-tools/2. Makes all .sh files executable3. Launches the interactive installerREQUIREMENTS:-------------- Internet connection (required!)- Git (will be installed automatically)- Root privilegesREPOSITORY:-----------https://github.com/Coverup20/checkmk-toolsADVANTAGES:------------ Small ISO size (base Ubuntu only)- Always installs latest version- No outdated scriptsDISADVANTAGES:--------------- Requires internet connection- Download time on first runFor offline installation, use the full ISO instead.EOF    log_success "Bootstrap script added to ISO"}
+# Create README  cat > "${installer_dir}/README.txt" <<'EOF'ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòùÔòæ                                                              ÔòæÔòæ         CheckMK Installer - Online Edition                  ÔòæÔòæ                                                              ÔòæÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØThis is a lightweight online installer that downloads the completeCheckMK installation tools from GitHub.QUICK START:------------After booting from this ISO, open a terminal and run:  su
+do bash /cdrom/checkmk-installer/install.shOr the full command:  su
+do bash /cdrom/checkmk-installer/bootstrap-installer.shWHAT IT DOES:-------------1. Clones/updates repository to /opt/checkmk-tools/2. Makes all .sh files executable3. Launches the interactive installerREQUIREMENTS:-------------- Internet connection (required!)- Git (will be installed automatically)- Root privilegesREPOSITORY:-----------https://github.com/Coverup20/checkmk-toolsADVANTAGES:------------ Small ISO size (base Ubuntu only)- Always installs latest version- No outdated scriptsDISADVANTAGES:--------------- Requires internet connection- Download time on first runFor offline installation, use the full ISO instead.EOF    log_success "Bootstrap script added to ISO"}
 #
 #
 #
@@ -496,7 +499,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"exec bash "${SCRIPT_DI
 # Create isolinux directory if doesn't exist  local isolinux_dir="${iso_root}/isolinux"  mkdir -p "$isolinux_dir"    
 # Copy isolinux files  if [[ -f "/usr/lib/ISOLINUX/isolinux.bin" ]]; then    cp /usr/lib/ISOLINUX/isolinux.bin "$isolinux_dir/"  elif [[ -f "/usr/lib/syslinux/modules/bios/isolinux.bin" ]]; then    cp /usr/lib/syslinux/modules/bios/isolinux.bin "$isolinux_dir/"  fi    
 # Copy required syslinux modules  for module in ldlinux.c32 libcom32.c32 libutil.c32 vesamenu.c32; do    if [[ -f "/usr/lib/syslinux/modules/bios/$module" ]]; then      cp "/usr/lib/syslinux/modules/bios/$module" "$isolinux_dir/"    fi  done    
-# Create isolinux.cfg  cat > "${isolinux_dir}/isolinux.cfg" <<'EOF'DEFAULT vesamenu.c32TIMEOUT 300PROMPT 0MENU TITLE CheckMK Installer Online Boot MenuLABEL ubuntu  MENU LABEL Boot CheckMK Online Installer (Ubuntu Live)  KERNEL /casper/vmlinuz  APPEND initrd=/casper/initrd boot=casper quiet splash ---LABEL grub  MENU LABEL Boot using GRUB (UEFI)  COM32 chain.c32  APPEND grubLABEL local  MENU LABEL Boot from local disk  LOCALBOOT 0EOF    log_success "Hybrid boot configured"}
+# Create isolinux.cfg  cat > "${isolinux_dir}/isolinux.cfg" <<'EOF'DEFAULT vesamenu.c32TIMEOUT 300PROMPT 0MENU TITLE CheckMK Installer Online Boot MenuLABEL ubuntu  MENU LABEL Boot CheckMK Online Installer (Ubuntu Live)  KERNEL /casper/vmlinuz  APPEND initrd=/casper/initrd boot=casper quiet splash ---LABEL grub  MENU LABEL Boot using GRUB (UE
+FI)  COM32 chain.c32  APPEND grubLABEL local  MENU LABEL Boot from local disk  LOCALBOOT 0EOF    log_success "Hybrid boot configured"}
 #
 #
 #
@@ -599,7 +603,8 @@ echo "This is a lightweight online installer."
 echo ""
 echo "To install CheckMK, run:"
 echo ""
-echo "  sudo bash /cdrom/checkmk-installer/install.sh"
+echo "  su
+do bash /cdrom/checkmk-installer/install.sh"
 echo ""
 echo "Requirements:"
 echo "  - Internet connection (REQUIRED)"
@@ -791,11 +796,19 @@ echo ""EOF    chmod +x "${iso_root}/autostart.sh"    log_success "Autostart scri
 #
 #
 #build_iso() {  local iso_root="$1"  local output_iso="${ISO_OUTPUT_DIR}/${ISO_NAME}"    log_info "Building final ISO image..."    mkdir -p "$ISO_OUTPUT_DIR"    
-# Check if EFI boot is available  local efi_boot_args=""  if [[ -f "${iso_root}/boot/grub/efi.img" ]]; then    log_debug "EFI boot image found, enabling UEFI support"    efi_boot_args="-eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat"  else    log_warning "EFI boot image not found, creating BIOS-only ISO"  fi    
+# Check if E
+FI boot is available  local efi_boot_args=""  if [[ -f "${iso_root}/boot/grub/e
+fi.img" ]]; then    log_debug "E
+FI boot image found, enabling UE
+FI support"    efi_boot_args="-eltorito-alt-boot -e boot/grub/e
+fi.img -no-emul-boot -isohybrid-gpt-basdat"  else    log_warning "E
+FI boot image not found, creating BIOS-only ISO"  fi    
 # Build ISO with xorriso  if [[ -n "$efi_boot_args" ]]; then    
-# Build with UEFI support    xorriso -as mkisofs \      -iso-level 3 \      -full-iso9660-filenames \      -volid "CHECKMK_ONLINE" \      -appid "CheckMK Online Installer" \      -publisher "CheckMK Tools" \      -preparer "makeiso-online.sh" \      -eltorito-boot isolinux/isolinux.bin \      -eltorito-catalog isolinux/boot.cat \      -no-emul-boot \      -boot-load-size 4 \      -boot-info-table \      -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \      $efi_boot_args \      -output "$output_iso" \      "$iso_root" 2>&1 | grep -v "^$" || true  else    
+# Build with UE
+FI support    xorriso -as mkisofs \      -iso-level 3 \      -full-iso9660-filenames \      -volid "CHECKMK_ONLINE" \      -appid "CheckMK Online Installer" \      -publisher "CheckMK Tools" \      -preparer "makeiso-online.sh" \      -eltorito-boot isolinux/isolinux.bin \      -eltorito-catalog isolinux/boot.cat \      -no-emul-boot \      -boot-load-size 4 \      -boot-info-table \      -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \      $efi_boot_args \      -output "$output_iso" \      "$iso_root" 2>&1 | grep -v "^$" || true  else    
 # Build BIOS-only    xorriso -as mkisofs \      -iso-level 3 \      -full-iso9660-filenames \      -volid "CHECKMK_ONLINE" \      -appid "CheckMK Online Installer" \      -publisher "CheckMK Tools" \      -preparer "makeiso-online.sh" \      -eltorito-boot isolinux/isolinux.bin \      -eltorito-catalog isolinux/boot.cat \      -no-emul-boot \      -boot-load-size 4 \      -boot-info-table \      -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \      -output "$output_iso" \      "$iso_root" 2>&1 | grep -v "^$" || true  fi    if [[ ! -f "$output_iso" ]]; then    log_error "Failed to create ISO"    return 1  fi    
-# Make ISO hybrid (bootable from USB)  if command -v isohybrid &>/dev/null; then    log_info "Making ISO hybrid bootable..."    if [[ -n "$efi_boot_args" ]]; then      isohybrid --uefi "$output_iso" 2>/dev/null || log_warning "Hybrid boot setup failed (non-critical)"    else      isohybrid "$output_iso" 2>/dev/null || log_warning "Hybrid boot setup failed (non-critical)"    fi  fi    log_success "ISO created: $output_iso"}
+# Make ISO hybrid (bootable from USB)  if command -v isohybrid &>/dev/null; then    log_info "Making ISO hybrid bootable..."    if [[ -n "$efi_boot_args" ]]; then      isohybrid --ue
+fi "$output_iso" 2>/dev/null || log_warning "Hybrid boot setup failed (non-critical)"    else      isohybrid "$output_iso" 2>/dev/null || log_warning "Hybrid boot setup failed (non-critical)"    fi  fi    log_success "ISO created: $output_iso"}
 #
 #
 #
@@ -989,6 +1002,8 @@ echo ""EOF    chmod +x "${iso_root}/autostart.sh"    log_success "Autostart scri
 # Build ISO  if ! build_iso "$iso_root"; then    cleanup    exit 1  fi    
 # Cleanup  cleanup    
 # Show summary  local output_iso="${ISO_OUTPUT_DIR}/${ISO_NAME}"local iso_sizelocal iso_sizeiso_size=$(du -h "$output_iso" | cut -f1)    
-echo ""  display_box "Online ISO Build Complete!" \    "" \    "ISO Location: $output_iso" \    "ISO Size: $iso_size" \    "" \    "This is a LIGHTWEIGHT online installer that:" \    "  - Requires internet connection" \    "  - Downloads latest code from GitHub" \    "  - Always up-to-date" \    "" \    "Usage:" \    "  1. Boot from ISO/USB" \    "  2. Open terminal" \    "  3. Run: sudo bash /cdrom/checkmk-installer/install.sh" \    "" \    "To write to USB:" \    "  sudo dd if=$output_iso of=/dev/sdX bs=4M status=progress"    log_success "Online ISO build completed successfully!"}
+echo ""  display_box "Online ISO Build Complete!" \    "" \    "ISO Location: $output_iso" \    "ISO Size: $iso_size" \    "" \    "This is a LIGHTWEIGHT online installer that:" \    "  - Requires internet connection" \    "  - Downloads latest code from GitHub" \    "  - Always up-to-date" \    "" \    "Usage:" \    "  1. Boot from ISO/USB" \    "  2. Open terminal" \    "  3. Run: su
+do bash /cdrom/checkmk-installer/install.sh" \    "" \    "To write to USB:" \    "  su
+do dd if=$output_iso of=/dev/sdX bs=4M status=progress"    log_success "Online ISO build completed successfully!"}
 # Trap cleanup on exittrap cleanup EXIT
 # Run mainmain "$@"

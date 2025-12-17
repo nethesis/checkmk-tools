@@ -103,7 +103,8 @@ MODE="uninstall-frpc"        ;;    --uninstall-agent)
 MODE="uninstall-agent"        ;;    --uninstall)        
 MODE="uninstall-all"        ;;    "")        
 MODE="install"        ;;    *)        
-echo -e "${RED}Ô£ù Parametro non valido: $1${NC}"        show_usage        ;;esac
+echo -e "${RED}Ô£ù Parametro non vali
+do: $1${NC}"        show_usage        ;;esac
 # Verifica permessi rootif [ "$EUID" -ne 0 ]; then    
 echo -e "${RED}Ô£ù Questo script deve essere eseguito come root${NC}"    exit 1fi
 # =====================================================
@@ -178,7 +179,8 @@ echo "src/gz openwrt_base $REPO_BASE" >> "$CUSTOMFEEDS"    grep -q "$REPO_PACKAG
 echo "src/gz openwrt_packages $REPO_PACKAGES" >> "$CUSTOMFEEDS"        
 # Installa tool necessari    
 echo -e "${YELLOW}­ƒôª Installazione tool base...${NC}"    opkg update    opkg install binutils tar gzip wget socat ca-certificates 2>/dev/null || opkg install busybox-full        if ! command -v ar >/dev/null; then        
-echo -e "${RED}Ô£ù Comando 'ar' mancante${NC}"        exit 1    fi        
+echo -e "${RED}Ô£ù Coman
+do 'ar' mancante${NC}"        exit 1    fi        
 # Scarica e estrai DEB    
 echo -e "${YELLOW}­ƒôª Download CheckMK Agent...${NC}"    mkdir -p "$TMPDIR"    cd "$TMPDIR"        
 echo -e "${CYAN}   Downloading...${NC}"    if wget "$DEB_URL" -O check-mk-agent.deb 2>&1; then        
@@ -220,12 +222,18 @@ echo -e "${YELLOW}­ƒôª Download agent da: $AGENT_URL${NC}"        cd /tmp   
 echo -e "${CYAN}   Downloading...${NC}"    if wget "$AGENT_URL" -O "$AGENT_FILE" 2>&1; then        
 echo -e "${GREEN}   Ô£ô Download completato${NC}"    else        
 echo -e "${RED}Ô£ù Errore durante il download${NC}"        exit 1    fi        
-# Verifica che il file sia valido    if [ ! -f "$AGENT_FILE" ] || [ ! -s "$AGENT_FILE" ]; then        
-echo -e "${RED}Ô£ù File scaricato non valido o vuoto${NC}"        exit 1    fi        
-# Verifica che sia un file RPM/DEB valido (solo se comando 'file' disponibile)    if command -v file >/dev/null 2>&1; then        if [ "$PKG_TYPE" = "rpm" ]; then            if ! file "$AGENT_FILE" | grep -q "RPM"; then                
-echo -e "${RED}Ô£ù File scaricato non ├¿ un pacchetto RPM valido${NC}"                
+# Verifica che il file sia vali
+do    if [ ! -f "$AGENT_FILE" ] || [ ! -s "$AGENT_FILE" ]; then        
+echo -e "${RED}Ô£ù File scaricato non vali
+do o vuoto${NC}"        exit 1    fi        
+# Verifica che sia un file RPM/DEB vali
+do (solo se coman
+do 'file' disponibile)    if command -v file >/dev/null 2>&1; then        if [ "$PKG_TYPE" = "rpm" ]; then            if ! file "$AGENT_FILE" | grep -q "RPM"; then                
+echo -e "${RED}Ô£ù File scaricato non ├¿ un pacchetto RPM vali
+do${NC}"                
 echo -e "${YELLOW}Contenuto del file:${NC}"                head -n 5 "$AGENT_FILE"                exit 1            fi        else            if ! file "$AGENT_FILE" | grep -q "Debian"; then                
-echo -e "${RED}Ô£ù File scaricato non ├¿ un pacchetto DEB valido${NC}"                
+echo -e "${RED}Ô£ù File scaricato non ├¿ un pacchetto DEB vali
+do${NC}"                
 echo -e "${YELLOW}Contenuto del file:${NC}"                head -n 5 "$AGENT_FILE"                exit 1            fi        fi    fi        
 echo -e "${YELLOW}­ƒôª Installazione pacchetto...${NC}"    if [ "$PKG_TYPE" = "deb" ]; then        dpkg -i "$AGENT_FILE"        apt-get install -f -y 2>/dev/null || true    else        rpm -Uvh "$AGENT_FILE"    fi        rm -f "$AGENT_FILE"    
 echo -e "${GREEN}Ô£ô Agent CheckMK installato${NC}"}
@@ -256,7 +264,8 @@ echo -e "${CYAN}   Downloading from GitHub...${NC}"    if wget "$FRP_URL" -O "fr
 echo -e "${GREEN}   Ô£ô Download completato${NC}"    else        
 echo -e "${RED}Ô£ù Errore durante il download di FRPC${NC}"        exit 1    fi        
 # Verifica file    if [ ! -f "frp_${FRP_VERSION}_linux_amd64.tar.gz" ] || [ ! -s "frp_${FRP_VERSION}_linux_amd64.tar.gz" ]; then        
-echo -e "${RED}Ô£ù File FRPC non valido o vuoto${NC}"        exit 1    fi        
+echo -e "${RED}Ô£ù File FRPC non vali
+do o vuoto${NC}"        exit 1    fi        
 echo -e "${YELLOW}­ƒôª Estrazione...${NC}"    tar -xzf "frp_${FRP_VERSION}_linux_amd64.tar.gz"    
 FRP_EXTRACTED=$(tar -tzf "frp_${FRP_VERSION}_linux_amd64.tar.gz" | head -1 | cut -f1 -d"/")        mkdir -p /usr/local/bin    cp -f "$FRP_EXTRACTED/frpc" /usr/local/bin/frpc    chmod +x /usr/local/bin/frpc        rm -rf "$FRP_EXTRACTED" "frp_${FRP_VERSION}_linux_amd64.tar.gz"        
 echo -e "${GREEN}Ô£ô FRPC installato in /usr/local/bin/frpc${NC}"}
@@ -361,7 +370,8 @@ echo -e "\n${YELLOW}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
 echo -e ${CYAN}Procedi con l\"installazione su questo sistema? ${NC}[s/N]: )" CONFIRM_SYSTEM
 echo -e "${YELLOW}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"if [[ ! "$CONFIRM_SYSTEM" =~ ^[sS]$ ]]; then    
 echo -e "\n${CYAN}Installazione annullata dall\"utente${NC}\n"    exit 0fi
-echo -e "\n${GREEN}Procedendo con l\"installazione...${NC}\n"
+echo -e "\n${GREEN}Proceden
+do con l\"installazione...${NC}\n"
 # Installa CheckMK Agentinstall_checkmk_agent
 # Configura agent plainconfigure_plain_agent
 # Chiedi se installare FRPC
@@ -369,6 +379,7 @@ echo -e "\n${YELLOW}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
 echo -e ${CYAN}Vuoi installare anche FRPC? ${NC}[s/N]: )" INSTALL_FRPC_INPUT
 echo -e "${YELLOW}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"
 INSTALL_FRPC="no"if [[ "$INSTALL_FRPC_INPUT" =~ ^[sS]$ ]]; then    
-INSTALL_FRPC="yes"    install_frpc    configure_frpcelse    
+INSTALL_FRPC="yes"    install_frpc    configure_frpc
+else    
 echo -e "${YELLOW}ÔÅ¡´©Å  Installazione FRPC saltata${NC}"fi
 # Mostra riepilogo finaleshow_summaryexit 0

@@ -8,7 +8,8 @@ echo "ÔØî Uso: $0 <ticket_id>"
 echo ""  
 echo "Esempio:"  
 echo "  $0 1486125"  exit 1fi
-echo "­ƒöì Recuperando ticket ID: $TICKET_ID..."
+echo "­ƒöì Recuperan
+do ticket ID: $TICKET_ID..."
 echo ""
 # Assicurati di avere il tokenensure_token
 TOKEN="$(load_token)"
@@ -63,7 +64,8 @@ echo ""
 echo "­ƒÆí Il ticket potrebbe essere:"    
 echo "   - Oltre la pagina $MAX_PAGES (pi├╣ di 10000 ticket fa)"    
 echo "   - Stato archiviato o eliminato"    
-echo "   - Con ID errato"    exit 1  fifi
+echo "   - Con ID errato"    exit 1  fi
+fi
 echo "Ô£à Ticket trovato!"
 echo ""
 TICKET_CODE=$(

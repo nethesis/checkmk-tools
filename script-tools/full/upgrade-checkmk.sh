@@ -53,7 +53,8 @@ echo "$download_page" | grep -oP 'check-mk-raw-\K\d+\.\d+\.\d+p\d+' | head -1)  
 # ==========================================================compare_versions() {    local current="$1"    local latest="$2"        print_header "Confronto Versioni"        
 echo -e "${BLUE}Versione corrente:${NC}    $current"    
 echo -e "${BLUE}Versione disponibile:${NC} $latest"    
-echo ""        if [[ "$current" == "$latest" ]]; then        print_success "Stai gi├á utilizzando l'ultima versione disponibile!"        
+echo ""        if [[ "$current" == "$latest" ]]; then        print_success "Stai gi├á utilizzan
+do l'ultima versione disponibile!"        
 echo -e "\n${GREEN}Nessun aggiornamento necessario.${NC}\n"        exit 0    else        print_warning "├ê disponibile una nuova versione"        return 1    fi}
 # ==========================================================
 # Conferma upgrade
@@ -68,7 +69,8 @@ echo "  2. Download della nuova versione"
 echo "  3. Stop del sito '$SITE_NAME'"    
 echo "  4. Upgrade alla versione $latest"    
 echo "  5. Avvio del sito aggiornato"    
-echo ""        read -r -p "Vuoi procedere con l'upgrade? (s/N): " confirm        if [[ ! "$confirm" =~ ^[sS]$ ]]; then        print_warning "Upgrade annullato dall'utente"        exit 0    fi        print_success "Upgrade confermato, procedo..."}
+echo ""        read -r -p "Vuoi procedere con l'upgrade? (s/N): " confirm        if [[ ! "$confirm" =~ ^[sS]$ ]]; then        print_warning "Upgrade annullato dall'utente"        exit 0    fi        print_success "Upgrade confermato, proce
+do..."}
 # ==========================================================
 # Backup del sito
 # ==========================================================backup_site() {    print_header "Backup Sito CheckMK"        
@@ -81,7 +83,8 @@ OS_ID="$ID"
 OS_VERSION_ID="$VERSION_ID"    else        print_error "Impossibile rilevare la distribuzione"        exit 1    fi        print_info "Sistema operativo: $OS_ID $OS_VERSION_ID"        
 # Determina il pacchetto da scaricare    local package_name=""    local download_url=""        case "$OS_ID" in        ubuntu)            if [[ "$OS_VERSION_ID" == "24.04" ]]; then                package_name="check-mk-raw-${version}_0.noble_amd64.deb"            elif [[ "$OS_VERSION_ID" == "22.04" ]]; then                package_name="check-mk-raw-${version}_0.jammy_amd64.deb"            elif [[ "$OS_VERSION_ID" == "20.04" ]]; then                package_name="check-mk-raw-${version}_0.focal_amd64.deb"            else                print_error "Versione Ubuntu non supportata: $OS_VERSION_ID"                exit 1            fi            ;;        debian)            if [[ "$OS_VERSION_ID" == "12" ]]; then                package_name="check-mk-raw-${version}_0.bookworm_amd64.deb"            elif [[ "$OS_VERSION_ID" == "11" ]]; then                package_name="check-mk-raw-${version}_0.bullseye_amd64.deb"            else                print_error "Versione Debian non supportata: $OS_VERSION_ID"                exit 1            fi            ;;        *)            print_error "Distribuzione non supportata: $OS_ID"            exit 1            ;;    esac        download_url="https://download.checkmk.com/checkmk/${version}/${package_name}"    local local_file="/tmp/cmk.deb"        print_info "URL download: $download_url"    print_info "File locale: $local_file"        
 # Rimuovi file esistente per evitare problemi    if [[ -f "$local_file" ]]; then        print_warning "Rimuovo file esistente..."        rm -f "$local_file"    fi        print_info "Download in corso..."    if wget --progress=bar:force -O "$local_file" "$download_url" 2>&1; then        print_success "Download completato"    else        print_error "Errore durante il download"        rm -f "$local_file"        exit 1    fi        
-# Verifica che il file esista e abbia dimensione > 0    if [[ ! -f "$local_file" ]] || [[ ! -s "$local_file" ]]; then        print_error "File scaricato non valido"        exit 1    fi        print_success "File scaricato: $(du -h "$local_file" | cut -f1)"}
+# Verifica che il file esista e abbia dimensione > 0    if [[ ! -f "$local_file" ]] || [[ ! -s "$local_file" ]]; then        print_error "File scaricato non vali
+do"        exit 1    fi        print_success "File scaricato: $(du -h "$local_file" | cut -f1)"}
 # ==========================================================
 # Installazione nuova versione
 # ==========================================================install_version() {    local package_file="$1"        print_header "Installazione Nuova Versione"        print_info "Installazione del pacchetto: $(basename "$package_file")"        

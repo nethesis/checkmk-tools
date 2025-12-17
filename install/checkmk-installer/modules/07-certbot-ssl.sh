@@ -6,7 +6,8 @@ MODULE_NAME="Let's Encrypt SSL Certificate"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
-# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +afi
+# Load configurationif [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
+fi
 # Module startlog_module_start "$MODULE_NAME"
 #
 #
@@ -201,7 +202,8 @@ echo ""  return 0}
 #
 #install_certbot() {  local webserver="${1:-apache}"    log_info "Installazione Certbot..."    
 # Base certbot  if ! log_command "apt-get install -y certbot"; then    log_error "Failed to install certbot"    return 1  fi    
-# Webserver plugin  case "$webserver" in    apache)      log_info "Installazione plugin Apache..."      if ! log_command "apt-get install -y python3-certbot-apache"; then        log_error "Failed to install certbot Apache plugin"        return 1      fi      ;;    nginx)      log_info "Installazione plugin Nginx..."      if ! log_command "apt-get install -y python3-certbot-nginx"; then        log_error "Failed to install certbot Nginx plugin"        return 1      fi      ;;    standalone)      log_info "Modalit├á standalone selezionata (nessun plugin webserver)"      ;;    *)      log_error "Webserver non valido: $webserver"      return 1      ;;  esac    log_success "Certbot installato con successo"}
+# Webserver plugin  case "$webserver" in    apache)      log_info "Installazione plugin Apache..."      if ! log_command "apt-get install -y python3-certbot-apache"; then        log_error "Failed to install certbot Apache plugin"        return 1      fi      ;;    nginx)      log_info "Installazione plugin Nginx..."      if ! log_command "apt-get install -y python3-certbot-nginx"; then        log_error "Failed to install certbot Nginx plugin"        return 1      fi      ;;    standalone)      log_info "Modalit├á standalone selezionata (nessun plugin webserver)"      ;;    *)      log_error "Webserver non vali
+do: $webserver"      return 1      ;;  esac    log_success "Certbot installato con successo"}
 #
 #
 #

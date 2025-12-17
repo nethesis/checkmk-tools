@@ -86,7 +86,8 @@ echo "" >&2
 #selected[@]})" >&2    elif [[ "$selection" == "n" || "$selection" == "N" ]]; then        
 # Nessuno script        print_info "Nessuno script selezionato" >&2        return 0    else        
 # Selezione per numeri        for num in $selection; do            if [[ "$num" =~ ^[0-9]+$ ]] && [[ $num -ge 1 ]] && [[ $num -le ${
-#scripts[@]} ]]; then                selected+=("${scripts[$((num-1))]}")            else                print_warning "Numero non valido: $num (intervallo: 1-${
+#scripts[@]} ]]; then                selected+=("${scripts[$((num-1))]}")            else                print_warning "Numero non vali
+do: $num (intervallo: 1-${
 #scripts[@]})" >&2            fi        done                if [[ ${
 #selected[@]} -eq 0 ]]; then            print_warning "Nessuno script selezionato" >&2            return 0        fi                print_success "Selezionati ${
 #selected[@]} script" >&2    fi        
@@ -111,7 +112,8 @@ echo "Script di monitoring" ;;    esac}
 # Funzioni di deployment
 # ==========================================================deploy_scripts() {    local -a scripts=("$@")    local deployed=0    local failed=0        print_header "Deployment Script"        
 # Crea directory target se non esiste    if [[ ! -d "$TARGET_DIR" ]]; then        print_warning "Directory $TARGET_DIR non trovata, creazione..."        mkdir -p "$TARGET_DIR"    fi        
-# Copia ogni script    for script in "${scripts[@]}"; dolocal script_namelocal script_namescript_name=$(basename "$script")        local target_path="$TARGET_DIR/$script_name"                if cp "$script" "$target_path" 2>/dev/null; then            chmod +x "$target_path"            print_success "Installato: $script_name"            ((deployed++))        else            print_error "Errore installando: $script_name"            ((failed++))        fi    done        
+# Copia ogni script    for script in "${scripts[@]}"; dolocal script_namelocal script_namescript_name=$(basename "$script")        local target_path="$TARGET_DIR/$script_name"                if cp "$script" "$target_path" 2>/dev/null; then            chmod +x "$target_path"            print_success "Installato: $script_name"            ((deployed++))        else            print_error "Errore installan
+do: $script_name"            ((failed++))        fi    done        
 echo ""    print_info "Deployment completato:"    
 echo "  - Installati: $deployed"    
 echo "  - Falliti: $failed"        return 0}

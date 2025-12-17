@@ -13,7 +13,8 @@ echo "========================================="
 echo ""
 # Verifica esecuzione come rootif [[ $EUID -ne 0 ]]; then    
 echo "ÔØî Questo script deve essere eseguito come root"    
-echo "   Usa: sudo bash install-auto-git-sync.sh"    exit 1fi
+echo "   Usa: su
+do bash install-auto-git-sync.sh"    exit 1fi
 echo "Ô£à Esecuzione come root"
 # Chiedi intervallo di sync
 echo ""
@@ -32,7 +33,8 @@ SYNC_INTERVAL=60 ;;    3)
 SYNC_INTERVAL=300 ;;    4) 
 SYNC_INTERVAL=600 ;;    5) 
 SYNC_INTERVAL=1800 ;;    6)        read -r -p "Inserisci intervallo in secondi: " SYNC_INTERVAL        if ! [[ "$SYNC_INTERVAL" =~ ^[0-9]+$ ]] || [ "$SYNC_INTERVAL" -lt 10 ]; then            
-echo "ÔØî Valore non valido, uso default 60 secondi"            
+echo "ÔØî Valore non vali
+do, uso default 60 secondi"            
 SYNC_INTERVAL=60        fi        ;;    *)        
 echo "ÔØî Scelta non valida, uso default 60 secondi"        
 SYNC_INTERVAL=60        ;;esac
@@ -105,7 +107,8 @@ echo "    systemctl disable auto-git-sync"
 echo ""read -r -p "Vuoi avviare il servizio ora? (s/N): " start_nowif [[ "$start_now" =~ ^[sS]$ ]]; then    systemctl start auto-git-sync    
 echo ""    
 echo "Ô£à Servizio avviato!"    
-echo ""    sleep 2    systemctl status auto-git-sync --no-pagerelse    
+echo ""    sleep 2    systemctl status auto-git-sync --no-pager
+else    
 echo ""    
 echo "Ôä╣´©Å  Servizio non avviato. Usa 'systemctl start auto-git-sync' per avviarlo."fi
 echo ""

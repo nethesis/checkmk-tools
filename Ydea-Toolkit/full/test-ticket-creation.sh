@@ -20,7 +20,8 @@ echo "­ƒôï Test: $tipologia"
 echo "   Host: $host | Service: $service | State: $state"  
 echo ""    "$SCRIPT_DIR/create-monitoring-ticket.sh" \    "$host" \    "$service" \    "$state" \    "$output" \    "192.168.1.100"    
 echo ""  sleep 2  
-# Pausa tra le creazionidone
+# Pausa tra le creazioni
+done
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo "Ô£à Test completato!"
 echo ""

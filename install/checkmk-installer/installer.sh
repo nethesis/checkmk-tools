@@ -7,7 +7,8 @@ INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/menu.sh"source "${INSTALLER_ROOT}/utils/validate.sh"
 # Initialize logginginit_logging
 # Check if running as rootif [[ $EUID -ne 0 ]]; then  print_error "This installer must be run as root"  
-echo "Please run: sudo $0"  exit 1fi
+echo "Please run: su
+do $0"  exit 1fi
 #
 #
 #
