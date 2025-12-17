@@ -59,7 +59,8 @@ echo "  ÔÜá´©Å  polling/ vuota (normale)"    [ -d "Proxmox/nopolling" ] &&
 echo "  ÔØî nopolling/ NON trovata"    
 echo ""else    
 echo "ÔØî Repository NON trovato in: $REPO_DIR"
-fi echo ""
+fi
+echo ""
 echo "========================================="
 echo "  Fine Diagnostica"
 echo "========================================="

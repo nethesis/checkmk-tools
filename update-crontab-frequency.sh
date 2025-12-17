@@ -4,7 +4,8 @@ echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔ
 echo "  Configurazione frequenza ticket-monitor"
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo ""
-# Mostra configurazione attualecurrent_freq=$(crontab -l 2>/dev/null | grep "ydea-ticket-monitor.sh" | awk '{print $1}')if [[ "$current_freq" == "*/5" ]]; then  current_text="5 minuti"
+# Mostra configurazione attualecurrent_freq=$(crontab -l 2>/dev/null | grep "ydea-ticket-monitor.sh" | awk '{print $1}')
+if [[ "$current_freq" == "*/5" ]]; then  current_text="5 minuti"
 elif [[ "$current_freq" == "*/10" ]]; then  current_text="10 minuti"
 elif [[ "$current_freq" == "*/15" ]]; then  current_text="15 minuti"
 elif [[ "$current_freq" == "*/30" ]]; then  current_text="30 minuti"

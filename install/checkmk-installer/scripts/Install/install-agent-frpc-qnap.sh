@@ -165,7 +165,7 @@ do o vuoto${NC}"        exit 1    fi
 # Verifica che sia uno script bash    if ! head -n 1 check_mk_agent.linux | grep -q "^
 #!"; then        
 echo -e "${RED}Ô£ù File scaricato non ├¿ uno script vali
-do${NC}"        exit 1    fi        
+do${NC}"        exit 1    fi
 echo -e "${GREEN}Ô£ô Agent scaricato e verificato${NC}"}
 # =====================================================
 # Funzione: Installa CheckMK Agent
@@ -279,7 +279,7 @@ echo -e "${GREEN}Ô£ô Configurazione xinetd creata${NC}"}
 # =====================================================configure_agent_systemd() {    
 echo -e "${CYAN}Configurazione con systemd socket...${NC}"        
 # Verifica che systemd sia disponibile    if ! command -v systemctl >/dev/null 2>&1; then        
-echo -e "${RED}Ô£ù systemd non disponibile${NC}"        exit 1    fi        
+echo -e "${RED}Ô£ù systemd non disponibile${NC}"        exit 1    fi
 echo -e "${GREEN}Ô£ô systemd rilevato${NC}"        
 # Crea unit socket    cat > /etc/systemd/system/check-mk-agent-plain.socket <<EOF[Unit]Description=CheckMK Agent Socket (Plain TCP 6556)Documentation=https://docs.checkmk.com/[Socket]ListenStream=6556Accept=yes[Install]WantedBy=sockets.targetEOF        
 # Crea unit service    cat > /etc/systemd/system/check-mk-agent-plain@.service <<EOF[Unit]Description=CheckMK Agent Plain ConnectionDocumentation=https://docs.checkmk.com/[Service]Type=simpleExecStart=$AGENT_DIR/bin/check_mk_agentStandardInput=socketUser=rootEOF        
@@ -313,10 +313,13 @@ PORT=6556
 LOG_FILE="/opt/checkmk/log/agent.log"
 PID_FILE="/var/run/checkmk_agent.pid"log_msg() {    
 echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >> "$LOG_FILE" 2>/dev/null || true}
-# Prova socat per primo (il migliore)if command -v socat >/dev/null 2>&1; then    log_msg "Starting agent daemon with socat on port $PORT"    while true; do        socat TCP-LISTEN:$PORT,reuseaddr,fork EXEC:"$AGENT_BIN" 2>>"$LOG_FILE" || sleep 1    done
-# Altrimenti usa Python (compatibile con Python 2.7+)elif command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then    log_msg "Starting agent daemon with Python on port $PORT"        
+# Prova socat per primo (il migliore)
+if command -v socat >/dev/null 2>&1; then    log_msg "Starting agent daemon with socat on port $PORT"    while true; do        socat TCP-LISTEN:$PORT,reuseaddr,fork EXEC:"$AGENT_BIN" 2>>"$LOG_FILE" || sleep 1    done
+# Altrimenti usa Python (compatibile con Python 2.7+)
+elif command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then    log_msg "Starting agent daemon with Python on port $PORT"        
 PYTHON_CMD=$(command -v python3 2>/dev/null || command -v python 2>/dev/null)        $PYTHON_CMD -u << 'PYTHON_EOF'import socketimport subprocessimport sysPORT = 6556AGENT_BIN = "/opt/checkmk/bin/check_mk_agent"def handle_client(client_socket):    try:        
-# Python 2.7 compatible subprocess call        proc = subprocess.Popen([AGENT_BIN], stdout=subprocess.PIPE, stderr=subprocess.PIPE)        output, _ = proc.communicate()        client_socket.sendall(output)    except Exception as e:        sys.stderr.write("Error handling client: " + str(e) + "\n")    finally:        try:            client_socket.close()        except:            passdef main():    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)    server.bind(('0.0.0.0', PORT))    server.listen(5)        print("CheckMK Agent listening on port " + str(PORT))    sys.stdout.flush()        while True:        try:            client, addr = server.accept()            handle_client(client)        except KeyboardInterrupt:            break        except Exception as e:            sys.stderr.write("Error: " + str(e) + "\n")            continue        server.close()if __name__ == "__main__":    main()PYTHON_EOF
+# Python 2.7 compatible subprocess call        proc = subprocess.Popen([AGENT_BIN], stdout=subprocess.PIPE, stderr=subprocess.PIPE)        output, _ = proc.communicate()        client_socket.sendall(output)    except Exception as e:        sys.stderr.write("Error handling client: " + str(e) + "\n")    finally:        try:            client_socket.close()        except:            passdef main():    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)    server.bind(('0.0.0.0', PORT))    server.listen(5)        print("CheckMK Agent listening on port " + str(PORT))    sys.stdout.flush()        while True:        try:            client, addr = server.accept()            handle_client(client)        except KeyboardInterrupt:            break        except Exception as e:            sys.stderr.write("Error: " + str(e) + "\n")            continue        server.close()
+if __name__ == "__main__":    main()PYTHON_EOF
 # Fallback con xinetd se disponibile
 elif [ -f /etc/xinetd.d/ ] && command -v xinetd >/dev/null 2>&1; then    log_msg "Configuring xinetd for CheckMK agent"    cat > /etc/xinetd.d/checkmk <<XINETD_EOFservice checkmk{    type           = UNLISTED    port           = $PORT    socket_type    = stream    protocol       = tcp    wait           = no    user           = root    server         = $AGENT_BIN    disable        = no}XINETD_EOF        /etc/init.d/xinetd restart    log_msg "Agent configured via xinetd"        
 # Loop per mantenere lo script attivo    while true; do        sleep 3600    done
@@ -330,7 +333,8 @@ else
 DAEMON="/opt/checkmk/agent_daemon.sh"
 LOG_FILE="/opt/checkmk/log/agent.log"
 PID_FILE="/var/run/checkmk_agent.pid"
-# Kill existing instances (compatibile senza pkill)if command -v pkill >/dev/null 2>&1; then    pkill -f "agent_daemon.sh" 2>/dev/null    pkill -f "nc.*6556" 2>/dev/null
+# Kill existing instances (compatibile senza pkill)
+if command -v pkill >/dev/null 2>&1; then    pkill -f "agent_daemon.sh" 2>/dev/null    pkill -f "nc.*6556" 2>/dev/null
 else    ps aux 2>/dev/null | grep -v grep | grep "agent_daemon.sh" | while read line; do        pid=$(
 echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    done    ps aux 2>/dev/null | grep -v grep | grep "nc.*6556" | while read line; do        pid=$(
 echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    done
@@ -347,7 +351,8 @@ echo "CheckMK Agent Standalone Daemon started on port 6556 with PID $(cat $PID_F
 LOG_FILE="/opt/checkmk/log/agent.log"
 PID_FILE="/var/run/checkmk_agent.pid"
 echo "$(date): Stopping CheckMK Agent Standalone Daemon" >> "$LOG_FILE"
-# Kill daemon (compatibile senza pkill)if command -v pkill >/dev/null 2>&1; then    pkill -f "agent_daemon.sh" 2>/dev/null    pkill -f "nc.*6556" 2>/dev/null    pkill -f "ncat.*6556" 2>/dev/null
+# Kill daemon (compatibile senza pkill)
+if command -v pkill >/dev/null 2>&1; then    pkill -f "agent_daemon.sh" 2>/dev/null    pkill -f "nc.*6556" 2>/dev/null    pkill -f "ncat.*6556" 2>/dev/null
 else    ps aux 2>/dev/null | grep -v grep | grep "agent_daemon.sh" | while read line; do        pid=$(
 echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    done    ps aux 2>/dev/null | grep -v grep | grep "nc.*6556" | while read line; do        pid=$(
 echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    done    ps aux 2>/dev/null | grep -v grep | grep "ncat.*6556" | while read line; do        pid=$(
@@ -367,7 +372,7 @@ FRP_URL="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_$
 FRP_ARCHIVE="frp_${FRP_VERSION}_linux_arm64.tar.gz"        
 FRP_FOLDER="frp_${FRP_VERSION}_linux_arm64"    else        
 FRP_ARCHIVE="frp_${FRP_VERSION}_linux_amd64.tar.gz"        
-FRP_FOLDER="frp_${FRP_VERSION}_linux_amd64"    fi        
+FRP_FOLDER="frp_${FRP_VERSION}_linux_amd64"    fi
 echo -e "${YELLOW}­ƒôª Download FRPC v${FRP_VERSION} per $ARCH...${NC}"    
 echo -e "   URL: ${CYAN}$FRP_URL${NC}"        cd /tmp || exit 1    rm -f "$FRP_ARCHIVE" 2>/dev/null    rm -rf "$FRP_FOLDER" 2>/dev/null        if wget -q --show-progress "$FRP_URL" -O "$FRP_ARCHIVE" 2>&1; then        
 echo -e "${GREEN}Ô£ô Download completato${NC}"    else        
@@ -424,7 +429,8 @@ FRPC_BIN="/opt/frpc/bin/frpc"
 FRPC_CONF="/opt/frpc/conf/frpc.toml"
 LOG_FILE="/opt/frpc/log/startup.log"
 PID_FILE="/var/run/frpc.pid"
-# Kill existing instances (compatibile senza pkill)if command -v pkill >/dev/null 2>&1; then    pkill -f "frpc -c" 2>/dev/null
+# Kill existing instances (compatibile senza pkill)
+if command -v pkill >/dev/null 2>&1; then    pkill -f "frpc -c" 2>/dev/null
 else    ps aux 2>/dev/null | grep -v grep | grep "frpc -c" | while read line; do        pid=$(
 echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    done
 fi
@@ -440,7 +446,8 @@ echo "FRPC client started with PID $(cat $PID_FILE)"EOFSTART        chmod +x "$F
 LOG_FILE="/opt/frpc/log/startup.log"
 PID_FILE="/var/run/frpc.pid"
 echo "$(date): Stopping FRPC client" >> "$LOG_FILE"
-# Kill process (compatibile senza pkill)if command -v pkill >/dev/null 2>&1; then    pkill -f "frpc -c" 2>/dev/null
+# Kill process (compatibile senza pkill)
+if command -v pkill >/dev/null 2>&1; then    pkill -f "frpc -c" 2>/dev/null
 else    ps aux 2>/dev/null | grep -v grep | grep "frpc -c" | while read line; do        pid=$(
 echo "$line" | tr -s ' ' | cut -d' ' -f2)        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null    done
 fi
@@ -527,14 +534,14 @@ do avvio: ${YELLOW}socat${NC}"    fi        if [ -f "$QNAP_AUTORUN" ]; then
 echo -e "   ÔÇó Autostart: ${YELLOW}$QNAP_AUTORUN${NC}"    fi        if [ "$INSTALL_FRPC" = "yes" ]; then        
 echo -e "   ÔÇó FRPC directory: ${YELLOW}$FRPC_DIR${NC}"        
 echo -e "   ÔÇó FRPC config: ${YELLOW}$FRPC_DIR/conf/frpc.toml${NC}"        
-echo -e "   ÔÇó FRPC porta remota: ${YELLOW}$REMOTE_PORT${NC}"    fi        
+echo -e "   ÔÇó FRPC porta remota: ${YELLOW}$REMOTE_PORT${NC}"    fi
 echo ""    
 echo -e "${CYAN}­ƒöº Comandi utili:${NC}"    
 echo -e "   ÔÇó Avvia agent:  ${YELLOW}$AGENT_DIR/start_agent.sh${NC}"    
 echo -e "   ÔÇó Ferma agent:  ${YELLOW}$AGENT_DIR/stop_agent.sh${NC}"        if [ "$INSTALL_FRPC" = "yes" ]; then        
 echo -e "   ÔÇó Avvia FRPC:   ${YELLOW}$FRPC_DIR/start_frpc.sh${NC}"        
 echo -e "   ÔÇó Ferma FRPC:   ${YELLOW}$FRPC_DIR/stop_frpc.sh${NC}"        
-echo -e "   ÔÇó Log FRPC:     ${YELLOW}tail -f $FRPC_DIR/log/frpc.log${NC}"    fi        
+echo -e "   ÔÇó Log FRPC:     ${YELLOW}tail -f $FRPC_DIR/log/frpc.log${NC}"    fi
 echo -e "   ÔÇó Test agent:   ${YELLOW}/usr/bin/check_mk_agent${NC}"    
 echo ""    
 echo -e "${GREEN}Ô£ô I servizi si avvieranno automaticamente al prossimo riavvio${NC}"    
@@ -554,7 +561,7 @@ echo -e "${GREEN}Ô£ô Symlink rimosso${NC}"    fi
 # Rimuovi da autorun    if [ -f "$QNAP_AUTORUN" ]; then        sed -i '/
 # CheckMK Agent autostart/,/
 # End CheckMK Agent/d' "$QNAP_AUTORUN"        
-echo -e "${GREEN}Ô£ô Autostart rimosso${NC}"    fi        
+echo -e "${GREEN}Ô£ô Autostart rimosso${NC}"    fi
 echo -e "\n${GREEN}Ô£à CheckMK Agent disinstallato${NC}"}
 # =====================================================
 # Funzione: Disinstalla FRPC
@@ -571,7 +578,7 @@ echo -e "${GREEN}Ô£ô Symlink rimosso${NC}"    fi
 # Rimuovi da autorun    if [ -f "$QNAP_AUTORUN" ]; then        sed -i '/
 # FRPC Client autostart/,/
 # End FRPC Client/d' "$QNAP_AUTORUN"        
-echo -e "${GREEN}Ô£ô Autostart rimosso${NC}"    fi        
+echo -e "${GREEN}Ô£ô Autostart rimosso${NC}"    fi
 echo -e "\n${GREEN}Ô£à FRPC disinstallato${NC}"}
 # =====================================================
 # Gestione parametri

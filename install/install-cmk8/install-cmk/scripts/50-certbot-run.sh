@@ -24,10 +24,10 @@ echo "WARNING: risoluzione fallita"      fi    done  fi
 # Verifica porte 80 e 443  
 echo -n "  - Porta 80: "  if ss -tulpn | grep -q ':80 '; then    
 echo "OK (in ascolto)"  else    
-echo "WARNING: nessun processo in ascolto"  fi    
+echo "WARNING: nessun processo in ascolto"  fi
 echo -n "  - Porta 443: "  if ss -tulpn | grep -q ':443 '; then    
 echo "OK (in ascolto)"  else    
-echo "WARNING: nessun processo in ascolto"  fi    
+echo "WARNING: nessun processo in ascolto"  fi
 echo ""fi
 if [[ "$EUID" -ne 0 ]]; then  exec su
 do --preserve-env=WS,LETSENCRYPT_EMAIL,LETSENCRYPT_DOMAINS,REDIRECT_TO_SITE,DEFAULT_SITE,CHECK_PREREQS \    bash "$AUTO_SCRIPT" --interactive

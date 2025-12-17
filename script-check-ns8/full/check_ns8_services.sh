@@ -12,7 +12,8 @@ LOG_LINES=500
 # Scopro tutte le istanze mail (mail1, mail2, ...)
 MAIL_INSTANCES=$(runagent -l | grep '^mail')
 # Servizi target = container interni
-TARGET_SERVICES=("clamav" "rspamd" "dovecot" "postfix")for INSTANCE in $MAIL_INSTANCES; do    
+TARGET_SERVICES=("clamav" "rspamd" "dovecot" "postfix")
+for INSTANCE in $MAIL_INSTANCES; do    
 # Elenco container e stato dentro l'istanza    
 STATS=$(runagent -m "$INSTANCE" podman ps --format "{{.Names}} {{.Status}}" 2>/dev/null)    for SVC in "${TARGET_SERVICES[@]}"; do        
 STATUS_LINE=$(

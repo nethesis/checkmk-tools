@@ -743,7 +743,7 @@ NR==2 {print $4}')  if [[ $available -gt 5000000 ]]; then    test_pass  else    
 #
 #
 #
-#generate_report() {  print_header "Test Results Summary"    local pass_rate=0  if [[ $TOTAL_TESTS -gt 0 ]]; then    pass_rate=$((PASSED_TESTS * 100 / TOTAL_TESTS))  fi    
+#generate_report() {  print_header "Test Results Summary"    local pass_rate=0  if [[ $TOTAL_TESTS -gt 0 ]]; then    pass_rate=$((PASSED_TESTS * 100 / TOTAL_TESTS))  fi
 echo ""  
 echo "Total Tests: $TOTAL_TESTS"  
 echo ""  print_success "Passed: $PASSED_TESTS"  print_error "Failed: $FAILED_TESTS"  

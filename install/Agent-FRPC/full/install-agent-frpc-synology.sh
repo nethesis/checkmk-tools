@@ -156,7 +156,7 @@ do o vuoto${NC}"        exit 1    fi
 # Verifica che sia uno script bash    if ! head -n 1 check_mk_agent.linux | grep -q "^
 #!"; then        
 echo -e "${RED}Ô£ù File scaricato non ├¿ uno script vali
-do${NC}"        exit 1    fi        
+do${NC}"        exit 1    fi
 echo -e "${GREEN}Ô£ô Agent scaricato e verificato${NC}"}
 # =====================================================
 # Funzione: Installa CheckMK Agent
@@ -218,7 +218,8 @@ fi
 # Verifica se la porta ├¿ gi├á in uso
 if netstat -tuln 2>/dev/null | grep -q ":$PORT "; then    log_msg "ERRORE: Porta $PORT gi├á in uso"    
 echo "ERRORE: Porta $PORT gi├á in uso"    exit 1filog_msg "Avvio CheckMK Agent daemon sulla porta $PORT"
-# Prova con Python (preferito)if command -v python3 >/dev/null 2>&1; then    
+# Prova con Python (preferito)
+if command -v python3 >/dev/null 2>&1; then    
 PYTHON_CMD="python3"
 elif command -v python >/dev/null 2>&1; then    
 PYTHON_CMD="python"
@@ -230,7 +231,8 @@ do Python daemon"
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-import socketimport subprocessimport sysimport osimport signalimport timePORT = 6556AGENT_BIN = "/opt/checkmk/bin/check_mk_agent"LOG_FILE = "/opt/checkmk/log/agent.log"PID_FILE = "/var/run/checkmk_agent.pid"def log(msg):    with open(LOG_FILE, 'a') as f:        f.write("{}: {}\n".format(time.strftime("%Y-%m-%d %H:%M:%S"), msg))def cleanup(signum=None, frame=None):    log("Ricevuto segnale di terminazione, chiusura...")    try:        os.remove(PID_FILE)    except:        pass    sys.exit(0)signal.signal(signal.SIGTERM, cleanup)signal.signal(signal.SIGINT, cleanup)
 # Salva PIDwith open(PID_FILE, 'w') as f:    f.write(str(os.getpid()))log("Daemon avviato su porta {}".format(PORT))
-# Crea socketserver = socket.socket(socket.AF_INET, socket.SOCK_STREAM)server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)server.bind(('0.0.0.0', PORT))server.listen(5)log("In ascolto sulla porta {}".format(PORT))while True:    try:        client, addr = server.accept()        log("Connessione da {}".format(addr[0]))                try:            
+# Crea socketserver = socket.socket(socket.AF_INET, socket.SOCK_STREAM)server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)server.bind(('0.0.0.0', PORT))server.listen(5)log("In ascolto sulla porta {}".format(PORT))
+while True:    try:        client, addr = server.accept()        log("Connessione da {}".format(addr[0]))                try:            
 # Esegui agent e invia output            output = subprocess.check_output([AGENT_BIN], stderr=subprocess.STDOUT)            client.sendall(output)        except Exception as e:            log("Errore esecuzione agent: {}".format(str(e)))        finally:            client.close()                except KeyboardInterrupt:        break    except Exception as e:        log("Errore: {}".format(str(e)))        time.sleep(1)cleanup()PYEOF        chmod +x /tmp/checkmk_daemon_$$.py        
 # Start daemon in background (senza nohup per compatibilit├á Synology)    $PYTHON_CMD /tmp/checkmk_daemon_$$.py >> "$LOG_FILE" 2>&1 &    
 DAEMON_PID=$!    
@@ -283,7 +285,7 @@ echo -e "${RED}Ô£ù Errore durante il download di FRPC${NC}"        exit 1    
 echo -e "${YELLOW}­ƒôª Estrazione archivio...${NC}"    tar -xzf frp.tar.gz        
 # Trova directory estratta    
 FRP_DIR_NAME=$(find . -maxdepth 1 -type d -name "frp_*" | head -1)        if [ -z "$FRP_DIR_NAME" ] || [ ! -f "$FRP_DIR_NAME/frpc" ]; then        
-echo -e "${RED}Ô£ù Errore nell'estrazione di FRPC${NC}"        exit 1    fi        
+echo -e "${RED}Ô£ù Errore nell'estrazione di FRPC${NC}"        exit 1    fi
 echo -e "${GREEN}Ô£ô FRPC estratto con successo${NC}"}
 # =====================================================
 # Funzione: Installa FRPC
@@ -440,7 +442,7 @@ echo -e "${GREEN}ÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔ�
 echo ""    
 echo -e "${CYAN}­ƒôé Directory installazione:${NC}"    
 echo -e "   CheckMK Agent: ${GREEN}$AGENT_DIR${NC}"    if [ -d "$FRPC_DIR" ]; then        
-echo -e "   FRPC Client:   ${GREEN}$FRPC_DIR${NC}"    fi    
+echo -e "   FRPC Client:   ${GREEN}$FRPC_DIR${NC}"    fi
 echo ""    
 echo -e "${CYAN}­ƒÄ« Comandi utili:${NC}"    
 echo -e "   ${YELLOW}
@@ -464,17 +466,17 @@ echo -e "   ${GREEN}$FRPC_DIR/restart_frpc.sh${NC}
 # Riavvia FRPC"        
 echo -e "   ${GREEN}tail -f $FRPC_DIR/log/frpc.log${NC}    
 # Log FRPC"        
-echo ""    fi    
+echo ""    fi
 echo -e "${CYAN}­ƒöº Test connessione:${NC}"    
 echo -e "   ${GREEN}nc -zv localhost 6556${NC}           
 # Test locale porta agent"    if [ -d "$FRPC_DIR" ]; then        
 echo -e "   ${GREEN}ps aux | grep frpc${NC}             
-# Verifica processo FRPC"    fi    
+# Verifica processo FRPC"    fi
 echo ""    
 echo -e "${CYAN}­ƒôØ Note:${NC}"    
 echo -e "   ÔÇó I servizi si avviano automaticamente al boot"    
 echo -e "   ÔÇó Configura firewall per permettere connessioni sulla porta 6556"    if [ -d "$FRPC_DIR" ]; then        
-echo -e "   ÔÇó Monitora i log FRPC per confermare la connessione al server"    fi    
+echo -e "   ÔÇó Monitora i log FRPC per confermare la connessione al server"    fi
 echo ""}
 # =====================================================
 # MAIN - Gestione parametri

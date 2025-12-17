@@ -1,7 +1,8 @@
 #!/bin/bash
 # Script Checkmk local check per Proxmox VE (Dischi VM)
 # Richiede: jq
-echo "<<<local>>>"vms=$(pvesh get /cluster/resources --type vm --output-format json | jq -c '.[] | select(.type=="qemu")')for vm in $vms; do    vmid=$(
+echo "<<<local>>>"vms=$(pvesh get /cluster/resources --type vm --output-format json | jq -c '.[] | select(.type=="qemu")')
+for vm in $vms; do    vmid=$(
 echo "$vm" | jq -r '.vmid')    name=$(
 echo "$vm" | jq -r '.name')    
 # Ottieni info dischi    disks=$(pvesh get /nodes/$(hostname)/qemu/${vmid}/config --output-format json | jq -r '. | to_entries[] | select(.key|test("ide|scsi|sata|virtio")) | "\(.key)=\(.value)"')    for d in $disks; do        dev=$(

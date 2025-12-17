@@ -34,7 +34,7 @@ echo ""  log_info "Ricerca sottocategorie..."
 echo ""    for subcat in "${SUBCATEGORIES[@]}"; do    local subcat_id    subcat_id=$(
 echo "$categories_data" | jq -r --arg name "$subcat" '      .objs[]? | select(.nome == $name) | .id    ' | head -1)        if [[ -n "$subcat_id" && "$subcat_id" != "null" ]]; then      subcategory_ids["$subcat"]="$subcat_id"      
 echo "  Ô£à '$subcat' ÔåÆ ID: $subcat_id"      ((found_count++))    else      
-echo "  ÔØî '$subcat' ÔåÆ NON TROVATA"    fi  done    
+echo "  ÔØî '$subcat' ÔåÆ NON TROVATA"    fi  done
 echo ""  log_info "Sottocategorie trovate: $found_count/${
 #SUBCATEGORIES[@]}"    
 # Costruisci JSON output per categorie  local json_output="{}"    if [[ -n "$macro_cat_id" ]]; then    json_output=$(
@@ -56,7 +56,7 @@ echo "$sla_data" | jq -r '.objs[]? | "\(.id) ÔåÆ \(.nome // .name // .title)"
 # Prova ricerca parziale su TK25/003209    log_info "Tentativo ricerca per codice 'TK25/003209'..."    sla_id=$(
 echo "$sla_data" | jq -r '      .objs[]? | select(.nome // .name // .title | test("TK25/003209")) | .id    ' | head -1)        if [[ -z "$sla_id" || "$sla_id" == "null" ]]; then      sla_id=""    else      log_success "SLA trovata tramite ricerca parziale ÔåÆ ID: $sla_id"    fi  else    log_success "SLA '$SLA_NAME' trovata ÔåÆ ID: $sla_id"  fi    
 # Costruisci JSON output per SLA  local json_output="{}"    if [[ -n "$sla_id" ]]; then    json_output=$(
-echo "$json_output" | jq --arg id "$sla_id" --arg name "$SLA_NAME" '      .sla = {id: ($id|tonumber), name: $name}    ')  fi    
+echo "$json_output" | jq --arg id "$sla_id" --arg name "$SLA_NAME" '      .sla = {id: ($id|tonumber), name: $name}    ')  fi
 echo "$json_output"}
 # ===== Discovery Priorit├á =====discover_priorities() {  print_header "­ƒöì DISCOVERY PRIORIT├Ç"    log_info "Recupero lista priorit├á da Ydea API..."    
 # Chiama API per ottenere tutte le priorit├á  local priorities_data  priorities_data=$(ydea_api GET "/priorities" 2>/dev/null || 
@@ -67,7 +67,7 @@ echo "$priorities_data" > "${SCRIPT_DIR}/priorities-full-dump.json"  log_debug "
 echo "$priorities_data" | jq -r '    .objs[]? | select(.nome == "Bassa" or .name == "Bassa" or .nome == "Low" or .name == "Low") | .id  ' | head -1)    if [[ -z "$low_priority_id" || "$low_priority_id" == "null" ]]; then    log_warn "Priorit├á 'Bassa' non trovata"    log_info "Elenco tutte le priorit├á disponibili:"    
 echo "$priorities_data" | jq -r '.objs[]? | "\(.id) ÔåÆ \(.nome // .name)"'    low_priority_id=""  else    log_success "Priorit├á 'Bassa' trovata ÔåÆ ID: $low_priority_id"  fi    
 # Costruisci JSON output per priorit├á  local json_output="{}"    if [[ -n "$low_priority_id" ]]; then    json_output=$(
-echo "$json_output" | jq --arg id "$low_priority_id" '      .low_priority = {id: ($id|tonumber), name: "Bassa"}    ')  fi    
+echo "$json_output" | jq --arg id "$low_priority_id" '      .low_priority = {id: ($id|tonumber), name: "Bassa"}    ')  fi
 echo "$json_output"}
 # ===== Main =====main() {  print_header "­ƒöì YDEA SLA DISCOVERY TOOL"    log_info "Inizio discovery per SLA Premium_Mon..."  log_info "Output verr├á salvato in: $OUTPUT_FILE"    
 # Verifica autenticazione  if ! ensure_token 2>&1; then    log_error "Impossibile autenticarsi a Ydea API"    log_error "Verifica YDEA_ID e YDEA_API_KEY nel file .env"    exit 1  fi    log_success "Autenticazione completata"    
@@ -88,7 +88,7 @@ echo "$final_json" | jq '.subcategories | length')  if [[ "$subcat_count" -lt "$
 echo "$final_json" | jq -e '.sla.id' >/dev/null 2>&1; then    missing_items+=("SLA personalizzata TK25/003209")  fi    if [[ "${
 #missing_items[@]}" -gt 0 ]]; then    
 echo ""    log_warn "ÔÜá´©Å  ATTENZIONE: Alcuni elementi non sono stati trovati:"    for item in "${missing_items[@]}"; do      
-echo "  ÔÇó $item"    done    
+echo "  ÔÇó $item"    done
 echo ""    log_info "Controlla i file *-full-dump.json per verificare i dati disponibili nell'API"    exit 1  else    
 echo ""    log_success "­ƒÄë Tutti gli elementi richiesti sono stati trovati!"    
 echo ""    log_info "Prossimi passi:"    

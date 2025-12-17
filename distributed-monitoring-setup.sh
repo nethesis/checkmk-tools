@@ -128,7 +128,7 @@ echo ""
 #configure_local() {    
 echo -e "${B}ÔòÉÔòÉÔòÉ Configuring Local Site (Central Manager) ÔòÉÔòÉÔòÉ${N}"        local site=$LOCAL_SITE    local site=$CENTRAL_SITE        
 # Check if site exists    if ! omd sites | grep -q "^$site"; then        
-echo -e "${R}Ô£ù Site '$site' not found${N}"        exit 1    fi        
+echo -e "${R}Ô£ù Site '$site' not found${N}"        exit 1    fi
 echo -e "${G}Ô£ô Site '$site' found${N}"        
 # Check if already configured    
 echo -e "\n${Y}ÔåÆ Checking current configuration...${N}"        if su
@@ -173,7 +173,7 @@ echo -e "  1. Run this script on VPS to configure it as remote"
 echo -e "  2. In Local GUI: Setup ÔåÆ Hosts ÔåÆ Bulk operations"    
 echo -e "  3. Select all hosts ÔåÆ Edit attributes ÔåÆ Monitored on site: $VPS_SITE_ALIAS"    
 echo -e "  4. Activate changes to push configuration to VPS"}       
-echo -e "${R}Ô£ù Site '$site' not found${N}"        exit 1    fi        
+echo -e "${R}Ô£ù Site '$site' not found${N}"        exit 1    fi
 echo -e "${G}Ô£ô Site '$site' found${N}"        
 # Switch to site user    
 echo -e "\n${Y}ÔåÆ Configuring distributed monitoring on remote site...${N}"        su
@@ -262,7 +262,7 @@ echo -e "\n${B}Next steps:${N}"
 echo -e "  1. Run this script on local site with the automation secret above"    
 echo -e "  2. Local will push configuration to this VPS"    
 echo -e "  3. All hosts assigned to site '$site' will appear here"}    if ! omd sites | grep -q "^$site"; then        
-echo -e "${Y}ÔÜá Site '$site' not found. Available sites:${N}"        omd sites || true        return 1    fi    
+echo -e "${Y}ÔÜá Site '$site' not found. Available sites:${N}"        omd sites || true        return 1    fi
 echo -e "${B}Site:${N} $site (${G}$ROLE${N})"    su
 do -u "$site" bash -lc 'set -ecd /omd/sites/'"$site"'source .profile
 echo "--- OMD status ---"omd status || true

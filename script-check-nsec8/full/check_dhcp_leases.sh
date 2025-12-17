@@ -17,5 +17,6 @@ if [[ $max_leases -gt 0 ]]; then    percent=$((active_leases * 100 / max_leases)
 if [[ $percent -ge 90 ]]; then    status=2    status_text="CRITICAL"
 elif [[ $percent -ge 80 ]]; then    status=1    status_text="WARNING"
 else    status=0    status_text="OK"
-fi echo "<<<dhcp_leases>>>"
+fi
+echo "<<<dhcp_leases>>>"
 echo "$status DHCP_Leases active=${active_leases};$((max_leases * 80 / 100));$((max_leases * 90 / 100));0;${max_leases} Lease attivi: $active_leases/$max_leases (${percent}%) - $status_text | active=$active_leases expired=$expired_leases total=$total_leases max=$max_leases percent=$percent"

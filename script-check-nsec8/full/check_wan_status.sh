@@ -15,7 +15,8 @@ echo ""}
 # Trova tutte le interfacce WAN configuratefind_wan_interfaces() {    
 # Lista interfacce via ubus    ubus list | grep '^network\.interface\.' | sed 's/network\.interface\.//' | grep -E '^(wan|wwan|vwan)'}
 # Main
-echo "<<<wan_status>>>"wan_interfaces=$(find_wan_interfaces)if [[ -z "$wan_interfaces" ]]; then    
+echo "<<<wan_status>>>"wan_interfaces=$(find_wan_interfaces)
+if [[ -z "$wan_interfaces" ]]; then    
 echo "0 WAN_Status status=ERROR No WAN interfaces found"    exit 0fioverall_status=0status_messages=()details=()
 # Controlla ogni interfaccia WANfor iface in $wan_interfaces; do    status=$(get_interface_status "$iface")    gateway=$(get_gateway "$iface")        if [[ "$status" == "true" || "$status" == "1" ]]; then        
 # Interfaccia UP - verifica connettivit├á        if [[ -n "$gateway" ]]; then            if check_connectivity "$gateway"; then                details+=("$iface: UP (gateway $gateway reachable)")                status_messages+=("$iface=OK")            else                details+=("$iface: UP but gateway $gateway unreachable")                status_messages+=("$iface=DEGRADED")                overall_status=1            fi        else            

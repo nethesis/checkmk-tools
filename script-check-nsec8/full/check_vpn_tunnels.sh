@@ -10,7 +10,8 @@ fi
 # Controlla WireGuard
 if command -v wg >/dev/null 2>&1; then    wg_interfaces=$(wg show interfaces 2>/dev/null)    for iface in $wg_interfaces; do        total_tunnels=$((total_tunnels + 1))                peer_count=$(wg show "$iface" peers 2>/dev/null | wc -l)        active_peers=$(wg show "$iface" latest-handshakes 2>/dev/null | awk '{if ($2 > systime() - 180) print $1}' | wc -l)                if [[ $active_peers -gt 0 ]]; then            active_tunnels=$((active_tunnels + 1))            tunnel_details+=("WireGuard_${iface}: ${active_peers}/${peer_count} peers active")        else            inactive_tunnels=$((inactive_tunnels + 1))            tunnel_details+=("WireGuard_${iface}: no active peers")        fi    done
 fi
-# Controlla IPSec (strongswan)if command -v ipsec >/dev/null 2>&1; then    ipsec_status=$(ipsec status 2>/dev/null)    if [[ -n "$ipsec_status" ]]; then        established=$(
+# Controlla IPSec (strongswan)
+if command -v ipsec >/dev/null 2>&1; then    ipsec_status=$(ipsec status 2>/dev/null)    if [[ -n "$ipsec_status" ]]; then        established=$(
 echo "$ipsec_status" | grep -c "ESTABLISHED")        total_tunnels=$((total_tunnels + established))        active_tunnels=$((active_tunnels + established))                if [[ $established -gt 0 ]]; then            tunnel_details+=("IPSec: $established tunnels established")        fi    fi
 fi
 # Determina stato

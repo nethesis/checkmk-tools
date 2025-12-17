@@ -112,7 +112,7 @@ echo "Binary found: $FRP_INSTALL_DIR/frps"    fi        if [[ "$service_exists" 
 echo "Service found: frps.service"      if systemctl is-active --quiet frps.service; then        
 echo "Status: ${GREEN}Active${NC}"      else        
 echo "Status: ${RED}Inactive${NC}"      fi    fi        if [[ -f "$FRP_CONFIG_DIR/frps.toml" ]]; then      
-echo "Config found: $FRP_CONFIG_DIR/frps.toml"    fi        
+echo "Config found: $FRP_CONFIG_DIR/frps.toml"    fi
 echo ""    read -r -p "Reinstall FRPS? This will overwrite existing installation (y/n): " reinstall        if [[ "$reinstall" != "y" ]]; then      log_info "Installation cancelled by user"      exit 0    fi        
 # Stop existing service    if systemctl is-active --quiet frps.service; then      log_info "Stopping existing FRPS service..."      systemctl stop frps.service    fi        log_info "Proceeding with reinstallation..."  fi}
 #
@@ -399,7 +399,8 @@ echo "arm"      ;;    *)      log_error "Unsupported architecture: $arch"      r
 # Ask for missing configuration  if [[ -z "$bind_port" ]] || [[ -z "$token" ]] || [[ -z "$dashboard_user" ]] || [[ -z "$dashboard_pwd" ]]; then    
 echo ""    
 echo "${YELLOW}FRPS Server Configuration${NC}"    
-echo ""        if [[ -z "$bind_port" ]]; then      read -r -p "Bind port [7000]: " bind_port      bind_port="${bind_port:-7000}"    fi        if [[ -z "$token" ]]; then      read -r -p "Authentication token: " token    fi        read -r -p "Dashboard port [7500]: " dashboard_port    dashboard_port="${dashboard_port:-7500}"        if [[ -z "$dashboard_user" ]]; then      read -r -p "Dashboard username [admin]: " dashboard_user      dashboard_user="${dashboard_user:-admin}"    fi        if [[ -z "$dashboard_pwd" ]]; then      read -r -p "Dashboard password: " dashboard_pwd    fi        
+echo ""        if [[ -z "$bind_port" ]]; then      read -r -p "Bind port [7000]: " bind_port      bind_port="${bind_port:-7000}"    fi        if [[ -z "$token" ]]; then      read -r -p "Authentication token: " token    fi
+read -r -p "Dashboard port [7500]: " dashboard_port    dashboard_port="${dashboard_port:-7500}"        if [[ -z "$dashboard_user" ]]; then      read -r -p "Dashboard username [admin]: " dashboard_user      dashboard_user="${dashboard_user:-admin}"    fi        if [[ -z "$dashboard_pwd" ]]; then      read -r -p "Dashboard password: " dashboard_pwd    fi
 echo ""    read -r -p "Enable TLS? (y/n) [n]: " enable_tls    enable_tls="${enable_tls:-n}"        if [[ "$enable_tls" == "y" ]]; then      read -r -p "TLS certificate file path: " cert_file      read -r -p "TLS key file path: " key_file    fi  fi    
 # Create config directory  mkdir -p "$FRP_CONFIG_DIR"    local config_file="$FRP_CONFIG_DIR/frps.toml"    
 # Create FRPS configuration  cat > "$config_file" <<EOF[common]bindPort = $bind_port

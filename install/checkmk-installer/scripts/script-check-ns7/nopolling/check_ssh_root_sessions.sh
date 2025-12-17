@@ -19,7 +19,8 @@ echo "$CURR_IPS"))
 # trova logout (IP che c├óÔé¼Ôäóerano prima e non ci sono pi├â┬╣)
 LOGOUTS=$(comm -23 <(
 echo "$PREV_IPS") <(
-echo "$CURR_IPS"))if [ -n "$NEW_LOGINS" ]; then    for ip in $NEW_LOGINS; do        if [ $((RANDOM % 2)) -eq 0 ]; then            
+echo "$CURR_IPS"))
+if [ -n "$NEW_LOGINS" ]; then    for ip in $NEW_LOGINS; do        if [ $((RANDOM % 2)) -eq 0 ]; then            
 echo "1 $SERVICE - $NOW root login from $ip"        else            
 echo "2 $SERVICE - $NOW root login from $ip"        fi    donefi
 if [ -n "$LOGOUTS" ]; then    for ip in $LOGOUTS; do        

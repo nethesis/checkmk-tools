@@ -72,7 +72,8 @@ TH_NEEDED=$(awk -v n="$SRV_COUNT" -v s="$INTERVAL_SEC_AVG" 'BEGIN{if(s==0)s=300;
 CONC_THEO=$(awk -v th="$TH_NEEDED" -v p95="$P95_EXEC" 'BEGIN{v=th*p95*1.3; printf("%.0f", v)}')
 echo -e "${C}ÔåÆ Calcolo concorrenza teorica:${N} 
 TH=${TH_NEEDED} checks/s, P95=${P95_EXEC}s ÔåÆ ${CONC_THEO}"
-HARD_CAP=$((CORES*12))if (( $(
+HARD_CAP=$((CORES*12))
+if (( $(
 echo "$CPU_NOW > 80" | bc -l) )) || (( $(
 echo "$TIMEOUT_RATE > 2" | bc -l) )); then  
 SCALE=0.8elif (( $(

@@ -703,7 +703,8 @@ if [[ -d "$LOCAL_REPO" ]]; then
 echo "Updating from local repository..."  cd "$LOCAL_REPO"  git pull origin main
 else  
 echo "Cloning repository..."  git clone "$REPO_URL" "$LOCAL_REPO"
-fi echo ""
+fi
+echo ""
 echo "Deploying updated scripts..."
 # Re-run deployment
 if [[ -f "$LOCAL_REPO/Install/checkmk-installer/modules/04-scripts-deploy.sh" ]]; then  bash "$LOCAL_REPO/Install/checkmk-installer/modules/04-scripts-deploy.sh"

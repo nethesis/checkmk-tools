@@ -105,7 +105,7 @@ get_total_runs() {
     for count in "${STATS[@]}"; do
         total=$((total + count))
     done
-    echo "$total"
+echo "$total"
 }
 
 # Scansiona repository locale per trovare tutti gli script remoti
@@ -149,14 +149,13 @@ search_scripts() {
         echo -e "${RED}✗ Nessun risultato trovato per: '$query'${NC}\n"
         return 1
     fi
-    
-    echo -e "${GREEN}🔍 Risultati ricerca '$query':${NC}\n"
+echo -e "${GREEN}🔍 Risultati ricerca '$query':${NC}\n"
     for idx in "${results[@]}"; do
         local star=""
         [[ -n "${FAVORITES[$idx]:-}" ]] && star="${YELLOW}⭐${NC} "
         printf "  ${BLUE}%3d)${NC} ${star}%s\n" "$idx" "$(echo "${SCRIPTS[$idx]}" | sed 's/\[.*\] //')"
     done
-    echo ""
+echo ""
 }
 
 # Mostra dettagli script
@@ -168,8 +167,7 @@ show_script_details() {
 do!${NC}\n"
         return 1
     fi
-    
-    echo -e "${CYAN}╔═══════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}╔═══════════════════════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║${NC}  📋 ${GREEN}Dettagli Script${NC}                                    ${CYAN}║${NC}"
     echo -e "${CYAN}╠═══════════════════════════════════════════════════════════╣${NC}"
     echo -e "${CYAN}║${NC}  ${YELLOW}Nome:${NC} ${SCRIPTS[$idx]}"
@@ -187,12 +185,11 @@ show_favorites() {
         echo -e "${YELLOW}⭐ Nessun preferito salvato${NC}\n"
         return
     fi
-    
-    echo -e "${YELLOW}⭐ Script preferiti:${NC}\n"
+echo -e "${YELLOW}⭐ Script preferiti:${NC}\n"
     for idx in "${!FAVORITES[@]}"; do
         printf "  ${BLUE}%3d)${NC} %s\n" "$idx" "$(echo "${SCRIPTS[$idx]}" | sed 's/\[.*\] //')"
     done
-    echo ""
+echo ""
 }
 
 # Toggle preferito
@@ -239,8 +236,7 @@ show_statistics() {
     else
         echo -e "${MAGENTA}║${NC}    ${YELLOW}Nessuna statistica disponibile${NC}"
     fi
-    
-    echo -e "${MAGENTA}╚═══════════════════════════════════════════════════════════╝${NC}\n"
+echo -e "${MAGENTA}╚═══════════════════════════════════════════════════════════╝${NC}\n"
 }
 
 # Mostra menu con tutti gli script disponibili
@@ -271,8 +267,7 @@ show_menu() {
         # Stampa script con numerazione
         printf "  ${BLUE}%3d)${NC} ${star}%s${uses}\n" "$i" "$(echo "${SCRIPTS[$i]}" | sed 's/\[.*\] //')"
     done
-    
-    echo -e "\n${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo -e "\n${BLUE}═══════════════════════════════════════════════════════════${NC}"
     echo -e "  ${RED}0)${NC} Esci  ${YELLOW}s)${NC}Cerca  ${YELLOW}f)${NC}Preferiti  ${YELLOW}i)${NC}Info  ${YELLOW}t)${NC}Stats"
     echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}\n"
 }
@@ -381,7 +376,7 @@ do:${NC} "
                     echo -e "${RED}✗ Numero non vali
 do${NC}"
                 fi
-                echo -e "${YELLOW}Premi INVIO per continuare...${NC}"
+echo -e "${YELLOW}Premi INVIO per continuare...${NC}"
                 read -r
                 ;;
             t|T)

@@ -12,7 +12,7 @@ NMAP_BIN="$(command -v nmap || true)"if [[ -z "$NMAP_BIN" ]]; then
 echo "Errore: nmap non trovato nel PATH. Installa nmap e riprova." >&2  exit 2fi
 echo "=== SCAN NMAP INTERATTIVO (output unico .txt + CSV riepilogo + TXT leggibile) ==="echo
 # TARGET MODEwhile true; do  read -rp "Vuoi scansionare (1) subnet/range/host (multipli separati da spazi o virgole) oppure (2) file targets? [1/2] (default 1): " MODE  
-MODE="${MODE:-1}"  if [[ "$MODE" == "1" || "$MODE" == "2" ]]; then break; fi  
+MODE="${MODE:-1}"  if [[ "$MODE" == "1" || "$MODE" == "2" ]]; then break; fi
 echo "Risposta non valida. Inserisci 1 o 2."done
 TARGETS=()
 TARGET_FILE=""if [[ "$MODE" == "1" ]]; then  read -rp "Inserisci subnet/host/range (es. 192.168.1.0/24 10.0.0.0/24). Puoi usare virgole o spazi: " RANGE_IN  
@@ -29,7 +29,7 @@ echo
 echo "Tipo scansione:"  
 echo "  1) Scan porte (default)     -- porta scan"  
 echo "  2) Discovery only (no port scan) -- nmap -sn"  read -rp "Scegli 1 o 2 [default 1]: " SCAN_CHOICE  
-SCAN_CHOICE="${SCAN_CHOICE:-1}"  if [[ "$SCAN_CHOICE" == "1" || "$SCAN_CHOICE" == "2" ]]; then break; fi  
+SCAN_CHOICE="${SCAN_CHOICE:-1}"  if [[ "$SCAN_CHOICE" == "1" || "$SCAN_CHOICE" == "2" ]]; then break; fi
 echo "Risposta non valida."done
 PORTS="$DEFAULT_PORTS"
 if [[ "$SCAN_CHOICE" == "1" ]]; then  read -rp "Porte da scansionare (es. 22,2222,9090,980,443,80,3389,161,162 o 1-65535) [default: ${DEFAULT_PORTS}]: " INPUT_PORTS  
@@ -63,7 +63,8 @@ echo "  Verbosit├â┬á: -vv" ;;  3)
 echo "  Verbosit├â┬á: -d + --packet-trace" ;;esac
 if [[ -n "$NMAP_EXTRA" ]]; then  
 echo "  Opzioni extra (senza -o*): $NMAP_EXTRA"
-fi echo "  Output dir: $OUTDIR"
+fi
+echo "  Output dir: $OUTDIR"
 echo "  Timing template: -T$NT"echoread -rp "Procedere con la scansione? [y/N]: " 
 CONFCONF="${CONF:-N}"if [[ ! "$CONF" =~ ^[Yy]$ ]]; then  
 echo "Annullato dall'utente."  exit 0fimkdir -p "$OUTDIR"
@@ -82,11 +83,15 @@ OUTCSV_TXT="${OUTBASE}_summary_readable.txt"
 OUTSUM="${OUTBASE}_summary.txt"
 # Build nmap flags depending on choices
 NMAP_OPTS=()
-# verbosit├â┬áif [[ "$VLEVEL" -eq 1 ]]; then  NMAP_OPTS+=( -v )elif [[ "$VLEVEL" -eq 2 ]]; then  NMAP_OPTS+=( -vv )elif [[ "$VLEVEL" -eq 3 ]]; then  NMAP_OPTS+=( -d --packet-trace )fiNMAP_OPTS+=( --reason -T"${NT}" )if [[ "$SCAN_CHOICE" == "2" ]]; then  NMAP_OPTS+=( -sn )else  
+# verbosit├â┬áif [[ "$VLEVEL" -eq 1 ]]; then  NMAP_OPTS+=( -v )
+elif [[ "$VLEVEL" -eq 2 ]]; then  NMAP_OPTS+=( -vv )
+elif [[ "$VLEVEL" -eq 3 ]]; then  NMAP_OPTS+=( -d --packet-trace )fiNMAP_OPTS+=( --reason -T"${NT}" )
+if [[ "$SCAN_CHOICE" == "2" ]]; then  NMAP_OPTS+=( -sn )else  
 # prefer SYN if root, else connect  if [[ "$(id -u)" -eq 0 ]]; then    NMAP_OPTS+=( -sS -p "$PORTS" )  else    NMAP_OPTS+=( -sT -p "$PORTS" )  fi
 fi
 # Process NMAP_EXTRA: split but strip any -o* output flags to force single OUTTXT file.
-EXTRA_ARR=()if [[ -n "$NMAP_EXTRA" ]]; then  read -r -a TMP <<< "$NMAP_EXTRA"  for tok in "${TMP[@]}"; do    if [[ "$tok" =~ ^-o ]]; then      
+EXTRA_ARR=()
+if [[ -n "$NMAP_EXTRA" ]]; then  read -r -a TMP <<< "$NMAP_EXTRA"  for tok in "${TMP[@]}"; do    if [[ "$tok" =~ ^-o ]]; then      
 # ignore -o* options      continue    fi    EXTRA_ARR+=( "$tok" )  done
 fi
 # Detect if user specified their own scan type (-sS -sT etc.) or -p so we can avoid duplicates
@@ -102,9 +107,11 @@ NMAP_OPTS=( "${tmp[@]}" )fi
 if (( USER_SPEC_P )); then  tmp=()  skip=0  for x in "${NMAP_OPTS[@]}"; do    if (( skip )); then skip=0; continue; fi    if [[ "$x" == "-p" ]]; then      skip=1      continue    fi    tmp+=( "$x" )  done  
 NMAP_OPTS=( "${tmp[@]}" )fi
 # Assemble final command array
-NMAP_CMD=( "$NMAP_BIN" "${NMAP_OPTS[@]}" )if [[ "$MODE" == "2" ]]; then  NMAP_CMD+=( -iL "$TARGET_FILE" )else  for t in "${TARGETS[@]}"; do    NMAP_CMD+=( "$t" )  done
+NMAP_CMD=( "$NMAP_BIN" "${NMAP_OPTS[@]}" )
+if [[ "$MODE" == "2" ]]; then  NMAP_CMD+=( -iL "$TARGET_FILE" )else  for t in "${TARGETS[@]}"; do    NMAP_CMD+=( "$t" )  done
 fi
-# Append user extras (non -o*)if (( ${
+# Append user extras (non -o*)
+if (( ${
 #EXTRA_ARR[@]} )); then  NMAP_CMD+=( "${EXTRA_ARR[@]}" )fi
 # Force single output file -oN OUTTXT (user cannot override)NMAP_CMD+=( -oN "$OUTTXT" )
 # Show command (escaped)echoprintf 'Coman
@@ -121,7 +128,8 @@ OUTCSV="$OUTCSV" '  BEGIN {    host=""; ip=""; mac=""; vendor=""; status=""; inp
 # read CSV and print aligned  awk -F',' 'NR>1 {    
 # remove surrounding quotes from $1 and $4 and $6    gsub(/^"|"$/, "", $1); gsub(/^"|"$/, "", $4); gsub(/^"|"$/, "", $6)    host=$1; ip=$2; status=$5; ports=$6    
 # shorten ports if too long    if (length(ports) > 120) {      ports = substr(ports,1,117) "..."    }    printf "%-40s %-15s %-8s %s\n", host, ip, status, ports  }' "$OUTCSV"} > "$OUTCSV_TXT" || true
-# Produce short human summary (OUTSUM)if [[ "$SCAN_CHOICE" == "2" ]]; then  grep -E "Nmap scan report for|Host is up|MAC Address" "$OUTTXT" > "$OUTSUM" || true
+# Produce short human summary (OUTSUM)
+if [[ "$SCAN_CHOICE" == "2" ]]; then  grep -E "Nmap scan report for|Host is up|MAC Address" "$OUTTXT" > "$OUTSUM" || true
 else  awk -F',' 'NR>1 { gsub(/^"|"$/,"",$1); print $1 " | " $2 " | " $5 " | " $6 }' "$OUTCSV" > "$OUTSUM" || true
 fi
 # Create symlinks to latestln -sf "$(basename "$OUTTXT")" "${OUTDIR%/}/nmap_latest.txt"ln -sf "$(basename "$OUTCSV")" "${OUTDIR%/}/nmap_summary_latest.csv"ln -sf "$(basename "$OUTCSV_TXT")" "${OUTDIR%/}/nmap_summary_latest.txt"echo

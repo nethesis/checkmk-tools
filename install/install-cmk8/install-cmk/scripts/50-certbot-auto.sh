@@ -64,7 +64,8 @@ echo "agree-tos = true"
 echo "non-interactive = true"  
 echo "quiet = true"} > "$CLI_INI"
 IFS=',' read -r -a DOM_ARRAY <<< "$LETSENCRYPT_DOMAINS"
-DOMAIN_ARGS=()for D in "${DOM_ARRAY[@]}"; do  DOMAIN_ARGS+=("-d" "$D")done
+DOMAIN_ARGS=()
+for D in "${DOM_ARRAY[@]}"; do  DOMAIN_ARGS+=("-d" "$D")done
 MAIN_DOMAIN="${DOM_ARRAY[0]}"
 echo ">>> Requesting certificate for: $LETSENCRYPT_DOMAINS (
 WS=$WS)"certbot certonly --"$WS" "${DOMAIN_ARGS[@]}"

@@ -26,7 +26,6 @@ if [ ${#HOSTS[@]} -eq 0 ]; then
     echo -e "${RED}✗ Nessun host specificato${NC}"
     exit 1
 fi
-
 echo -e "\n${GREEN}✓ Host da configurare: ${HOSTS[*]}${NC}\n"
 
 # Rileva ultima versione disponibile
@@ -117,7 +116,6 @@ for HOST in "${HOSTS[@]}"; do
         continue
     fi
 done
-
 echo -e "${GREEN}╔════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║         INSTALLAZIONE COMPLETATA SU TUTTI GLI HOST    ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════════════════╝${NC}\n"

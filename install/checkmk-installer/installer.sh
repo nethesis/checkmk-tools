@@ -212,7 +212,7 @@ echo ""    if ! confirm "Proceed with scripts deployment?" "y"; then    log_info
 echo "This will install and configure the Ydea Cloud API toolkit"  
 echo ""    if ! confirm "Proceed with Ydea toolkit installation?" "y"; then    log_info "Installation cancelled by user"    return 0  fi    bash "${INSTALLER_ROOT}/modules/05-ydea-toolkit.sh" || { log_error "Ydea toolkit failed"; return 1; }    print_success "YDEA TOOLKIT INSTALLATION COMPLETED!"  press_any_key}install_custom() {  log_info "Starting CUSTOM installation..."    print_header "Custom Installation"  
 echo "Select the modules you want to install:"  
-echo ""    local modules=(    "System Base (SSH, Firewall, NTP)"    "CheckMK Server"    "CheckMK Agent (Client)"    "Monitoring Scripts"    "Ydea Toolkit"    "FRPS Server"  )  local selectedlocal selectedselected=$(multi_select "Select modules to install" "${modules[@]}")    if [[ -z "$selected" ]]; then    log_info "No modules selected"    return 0  fi    
+echo ""    local modules=(    "System Base (SSH, Firewall, NTP)"    "CheckMK Server"    "CheckMK Agent (Client)"    "Monitoring Scripts"    "Ydea Toolkit"    "FRPS Server"  )  local selectedlocal selectedselected=$(multi_select "Select modules to install" "${modules[@]}")    if [[ -z "$selected" ]]; then    log_info "No modules selected"    return 0  fi
 echo ""  if ! confirm "Install selected modules?" "n"; then    log_info "Installation cancelled by user"    return 0  fi    
 # Install selected modules  for idx in $selected; do    local module_num=$((idx + 1))    local module_script=""        case $module_num in      1) module_script="01-system-base.sh" ;;      2) module_script="02-checkmk-server.sh" ;;      3) module_script="03-checkmk-agent.sh" ;;      4) module_script="04-scripts-deploy.sh" ;;      5) module_script="05-ydea-toolkit.sh" ;;      6) module_script="06-frps-setup.sh" ;;    esac        if [[ -n "$module_script" ]]; then      log_info "Installing module: $module_script"      bash "${INSTALLER_ROOT}/modules/$module_script" || log_error "Module $module_script failed"    fi  done    print_success "CUSTOM INSTALLATION COMPLETED!"  press_any_key}update_scripts_local() {  log_info "Updating scripts from local repository..."    print_header "Update Scripts (Local)"  
 echo "This will update all scripts from the local repository"  
@@ -245,9 +245,9 @@ echo "  Remote Port: ${FRPC_REMOTE_PORT:-N/A}"
 echo ""    fi  else    
 echo ""    print_warning "No configuration file found"    
 echo ""    
-echo "Run 'Configuration Guidata' to create configuration"  fi    
+echo "Run 'Configuration Guidata' to create configuration"  fi
 echo ""  press_any_key}run_complete_cleanup() {  log_info "Running complete cleanup..."    print_header "Complete Cleanup"    print_color "$RED" "ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòùÔòæ                         WARNING!                               ÔòæÔòæ                                                                ÔòæÔòæ  This will COMPLETELY REMOVE all installed components:        ÔòæÔòæ    ÔÇó CheckMK Server (site: monitoring)                        ÔòæÔòæ    ÔÇó CheckMK Agent                                            ÔòæÔòæ    ÔÇó FRPS/FRPC Server                                         ÔòæÔòæ    ÔÇó All monitoring scripts                                   ÔòæÔòæ    ÔÇó Ydea Toolkit                                             ÔòæÔòæ    ÔÇó Configuration files                                      ÔòæÔòæ                                                                ÔòæÔòæ  Firewall rules will be preserved.                            ÔòæÔòæ                                                                ÔòæÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ"    
-echo ""  if ! confirm "Are you ABSOLUTELY SURE you want to remove everything?" "n"; then    log_info "Cleanup cancelled by user"    return 0  fi    
+echo ""  if ! confirm "Are you ABSOLUTELY SURE you want to remove everything?" "n"; then    log_info "Cleanup cancelled by user"    return 0  fi
 echo ""  print_warning "Last chance to cancel!"  if ! confirm "Type YES to confirm complete removal" "n"; then    log_info "Cleanup cancelled by user"    return 0  fi    if [[ -f "${INSTALLER_ROOT}/testing/cleanup-full.sh" ]]; then    bash "${INSTALLER_ROOT}/testing/cleanup-full.sh" || { log_error "Cleanup failed"; return 1; }  else    print_error "Cleanup script not found at ${INSTALLER_ROOT}/testing/cleanup-full.sh"    return 1  fi    print_success "COMPLETE CLEANUP FINISHED!"  press_any_key}
 #
 #
@@ -440,7 +440,7 @@ echo "  ${SYMBOL_SCRIPT} Monitoring Scripts"
 echo "  ${SYMBOL_TICKET} Ydea Cloud Toolkit"  
 echo "  ${SYMBOL_NETWORK} FRPC Client"  
 echo ""    
-# System requirements check  if ! validate_system_requirements; then    print_error "System requirements check failed"    if ! confirm "Continue anyway?" "n"; then      exit 1    fi  fi    
+# System requirements check  if ! validate_system_requirements; then    print_error "System requirements check failed"    if ! confirm "Continue anyway?" "n"; then      exit 1    fi  fi
 echo ""  press_any_key "Press any key to continue..."}
 #
 #

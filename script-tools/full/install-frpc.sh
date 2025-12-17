@@ -18,7 +18,8 @@ OS_TYPE="proxmox"    else
 OS_TYPE="debian"    fi
 else    
 OS_TYPE="altro"
-fi echo "Rilevato sistema operativo: $OS_TYPE"
+fi
+echo "Rilevato sistema operativo: $OS_TYPE"
 # ----------------------------
 # 2. Parametri richiesti
 # ----------------------------read -r -p "URL pacchetto FRP [default: $FRP_URL_DEFAULT]: " 

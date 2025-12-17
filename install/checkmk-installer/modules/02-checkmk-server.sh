@@ -1275,7 +1275,7 @@ echo "0 2 * * * /usr/local/bin/backup-checkmk.sh >> /var/log/checkmk-backup.log 
 #
 #
 #display_installation_summary() {  local site_name="${CHECKMK_SITE_NAME:-monitoring}"  local http_port="${CHECKMK_HTTP_PORT:-5000}"  local admin_password="N/A"  local server_ip  server_ip=$(hostname -I | awk '{print $1}')    
-# Try to read password from temporary file  if [[ -f /tmp/checkmk_admin_password.txt ]]; then    admin_password=$(cat /tmp/checkmk_admin_password.txt)  fi    
+# Try to read password from temporary file  if [[ -f /tmp/checkmk_admin_password.txt ]]; then    admin_password=$(cat /tmp/checkmk_admin_password.txt)  fi
 echo ""  
 echo "=========================================="  
 echo "CheckMK Installation Complete!"  
@@ -1292,7 +1292,7 @@ echo "    su
 do su - $site_name -c 'cmk-passwd cmkadmin'"  else    
 echo "  Admin Password: $admin_password (AUTO-GENERATED)"    
 echo ""    
-echo "  ÔÜá´©Å  IMPORTANT: Save this password! The temp file will be deleted."  fi  
+echo "  ÔÜá´©Å  IMPORTANT: Save this password! The temp file will be deleted."  fi
 echo ""  
 echo "  Commands:"  
 echo "    - omd status $site_name"  

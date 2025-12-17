@@ -293,7 +293,7 @@ LOGIN_GRACE_TIME=$(input_text "SSH LoginGraceTime (seconds)" "60" "^[0-9]+$")
 SSH_PASSWORD_AUTH=$(select_from_list "Allow SSH password authentication?" "yes" "no")    
 echo ""  if confirm "Change root password?" "n"; then    
 ROOT_PASSWORD=$(input_password "New root password" true)  else    
-ROOT_PASSWORD=""  fi    
+ROOT_PASSWORD=""  fi
 echo ""  
 NTP_SERVERS=$(input_text "NTP servers (space-separated)" "0.pool.ntp.org 1.pool.ntp.org 2.pool.ntp.org 3.pool.ntp.org")    
 echo ""  
@@ -307,7 +307,7 @@ echo "Please provide authentication credentials:"
 SMTP_RELAY_USER=$(input_text "SMTP username" "")    
 SMTP_RELAY_PASSWORD=$(input_password "SMTP password" false)  else    
 SMTP_RELAY_USER=""    
-SMTP_RELAY_PASSWORD=""  fi    
+SMTP_RELAY_PASSWORD=""  fi
 echo ""  DISABLE_IPV6=$(select_from_list "Disable IPv6?" "no" "yes")    print_success "System base configuration complete"  press_any_key}
 #
 #
@@ -503,7 +503,7 @@ INSTALL_LOCAL_AGENT=$(select_from_list "Install CheckMK agent locally?" "yes" "n
 #
 #
 #configure_checkmk_agent() {  print_header "CheckMK Agent Configuration"  
-echo ""    if ! confirm "Will this be a CheckMK agent (client)?" "n"; then    return 0  fi    
+echo ""    if ! confirm "Will this be a CheckMK agent (client)?" "n"; then    return 0  fi
 echo ""  
 CHECKMK_SERVER=$(input_ip "CheckMK server IP address" "")  
 CHECKMK_HTTP_PORT=$(input_port "CheckMK server HTTP port" "5000")  
@@ -601,7 +601,7 @@ USE_SYSTEMD_SOCKET=$(select_from_list "Use systemd socket (recommended)?" "yes" 
 #
 #
 #configure_ydea_toolkit() {  print_header "Ydea Toolkit Configuration"  
-echo ""    if ! confirm "Configure Ydea Cloud integration?" "n"; then    return 0  fi    
+echo ""    if ! confirm "Configure Ydea Cloud integration?" "n"; then    return 0  fi
 echo ""  print_info "Ydea Cloud API Credentials"  
 echo "You can find these in your Ydea Cloud account settings"  
 echo ""    
@@ -623,7 +623,7 @@ YDEA_USER_ID_CREATE_NOTE=4675        print_info "Configuring for Alessandro Gagg
 YDEA_USER_SELECTION="both"        
 YDEA_USER_ID_CREATE_TICKET=12336  
 # Default to Lorenzo for backward compatibility        
-YDEA_USER_ID_CREATE_NOTE=12336        print_info "Configuring for both users"        break        ;;      *)        print_error "Invalid selection. Please choose 1, 2, or 3"        ;;    esac  done    
+YDEA_USER_ID_CREATE_NOTE=12336        print_info "Configuring for both users"        break        ;;      *)        print_error "Invalid selection. Please choose 1, 2, or 3"        ;;    esac  done
 echo ""  print_info "Tracking Configuration"  
 YDEA_TRACKING_RETENTION_DAYS=$(input_text "Ticket tracking retention (days)" "365" "^[0-9]+$")  
 YDEA_MONITOR_INTERVAL=$(input_text "Monitoring interval (minutes)" "30" "^[0-9]+$")    
@@ -721,7 +721,7 @@ YDEA_DEBUG=$(select_from_list "Enable debug logging?" "0" "1")    print_success 
 #
 #
 #configure_frpc() {  print_header "FRPC Client Configuration"  
-echo ""    if ! confirm "Configure FRPC client?" "n"; then    return 0  fi    
+echo ""    if ! confirm "Configure FRPC client?" "n"; then    return 0  fi
 echo ""  print_info "FRPC Server Details"  
 FRPC_SERVER_ADDR=$(input_hostname "FRPC server address" "")  
 FRPC_SERVER_PORT=$(input_port "FRPC server port" "7000")  

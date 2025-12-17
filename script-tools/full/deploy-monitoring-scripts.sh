@@ -40,7 +40,7 @@ VERSION_ID="8" o ns8 nel nome)    elif [[ -f /etc/os-release ]] && grep -qE '
 VERSION_ID="?8|ns8|NethServer 8' /etc/os-release; then        os_type="ns8"        
 # Rileva Proxmox    elif [[ -f /etc/pve/version ]]; then        os_type="proxmox"        
 # Rileva Ubuntu/Debian    elif [[ -f /etc/os-release ]] && grep -qE "Ubuntu|Debian" /etc/os-release; then        os_type="ubuntu"        
-# Sistema generico    else        os_type="generic"    fi        
+# Sistema generico    else        os_type="generic"    fi
 echo "$os_type"}
 # ==========================================================
 # Funzioni di ricerca repository
@@ -58,7 +58,7 @@ echo ""    fi}
 # Ubuntu: cerca in remote (launcher)            category_dir="$REPO_DIR/script-check-ubuntu/remote"            ;;        *)            print_error "Tipo di sistema non supportato: $system_type"            return 1            ;;    esac        if [[ ! -d "$category_dir" ]]; then        print_error "Directory script non trovata: $category_dir"        print_info "Contenuto di $REPO_DIR/script-check-ns7/:"        ls -la "$REPO_DIR/script-check-ns7/" 2>&1 || 
 echo "Directory non esiste"        return 1    fi        
 # Lista tutti gli script .sh nella directory remote (include sottocartelle)    local script_list    script_list=$(find "$category_dir" -type f -name "r*.sh" 2>&1 | sort)        if [[ -z "$script_list" ]]; then        print_error "Nessun file r*.sh trovato in: $category_dir"        print_info "Contenuto della directory:"        ls -la "$category_dir" 2>&1 || 
-echo "Impossibile listare directory"        return 1    fi        
+echo "Impossibile listare directory"        return 1    fi
 echo "$script_list"}show_script_menu() {    local system_type="$1"    local category_dir=""    local selected=()    local scripts=()        
 # Determina la directory degli script    case "$system_type" in        ns7) category_dir="$REPO_DIR/script-check-ns7/remote" ;;        ns8) category_dir="$REPO_DIR/script-check-ns8/remote" ;;        proxmox) category_dir="$REPO_DIR/Proxmox/remote" ;;        ubuntu|generic) category_dir="$REPO_DIR/script-check-ubuntu/remote" ;;    esac        
 # Fallback se remote non esiste, prova polling    if [[ ! -d "$category_dir" ]]; then        case "$system_type" in            ns7) category_dir="$REPO_DIR/script-check-ns7/polling" ;;            ns8) category_dir="$REPO_DIR/script-check-ns8/polling" ;;            proxmox) category_dir="$REPO_DIR/Proxmox/polling" ;;            ubuntu|generic) category_dir="$REPO_DIR/script-check-ubuntu/polling" ;;        esac    fi        
@@ -69,11 +69,11 @@ echo -e "${CYAN}  Script disponibili per $system_type${NC}" >&2
 echo -e "${CYAN}========================================${NC}" >&2    
 echo "" >&2        
 echo "Directory: $category_dir" >&2        
-# Verifica esistenza directory    if [[ ! -d "$category_dir" ]]; then        print_error "Directory non trovata: $category_dir"        print_info "Verifica che il repository sia aggiornato"        return 1    fi    
+# Verifica esistenza directory    if [[ ! -d "$category_dir" ]]; then        print_error "Directory non trovata: $category_dir"        print_info "Verifica che il repository sia aggiornato"        return 1    fi
 echo "" >&2        
 # Crea array con tutti gli script    mapfile -t scripts < <(find "$category_dir" -type f -name "r*.sh" 2>/dev/null | sort)        if [[ ${
 #scripts[@]} -eq 0 ]]; then        print_error "Nessuno script trovato"        return 1    fi        
-# Mostra lista numerata (su stderr per evitare cattura)    for i in "${!scripts[@]}"; do        printf "%3d) %s\n" $((i+1)) "$(basename "${scripts[$i]}")" >&2    done        
+# Mostra lista numerata (su stderr per evitare cattura)    for i in "${!scripts[@]}"; do        printf "%3d) %s\n" $((i+1)) "$(basename "${scripts[$i]}")" >&2    done
 echo "" >&2    
 echo "Inserisci:" >&2    
 echo "  - Numeri separati da spazi (es: 1 3 5 8)" >&2    
@@ -113,7 +113,7 @@ echo "Script di monitoring" ;;    esac}
 # ==========================================================deploy_scripts() {    local -a scripts=("$@")    local deployed=0    local failed=0        print_header "Deployment Script"        
 # Crea directory target se non esiste    if [[ ! -d "$TARGET_DIR" ]]; then        print_warning "Directory $TARGET_DIR non trovata, creazione..."        mkdir -p "$TARGET_DIR"    fi        
 # Copia ogni script    for script in "${scripts[@]}"; dolocal script_namelocal script_namescript_name=$(basename "$script")        local target_path="$TARGET_DIR/$script_name"                if cp "$script" "$target_path" 2>/dev/null; then            chmod +x "$target_path"            print_success "Installato: $script_name"            ((deployed++))        else            print_error "Errore installan
-do: $script_name"            ((failed++))        fi    done        
+do: $script_name"            ((failed++))        fi    done
 echo ""    print_info "Deployment completato:"    
 echo "  - Installati: $deployed"    
 echo "  - Falliti: $failed"        return 0}

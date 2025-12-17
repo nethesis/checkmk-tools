@@ -6,7 +6,8 @@ LOGFILE="/var/log/ransomware_monitor.log"
 SUSPECT_EXTS="encrypted crypt locked enc lock ransom pay recover"
 RANSOM_NOTES="README DECRYPT HOW_TO_RECOVER UNLOCK HELP RESTORE"
 DATE=$(date '+%Y-%m-%d %H:%M:%S')
-SHARES=$(grep -E '^[[]' /etc/samba/smb.conf | grep -Ev 'global|homes|printers' | sed 's/\[//;s/\]//')for SHARE in $SHARES; do    
+SHARES=$(grep -E '^[[]' /etc/samba/smb.conf | grep -Ev 'global|homes|printers' | sed 's/\[//;s/\]//')
+for SHARE in $SHARES; do    
 SHARE_PATH=$(grep -A5 "[$SHARE]" /etc/samba/smb.conf | grep 'path =' | head -1 | cut -d'=' -f2 | xargs)    [ -z "$SHARE_PATH" ] && continue    
 FOUND=""    for EXT in $SUSPECT_EXTS; do        while 
 IFS= read -r F; do            

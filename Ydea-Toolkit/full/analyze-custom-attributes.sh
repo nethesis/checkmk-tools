@@ -20,11 +20,12 @@ echo "$RESPONSE" | tail -n1)"  if [[ "$HTTP_CODE" != "200" ]]; then
 echo "ÔØî Errore HTTP $HTTP_CODE"    break  fi  
 COUNT=$(
 echo "$HTTP_BODY" | jq -r '.objs | length')  if [[ "$COUNT" -eq 0 ]]; then    
-echo "Nessun ticket, fine"    break  fi    
+echo "Nessun ticket, fine"    break  fi
 echo "$COUNT ticket"    
 # Estrai customAttributes con ID ticket  
 echo "$HTTP_BODY" | jq '[.objs[] | select(.customAttributes != null) | {id, codice, customAttributes}]' >> "$TEMP_FILE.part"
-done echo ""
+done
+echo ""
 echo "­ƒôè Elaborazione dati..."
 # Combina tutti i risultatijq -s 'add' "$TEMP_FILE.part" 2>/dev/null > "$TEMP_FILE" || 
 echo "[]" > "$TEMP_FILE"rm -f "$TEMP_FILE.part"
@@ -42,7 +43,8 @@ echo "CUSTOM ATTRIBUTES CONTENENTI 'CATEGORIA', 'SLA' O 'PREMIUM'"
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo ""
 # Cerca attributi con parole chiave
-MATCHING_ATTRS=$(jq -r '[.[].customAttributes | keys[]] | unique | map(select(test("categoria|sla|premium|mon|macro"; "i"))) | sort[]' "$TEMP_FILE")if [[ -n "$MATCHING_ATTRS" && "$MATCHING_ATTRS" != "null" ]]; then  
+MATCHING_ATTRS=$(jq -r '[.[].customAttributes | keys[]] | unique | map(select(test("categoria|sla|premium|mon|macro"; "i"))) | sort[]' "$TEMP_FILE")
+if [[ -n "$MATCHING_ATTRS" && "$MATCHING_ATTRS" != "null" ]]; then  
 echo "$MATCHING_ATTRS"  
 echo ""    
 # Per ogni attributo trovato, mostra alcuni esempi  while 
@@ -73,7 +75,8 @@ echo "Ticket trovati: $PREMIUM_TICKETS"
 if [[ "$PREMIUM_TICKETS" -gt 0 ]]; then  
 echo ""  
 echo "Primi 10 ticket con 'Premium' o 'Mon':"  jq -r '[.[] | select(.customAttributes | tostring | test("Premium|Mon|premium|mon"))] |     .[0:10][] |     "  [\(.id)] \(.codice) ÔåÆ " + (.customAttributes | tojson)' "$TEMP_FILE"
-fi echo ""
+fi
+echo ""
 echo "Ô£à Analisi completata!"
 echo ""
 echo "­ƒÆ¥ File salvati:"

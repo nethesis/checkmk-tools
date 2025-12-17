@@ -29,7 +29,8 @@ echo "$HTTP_BODY" | jq . 2>/dev/null ||
 echo "$HTTP_BODY"  exit 1fi
 # Filtra per il ticket specifico
 TICKET_DATA=$(
-echo "$HTTP_BODY" | jq --arg tid "$TICKET_ID" '.objs[] | select(.id == ($tid|tonumber))')if [[ -z "$TICKET_DATA" || "$TICKET_DATA" == "null" ]]; then  
+echo "$HTTP_BODY" | jq --arg tid "$TICKET_ID" '.objs[] | select(.id == ($tid|tonumber))')
+if [[ -z "$TICKET_DATA" || "$TICKET_DATA" == "null" ]]; then  
 echo "ÔØî Ticket 
 #$TICKET_ID non trovato nei risultati"  
 echo ""  
@@ -90,7 +91,8 @@ echo "­ƒöº Custom Attributes:"if
 echo "$TICKET_DATA" | jq -e '.customAttributes' >/dev/null 2>&1; then  
 echo "$TICKET_DATA" | jq '.customAttributes'else  
 echo "   Nessun custom attribute trovato"
-fi echo ""
+fi
+echo ""
 echo "­ƒæñ Assegnazione:"
 echo "   Assegnato A: $(
 echo "$TICKET_DATA" | jq -r '.assegnatoA // .assegnato_a // "N/A"')"

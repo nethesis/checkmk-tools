@@ -39,7 +39,7 @@ do script da: ${NOTIFY_SCRIPT_DIR}"
 # Copia health monitor (supporta sia percorso relativo che assoluto)  info "Installazione health monitor..."  local HEALTH_MONITOR  if [[ -f "${SCRIPT_DIR}/ydea-health-monitor.sh" ]]; then    
 HEALTH_MONITOR="${SCRIPT_DIR}/ydea-health-monitor.sh"  elif [[ -f "${SCRIPT_DIR}/Ydea-Toolkit/ydea-health-monitor.sh" ]]; then    
 HEALTH_MONITOR="${SCRIPT_DIR}/Ydea-Toolkit/ydea-health-monitor.sh"  else    error "File ydea-health-monitor.sh non trovato"    exit 1  fi    cp "$HEALTH_MONITOR" "$YDEA_TOOLKIT_DIR/"  chmod +x "${YDEA_TOOLKIT_DIR}/ydea-health-monitor.sh"  success "ydea-health-monitor.sh installato"}setup_env() {  info "Configurazione file .env..."    local env_file="${YDEA_TOOLKIT_DIR}/.env"    if [[ -f "$env_file" ]]; then    warn "File .env gi├á esistente, salvo backup"    cp "$env_file" "${env_file}.backup.$(date +%Y%m%d_%H%M%S)"  fi    
-# Copia .env template se esiste  if [[ -f "${SCRIPT_DIR}/Ydea-Toolkit/.env" ]]; then    cp "${SCRIPT_DIR}/Ydea-Toolkit/.env" "$env_file"    success "Template .env copiato"  fi    
+# Copia .env template se esiste  if [[ -f "${SCRIPT_DIR}/Ydea-Toolkit/.env" ]]; then    cp "${SCRIPT_DIR}/Ydea-Toolkit/.env" "$env_file"    success "Template .env copiato"  fi
 echo ""  warn "ÔÜá´©Å  IMPORTANTE: Configura le credenziali Ydea in:"  
 echo "  $env_file"  
 echo ""  

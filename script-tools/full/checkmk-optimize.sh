@@ -19,7 +19,8 @@ echo "Data: $DATE"echo
 # Funzione di logginglog() { 
 echo "[$(date +%F_%T)] $*" | tee -a "$LOGFILE"; }
 # ------------------------------------------------------------
-# Snapshot Timeshift (Pre-ottimizzazione)if command -v timeshift >/dev/null 2>&1; then  read -p "Vuoi creare uno snapshot Timeshift prima di iniziare? (s/n): " tssnap  if [[ "$tssnap" =~ ^[Ss]$ ]]; then    log "Creazione snapshot Timeshift pre-ottimizzazione..."    
+# Snapshot Timeshift (Pre-ottimizzazione)
+if command -v timeshift >/dev/null 2>&1; then  read -p "Vuoi creare uno snapshot Timeshift prima di iniziare? (s/n): " tssnap  if [[ "$tssnap" =~ ^[Ss]$ ]]; then    log "Creazione snapshot Timeshift pre-ottimizzazione..."    
 SNAP_COMMENT="Pre-checkmk-optimize $(date +%F_%T) - created by checkmk-optimize"    /usr/bin/timeshift --create --comments "$SNAP_COMMENT" --tags D    if [[ $? -eq 0 ]]; then      log "Snapshot Timeshift pre-ottimizzazione completato."      
 echo "[$(date +%F_%T)] Snapshot PRE creato con successo: $SNAP_COMMENT" >> "$TSLOG"    else      log "Errore durante la creazione dello snapshot Timeshift pre-ottimizzazione."      
 echo "[$(date +%F_%T)] ERRORE creazione snapshot PRE: $SNAP_COMMENT" >> "$TSLOG"    fi  fi
@@ -63,7 +64,8 @@ fi
 # ------------------------------------------------------------
 # 8. Suggerimenti WATO (solo output)log "Suggerimento: in WATO > Global Settings imposta: - 'Normal check interval' a 2ÔÇô3 min per servizi non critici - 'Maximum concurrent checks' a 10ÔÇô15 - 'Periodic Service Discovery' giornaliero o disattivato"
 # ------------------------------------------------------------
-# Snapshot Timeshift (Post-ottimizzazione)if command -v timeshift >/dev/null 2>&1; then  read -p "Creare snapshot Timeshift post-ottimizzazione? (s/n): " postts  if [[ "$postts" =~ ^[Ss]$ ]]; then    log "Creazione snapshot Timeshift post-ottimizzazione..."    
+# Snapshot Timeshift (Post-ottimizzazione)
+if command -v timeshift >/dev/null 2>&1; then  read -p "Creare snapshot Timeshift post-ottimizzazione? (s/n): " postts  if [[ "$postts" =~ ^[Ss]$ ]]; then    log "Creazione snapshot Timeshift post-ottimizzazione..."    
 SNAP_COMMENT="Post-checkmk-optimize $(date +%F_%T) - created by checkmk-optimize"    /usr/bin/timeshift --create --comments "$SNAP_COMMENT" --tags D    if [[ $? -eq 0 ]]; then      log "Snapshot Timeshift post-ottimizzazione completato."      
 echo "[$(date +%F_%T)] Snapshot POST creato con successo: $SNAP_COMMENT" >> "$TSLOG"    else      log "Errore durante la creazione dello snapshot Timeshift post-ottimizzazione."      
 echo "[$(date +%F_%T)] ERRORE creazione snapshot POST: $SNAP_COMMENT" >> "$TSLOG"    fi  fi

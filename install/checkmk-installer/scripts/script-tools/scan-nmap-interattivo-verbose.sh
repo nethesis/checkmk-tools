@@ -13,7 +13,7 @@ echo "Errore: nmap non trovato nel PATH. Installa nmap e riprova." >&2
 echo "Su CentOS/NethServer: yum install -y nmap"  exit 2fi
 echo "=== SCAN NMAP INTERATTIVO (opzione discovery verboso) ==="echo
 # TARGET MODEwhile true; do  read -rp "Vuoi scansionare (1) subnet/range/host oppure (2) file targets? [1/2] (default 1): " MODE  
-MODE="${MODE:-1}"  if [[ "$MODE" == "1" || "$MODE" == "2" ]]; then break; fi  
+MODE="${MODE:-1}"  if [[ "$MODE" == "1" || "$MODE" == "2" ]]; then break; fi
 echo "Risposta non valida. Inserisci 1 o 2."done
 TARGET_ARG=""
 LABEL=""
@@ -33,7 +33,7 @@ echo
 echo "Tipo scansione:"  
 echo "  1) Scan porte (default)     -- porta scan"  
 echo "  2) Discovery only (no port scan) -- nmap -sn"  read -rp "Scegli 1 o 2 [default 1]: " SCAN_CHOICE  
-SCAN_CHOICE="${SCAN_CHOICE:-1}"  if [[ "$SCAN_CHOICE" == "1" || "$SCAN_CHOICE" == "2" ]]; then break; fi  
+SCAN_CHOICE="${SCAN_CHOICE:-1}"  if [[ "$SCAN_CHOICE" == "1" || "$SCAN_CHOICE" == "2" ]]; then break; fi
 echo "Risposta non valida."done
 PORTS="$DEFAULT_PORTS"
 if [[ "$SCAN_CHOICE" == "1" ]]; then  read -rp "Porte da scansionare (es. 22,80,443 o 1-65535) [default: ${DEFAULT_PORTS}]: " INPUT_PORTS  
@@ -76,13 +76,17 @@ OUTTXT="${OUTBASE}.txt"
 OUTSUM="${OUTBASE}_summary.txt"
 # Build nmap flags depending on choices
 NMAP_OPTS=()
-# verbosit├â┬áif [[ "$VLEVEL" -eq 1 ]]; then  NMAP_OPTS+=( -v )elif [[ "$VLEVEL" -eq 2 ]]; then  NMAP_OPTS+=( -vv )elif [[ "$VLEVEL" -eq 3 ]]; then  NMAP_OPTS+=( -d --packet-trace )fi
-# reason to show cause for host/port decisionsNMAP_OPTS+=( --reason -T"${NT}" )if [[ "$SCAN_CHOICE" == "2" ]]; then  
+# verbosit├â┬áif [[ "$VLEVEL" -eq 1 ]]; then  NMAP_OPTS+=( -v )
+elif [[ "$VLEVEL" -eq 2 ]]; then  NMAP_OPTS+=( -vv )
+elif [[ "$VLEVEL" -eq 3 ]]; then  NMAP_OPTS+=( -d --packet-trace )fi
+# reason to show cause for host/port decisionsNMAP_OPTS+=( --reason -T"${NT}" )
+if [[ "$SCAN_CHOICE" == "2" ]]; then  
 # discovery-only  NMAP_OPTS+=( -sn )else  
 # port scan: choose SYN if root, altrimenti connect  if [[ "$(id -u)" -eq 0 ]]; then    NMAP_OPTS+=( -sS -p "$PORTS" )  else    NMAP_OPTS+=( -sT -p "$PORTS" )  fi
 fi
 # assemble command
-NMAP_CMD=( "$NMAP_BIN" "${NMAP_OPTS[@]}" )if [[ "$MODE" == "2" ]]; then  NMAP_CMD+=( -iL "$TARGET_FILE" )else  NMAP_CMD+=( "$TARGET_ARG" )fiNMAP_CMD+=( -oN "$OUTTXT" )echo
+NMAP_CMD=( "$NMAP_BIN" "${NMAP_OPTS[@]}" )
+if [[ "$MODE" == "2" ]]; then  NMAP_CMD+=( -iL "$TARGET_FILE" )else  NMAP_CMD+=( "$TARGET_ARG" )fiNMAP_CMD+=( -oN "$OUTTXT" )echo
 echo "Eseguo nmap..."
 echo "Coman
 do: ${NMAP_CMD[*]}"echo

@@ -682,7 +682,8 @@ echo "=== FRPC Connections ==="if command -v ss &>/dev/null; then  ss -tnp | gre
 echo "No active connections"
 else  netstat -tnp | grep frpc || 
 echo "No active connections"
-fi echo ""
+fi
+echo ""
 echo "=== Recent Logs ==="journalctl -u frpc.service -n 10 --no-pagerEOF    chmod +x /usr/local/bin/frpc-status    
 # FRPC restart script  cat > /usr/local/bin/frpc-restart <<'EOF'
 #!/bin/bash

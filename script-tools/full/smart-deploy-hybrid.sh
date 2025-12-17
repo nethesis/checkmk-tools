@@ -114,7 +114,8 @@ GITHUB_REPO="Coverup20/checkmk-tools"
 BASE_URL="https://raw.githubusercontent.com/$GITHUB_REPO/main"cd "$CACHE_DIR" 2>/dev/null || exit 1
 echo "­ƒöä Manual update of all CheckMK scripts..."
 echo "­ƒôí Repository: $GITHUB_REPO"declare -A 
-SCRIPTS=(    ["check_cockpit_sessions"]="script-check-ns7/check_cockpit_sessions.sh"    ["check_dovecot_status"]="script-check-ns7/check_dovecot_status.sh"    ["check_ssh_root_sessions"]="script-check-ns7/check_ssh_root_sessions.sh"    ["check_postfix_status"]="script-check-ns7/check_postfix_status.sh"    ["telegram_realip"]="script-notify-checkmk/telegram_realip")for script_name in "${!SCRIPTS[@]}"; do    github_path="${SCRIPTS[$script_name]}"    cache_file="${script_name}.sh"        
+SCRIPTS=(    ["check_cockpit_sessions"]="script-check-ns7/check_cockpit_sessions.sh"    ["check_dovecot_status"]="script-check-ns7/check_dovecot_status.sh"    ["check_ssh_root_sessions"]="script-check-ns7/check_ssh_root_sessions.sh"    ["check_postfix_status"]="script-check-ns7/check_postfix_status.sh"    ["telegram_realip"]="script-notify-checkmk/telegram_realip")
+for script_name in "${!SCRIPTS[@]}"; do    github_path="${SCRIPTS[$script_name]}"    cache_file="${script_name}.sh"        
 echo "Ô¼¼ Updating $script_name..."        if curl -s --max-time 10 --fail "$BASE_URL/$github_path" -o "$cache_file.tmp"; then        if head -n 1 "$cache_file.tmp" | grep -q "^
 #!/.*bash"; then            mv "$cache_file.tmp" "$cache_file"            chmod +x "$cache_file"            
 echo "Ô£à $script_name updated"        else            rm -f "$cache_file.tmp"            

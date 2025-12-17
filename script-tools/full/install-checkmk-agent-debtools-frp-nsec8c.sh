@@ -61,11 +61,13 @@ echo " Installazione FRP client (TOML moderno)"
 echo " Server remoto: monitor.nethlab.it:7000"
 echo "======================================"read -rp "Vuoi installare e configurare il client FRP? [s/N]: " 
 INSTALL_FRPINSTALL_FRP=$(
-echo "$INSTALL_FRP" | tr '[:upper:]' '[:lower:]')if [[ "$INSTALL_FRP" =~ ^(s|si|y|yes)$ ]]; then    
+echo "$INSTALL_FRP" | tr '[:upper:]' '[:lower:]')
+if [[ "$INSTALL_FRP" =~ ^(s|si|y|yes)$ ]]; then    
 SERVER_ADDR="monitor.nethlab.it"    
 SERVER_PORT="7000"    while true; do        read -rp "Inserisci la remote_port da assegnare (es. 6020): " REMOTE_PORT        [[ "$REMOTE_PORT" =~ ^[0-9]+$ ]] && break || 
 echo "ÔÜá´©Å Inserisci un numero vali
-do."    done    read -rp "Inserisci la chiave/token FRP: " FRP_TOKEN    
+do."    done
+read -rp "Inserisci la chiave/token FRP: " FRP_TOKEN    
 DEFAULT_NAME=$(hostname 2>/dev/null || 
 echo "openwrt-host")    
 echo ""    

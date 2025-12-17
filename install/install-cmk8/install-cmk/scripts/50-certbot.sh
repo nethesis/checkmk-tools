@@ -22,7 +22,7 @@ echo "quiet = true"} > "$CLI_INI"
 echo ">>> Certbot installato e configurato."
 # Esecuzione challenge opzionaleread -r -p "Vuoi eseguire subito la challenge Let's Encrypt per ottenere il certificato? (s/n): " RUN_CHALLENGE
 if [[ "$RUN_CHALLENGE" =~ ^[sS]$ ]]; then  if [[ -z "$LETSENCRYPT_DOMAINS" ]]; then    
-echo "ERRORE: Nessun dominio specificato. Impossibile procedere con la challenge."    exit 1  fi  
+echo "ERRORE: Nessun dominio specificato. Impossibile procedere con la challenge."    exit 1  fi
 echo ">>> Avvio richiesta certificato..."  
 IFS=',' read -r -a DOM_ARRAY <<< "$LETSENCRYPT_DOMAINS"  
 DOMAIN_ARGS=()  for D in "${DOM_ARRAY[@]}"; do    DOMAIN_ARGS+=("-d" "$D")  done  certbot certonly --"$WS" "${DOMAIN_ARGS[@]}"  
@@ -60,4 +60,5 @@ echo ">>> File $APACHE_CONF non trovato. Configurazione Apache da fare manualmen
 else  
 echo ">>> Challenge non eseguita. Potrai lanciarla manualmente in seguito, es.:"  
 echo "    certbot certonly --$WS -d dominio.it"
-fi echo ">>> Installazione Certbot completata."
+fi
+echo ">>> Installazione Certbot completata."

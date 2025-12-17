@@ -52,7 +52,7 @@ echo "================================"
 # 1. Crea ticket  
 echo "1´©ÅÔâú Creazione ticket..."local resultlocal resultresult=$($TOOLKIT create "Test workflow" "Ticket di test per workflow automatico" "normal")local ticket_idlocal ticket_idticket_id=$(
 echo "$result" | jq -r '.id // empty')    if [[ -z "$ticket_id" ]]; then    
-echo "ÔØî Errore nella creazione"    return 1  fi    
+echo "ÔØî Errore nella creazione"    return 1  fi
 echo "   Ô£à Creato ticket 
 #$ticket_id"    
 # 2. Recupera dettagli  

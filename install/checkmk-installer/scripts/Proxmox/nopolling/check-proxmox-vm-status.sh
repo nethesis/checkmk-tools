@@ -35,7 +35,8 @@ STATUS=1
 MSG="WARN: $RUNNING/$TOTAL attivi ($STOPPED spenti)"else    
 STATUS=0    
 MSG="OK: tutti i $TOTAL attivi"
-fi echo "$STATUS Proxmox_VM_Global total_active=$RUNNING;0;$TOTAL;0;$TOTAL total_total=$TOTAL;0;$TOTAL;0;$TOTAL - $MSG"
+fi
+echo "$STATUS Proxmox_VM_Global total_active=$RUNNING;0;$TOTAL;0;$TOTAL total_total=$TOTAL;0;$TOTAL;0;$TOTAL - $MSG"
 # --- VM (QEMU) ---if (( QEMU_TOTAL > 0 )); then    jq -r '.[] | "\(.vmid) \(.name) \(.status) \(.uptime)"' "$TMP_QEMU" | while read -r ID NAME STATUSTXT UPTIME; do        
 NAME_UPPER=$(uppercase "$NAME")        
 SERVICE_NAME=$(uppercase "vm_${ID}_${NAME}")        

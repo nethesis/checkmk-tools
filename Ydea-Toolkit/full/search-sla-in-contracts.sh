@@ -15,7 +15,7 @@ echo "$RESPONSE" | jq -e '.objs' >/dev/null 2>&1; then
 echo "Fine"    break  fi  
 COUNT=$(
 echo "$RESPONSE" | jq -r '.objs | length')  if [[ "$COUNT" -eq 0 ]]; then    
-echo "Fine"    break  fi    
+echo "Fine"    break  fi
 echo "$COUNT contratti"  
 echo "$RESPONSE" | jq '.objs' >> "$ALL_CONTRACTS.tmp"
 done # Combina tutti i risultatijq -s 'add' "$ALL_CONTRACTS.tmp" 2>/dev/null > "$ALL_CONTRACTS" || 
@@ -43,7 +43,8 @@ echo "DETTAGLIO DI UN CONTRATTO (per vedere struttura completa)"
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo ""
 # Prendi il primo contratto e fai GET dettagliato
-FIRST_ID=$(jq -r '.[0].id' "$ALL_CONTRACTS")if [[ -n "$FIRST_ID" && "$FIRST_ID" != "null" ]]; then  
+FIRST_ID=$(jq -r '.[0].id' "$ALL_CONTRACTS")
+if [[ -n "$FIRST_ID" && "$FIRST_ID" != "null" ]]; then  
 echo "Recupero dettagli contratto ID: $FIRST_ID..."  
 echo ""    
 DETAIL=$(curl -s \    -H "Accept: application/json" \    -H "Authorization: Bearer ${TOKEN}" \    "${YDEA_BASE_URL}/contratti/${FIRST_ID}")    

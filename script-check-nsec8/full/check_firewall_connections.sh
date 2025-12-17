@@ -5,7 +5,8 @@
 if [[ -f /proc/sys/net/netfilter/nf_conntrack_count ]]; then    current=$(cat /proc/sys/net/netfilter/nf_conntrack_count)    max=$(cat /proc/sys/net/netfilter/nf_conntrack_max)else    
 echo "2 Firewall_Connections - Conntrack non disponibile"    exit 0fi
 # Calcola percentuale utilizzopercent=$((current * 100 / max))
-# Determina stato (warning 80%, critical 90%)if [[ $percent -ge 90 ]]; then    status=2    status_text="CRITICAL"
+# Determina stato (warning 80%, critical 90%)
+if [[ $percent -ge 90 ]]; then    status=2    status_text="CRITICAL"
 elif [[ $percent -ge 80 ]]; then    status=1    status_text="WARNING"
 else    status=0    status_text="OK"
 fi # Output CheckMK con perfdata

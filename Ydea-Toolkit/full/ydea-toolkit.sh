@@ -797,7 +797,6 @@ IFS='|' read -r date tid code host; do
       
 echo "  [$date] $tid $code - $host"
     done
-    
 echo ""
   fi
   
@@ -852,8 +851,6 @@ echo ""
     current_ticket_id="${YDEA_USER_ID_CREATE_TICKET:-4675}"
     current_note_id="${YDEA_USER_ID_CREATE_NOTE:-4675}"
   fi
-  
-  
 echo "┬¡ãÆ├┤├» CREDENZIALI API (obbligatorie)"
   
 echo "   Ottienile da: https://my.ydea.cloud ├ö├Ñ├å Impostazioni ├ö├Ñ├å La mia azienda ├ö├Ñ├å API"
@@ -887,8 +884,6 @@ echo "├ö├ÿ├« YDEA_API_KEY Ôö£┬┐ obbligatoria!"
       read -r -p "YDEA_API_KEY: " new_key
     done
   fi
-  
-  
 echo ""
   
 echo "┬¡ãÆ├ª├▒ ID UTENTE PER OPERAZIONI (opzionali)"

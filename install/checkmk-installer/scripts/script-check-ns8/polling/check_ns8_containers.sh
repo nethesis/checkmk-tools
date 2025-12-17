@@ -15,7 +15,8 @@ echo "Metrics" ;;        loki*)
 echo "Loki" ;;        nethsecurity*) 
 echo "NethSecurity" ;;        *) 
 echo "$1" ;;    esac}
-INSTANCES=$(runagent -l | grep -vE '^(cluster|node)$')for C in $INSTANCES; do    
+INSTANCES=$(runagent -l | grep -vE '^(cluster|node)$')
+for C in $INSTANCES; do    
 NAME=$(friendly_name "$C")    
 # Stato container    if runagent -m "$C" true >/dev/null 2>&1; then        
 echo "0 ${NAME} - ${NAME} attivo"    else        

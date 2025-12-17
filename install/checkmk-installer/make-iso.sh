@@ -11,7 +11,7 @@ echo ""
 echo "============================================================"  
 echo "  $title"  
 echo "============================================================"  for line in "$@"; do    
-echo "  $line"  done  
+echo "  $line"  done
 echo "============================================================"  
 echo ""}
 # Configuration
@@ -208,7 +208,7 @@ do apt-get install xorriso isolinux squashfs-tools genisoimage wget"    return 1
 #download_ubuntu_iso() {  local iso_cache="${SCRIPT_DIR}/${UBUNTU_ISO_NAME}"    if [[ -f "$iso_cache" ]]; then    log_info "Using cached Ubuntu ISO" >&2    
 echo "$iso_cache"    return 0  fi    log_info "Downloading Ubuntu ${UBUNTU_VERSION} ISO..." >&2  log_warning "This may take several minutes (~2.5GB download)" >&2    if ! wget --progress=bar:force -O "$iso_cache" "$UBUNTU_ISO_URL" 2>&1 |        stdbuf -o0 tr '\r' '\n' |        grep --line-buffered -oP '\d+%' |        while read -r percent; do         
 echo -ne "\r${CYAN}Progress: ${WHITE}${percent}${NC} " >&2       done; then    
-echo "" >&2    log_error "Failed to download Ubuntu ISO" >&2    return 1  fi  
+echo "" >&2    log_error "Failed to download Ubuntu ISO" >&2    return 1  fi
 echo "" >&2    log_success "Ubuntu ISO downloaded" >&2  
 echo "$iso_cache"}
 #

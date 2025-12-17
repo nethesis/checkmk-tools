@@ -109,7 +109,7 @@ echo -n "  - Porta 80: "  if ss -tulpn | grep -q ':80 '; then
 echo "OK (in ascolto)"  else    log_warning "Nessun processo in ascolto sulla porta 80"    return 1  fi    
 # Port 443 check  
 echo -n "  - Porta 443: "  if ss -tulpn | grep -q ':443 '; then    
-echo "OK (in ascolto)"  else    log_warning "Nessun processo in ascolto sulla porta 443"  fi    
+echo "OK (in ascolto)"  else    log_warning "Nessun processo in ascolto sulla porta 443"  fi
 echo ""  return 0}
 #
 #

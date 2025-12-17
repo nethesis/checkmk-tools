@@ -88,7 +88,7 @@ echo "$TICKET_DATA" | jq -e '.customAttributes' >/dev/null 2>&1; then
 echo "$TICKET_DATA" | jq '.customAttributes'    elif 
 echo "$TICKET_DATA" | jq -e '.custom_attributes' >/dev/null 2>&1; then      
 echo "$TICKET_DATA" | jq '.custom_attributes'    else      
-echo "   Nessun custom attribute trovato"    fi    
+echo "   Nessun custom attribute trovato"    fi
 echo ""    
 echo "­ƒæñ Assegnazione:"    
 echo "   Assegnato A: $(

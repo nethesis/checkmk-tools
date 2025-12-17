@@ -61,7 +61,8 @@ echo "0")
 echo "Ô£à API categorie funzionante - $cat_count categorie trovate"
 echo ""
 # Test 4: Test chiamata API ticket
-echo "­ƒôï Test 4: Test chiamata API tickets..."tickets_data=$(ydea_api GET "/tickets?limit=1" 2>&1)if [[ $? -ne 0 ]] || 
+echo "­ƒôï Test 4: Test chiamata API tickets..."tickets_data=$(ydea_api GET "/tickets?limit=1" 2>&1)
+if [[ $? -ne 0 ]] || 
 echo "$tickets_data" | jq -e '.error' >/dev/null 2>&1; then  
 echo "ÔØî Errore nella chiamata API tickets"  
 echo "Risposta API:"  
@@ -69,7 +70,8 @@ echo "$tickets_data" | head -20  exit 1fi
 echo "Ô£à API tickets funzionante"
 echo ""
 # Test 5: Test chiamata API users
-echo "­ƒôï Test 5: Test chiamata API users..."users_data=$(ydea_api GET "/users?limit=1" 2>&1)if [[ $? -ne 0 ]] || 
+echo "­ƒôï Test 5: Test chiamata API users..."users_data=$(ydea_api GET "/users?limit=1" 2>&1)
+if [[ $? -ne 0 ]] || 
 echo "$users_data" | jq -e '.error' >/dev/null 2>&1; then  
 echo "ÔØî Errore nella chiamata API users"  
 echo "Risposta API:"  

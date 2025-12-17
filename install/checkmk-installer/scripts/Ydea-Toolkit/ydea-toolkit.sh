@@ -109,7 +109,7 @@ echo ""  fi    if [[ $resolved -gt 0 ]]; then
 echo "Ô£à Ultimi 5 Ticket Risolti:"    jq -r '.tickets[] | select(.resolved_at != null) | "\(.resolved_at) | 
 #\(.ticket_id) | \(.codice) | \(.host)/\(.service)"' "$YDEA_TRACKING_FILE" | sort -r | head -5 | while 
 IFS='|' read -r date tid code host; do      
-echo "  [$date] $tid $code - $host"    done    
+echo "  [$date] $tid $code - $host"    done
 echo ""  fi    
 # Tempo medio di risoluzione  local avg_resolution  avg_resolution=$(jq -r '[.tickets[] | select(.resolved_at != null) |     (((.resolved_at | fromdateiso8601) - (.created_at | fromdateiso8601)) / 3600)] |     if length > 0 then (add / length | floor) else 0 end' "$YDEA_TRACKING_FILE" 2>/dev/null || 
 echo "0")    if [[ "$avg_resolution" != "0" ]]; then    
@@ -120,14 +120,14 @@ echo "ÔÅ▒´©Å  Tempo medio risoluzione: ~$avg_resolution ore"  fi}
 echo "­ƒöº Configurazione Interattiva Ydea Toolkit"  
 echo "=========================================="  
 echo ""    
-# Leggi valori attuali se esistono  local current_id=""  local current_key=""  local current_ticket_id=""  local current_note_id=""    if [[ -f "$env_file" ]]; then    source "$env_file" 2>/dev/null || true    current_id="${YDEA_ID:-}"    current_key="${YDEA_API_KEY:-}"    current_ticket_id="${YDEA_USER_ID_CREATE_TICKET:-4675}"    current_note_id="${YDEA_USER_ID_CREATE_NOTE:-4675}"  fi    
+# Leggi valori attuali se esistono  local current_id=""  local current_key=""  local current_ticket_id=""  local current_note_id=""    if [[ -f "$env_file" ]]; then    source "$env_file" 2>/dev/null || true    current_id="${YDEA_ID:-}"    current_key="${YDEA_API_KEY:-}"    current_ticket_id="${YDEA_USER_ID_CREATE_TICKET:-4675}"    current_note_id="${YDEA_USER_ID_CREATE_NOTE:-4675}"  fi
 echo "­ƒôï CREDENZIALI API (obbligatorie)"  
 echo "   Ottienile da: https://my.ydea.cloud ÔåÆ Impostazioni ÔåÆ La mia azienda ÔåÆ API"  
 echo ""    
 # YDEA_ID  if [[ -n "$current_id" ]]; then    read -r -p "YDEA_ID [$current_id]: " new_id    new_id="${new_id:-$current_id}"  else    read -r -p "YDEA_ID: " new_id    while [[ -z "$new_id" ]]; do      
 echo "ÔØî YDEA_ID ├¿ obbligatorio!"      read -r -p "YDEA_ID: " new_id    done  fi    
 # YDEA_API_KEY  if [[ -n "$current_key" ]]; then    read -r -p "YDEA_API_KEY [***nascosta***] (invio per mantenere): " new_key    new_key="${new_key:-$current_key}"  else    read -r -p "YDEA_API_KEY: " new_key    while [[ -z "$new_key" ]]; do      
-echo "ÔØî YDEA_API_KEY ├¿ obbligatoria!"      read -r -p "YDEA_API_KEY: " new_key    done  fi    
+echo "ÔØî YDEA_API_KEY ├¿ obbligatoria!"      read -r -p "YDEA_API_KEY: " new_key    done  fi
 echo ""  
 echo "­ƒæñ ID UTENTE PER OPERAZIONI (opzionali)"  
 echo "   Usa gli ID degli utenti Ydea per attribuire creazioni"  

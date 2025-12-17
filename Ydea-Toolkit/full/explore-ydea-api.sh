@@ -52,7 +52,7 @@ echo "Esempio primo oggetto:"
 echo "$response" | jq -r '.objs[0]' 2>/dev/null | head -20      fi    fi  else    
 echo "ÔÜá´©Å  HTTP $http_code"    
 echo "$response" | jq '.' 2>/dev/null || 
-echo "$response"  fi    
+echo "$response"  fi
 echo ""}
 # Test endpoint comuni
 echo "ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ"

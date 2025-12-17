@@ -14,4 +14,5 @@ echo 1)
 if [[ $status -eq 2 ]]; then    status_text="CRITICAL - Load alto"
 elif [[ $status -eq 1 ]]; then    status_text="WARNING - Load elevato"
 else    status_text="OK"
-fi echo "$status Firewall_Uptime - Uptime: ${days}d ${hours}h ${minutes}m, Load: $load1 $load5 $load15 (${cpu_count} CPU) - $status_text | uptime_seconds=$uptime_seconds load1=$load1 load5=$load5 load15=$load15 cpu_count=$cpu_count"
+fi
+echo "$status Firewall_Uptime - Uptime: ${days}d ${hours}h ${minutes}m, Load: $load1 $load5 $load15 (${cpu_count} CPU) - $status_text | uptime_seconds=$uptime_seconds load1=$load1 load5=$load5 load15=$load15 cpu_count=$cpu_count"

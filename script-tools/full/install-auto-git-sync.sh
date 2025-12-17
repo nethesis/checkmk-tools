@@ -31,7 +31,7 @@ install_git() {
         echo "   - CentOS/RHEL: yum install git"
         exit 1
     fi
-    echo "✅ Git installato"
+echo "✅ Git installato"
 }
 
 # Verifica se git è installato
@@ -83,11 +83,9 @@ else
             echo "❌ Repository clonato ma .git non trovato"
             exit 1
         fi
-        
-        echo "✅ Repository clonato con successo"
+echo "✅ Repository clonato con successo"
     fi
 fi
-
 echo "========================================="
 echo "  Installazione Auto Git Sync Service"
 echo "========================================="
@@ -279,6 +277,5 @@ else
     echo ""
     echo "ℹ️  Servizio non avviato. Usa 'systemctl start auto-git-sync' per avviarlo."
 fi
-
 echo ""
 echo "========================================="

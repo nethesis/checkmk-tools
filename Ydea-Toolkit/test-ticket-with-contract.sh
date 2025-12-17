@@ -208,7 +208,8 @@ echo ""
 # Step 1: Verifica che il contratto esista
 echo -e "${YELLOW}­ƒôï Step 1: Verifica esistenza contratto ID ${CONTRATTO_ID}...${NC}"
 CONTRATTO_JSON=$("${TOOLKIT}" api GET "/contratto/${CONTRATTO_ID}" 2>/dev/null || 
-echo "")if [ -z "$CONTRATTO_JSON" ] || 
+echo "")
+if [ -z "$CONTRATTO_JSON" ] || 
 echo "$CONTRATTO_JSON" | grep -q "404"; then    
 echo -e "${RED}ÔØî Errore: Contratto ${CONTRATTO_ID} non trovato!${NC}"    
 echo ""    
@@ -235,13 +236,15 @@ TICKET_PAYLOAD=$(cat <<EOF{  "ticket": {    "titolo": "TEST Ticket con Contratto
 echo "Payload JSON:"
 echo "$TICKET_PAYLOAD" | jq '.'
 echo ""
-RESPONSE=$("${TOOLKIT}" api POST "/ticket" - <<< "$TICKET_PAYLOAD" 2>&1)if 
+RESPONSE=$("${TOOLKIT}" api POST "/ticket" - <<< "$TICKET_PAYLOAD" 2>&1)
+if 
 echo "$RESPONSE" | grep -q "API call fallita"; then    
 echo -e "${RED}ÔØî Errore durante la creazione del ticket${NC}"    
 echo "$RESPONSE"    exit 1fi
 # Estrai l'ID del ticket creato
 TICKET_ID=$(
-echo "$RESPONSE" | jq -r '.ticket.id // empty')if [ -z "$TICKET_ID" ]; then    
+echo "$RESPONSE" | jq -r '.ticket.id // empty')
+if [ -z "$TICKET_ID" ]; then    
 echo -e "${RED}ÔØî Errore: Impossibile estrarre l'ID del ticket dalla risposta${NC}"    
 echo "Risposta API:"    
 echo "$RESPONSE" | jq '.'    exit 1fi
@@ -293,7 +296,8 @@ echo "Possibili cause:"
 echo "   1. Il contratto non ├¿ attivo"    
 echo "   2. Il contratto non ha date valide"    
 echo "   3. API v2 non supporta l'associazione contratto in creazione"
-fi echo ""
+fi
+echo ""
 echo -e "${BLUE}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"
 echo ""
 # Output finale per uso in script

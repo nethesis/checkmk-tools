@@ -60,7 +60,7 @@ echo -e "${YELLOW}­ƒùæ´©Å  Rimozione eseguibile...${NC}"        rm -f /us
 # Rimuovi configurazione    if [ -d /etc/frp ]; then        
 echo -e "${YELLOW}­ƒùæ´©Å  Rimozione directory configurazione...${NC}"        rm -rf /etc/frp    fi        
 # Rimuovi log    if [ -f /var/log/frpc.log ]; then        
-echo -e "${YELLOW}­ƒùæ´©Å  Rimozione file log...${NC}"        rm -f /var/log/frpc.log    fi        
+echo -e "${YELLOW}­ƒùæ´©Å  Rimozione file log...${NC}"        rm -f /var/log/frpc.log    fi
 echo -e "\n${GREEN}Ô£à FRPC disinstallato completamente${NC}"    
 echo -e "${CYAN}­ƒôï File rimossi:${NC}"    
 echo -e "   ÔÇó /usr/local/bin/frpc"    
@@ -89,7 +89,7 @@ echo -e "${YELLOW}´┐¢´©Å  Rimozione eseguibile agent...${NC}"        rm -
 # Rimuovi configurazione    if [ -d /etc/check_mk ]; then        
 echo -e "${YELLOW}­ƒùæ´©Å  Rimozione directory configurazione...${NC}"        rm -rf /etc/check_mk    fi        
 # Rimuovi xinetd config (se presente)    if [ -f /etc/xinetd.d/check_mk ]; then        
-echo -e "${YELLOW}­ƒùæ´©Å  Rimozione configurazione xinetd...${NC}"        rm -f /etc/xinetd.d/check_mk        systemctl reload xinetd 2>/dev/null || true    fi        
+echo -e "${YELLOW}­ƒùæ´©Å  Rimozione configurazione xinetd...${NC}"        rm -f /etc/xinetd.d/check_mk        systemctl reload xinetd 2>/dev/null || true    fi
 echo -e "\n${GREEN}Ô£à CheckMK Agent disinstallato completamente${NC}"    
 echo -e "${CYAN}­ƒôï File rimossi:${NC}"    
 echo -e "   ÔÇó /usr/bin/check_mk_agent"    
@@ -162,7 +162,7 @@ LATEST_AGENT=$(wget -qO- "$BASE_URL/" 2>/dev/null | grep -oP 'check-mk-agent_\K[
 CHECKMK_VERSION="$LATEST_AGENT"        fi    else        
 # Cerca file RPM        
 LATEST_AGENT=$(wget -qO- "$BASE_URL/" 2>/dev/null | grep -oP 'check-mk-agent-\K[0-9]+\.[0-9]+\.[0-9]+p[0-9]+' | sort -V | tail -n 1)        if [ -n "$LATEST_AGENT" ]; then            
-CHECKMK_VERSION="$LATEST_AGENT"        fi    fi        
+CHECKMK_VERSION="$LATEST_AGENT"        fi    fi
 echo -e "${GREEN}   Ô£ô Versione rilevata: ${CHECKMK_VERSION}${NC}"}
 # =====================================================
 # Funzione: Installa CheckMK Agent su OpenWrt/NethSec8
@@ -210,14 +210,14 @@ echo -e "${YELLOW}ÔÜá´©Å  Test fallito${NC}"}
 # =====================================================
 # Funzione: Installa CheckMK Agent
 # =====================================================install_checkmk_agent() {    
-# Se ├¿ OpenWrt, usa funzione specifica    if [ "$PKG_TYPE" = "openwrt" ]; then        install_checkmk_agent_openwrt        return    fi        
+# Se ├¿ OpenWrt, usa funzione specifica    if [ "$PKG_TYPE" = "openwrt" ]; then        install_checkmk_agent_openwrt        return    fi
 echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ INSTALLAZIONE CHECKMK AGENT ÔòÉÔòÉÔòÉ${NC}"        
 # Rileva automaticamente l'ultima versione disponibile    detect_latest_agent_version        
 # URL pacchetti    if [ "$PKG_TYPE" = "deb" ]; then        
 AGENT_URL="https://monitoring.nethlab.it/monitoring/check_mk/agents/check-mk-agent_${CHECKMK_VERSION}-1_all.deb"        
 AGENT_FILE="check-mk-agent.deb"    else        
 AGENT_URL="https://monitoring.nethlab.it/monitoring/check_mk/agents/check-mk-agent-${CHECKMK_VERSION}-1.noarch.rpm"        
-AGENT_FILE="check-mk-agent.rpm"    fi        
+AGENT_FILE="check-mk-agent.rpm"    fi
 echo -e "${YELLOW}­ƒôª Download agent da: $AGENT_URL${NC}"        cd /tmp    rm -f "$AGENT_FILE" 2>/dev/null        
 # Download con output visibile    
 echo -e "${CYAN}   Downloading...${NC}"    if wget "$AGENT_URL" -O "$AGENT_FILE" 2>&1; then        
@@ -235,14 +235,14 @@ do${NC}"
 echo -e "${YELLOW}Contenuto del file:${NC}"                head -n 5 "$AGENT_FILE"                exit 1            fi        else            if ! file "$AGENT_FILE" | grep -q "Debian"; then                
 echo -e "${RED}Ô£ù File scaricato non ├¿ un pacchetto DEB vali
 do${NC}"                
-echo -e "${YELLOW}Contenuto del file:${NC}"                head -n 5 "$AGENT_FILE"                exit 1            fi        fi    fi        
+echo -e "${YELLOW}Contenuto del file:${NC}"                head -n 5 "$AGENT_FILE"                exit 1            fi        fi    fi
 echo -e "${YELLOW}­ƒôª Installazione pacchetto...${NC}"    if [ "$PKG_TYPE" = "deb" ]; then        dpkg -i "$AGENT_FILE"        apt-get install -f -y 2>/dev/null || true    else        rpm -Uvh "$AGENT_FILE"    fi        rm -f "$AGENT_FILE"    
 echo -e "${GREEN}Ô£ô Agent CheckMK installato${NC}"}
 # =====================================================
 # Funzione: Configura Agent Plain (TCP 6556)
 # =====================================================configure_plain_agent() {    
 # Su OpenWrt il servizio ├¿ gi├á configurato da install_checkmk_agent_openwrt()    if [ "$PKG_TYPE" = "openwrt" ]; then        
-echo -e "${GREEN}Ô£ô Agent su OpenWrt gi├á configurato${NC}"        return    fi        
+echo -e "${GREEN}Ô£ô Agent su OpenWrt gi├á configurato${NC}"        return    fi
 echo -e "\n${BLUE}ÔòÉÔòÉÔòÉ CONFIGURAZIONE AGENT PLAIN ÔòÉÔòÉÔòÉ${NC}"        
 SOCKET_FILE="/etc/systemd/system/check-mk-agent-plain.socket"    
 SERVICE_FILE="/etc/systemd/system/check-mk-agent-plain@.service"        
@@ -266,7 +266,7 @@ echo -e "${GREEN}   Ô£ô Download completato${NC}"    else
 echo -e "${RED}Ô£ù Errore durante il download di FRPC${NC}"        exit 1    fi        
 # Verifica file    if [ ! -f "frp_${FRP_VERSION}_linux_amd64.tar.gz" ] || [ ! -s "frp_${FRP_VERSION}_linux_amd64.tar.gz" ]; then        
 echo -e "${RED}Ô£ù File FRPC non vali
-do o vuoto${NC}"        exit 1    fi        
+do o vuoto${NC}"        exit 1    fi
 echo -e "${YELLOW}­ƒôª Estrazione...${NC}"    tar -xzf "frp_${FRP_VERSION}_linux_amd64.tar.gz"    
 FRP_EXTRACTED=$(tar -tzf "frp_${FRP_VERSION}_linux_amd64.tar.gz" | head -1 | cut -f1 -d"/")        mkdir -p /usr/local/bin    cp -f "$FRP_EXTRACTED/frpc" /usr/local/bin/frpc    chmod +x /usr/local/bin/frpc        rm -rf "$FRP_EXTRACTED" "frp_${FRP_VERSION}_linux_amd64.tar.gz"        
 echo -e "${GREEN}Ô£ô FRPC installato in /usr/local/bin/frpc${NC}"}
@@ -330,13 +330,13 @@ echo -e "\n${CYAN}­ƒôï RIEPILOGO:${NC}"
 echo -e "   Ô£ô CheckMK Agent installato (plain TCP 6556)"    
 echo -e "   Ô£ô Socket systemd attivo: check-mk-agent-plain.socket"        if [ "$INSTALL_FRPC" = "yes" ]; then        
 echo -e "   Ô£ô FRPC Client installato e configurato"        
-echo -e "   Ô£ô Tunnel attivo: $FRP_SERVER:$REMOTE_PORT ÔåÆ localhost:6556"    fi        
+echo -e "   Ô£ô Tunnel attivo: $FRP_SERVER:$REMOTE_PORT ÔåÆ localhost:6556"    fi
 echo -e "\n${CYAN}­ƒöº COMANDI UTILI:${NC}"    
 echo -e "   Test agent locale:    ${YELLOW}/usr/bin/check_mk_agent${NC}"    
 echo -e "   Status socket:        ${YELLOW}systemctl status check-mk-agent-plain.socket${NC}"        if [ "$INSTALL_FRPC" = "yes" ]; then        
 echo -e "   Status FRPC:          ${YELLOW}systemctl status frpc${NC}"        
 echo -e "   Log FRPC:             ${YELLOW}journalctl -u frpc -f${NC}"        
-echo -e "   Config FRPC:          ${YELLOW}/etc/frp/frpc.toml${NC}"    fi        
+echo -e "   Config FRPC:          ${YELLOW}/etc/frp/frpc.toml${NC}"    fi
 echo -e "\n${GREEN}­ƒÄë Installazione terminata con successo!${NC}\n"}
 # =====================================================
 # MAIN SCRIPT
@@ -368,7 +368,8 @@ echo -e "   ÔÇó Servizio: $([ "$PKG_TYPE" = "openwrt" ] &&
 echo "init.d" || 
 echo "systemd socket")"if [ "$PKG_TYPE" = "openwrt" ]; then    
 echo -e "   ÔÇó TCP Listener: socat"
-fi echo -e "\n${YELLOW}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"read -r -p "$(
+fi
+echo -e "\n${YELLOW}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"read -r -p "$(
 echo -e ${CYAN}Procedi con l\"installazione su questo sistema? ${NC}[s/N]: )" CONFIRM_SYSTEM
 echo -e "${YELLOW}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"if [[ ! "$CONFIRM_SYSTEM" =~ ^[sS]$ ]]; then    
 echo -e "\n${CYAN}Installazione annullata dall\"utente${NC}\n"    exit 0fi

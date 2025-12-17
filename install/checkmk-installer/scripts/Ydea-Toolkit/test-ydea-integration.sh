@@ -66,7 +66,8 @@ CRON_LINE=$(crontab -l | grep "ydea-health-monitor" | head -1)  test_pass "Cron 
 echo "  Schedule: $CRON_LINE"
 else  test_warn "Cron job non trovato (configura con: crontab -e)"  
 echo "  Aggiungi: */15 * * * * $HEALTH_SCRIPT >> /var/log/ydea_health.log 2>&1"
-fi echo ""
+fi
+echo ""
 # ===== TEST 8: Log Files =====test_start "Verifica accessibilit├á log"
 LOG_NOTIFY="/omd/sites/${CHECKMK_SITE}/var/log/notify.log"
 LOG_HEALTH="/var/log/ydea_health.log"
@@ -92,13 +93,15 @@ echo "  Output salvato in: /tmp/ydea_test_output.log"
 TICKET_ID=$(jq -r '.["192.168.99.99:Test Alert"].ticket_id // empty' "$TICKET_CACHE" 2>/dev/null)      if [[ -n "$TICKET_ID" ]]; then        test_pass "Ticket creato: 
 #$TICKET_ID"      else        test_warn "Nessun ticket trovato in cache (verifica output sopra)"      fi    fi  else    test_fail "Script terminato con errore"  fi
 else  test_warn "Test simulazione saltato"
-fi echo ""
+fi
+echo ""
 # ===== TEST 10: Health Monitor =====test_start "Test health monitor (opzionale)"
 echo -e "${YELLOW}Vuoi testare il health monitor? (y/n)${NC}"read -n 1 -recho
 if [[ $REPLY =~ ^[Yy]$ ]]; then  if "$HEALTH_SCRIPT" 2>&1 | tee /tmp/ydea_health_test.log; then    test_pass "Health monitor eseguito"    
 echo "  Output salvato in: /tmp/ydea_health_test.log"  else    test_fail "Health monitor fallito"  fi
 else  test_warn "Test health monitor saltato"
-fi echo ""
+fi
+echo ""
 # ===== RIEPILOGO =====
 echo ""
 echo -e "${BLUE}ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù${NC}"
@@ -124,7 +127,8 @@ echo "Correggi gli errori prima di usare in produzione:"
 echo "1. Verifica messaggi di errore sopra"  
 echo "2. Consulta: README-CHECKMK-INTEGRATION.md ÔåÆ Troubleshooting"  
 echo "3. Ri-esegui questo script dopo le correzioni"
-fi echo ""
+fi
+echo ""
 # File di report
 REPORT_FILE="/tmp/ydea_integration_test_report_$(date +%Y%m%d_%H%M%S).txt"{  
 echo "=== REPORT TEST INTEGRAZIONE YDEA-CHECKMK ==="  

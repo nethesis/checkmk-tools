@@ -17,6 +17,6 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Avvio monitoraggio ticket tracciati"
 # Aggiorna stati ticket  "$YDEA_TOOLKIT" update-tracking    
 # Pulisci ticket risolti vecchi (ogni 6 ore, controlla se ultima pulizia > 6h fa)  local cleanup_marker="/tmp/ydea_last_cleanup"local nowlocal nownow=$(date +%s)  local last_cleanup=0    if [[ -f "$cleanup_marker" ]]; then    last_cleanup=$(cat "$cleanup_marker")  fi    local hours_since_cleanup=$(( (now - last_cleanup) / 3600 ))    if [[ $hours_since_cleanup -ge 6 ]]; then    
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Eseguo pulizia ticket risolti vecchi"    "$YDEA_TOOLKIT" cleanup-tracking    
-echo "$now" > "$cleanup_marker"  fi    
+echo "$now" > "$cleanup_marker"  fi
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Monitoraggio completato"}
 # Esegui mainmainexit 0

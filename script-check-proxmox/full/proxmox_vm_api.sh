@@ -1,7 +1,8 @@
 #!/bin/bash
 # Script Checkmk local check per Proxmox VE (RAM + Stato)
 # Richiede: jq
-echo "<<<local>>>"vms=$(pvesh get /cluster/resources --type vm --output-format json | jq -c '.[] | select(.type=="qemu")')for vm in $vms; do    vmid=$(
+echo "<<<local>>>"vms=$(pvesh get /cluster/resources --type vm --output-format json | jq -c '.[] | select(.type=="qemu")')
+for vm in $vms; do    vmid=$(
 echo "$vm" | jq -r '.vmid')    name=$(
 echo "$vm" | jq -r '.name')    status=$(
 echo "$vm" | jq -r '.status')    maxmem=$(

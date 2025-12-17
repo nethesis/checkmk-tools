@@ -41,7 +41,7 @@ echo -e "    ­ƒôì Dest:   $dest"
 # Verifica se gi├á presente      if [[ -f "$dest" ]]; then        
 echo -e "    ${YELLOW}ÔÜá´©Å  File gi├á presente in destinazione${RESET}"      fi    else      
 echo -e "${RED}[$index]${RESET} ${BOLD}$desc${RESET} ${RED}(NON TROVATO)${RESET}"      
-echo -e "    ­ƒôü Source: $src"    fi    
+echo -e "    ­ƒôü Source: $src"    fi
 echo ""    ((index++))  done}
 # ===== Deploy singolo file =====deploy_file() {  local entry="$1"  
 IFS=':' read -r src dest needs_su
@@ -62,8 +62,8 @@ echo -e "${BOLD}Opzioni:${RESET}"
 echo "  [a] Deploy tutto"  
 echo "  [s] Selezione singoli file"  
 echo "  [q] Esci"  
-echo ""    read -r -p "Scegli un'opzione [a/s/q]: " choice    case "$choice" in    a|A)      print_info "Deploy di tutti i file..."      local success=0      local failed=0            for entry in "${DEPLOY_MAP[@]}"; do        if deploy_file "$entry"; then          ((success++))        else          ((failed++))        fi        
-echo ""      done            
+echo ""    read -r -p "Scegli un'opzione [a/s/q]: " choice    case "$choice" in    a|A)      print_info "Deploy di tutti i file..."      local success=0      local failed=0            for entry in "${DEPLOY_MAP[@]}"; do        if deploy_file "$entry"; then          ((success++))        else          ((failed++))        fi
+echo ""      done
 echo -e "\n${BOLD}Riepilogo:${RESET}"      
 echo -e "  ${GREEN}Ô£à Successo: $success${RESET}"      if [[ $failed -gt 0 ]]; then        
 echo -e "  ${RED}ÔØî Falliti: $failed${RESET}"      fi      ;;          s|S)      show_available_files      
@@ -86,7 +86,7 @@ echo ""      print_info "Deploy automatico di tutti i file..."      for entry in
 echo ""      done      ;;          4)      check_prerequisites      interactive_deploy      ;;          5)      show_status      ;;          q|Q)      print_info "Uscita..."      exit 0      ;;          *)      print_error "Opzione non valida"      exit 1      ;;  esac    
 echo ""  print_success "Operazione completata!"}
 # ===== Mostra stato =====show_status() {  print_header "­ƒôè STATO ATTUALE"    print_step "Repository: $REPO_PATH"  if [[ "$SCRIPT_USER" != "$DEPLOY_USER" ]]; then    su
-do -u "$DEPLOY_USER" bash -c "cd '$REPO_PATH' && git log -1 --oneline"  else    cd "$REPO_PATH" && git log -1 --oneline  fi    
+do -u "$DEPLOY_USER" bash -c "cd '$REPO_PATH' && git log -1 --oneline"  else    cd "$REPO_PATH" && git log -1 --oneline  fi
 echo ""  print_step "File deployati:"    for entry in "${DEPLOY_MAP[@]}"; do    
 IFS=':' read -r src dest needs_su
 do desc <<< "$entry"        if [[ -f "$dest" ]]; thenlocal mod_datelocal mod_datemod_date=$(stat -c %y "$dest" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1 || stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "$dest" 2>/dev/null)      
@@ -94,7 +94,7 @@ echo -e "  ${GREEN}Ô£à${RESET} $desc"
 echo -e "     ${CYAN}ÔåÆ${RESET} $dest"      
 echo -e "     ${YELLOW}ÔÅ░${RESET} $mod_date"    else      
 echo -e "  ${RED}ÔØî${RESET} $desc"      
-echo -e "     ${CYAN}ÔåÆ${RESET} $dest (NON PRESENTE)"    fi    
+echo -e "     ${CYAN}ÔåÆ${RESET} $dest (NON PRESENTE)"    fi
 echo ""  done}
 # ===== Entry point =====main() {  
 # Se eseguito con argomenti, modalit├á non interattiva  if [[ $
