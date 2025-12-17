@@ -4,7 +4,7 @@
 do lo stato dei container
 # + numero sessioni IMAP attive da doveadm
 # + stato critico se rilevato vsz_limit nei log di Dovecot
-# + warning se VszLimit non ├â┬¿ impostato
+# + warning se VszLimit non Ôö£├óÔö¼┬┐ impostato
 # + conteggio delle occorrenze recenti di vsz_limit nei log
 echo "<<<local>>>"
 # Numero di righe da controllare nei log (per non scansionare file enormi)
@@ -21,7 +21,7 @@ echo "$STATS" | grep "^${SVC} ")        if [[ -n "$STATUS_LINE" ]]; then
     STATE=$(
 echo "$STATUS_LINE" | awk '{print $2}')            if [[ "$STATE" == "Up" ]]; then
     echo "0 ${SVC} - ${SVC} attivo"                
-# Se ├â┬¿ dovecot, aggiungo controlli extra                if [[ "$SVC" == "dovecot" ]]; then                    
+# Se Ôö£├óÔö¼┬┐ dovecot, aggiungo controlli extra                if [[ "$SVC" == "dovecot" ]]; then                    
 # Numero sessioni IMAP                    
 IMAP_COUNT=$(runagent -m "$INSTANCE" podman exec "$SVC" doveadm who 2>/dev/null | wc -l)                    if [[ "$IMAP_COUNT" -gt 0 ]]; then
     echo "0 imap_sessions - Sessioni IMAP attive: $IMAP_COUNT"

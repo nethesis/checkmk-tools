@@ -19,15 +19,15 @@ CYAN='\033[0;36m'
 NC='\033[0m' 
 # No Color
 # ==========================================================
-# Funzioni di utilit├á
+# Funzioni di utilitÔö£├í
 # ==========================================================print_header() {    
 echo -e "\n${CYAN}========================================${NC}"    
 echo -e "${CYAN}  $1${NC}"    
 echo -e "${CYAN}========================================${NC}\n"}print_info() {    
-echo -e "${BLUE}Ôä╣´©Å  $1${NC}"}print_success() {    
-echo -e "${GREEN}Ô£à $1${NC}"}print_warning() {    
-echo -e "${YELLOW}ÔÜá´©Å  $1${NC}"}print_error() {    
-echo -e "${RED}ÔØî $1${NC}"}
+echo -e "${BLUE}├ö├ñÔòú┬┤┬®├à  $1${NC}"}print_success() {    
+echo -e "${GREEN}├ö┬ú├á $1${NC}"}print_warning() {    
+echo -e "${YELLOW}├ö├£├í┬┤┬®├à  $1${NC}"}print_error() {    
+echo -e "${RED}├ö├ÿ├« $1${NC}"}
 # ==========================================================
 # Controllo prerequisiti
 # ==========================================================check_prerequisites() {    print_header "Controllo Prerequisiti"        
@@ -57,10 +57,10 @@ echo "$download_page" | grep -oP 'check-mk-raw-\K\d+\.\d+\.\d+p\d+' | head -1)  
 # ==========================================================compare_versions() {    local current="$1"    local latest="$2"        print_header "Confronto Versioni"        
 echo -e "${BLUE}Versione corrente:${NC}    $current"    
 echo -e "${BLUE}Versione disponibile:${NC} $latest"    
-echo ""        if [[ "$current" == "$latest" ]]; then        print_success "Stai gi├á utilizzan
+echo ""        if [[ "$current" == "$latest" ]]; then        print_success "Stai giÔö£├í utilizzan
 do l'ultima versione disponibile!"        
 echo -e "\n${GREEN}Nessun aggiornamento necessario.${NC}\n"
-    exit 0    else        print_warning "├ê disponibile una nuova versione"        return 1    fi}
+    exit 0    else        print_warning "Ôö£├¬ disponibile una nuova versione"        return 1    fi}
 # ==========================================================
 # Conferma upgrade
 # ==========================================================confirm_upgrade() {    local current="$1"    local latest="$2"        print_header "Conferma Upgrade"        
@@ -162,8 +162,8 @@ PACKAGE_FILE="/tmp/cmk.deb"
 # 8. Installazione nuova versione    install_version "$PACKAGE_FILE"        
 # 9. Upgrade del sito    upgrade_site "$LATEST_VERSION"        
 # 10. Verifica    verify_upgrade        
-# 11. Cleanup    cleanup        print_header "­ƒÄë Upgrade Completato! ­ƒÄë"    
-echo -e "${GREEN}CheckMK ├¿ stato aggiornato da $CURRENT_VERSION a $LATEST_VERSION${NC}"    
+# 11. Cleanup    cleanup        print_header "┬¡ãÆ├ä├½ Upgrade Completato! ┬¡ãÆ├ä├½"    
+echo -e "${GREEN}CheckMK Ôö£┬┐ stato aggiornato da $CURRENT_VERSION a $LATEST_VERSION${NC}"    
 echo ""    print_info "Backup disponibile in: $BACKUP_DIR"    
 echo ""}
 # Esegui mainmain

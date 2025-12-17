@@ -1,4 +1,505 @@
 #!/bin/bash
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+CHECKMK_VERSION_DEFAULT="2.4.0p12"
+CHECKMK_VERSION="$CHECKMK_VERSION_DEFAULT"
+
+FRP_VERSION="0.64.0"
+FRP_URL="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz"
+
+FRP_SERVER_DEFAULT="monitor.nethlab.it"
+FRP_SERVER_PORT="7000"
+FRP_TOKEN_DEFAULT="conduit-reenact-talon-macarena-demotion-vaguely"
+
+MODE="install"
+
+OS=""
+VER=""
+PKG_TYPE=""
+PKG_MANAGER=""
+
+show_usage() {
+    cat <<EOF
+Uso:
+    $0                  Installazione interattiva completa
+    $0 --uninstall-frpc Disinstalla solo FRPC client
+    $0 --uninstall-agent Disinstalla solo CheckMK Agent
+    $0 --uninstall      Disinstalla tutto (Agent + FRPC)
+    $0 --help|-h        Mostra questo help
+EOF
+}
+
+die() {
+    echo -e "${RED}ERRORE:${NC} $*" >&2
+    exit 1
+}
+
+require_root() {
+    if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+        die "Questo script deve essere eseguito come root"
+    fi
+}
+
+detect_os() {
+    if [ -f /etc/os-release ]; then
+        # shellcheck disable=SC1091
+        . /etc/os-release
+        OS="$ID"
+        VER="$VERSION_ID"
+
+        if [ -f /etc/nethserver-release ]; then
+            OS="nethserver-enterprise"
+            VER=$(grep -oE '[0-9.]+' /etc/nethserver-release 2>/dev/null | head -n 1 || echo "8")
+        fi
+
+        if [ -f /etc/openwrt_release ] || grep -qi "openwrt" /etc/os-release 2>/dev/null; then
+            OS="openwrt"
+            VER=$(grep -E "^DISTRIB_RELEASE=" /etc/openwrt_release 2>/dev/null | cut -d"'" -f2 || echo "23.05")
+        fi
+    elif command -v lsb_release >/dev/null 2>&1; then
+        OS=$(lsb_release -si | tr '[:upper:]' '[:lower:]')
+        VER=$(lsb_release -sr)
+    else
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        VER=$(uname -r)
+    fi
+
+    case "$OS" in
+        ubuntu|debian)
+            PKG_TYPE="deb"; PKG_MANAGER="apt";;
+        centos|rhel|rocky|almalinux|nethserver-enterprise|fedora)
+            PKG_TYPE="rpm"; PKG_MANAGER="yum";;
+        openwrt)
+            PKG_TYPE="openwrt"; PKG_MANAGER="opkg";;
+        *)
+            die "Sistema operativo non supportato: $OS";;
+    esac
+
+    echo -e "${GREEN}Sistema rilevato:${NC} $OS $VER ($PKG_TYPE)"
+}
+
+detect_latest_agent_version() {
+    local base_url="https://monitoring.nethlab.it/monitoring/check_mk/agents"
+    local latest=""
+
+    echo -e "${CYAN}Rilevo ultima versione CheckMK Agent...${NC}"
+    if command -v wget >/dev/null 2>&1; then
+        if [ "$PKG_TYPE" = "deb" ] || [ "$PKG_TYPE" = "openwrt" ]; then
+            latest=$(wget -qO- "$base_url/" 2>/dev/null | grep -oE 'check-mk-agent_[0-9]+\.[0-9]+\.[0-9]+p[0-9]+' | sed 's/^check-mk-agent_//' | sort -V | tail -n 1 || true)
+        else
+            latest=$(wget -qO- "$base_url/" 2>/dev/null | grep -oE 'check-mk-agent-[0-9]+\.[0-9]+\.[0-9]+p[0-9]+' | sed 's/^check-mk-agent-//' | sort -V | tail -n 1 || true)
+        fi
+    fi
+
+    if [ -n "$latest" ]; then
+        CHECKMK_VERSION="$latest"
+    fi
+    echo -e "${GREEN}Versione agent:${NC} $CHECKMK_VERSION"
+}
+
+uninstall_frpc() {
+    echo -e "${YELLOW}Rimozione FRPC...${NC}"
+    killall frpc 2>/dev/null || true
+
+    if [ "$PKG_TYPE" = "openwrt" ]; then
+        if [ -f /etc/init.d/frpc ]; then
+            /etc/init.d/frpc stop 2>/dev/null || true
+            /etc/init.d/frpc disable 2>/dev/null || true
+            rm -f /etc/init.d/frpc
+        fi
+    else
+        systemctl stop frpc 2>/dev/null || true
+        systemctl disable frpc 2>/dev/null || true
+        rm -f /etc/systemd/system/frpc.service
+        systemctl daemon-reload 2>/dev/null || true
+    fi
+
+    rm -f /usr/local/bin/frpc
+    rm -rf /etc/frp
+    rm -f /var/log/frpc.log
+    echo -e "${GREEN}FRPC rimosso.${NC}"
+}
+
+uninstall_agent() {
+    echo -e "${YELLOW}Rimozione CheckMK Agent...${NC}"
+    killall check_mk_agent 2>/dev/null || true
+    killall socat 2>/dev/null || true
+
+    if [ "$PKG_TYPE" = "openwrt" ]; then
+        if [ -f /etc/init.d/check_mk_agent ]; then
+            /etc/init.d/check_mk_agent stop 2>/dev/null || true
+            /etc/init.d/check_mk_agent disable 2>/dev/null || true
+            rm -f /etc/init.d/check_mk_agent
+        fi
+    else
+        systemctl stop check-mk-agent-plain.socket 2>/dev/null || true
+        systemctl disable check-mk-agent-plain.socket 2>/dev/null || true
+        rm -f /etc/systemd/system/check-mk-agent-plain.socket
+        rm -f /etc/systemd/system/check-mk-agent-plain@.service
+        systemctl daemon-reload 2>/dev/null || true
+    fi
+
+    rm -f /usr/bin/check_mk_agent
+    rm -rf /etc/check_mk
+    echo -e "${GREEN}Agent rimosso.${NC}"
+}
+
+install_checkmk_agent_openwrt() {
+    echo -e "${BLUE}INSTALLAZIONE CHECKMK AGENT (OpenWrt/NethSec8)${NC}"
+    detect_latest_agent_version
+
+    opkg update
+    opkg install binutils tar gzip wget socat ca-certificates 2>/dev/null || opkg install busybox-full
+    command -v ar >/dev/null 2>&1 || die "Comando 'ar' mancante (binutils)"
+
+    local deb_url="https://monitoring.nethlab.it/monitoring/check_mk/agents/check-mk-agent_${CHECKMK_VERSION}-1_all.deb"
+    local tmpdir="/tmp/checkmk-deb"
+    rm -rf "$tmpdir"
+    mkdir -p "$tmpdir"
+    cd "$tmpdir"
+
+    echo -e "${CYAN}Download agent:${NC} $deb_url"
+    wget "$deb_url" -O check-mk-agent.deb
+    ar x check-mk-agent.deb
+    mkdir -p data
+    tar -xzf data.tar.gz -C data
+
+    install -m 0755 data/usr/bin/check_mk_agent /usr/bin/check_mk_agent
+    mkdir -p /etc/check_mk
+    cp -rf data/etc/check_mk/* /etc/check_mk/ 2>/dev/null || true
+
+    cat > /etc/init.d/check_mk_agent <<'EOF'
+#!/bin/sh /etc/rc.common
+START=98
+STOP=10
+USE_PROCD=1
+PROG=/usr/bin/check_mk_agent
+
+start_service() {
+    mkdir -p /var/run
+    procd_open_instance
+    procd_set_param command socat TCP-LISTEN:6556,reuseaddr,fork,keepalive EXEC:$PROG
+    procd_set_param respawn
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_close_instance
+}
+
+stop_service() {
+    killall socat >/dev/null 2>&1 || true
+}
+EOF
+    chmod +x /etc/init.d/check_mk_agent
+    /etc/init.d/check_mk_agent enable >/dev/null 2>&1 || true
+    /etc/init.d/check_mk_agent restart
+
+    echo -e "${CYAN}Test agent:${NC}"
+    /usr/bin/check_mk_agent | head -n 5 || true
+
+    rm -rf "$tmpdir"
+}
+
+install_checkmk_agent() {
+    echo -e "${BLUE}INSTALLAZIONE CHECKMK AGENT${NC}"
+    if [ "$PKG_TYPE" = "openwrt" ]; then
+        install_checkmk_agent_openwrt
+        return
+    fi
+
+    detect_latest_agent_version
+
+    local agent_url=""
+    local agent_file=""
+    if [ "$PKG_TYPE" = "deb" ]; then
+        agent_url="https://monitoring.nethlab.it/monitoring/check_mk/agents/check-mk-agent_${CHECKMK_VERSION}-1_all.deb"
+        agent_file="/tmp/check-mk-agent.deb"
+    else
+        agent_url="https://monitoring.nethlab.it/monitoring/check_mk/agents/check-mk-agent-${CHECKMK_VERSION}-1.noarch.rpm"
+        agent_file="/tmp/check-mk-agent.rpm"
+    fi
+
+    echo -e "${CYAN}Download agent:${NC} $agent_url"
+    wget "$agent_url" -O "$agent_file"
+
+    if [ "$PKG_TYPE" = "deb" ]; then
+        dpkg -i "$agent_file" || (apt-get update && apt-get -f install -y)
+    else
+        if command -v dnf >/dev/null 2>&1; then
+            dnf -y install "$agent_file"
+        else
+            yum -y install "$agent_file"
+        fi
+    fi
+
+    rm -f "$agent_file"
+}
+
+configure_plain_agent_systemd() {
+    echo -e "${BLUE}CONFIGURAZIONE AGENT PLAIN (systemd)${NC}"
+
+    if systemctl list-unit-files 2>/dev/null | grep -q '^cmk-agent-ctl-daemon\.service'; then
+        systemctl stop cmk-agent-ctl-daemon.service 2>/dev/null || true
+        systemctl disable cmk-agent-ctl-daemon.service 2>/dev/null || true
+        pkill -9 -f cmk-agent-ctl 2>/dev/null || true
+    fi
+
+    cat > /etc/systemd/system/check-mk-agent-plain.socket <<'EOF'
+[Unit]
+Description=Checkmk Agent (Plaintext Socket)
+Documentation=https://docs.checkmk.com/latest/en/agent_linux.html
+
+[Socket]
+ListenStream=6556
+Accept=yes
+
+[Install]
+WantedBy=sockets.target
+EOF
+
+    cat > /etc/systemd/system/check-mk-agent-plain@.service <<'EOF'
+[Unit]
+Description=Checkmk Agent (Plaintext)
+Documentation=https://docs.checkmk.com/latest/en/agent_linux.html
+
+[Service]
+ExecStart=/usr/bin/check_mk_agent
+StandardInput=socket
+User=root
+EOF
+
+    systemctl daemon-reload
+    systemctl enable --now check-mk-agent-plain.socket
+}
+
+configure_plain_agent() {
+    if [ "$PKG_TYPE" = "openwrt" ]; then
+        return
+    fi
+    configure_plain_agent_systemd
+}
+
+install_frpc() {
+    echo -e "${BLUE}INSTALLAZIONE FRPC${NC}"
+    if [ "$PKG_TYPE" = "openwrt" ]; then
+        opkg update
+        opkg install tar gzip wget ca-certificates 2>/dev/null || true
+    fi
+
+    local tmpdir="/tmp/frp"
+    rm -rf "$tmpdir"
+    mkdir -p "$tmpdir"
+    cd "$tmpdir"
+
+    echo -e "${CYAN}Download FRPC:${NC} $FRP_URL"
+    wget "$FRP_URL" -O frp.tgz
+    tar -xzf frp.tgz
+    local frpdir
+    frpdir=$(find . -maxdepth 1 -type d -name "frp_*" | head -n 1)
+    [ -n "$frpdir" ] || die "Impossibile trovare directory estratta FRP"
+    install -m 0755 "$frpdir/frpc" /usr/local/bin/frpc
+    mkdir -p /etc/frp
+    rm -rf "$tmpdir"
+}
+
+write_frpc_config() {
+    local host="$1"
+    local server_addr="$2"
+    local remote_port="$3"
+    local token="$4"
+
+    cat > /etc/frp/frpc.toml <<EOF
+# Configurazione FRPC Client
+# Generato il $(date +%Y-%m-%d)
+
+[common]
+server_addr = "$server_addr"
+server_port = $FRP_SERVER_PORT
+auth.method = "token"
+auth.token  = "$token"
+tls.enable = true
+log.to = "/var/log/frpc.log"
+log.level = "debug"
+
+[$host]
+type        = "tcp"
+local_ip    = "127.0.0.1"
+local_port  = 6556
+remote_port = $remote_port
+EOF
+}
+
+configure_frpc_service_systemd() {
+    cat > /etc/systemd/system/frpc.service <<'EOF'
+[Unit]
+Description=FRPC Client
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/frpc -c /etc/frp/frpc.toml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable --now frpc
+}
+
+configure_frpc_service_openwrt() {
+    cat > /etc/init.d/frpc <<'EOF'
+#!/bin/sh /etc/rc.common
+START=99
+STOP=10
+USE_PROCD=1
+
+start_service() {
+    procd_open_instance
+    procd_set_param command /usr/local/bin/frpc -c /etc/frp/frpc.toml
+    procd_set_param respawn
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_close_instance
+}
+
+stop_service() {
+    killall frpc >/dev/null 2>&1 || true
+}
+EOF
+    chmod +x /etc/init.d/frpc
+    /etc/init.d/frpc enable >/dev/null 2>&1 || true
+    /etc/init.d/frpc restart
+}
+
+configure_frpc() {
+    echo -e "${BLUE}CONFIGURAZIONE FRPC${NC}"
+
+    local default_host
+    default_host=$(hostname 2>/dev/null || echo "host")
+
+    local host=""
+    local server=""
+    local remote_port=""
+    local token=""
+
+    echo -ne "${CYAN}Nome host [default: $default_host]: ${NC}"
+    read -r host
+    host=${host:-"$default_host"}
+
+    echo -ne "${CYAN}Server FRP remoto [default: $FRP_SERVER_DEFAULT]: ${NC}"
+    read -r server
+    server=${server:-"$FRP_SERVER_DEFAULT"}
+
+    while [ -z "$remote_port" ]; do
+        echo -ne "${CYAN}Porta remota [es: 20001]: ${NC}"
+        read -r remote_port
+    done
+
+    echo -ne "${CYAN}Token di sicurezza [default: $FRP_TOKEN_DEFAULT]: ${NC}"
+    read -r token
+    token=${token:-"$FRP_TOKEN_DEFAULT"}
+
+    write_frpc_config "$host" "$server" "$remote_port" "$token"
+
+    if [ "$PKG_TYPE" = "openwrt" ]; then
+        configure_frpc_service_openwrt
+    else
+        configure_frpc_service_systemd
+    fi
+
+    echo -e "${GREEN}FRPC configurato:${NC} ${server}:${FRP_SERVER_PORT} -> ${remote_port}"
+}
+
+show_summary() {
+    echo -e "\n${CYAN}RIEPILOGO:${NC}"
+    echo -e "  - CheckMK Agent installato (plain TCP 6556)"
+    if [ "$PKG_TYPE" = "openwrt" ]; then
+        echo -e "  - Listener: init.d check_mk_agent (socat)"
+    else
+        echo -e "  - Socket systemd: check-mk-agent-plain.socket"
+    fi
+    if [ "${INSTALL_FRPC:-no}" = "yes" ]; then
+        echo -e "  - FRPC installato e configurato (/etc/frp/frpc.toml)"
+    fi
+    echo -e "\n${GREEN}Installazione terminata con successo!${NC}"
+}
+
+main() {
+    case "${1:-}" in
+        --help|-h)
+            show_usage; exit 0;;
+        --uninstall-frpc)
+            MODE="uninstall-frpc";;
+        --uninstall-agent)
+            MODE="uninstall-agent";;
+        --uninstall)
+            MODE="uninstall-all";;
+        "")
+            MODE="install";;
+        *)
+            die "Parametro non valido: $1";;
+    esac
+
+    require_root
+    detect_os
+
+    if [ "$MODE" = "uninstall-frpc" ]; then
+        uninstall_frpc; exit 0
+    elif [ "$MODE" = "uninstall-agent" ]; then
+        uninstall_agent; exit 0
+    elif [ "$MODE" = "uninstall-all" ]; then
+        echo -ne "${YELLOW}Sei sicuro di voler rimuovere tutto? [s/N]: ${NC}"
+        read -r confirm
+        if [[ "$confirm" =~ ^[sS]$ ]]; then
+            uninstall_frpc
+            uninstall_agent
+            echo -e "${GREEN}Disinstallazione completa terminata.${NC}"
+        else
+            echo -e "${CYAN}Operazione annullata.${NC}"
+        fi
+        exit 0
+    fi
+
+    echo -e "${CYAN}Installazione Interattiva CheckMK Agent + FRPC${NC}"
+    echo -e "${CYAN}Version: 1.1 - $(date +%Y-%m-%d)${NC}"
+
+    echo -ne "${CYAN}Procedi con l'installazione su questo sistema? [s/N]: ${NC}"
+    read -r confirm_system
+    if [[ ! "$confirm_system" =~ ^[sS]$ ]]; then
+        echo -e "${CYAN}Installazione annullata dall'utente.${NC}"
+        exit 0
+    fi
+
+    install_checkmk_agent
+    configure_plain_agent
+
+    INSTALL_FRPC="no"
+    echo -ne "${CYAN}Vuoi installare anche FRPC? [s/N]: ${NC}"
+    read -r install_frpc_choice
+    if [[ "$install_frpc_choice" =~ ^[sS]$ ]]; then
+        INSTALL_FRPC="yes"
+        install_frpc
+        configure_frpc
+    fi
+
+    show_summary
+}
+
+main "$@"
+
+exit 0
+
+: <<'CORRUPTED_ORIGINAL'
 # =====================================================
 # Script Interattivo: Installazione CheckMK Agent + FRPC (opzionale)
 # - Installa agent CheckMK in modalit├á plain (TCP 6556)
@@ -420,3 +921,5 @@ if [[ "$INSTALL_FRPC_INPUT" =~ ^[sS]$ ]]; then
 else    
 echo -e "${YELLOW}ÔÅ¡´©Å  Installazione FRPC saltata${NC}"fi
 # Mostra riepilogo finaleshow_summaryexit 0
+
+CORRUPTED_ORIGINAL

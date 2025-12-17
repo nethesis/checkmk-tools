@@ -49,7 +49,7 @@ DB_SERVICE="mariadb"
 elif systemctl list-unit-files | grep -q mysql.service; then
     DB_CONF="/etc/mysql/mysql.conf.d/mysqld.cnf"    
 DB_SERVICE="mysql"
-else    log "Nessun servizio MariaDB/MySQL trovato ÔÇö salto sezione database."    
+else    log "Nessun servizio MariaDB/MySQL trovato ├ö├ç├Â salto sezione database."    
 DB_CONF=""  fi  if [[ -n "$DB_CONF" && -f "$DB_CONF" ]]; then    cp -a "$DB_CONF" "$BACKUP_DIR/$(basename $DB_CONF).$DATE.bak"    log "Backup $DB_CONF completato."    sed -i '/innodb_buffer_pool_size/d' "$DB_CONF"    sed -i '/innodb_log_file_size/d' "$DB_CONF"    sed -i '/query_cache_size/d' "$DB_CONF"    sed -i '/query_cache_type/d' "$DB_CONF"    cat <<EOT >> "$DB_CONF"
 # Ottimizzazione Checkmk Bilanciata ($DATE)innodb_buffer_pool_size = 512Minnodb_log_file_size = 128Mquery_cache_size = 32Mquery_cache_type = 1EOT    systemctl restart "$DB_SERVICE" && log "$DB_SERVICE riavviato con configurazione ottimizzata."
 else    log "File di configurazione database non trovato, nessuna modifica applicata."  fi
@@ -67,7 +67,7 @@ if [[ "$opt_agent" =~ ^[Ss]$ ]]; then
 if [[ "$opt_frp" =~ ^[Ss]$ ]]; then  for f in /etc/frp/frpc.toml /etc/frp/frps.toml; do    if [[ -f "$f" ]]; then      cp -a "$f" "$BACKUP_DIR/$(basename $f).$DATE.bak"      sed -i 's/use_compression *= *true/use_compression = false/g' "$f"      log "Compressione disattivata in $f"    fi  done  systemctl restart frpc 2>/dev/null || true  systemctl restart frps 2>/dev/null || true
 fi
 # ------------------------------------------------------------
-# 8. Suggerimenti WATO (solo output)log "Suggerimento: in WATO > Global Settings imposta: - 'Normal check interval' a 2ÔÇô3 min per servizi non critici - 'Maximum concurrent checks' a 10ÔÇô15 - 'Periodic Service Discovery' giornaliero o disattivato"
+# 8. Suggerimenti WATO (solo output)log "Suggerimento: in WATO > Global Settings imposta: - 'Normal check interval' a 2├ö├ç├┤3 min per servizi non critici - 'Maximum concurrent checks' a 10├ö├ç├┤15 - 'Periodic Service Discovery' giornaliero o disattivato"
 # ------------------------------------------------------------
 # Snapshot Timeshift (Post-ottimizzazione)
 if command -v timeshift >/dev/null 2>&1; then  read -p "Creare snapshot Timeshift post-ottimizzazione? (s/n): " postts  if [[ "$postts" =~ ^[Ss]$ ]]; then    log "Creazione snapshot Timeshift post-ottimizzazione..."    
