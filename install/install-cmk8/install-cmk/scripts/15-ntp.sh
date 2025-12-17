@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bashset -euo pipefailif dpkg -s chrony >/dev/null 2>&1; then  
 echo "chrony installato: salto systemd-timesyncd."  exit 0fiif dpkg -s ntp >/dev/null 2>&1; then  

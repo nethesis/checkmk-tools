@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # explore-anagrafica.sh - Esplora i dati dell'anagrafica per trovare la SLAset -euo pipefail

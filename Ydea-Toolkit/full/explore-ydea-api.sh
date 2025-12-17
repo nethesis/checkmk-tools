@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # explore-ydea-api.sh ÔÇö Esplora gli endpoint disponibili dell'API Ydea

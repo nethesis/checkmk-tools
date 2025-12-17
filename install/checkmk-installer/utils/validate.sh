@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # validate.sh - Input validation functions

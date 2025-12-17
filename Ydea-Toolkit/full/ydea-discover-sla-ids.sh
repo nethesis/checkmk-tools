@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # ydea-discover-sla-ids.sh ÔÇö Scopri ID per categorie, sottocategorie e SLA personalizzata

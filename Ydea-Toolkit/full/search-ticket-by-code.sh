@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # search-ticket-by-code.sh - Cerca un ticket per codice (es: TK25/003209)set -euo pipefail

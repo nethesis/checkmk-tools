@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bashset -euo pipefail
 # Timezoneif [[ -n "${TIMEZONE:-}" ]]; then  timedatectl set-timezone "$TIMEZONE" || truefi

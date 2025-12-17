@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # make-bootstrap-iso.sh - Create minimal bootstrap ISO for CheckMK installer

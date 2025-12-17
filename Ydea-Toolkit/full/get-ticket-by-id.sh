@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # get-ticket-by-id.sh - Recupera un ticket specifico per ID numericoset -euo pipefail

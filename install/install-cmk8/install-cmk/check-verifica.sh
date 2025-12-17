@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bashset -euo pipefail
 echo "===== VERIFICA SISTEMA ====="

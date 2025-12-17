@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # Test rapido per verificare log_ticket_event

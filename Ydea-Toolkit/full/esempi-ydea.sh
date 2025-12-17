@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # esempi-ydea.sh - Script di esempio per operazioni comuni

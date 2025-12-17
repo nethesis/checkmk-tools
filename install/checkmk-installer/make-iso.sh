@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # make-iso.sh - Create bootable ISO with CheckMK installer

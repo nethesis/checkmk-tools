@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # ydea-templates.sh - Template predefiniti per ticket comuni

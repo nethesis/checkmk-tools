@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # 01-system-base.sh - Base system configuration module

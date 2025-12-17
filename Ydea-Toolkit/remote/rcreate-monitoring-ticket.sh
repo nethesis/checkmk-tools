@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # rcreate-monitoring-ticket.sh - Remote launcherset -euo pipefail

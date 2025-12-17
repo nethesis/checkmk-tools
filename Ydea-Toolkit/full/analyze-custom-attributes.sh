@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # analyze-custom-attributes.sh - Analizza i customAttributes di molti ticketset -euo pipefail

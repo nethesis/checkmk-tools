@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # test-ydea-integration.sh - Script di test completo integrazione CheckMK ÔåÆ Ydea

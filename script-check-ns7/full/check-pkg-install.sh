@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash[ -z "$BASH_VERSION" ] && exec /bin/bash "$0" "$@"
 # check-sosid-ns7.sh - versione pulita e verificata, una sola riga per Checkmk

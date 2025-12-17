@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # rexplore-anagrafica.sh - Remote launcherset -euo pipefail

@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # ydea-only.sh - Test Ydea toolkit installationset -euo pipefail

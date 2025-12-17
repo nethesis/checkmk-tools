@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # deploy-from-repo.sh - Script interattivo per deployment da repository

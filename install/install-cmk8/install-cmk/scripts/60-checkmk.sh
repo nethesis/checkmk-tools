@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bashset -euo pipefail
 # Installa Checkmk Raw chiedendo interattivamente l'URL del .deb e crea/avvia il site "monitoring".

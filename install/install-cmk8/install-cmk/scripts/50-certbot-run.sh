@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # Wrapper per eseguire il flusso interattivo di certificazione + vhost

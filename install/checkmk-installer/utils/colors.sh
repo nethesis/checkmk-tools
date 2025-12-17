@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # colors.sh - Color definitions and symbols for terminal output

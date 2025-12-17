@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # quick-test-ydea-api.sh ÔÇö Test rapido connessione API Ydea

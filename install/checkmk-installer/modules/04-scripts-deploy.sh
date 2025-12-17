@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # 04-scripts-deploy.sh - Deploy monitoring scripts

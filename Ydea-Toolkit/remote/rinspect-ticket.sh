@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # rinspect-ticket.sh - Remote launcher per inspect-ticket.shset -euo pipefail

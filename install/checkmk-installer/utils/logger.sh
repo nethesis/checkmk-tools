@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # logger.sh - Centralized logging system

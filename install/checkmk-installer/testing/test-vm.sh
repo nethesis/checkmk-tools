@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # test-vm.sh - Automated testing suite for CheckMK Installer

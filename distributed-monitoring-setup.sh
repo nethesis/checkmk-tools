@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # distributed-monitoring-setup.sh

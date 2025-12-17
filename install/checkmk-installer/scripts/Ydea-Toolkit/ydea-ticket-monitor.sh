@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # ydea-ticket-monitor.sh - Monitoraggio automatico stato ticket tracciati

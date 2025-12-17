@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # test-ticket-creation.sh - Test creazione ticket per ogni tipologiaset -euo pipefail

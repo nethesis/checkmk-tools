@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # scripts-only.sh - Test scripts-only deploymentset -euo pipefail

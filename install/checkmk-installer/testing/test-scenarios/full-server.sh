@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # full-server.sh - Test full CheckMK server installationset -euo pipefail

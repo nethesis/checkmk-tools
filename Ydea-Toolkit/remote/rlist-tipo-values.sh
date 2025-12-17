@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # rlist-tipo-values.sh - Remote launcherset -euo pipefail

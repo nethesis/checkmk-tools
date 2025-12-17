@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # analyze-ticket-data.sh ÔÇö Analizza i ticket esistenti per estrarre categorie, priorit├á e SLA

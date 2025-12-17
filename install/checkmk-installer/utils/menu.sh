@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # menu.sh - Complete working version[[ -z "$GREEN" ]] && source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"show_menu() {  

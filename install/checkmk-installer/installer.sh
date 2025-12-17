@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # installer.sh - CheckMK Installer Main Menu

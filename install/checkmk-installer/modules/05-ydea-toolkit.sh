@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # 05-ydea-toolkit.sh - Ydea Toolkit installation and configuration

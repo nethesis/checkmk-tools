@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # cleanup-full.sh - Complete cleanup of CheckMK installation

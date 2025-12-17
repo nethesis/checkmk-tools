@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # 06-frps-setup.sh - FRPS Server installation and configuration

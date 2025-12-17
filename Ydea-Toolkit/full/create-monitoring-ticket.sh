@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # create-monitoring-ticket.sh - Crea ticket Ydea da allarme CheckMKset -euo pipefail

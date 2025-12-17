@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bashset -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"source "$SCRIPT_DIR/ydea-toolkit.sh"

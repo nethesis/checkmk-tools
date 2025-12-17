@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # client-only.sh - Test CheckMK agent-only installationset -euo pipefail

@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # 07-certbot-ssl.sh - Let's Encrypt SSL certificate module

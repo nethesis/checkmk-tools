@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # 06-frp-setup.sh - FRP Server/Client installation and configuration

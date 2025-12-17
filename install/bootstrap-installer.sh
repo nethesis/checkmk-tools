@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # bootstrap-installer.sh - Bootstrap and launch CheckMK installer

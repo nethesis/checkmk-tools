@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # search-sla-in-contracts.sh - Cerca SLA Premium_Mon nei contrattiset -euo pipefail

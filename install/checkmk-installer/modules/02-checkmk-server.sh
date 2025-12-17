@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # 02-checkmk-server.sh - CheckMK Server installation module

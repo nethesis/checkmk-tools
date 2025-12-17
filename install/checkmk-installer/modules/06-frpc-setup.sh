@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # 06-frpc-setup.sh - FRPC Client installation and configuration

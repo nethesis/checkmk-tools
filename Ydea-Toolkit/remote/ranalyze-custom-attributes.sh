@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # ranalyze-custom-attributes.sh - Remote launcherset -euo pipefail

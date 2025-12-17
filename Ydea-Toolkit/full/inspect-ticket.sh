@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # inspect-ticket.sh - Ispeziona un singolo ticket per vedere la struttura completaset -euo pipefail

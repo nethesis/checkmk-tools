@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # 03-checkmk-agent.sh - CheckMK Agent installation module

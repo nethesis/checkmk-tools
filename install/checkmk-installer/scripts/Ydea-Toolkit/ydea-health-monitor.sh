@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # ydea-health-monitor.sh - Monitoraggio disponibilit├á Ydea API

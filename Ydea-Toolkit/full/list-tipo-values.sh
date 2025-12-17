@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # list-tipo-values.sh - Lista tutti i valori del campo 'tipo'set -eo pipefail

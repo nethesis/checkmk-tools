@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # makeiso-online.sh - Create lightweight bootable ISO with online bootstrap

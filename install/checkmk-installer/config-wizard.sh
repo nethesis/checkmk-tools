@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # config-wizard.sh - Interactive configuration wizard

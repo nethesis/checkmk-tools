@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # rsearch-sla-in-contracts.sh - Remote launcherset -euo pipefail

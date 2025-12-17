@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # rget-ticket-by-id.sh - Remote launcherset -euo pipefail

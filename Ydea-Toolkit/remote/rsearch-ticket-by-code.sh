@@ -1,4 +1,3 @@
-
 #!/bin/bash
 /usr/bin/env bash
 # rsearch-ticket-by-code.sh - Remote launcherset -euo pipefail
