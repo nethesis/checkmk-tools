@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Remote launcher per ydea_ag
+# Scarica e esegue la versione completa da repository
+
+REPO_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-notify-checkmk/full/ydea_ag"
+
+# Usa temp file per ereditare correttamente le variabili di ambiente NOTIFY_*
+TEMP_SCRIPT=$(mktemp)
+curl -fsSL "$REPO_URL" -o "$TEMP_SCRIPT"
+bash "$TEMP_SCRIPT" "$@"
+EXIT_CODE=$?
+rm -f "$TEMP_SCRIPT"
+exit $EXIT_CODE

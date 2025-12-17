@@ -1,0 +1,7 @@
+*.iso
+
+.vagrant/
+*.vhdx
+*.vmcx
+*.vmgs
+*.VMRS

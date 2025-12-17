@@ -1,0 +1,6 @@
+
+#!/bin/bash
+/bin/bash
+# Launcher per ydea-health-monitor.sh (usa script locale aggiornato da auto-git-sync)
+LOCAL_SCRIPT="/opt/checkmk-tools/Ydea-Toolkit/full/ydea-health-monitor.sh"
+# Esegue lo script localeexec "$LOCAL_SCRIPT" "$@"

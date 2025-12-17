@@ -1,0 +1,8 @@
+#!/bin/bash
+# Launcher per eseguire telegram_selfmon remoto dal repo GitHub
+# Script notifica CheckMK via Telegram dedicato a self-monitoring
+
+SCRIPT_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-notify-checkmk/full/telegram_selfmon"
+
+# Esegue lo script remoto
+bash <(curl -fsSL "$SCRIPT_URL") "$@"

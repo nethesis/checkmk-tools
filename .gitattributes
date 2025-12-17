@@ -1,0 +1,6 @@
+* -text
+*.sh -text -diff
+*.ps1 -text -diff
+*.bat -text -diff
+*.md -text -diff
+* binary
