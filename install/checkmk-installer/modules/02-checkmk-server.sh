@@ -346,6 +346,11 @@ EOF
 			fi
 		fi
 
+		# If we do have a password (from .env or from omd create output), persist it as well.
+		if [[ -n "$shown_pwd" && -z "${credentials_file:-}" ]]; then
+			credentials_file="$(write_root_credentials_file "$shown_pwd" || true)"
+		fi
+
 		{
 			local host url_http url_https url_alt
 			host="$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")"
@@ -374,6 +379,14 @@ EOF
 			echo ""
 			print_info "Cambio password (manuale): sudo su - ${site_name} -c \"cmk-passwd cmkadmin\""
 		} || true
+
+		# The installer menu may clear the screen right after this module.
+		# Pause in interactive runs so the user can copy the credentials.
+		if [[ -t 0 && -t 1 && -n "${shown_pwd:-}" && "${CHECKMK_NO_PAUSE:-}" != "1" ]]; then
+			echo ""
+			print_info "Premi INVIO per continuare (password mostrata sopra)"
+			read -r _ || true
+		fi
 	else
 		print_warning "omd not found; CheckMK installation may be incomplete"
 	fi
