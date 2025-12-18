@@ -1,115 +1,134 @@
-#!/bin/bash
-# ==========================================================
-#  Auto Git Sync - Clone iniziale e Pull automatico
-#  Clona il repository alla prima esecuzione e poi
-#  esegue git pull ogni minuto automaticamente
-#  Autore: ChatGPT per Marzio Bordin
-# ==========================================================
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Imposta PATH per systemd
-export 
-PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-# Configurazione
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
 REPO_URL="https://github.com/Coverup20/checkmk-tools.git"
-# Cerca il repository: prima /opt, poi /root, poi $HOME
-if [[ -d "/opt/checkmk-tools/.git" ]]; then
-    TARGET_DIR="/opt/checkmk-tools"
-elif [[ -d "/root/checkmk-tools/.git" ]]; then
-    TARGET_DIR="/root/checkmk-tools"
-elif [[ -d "$HOME/checkmk-tools/.git" ]]; then
-    TARGET_DIR="$HOME/checkmk-tools"
-else    
-TARGET_DIR="$HOME/checkmk-tools"  
-# Default se non esiste ancora
-fi
-SYNC_INTERVAL="${1:-60}"  
-# Primo parametro o default 60 secondi
+SYNC_INTERVAL="${1:-60}"
+
 LOG_FILE="/var/log/auto-git-sync.log"
-# Colori per output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m' 
-# No Color
-# ==========================================================
-# Funzioni di utilit├á
-# ==========================================================log_message() {    local timestamp    timestamp=$(date '+%Y-%m-%d %H:%M:%S')    
-echo "[$timestamp] $1" | tee -a "$LOG_FILE" 2>/dev/null || 
-echo "[$timestamp] $1"}print_info() {    
-echo -e "${BLUE}Ôä╣´©Å  $1${NC}"    log_message "INFO: $1"}print_success() {    
-echo -e "${GREEN}Ô£à $1${NC}"    log_message "SUCCESS: $1"}print_warning() {    
-echo -e "${YELLOW}ÔÜá´©Å  $1${NC}"    log_message "WARNING: $1"}print_error() {    
-echo -e "${RED}ÔØî $1${NC}"    log_message "ERROR: $1"}print_header() {    
-echo -e "\n${CYAN}========================================${NC}"    
-echo -e "${CYAN}  $1${NC}"    
-echo -e "${CYAN}========================================${NC}\n"}
-# ==========================================================
-# Verifica e clona repository se necessario
-# ==========================================================init_repository() {    print_header "Inizializzazione Repository"        
-# Verifica se la directory esiste    if [[ -d "$TARGET_DIR" ]]; then        
-# Verifica se ├¿ un repository git vali
-do        if [[ -d "$TARGET_DIR/.git" ]]; then            print_success "Repository gi├á esistente in: $TARGET_DIR"                        
-# Verifica il remote            cd "$TARGET_DIR" || exit 1            local current_remote            current_remote=$(timeout 10 git remote get-url origin 2>/dev/null)                        if [[ "$current_remote" == "$REPO_URL" ]]; then                print_success "Remote corretto: $REPO_URL"
-else                print_warning "Remote diverso rilevato: $current_remote"                print_info "Aggiorno remote a: $REPO_URL"                git remote set-url origin "$REPO_URL"            fi                        return 0        else            print_warning "Directory esistente ma non ├¿ un repository git"            print_info "Rimuovo directory e proce
-do con il clone..."            rm -rf "$TARGET_DIR"        fi    fi        
-# Clone del repository    print_info "Clonazione repository da: $REPO_URL"    print_info "Destinazione: $TARGET_DIR"        if timeout 120 git clone "$REPO_URL" "$TARGET_DIR"; then        print_success "Repository clonato con successo!"        cd "$TARGET_DIR" || exit 1                
-# Mostra informazioni sul repository        local branch        branch=$(git branch --show-current)        local commit        commit=$(git rev-parse --short HEAD)        print_info "Branch: $branch"        print_info "Commit: $commit"                return 0    else        print_error "Errore durante il clone del repository"        return 1    fi}
-# ==========================================================
-# Esegue git pull con controlli robusti
-# ==========================================================do_git_pull() {    cd "$TARGET_DIR" || {        print_error "Impossibile accedere alla directory: $TARGET_DIR"        return 1    }        
-# Verifica integrit├á repository    if ! git rev-parse --git-dir > /dev/null 2>&1; then        print_error "Repository corrotto, riclonazione necessaria"        cd ..        rm -rf "$TARGET_DIR"        init_repository        return $?    fi        
-# Salva commit corrente    local old_commit    old_commit=$(git rev-parse --short HEAD 2>/dev/null)    local current_branch    current_branch=$(git branch --show-current 2>/dev/null)        
-# Verifica se siamo su un branch vali
-do    if [[ -z "$current_branch" ]]; then        print_warning "Detached HEAD rilevato, checkout forzato su main..."        
-# Usa -B per forzare creazione/reset del branch locale a origin/main        if ! git checkout -B main origin/main 2>&1 | tee -a "$LOG_FILE"; then            print_error "Impossibile fare checkout su main"            return 1        fi        current_branch="main"    fi        
-# Verifica se ci sono modifiche locali o file non tracciati    if ! git diff-index --quiet HEAD -- 2>/dev/null || [[ -n $(git ls-files --others --exclude-standard) ]]; then        print_warning "Modifiche locali o file non tracciati rilevati"                
-# Reset HARD per allineare completamente al remote        print_info "Reset HARD per allineare al remote (modifiche locali PERSE)..."        git reset --hard HEAD >/dev/null 2>&1        git clean -fd >/dev/null 2>&1        print_success "Repository locale pulito"    fi        
-# Fetch per vedere aggiornamenti remoti    print_info "Verifica aggiornamenti remoti..."    if ! timeout 60 git fetch origin 2>&1 | tee -a "$LOG_FILE"; then        print_error "Errore durante fetch (timeout o errore rete)"        return 1    fi        
-# Verifica se siamo dietro al remote    local local_commit    local_commit=$(git rev-parse HEAD)    local remote_commit    remote_commit=$(git rev-parse origin/$current_branch 2>/dev/null)        if [[ -z "$remote_commit" ]]; then        print_warning "Branch remoto non trovato: origin/$current_branch"        print_info "Tento con origin/main..."        current_branch="main"        remote_commit=$(git rev-parse origin/main 2>/dev/null)                if [[ -z "$remote_commit" ]]; then            print_error "Impossibile trovare branch remoto vali
-do"            return 1        fi                git checkout main 2>/dev/null || return 1    fi        
-# Se locale e remote divergono, FORZA allineamento al remote    if [[ "$local_commit" != "$remote_commit" ]]; then        local behind_count        behind_count=$(git rev-list --count HEAD..origin/$current_branch 2>/dev/null || 
-echo "?")        local ahead_count        ahead_count=$(git rev-list --count origin/$current_branch..HEAD 2>/dev/null || 
-echo "0")                if [[ "$ahead_count" != "0" ]] && [[ "$ahead_count" != "?" ]]; then            print_warning "Repository locale ├¿ AVANTI di $ahead_count commit rispetto al remote"            print_info "RESET FORZATO al remote per allineamento..."
-else            print_info "Repository locale ├¿ DIETRO di $behind_count commit"        fi                
-# HARD reset al remote e pulizia aggressiva per gestire rinominazioni        if timeout 30 git reset --hard origin/$current_branch 2>&1 | tee -a "$LOG_FILE"; then            local new_commit            new_commit=$(git rev-parse --short HEAD)                        
-# Pulizia aggressiva di file/directory non tracciati (incluse directory rinominate)            if git clean -fdx 2>&1 | tee -a "$LOG_FILE"; then                print_info "Pulizia completata: rimossi file/directory non tracciati"            fi                        print_success "Repository FORZATO ad allinearsi: $old_commit ÔåÆ $new_commit"                        
-# Rendi eseguibili tutti gli script .sh            print_info "Aggiornamento permessi script..."            find "$TARGET_DIR" -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null            print_success "Permessi aggiornati per file .sh"                        
-# Mostra i file modificati            if [[ -n "$old_commit" ]] && [[ "$old_commit" != "$new_commit" ]]; then                print_info "File modificati:"                git diff --name-status "$old_commit" "$new_commit" 2>/dev/null | while read -r status file; do                    case "$status" in                        A) 
-echo "  ${GREEN}+ $file${NC}" ;;                        M) 
-echo "  ${YELLOW}~ $file${NC}" ;;                        D) 
-echo "  ${RED}- $file${NC}" ;;                        *) 
-echo "  $status $file" ;;                    esac                done            fi                        return 0        else            print_error "Errore durante reset al remote"            return 1        fi
-else        print_info "Repository gi├á aggiornato (nessuna modifica)"                
-# Aggiorna comunque i permessi per sicurezza        find "$TARGET_DIR" -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null                return 0    fi}
-# ==========================================================
-# Loop principale
-# ==========================================================run_sync_loop() {    print_header "Auto Git Sync Attivo"        print_info "Repository: $REPO_URL"    print_info "Directory locale: $TARGET_DIR"    print_info "Intervallo sync: ${SYNC_INTERVAL}s (ogni minuto)"    print_info "Log file: $LOG_FILE"    
-echo ""    print_warning "Premi Ctrl+C per interrompere"    
-echo ""        local sync_count=0        while true; do        sync_count=$((sync_count + 1))                
-echo -e "${CYAN}ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü${NC}"        print_info "Sync 
-#$sync_count - $(date '+%Y-%m-%d %H:%M:%S')"                if do_git_pull; then            print_success "Sync completato"
-else            print_error "Sync fallito"        fi                print_info "Prossimo sync tra ${SYNC_INTERVAL}s..."        sleep "$SYNC_INTERVAL"    done}
-# ==========================================================
-# Gestione segnali
-# ==========================================================cleanup() {    
-echo ""    print_warning "Ricevuto segnale di interruzione"    print_info "Arresto Auto Git Sync..."    log_message "Auto Git Sync terminato"
-    exit 0}trap cleanup SIGINT SIGTERM
-# ==========================================================
-# Main
-# ==========================================================main() {    
-# Verifica git installato    if ! command -v git &> /dev/null; then        print_error "Git non ├¿ installato"
-    exit 1    fi        
-# Crea directory per log se non esiste    if [[ -w "$(dirname "$LOG_FILE")" ]] || su
-do mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null; then        su
-do touch "$LOG_FILE" 2>/dev/null || true
-else        
-LOG_FILE="$HOME/auto-git-sync.log"        print_warning "Usan
-do log file alternativo: $LOG_FILE"    fi        print_header "Auto Git Sync - Avvio"    log_message "=== Auto Git Sync Started ==="        
-# Inizializza repository    if ! init_repository; then        print_error "Impossibile inizializzare il repository"
-    exit 1    fi        
-# Esegui primo sync immediato    print_header "Primo Sync"    do_git_pull        
-# Avvia loop di sync    run_sync_loop}
-# Controlla se script eseguito direttamente
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then    main "$@"fi
+
+timestamp() {
+    date '+%Y-%m-%d %H:%M:%S'
+}
+
+log() {
+    local level="$1"; shift
+    local msg="$*"
+    printf '[%s] %s: %s\n' "$(timestamp)" "$level" "$msg"
+    {
+        printf '[%s] %s: %s\n' "$(timestamp)" "$level" "$msg" >>"$LOG_FILE"
+    } 2>/dev/null || true
+}
+
+ensure_log_file() {
+    if [[ -w "$(dirname "$LOG_FILE")" ]] || mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null; then
+        touch "$LOG_FILE" 2>/dev/null || true
+        return 0
+    fi
+    LOG_FILE="$HOME/auto-git-sync.log"
+    touch "$LOG_FILE" 2>/dev/null || true
+}
+
+detect_target_dir() {
+    local candidates=("/opt/checkmk-tools" "/root/checkmk-tools" "$HOME/checkmk-tools")
+    local candidate
+    for candidate in "${candidates[@]}"; do
+        if [[ -d "$candidate/.git" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    # Default preferred location
+    printf '%s\n' "/opt/checkmk-tools"
+}
+
+clone_repo_if_needed() {
+    local target_dir="$1"
+    if [[ -d "$target_dir/.git" ]]; then
+        return 0
+    fi
+
+    log INFO "Repository not found at $target_dir; cloning"
+    mkdir -p "$(dirname "$target_dir")" 2>/dev/null || true
+    rm -rf "$target_dir" 2>/dev/null || true
+    if ! timeout 180 git clone "$REPO_URL" "$target_dir"; then
+        log ERROR "git clone failed"
+        return 1
+    fi
+}
+
+repo_is_valid() {
+    git -C "$1" rev-parse --is-inside-work-tree >/dev/null 2>&1
+}
+
+reset_to_remote_default() {
+    local target_dir="$1"
+
+    if ! repo_is_valid "$target_dir"; then
+        log WARNING "Repository invalid/corrupted; recloning"
+        rm -rf "$target_dir" 2>/dev/null || true
+        clone_repo_if_needed "$target_dir" || return 1
+    fi
+
+    log INFO "Fetching updates"
+    if ! timeout 120 git -C "$target_dir" fetch --prune origin; then
+        log ERROR "git fetch failed"
+        return 1
+    fi
+
+    local remote_head local_branch
+    remote_head="$(git -C "$target_dir" symbolic-ref -q --short refs/remotes/origin/HEAD || true)"
+    if [[ -z "$remote_head" ]]; then
+        remote_head="origin/main"
+    fi
+    local_branch="${remote_head#origin/}"
+
+    log INFO "Reset to $remote_head"
+    # Force local branch to track the remote default.
+    git -C "$target_dir" checkout -B "$local_branch" "$remote_head" >/dev/null 2>&1 || true
+    if ! timeout 60 git -C "$target_dir" reset --hard "$remote_head"; then
+        log ERROR "git reset --hard failed"
+        return 1
+    fi
+    # Aggressive cleanup (handles renames and deleted paths)
+    git -C "$target_dir" clean -fdx >/dev/null 2>&1 || true
+
+    # Keep scripts executable
+    find "$target_dir" -type f -name "*.sh" -exec chmod +x {} + 2>/dev/null || true
+    return 0
+}
+
+main() {
+    ensure_log_file
+
+    if ! command -v git >/dev/null 2>&1; then
+        log ERROR "git not found"
+        exit 1
+    fi
+
+    local target_dir
+    target_dir="$(detect_target_dir)"
+    log INFO "Using repo dir: $target_dir"
+    log INFO "Sync interval: ${SYNC_INTERVAL}s"
+
+    clone_repo_if_needed "$target_dir" || exit 1
+
+    # First sync immediately
+    if reset_to_remote_default "$target_dir"; then
+        log INFO "Initial sync ok"
+    else
+        log ERROR "Initial sync failed"
+    fi
+
+    while true; do
+        sleep "$SYNC_INTERVAL"
+        if reset_to_remote_default "$target_dir"; then
+            log INFO "Sync ok"
+        else
+            log ERROR "Sync failed"
+        fi
+    done
+}
+
+main "$@"
