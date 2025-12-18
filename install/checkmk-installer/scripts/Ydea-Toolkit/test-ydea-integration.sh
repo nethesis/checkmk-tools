@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_f1d184785b944aa5bfa1a8596888bb57'
 #!/bin/bash
 /usr/bin/env bash
 # test-ydea-integration.sh - Script di test completo integrazione CheckMK ÔåÆ Ydea
@@ -164,3 +172,6 @@ echo "=== CRON JOB ==="  crontab -l 2>/dev/null | grep ydea ||
 echo "Nessun cron job trovato"} > "$REPORT_FILE"
 echo "­ƒôä Report completo salvato in: $REPORT_FILE"
 echo ""exit $TESTS_FAILED
+
+CORRUPTED_f1d184785b944aa5bfa1a8596888bb57
+

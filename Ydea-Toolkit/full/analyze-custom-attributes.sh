@@ -1,3 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+need jq
+
+pages="${1:-20}"
+if ! [[ "$pages" =~ ^[0-9]+$ ]]; then
+    log_error "pages must be an integer"
+    exit 2
+fi
+
+out_dir="${YDEA_OUT_DIR:-/tmp}"
+attrs_file="$out_dir/ydea-custom-attributes.json"
+tipo_file="$out_dir/ydea-tipo-values.txt"
+
+log_info "Analyzing customAttributes across $pages pages (limit=100)"
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+printf '[]' >"$tmp"
+
+for ((page=1; page<=pages; page++)); do
+    log_info "Fetching page $page/$pages"
+    resp="$(ydea_api GET "/tickets?limit=100&page=${page}")" || break
+    count="$(printf '%s' "$resp" | jq -r '.objs | length' 2>/dev/null || echo 0)"
+    if [[ "$count" == "0" ]]; then
+        break
+    fi
+
+    printf '%s' "$resp" | jq '[.objs[] | select(.customAttributes != null) | {id, codice, customAttributes}]' >"${tmp}.part"
+    jq -s '.[0] + .[1]' "$tmp" "${tmp}.part" >"${tmp}.new" && mv "${tmp}.new" "$tmp"
+done
+
+mv "$tmp" "$attrs_file"
+trap - EXIT
+
+total="$(jq -r 'length' "$attrs_file" 2>/dev/null || echo 0)"
+log_info "Tickets with customAttributes: $total"
+
+log_info "Unique customAttributes keys:"
+jq -r '[.[].customAttributes | keys[]] | unique | sort[]' "$attrs_file" 2>/dev/null || true
+
+log_info "Keys matching categoria|sla|premium|mon|macro:"
+jq -r '[.[].customAttributes | keys[]] | unique | map(select(test("categoria|sla|premium|mon|macro"; "i"))) | sort[]' "$attrs_file" 2>/dev/null || true
+
+log_info "Unique values of field .tipo from sampled tickets (best-effort)"
+{
+    for ((page=1; page<=pages; page++)); do
+        resp="$(ydea_api GET "/tickets?limit=100&page=${page}")" || break
+        printf '%s' "$resp" | jq -r '.objs[]? | .tipo? // empty' 2>/dev/null || true
+    done
+} | sed '/^$/d' | sort -u >"$tipo_file"
+
+log_info "Saved: $attrs_file"
+log_info "Saved: $tipo_file"
+exit 0
+
+: <<'CORRUPTED_a0cdc12bcecb4c6aac9a743860d7681d'
 #!/bin/bash
 /usr/bin/env bash
 # analyze-custom-attributes.sh - Analizza i customAttributes di molti ticketset -euo pipefail
@@ -86,3 +148,6 @@ echo ""
 echo "­ƒÆí Usa questi comandi per ulteriori analisi:"
 echo "   cat $TEMP_FILE | jq '.[] | select(.customAttributes | has(\"NOME_CAMPO\"))'"
 echo "   cat $TEMP_FILE | jq '[.[].customAttributes | keys[]] | unique'"
+
+CORRUPTED_a0cdc12bcecb4c6aac9a743860d7681d
+

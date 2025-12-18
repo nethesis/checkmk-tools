@@ -1,66 +1,79 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+
 # Script di diagnostica per verificare stato auto-git-sync
+
+REPO_DIR="/opt/checkmk-tools"
+
 echo "========================================="
 echo "  Diagnostica Auto Git Sync"
 echo "========================================="
-echo ""
-# Verifica se il servizio esiste
-if systemctl list-unit-files | grep -q auto-git-sync.service; then
-    echo "Ô£à Servizio auto-git-sync.service trovato"    
-echo ""        
-echo "--- STATUS SERVIZIO ---"    systemctl status auto-git-sync.service --no-pager    
-echo ""        
-echo "--- ULTIMI LOG ---"    journalctl -u auto-git-sync.service -n 50 --no-pager    
-echo ""else    
-echo "ÔØî Servizio auto-git-sync.service NON trovato"    
-echo ""fi
-# Verifica repository locale
-REPO_DIR="/opt/checkmk-tools"
-if [ -d "$REPO_DIR" ]; then
-    echo "--- STATO REPOSITORY LOCALE ---"    cd "$REPO_DIR"    
-echo "­ƒôü Directory: $REPO_DIR"    
-echo ""        
-echo "Branch corrente:"    git branch --show-current    
-echo ""        
-echo "Ultimo commit locale:"    git log -1 --oneline    
-echo ""        
-echo "Ultimo commit remoto (origin/main):"    git fetch origin 2>/dev/null    git log origin/main -1 --oneline    
-echo ""        
-echo "Stato git:"    git status    
-echo ""        
-echo "Verifica struttura cartelle:"    
-echo ""        
-echo "script-tools:"    ls -ld script-tools/remote script-tools/full 2>/dev/null || 
-echo "  ÔØî Cartelle remote/full NON trovate"    
-echo ""        
-echo "Ydea-Toolkit:"    ls -ld Ydea-Toolkit/remote Ydea-Toolkit/full 2>/dev/null || 
-echo "  ÔØî Cartelle remote/full NON trovate"    
-echo ""        
-echo "Fix:"    ls -ld Fix/remote Fix/full 2>/dev/null || 
-echo "  ÔØî Cartelle remote/full NON trovate"    
-echo ""        
-echo "script-notify-checkmk:"    ls -ld script-notify-checkmk/remote script-notify-checkmk/full 2>/dev/null || 
-echo "  ÔØî Cartelle remote/full NON trovate"    
-echo ""        
-echo "script-check-ns7:"    ls -ld script-check-ns7/polling script-check-ns7/nopolling 2>/dev/null || 
-echo "  ÔØî Cartelle polling/nopolling NON trovate"    
-echo ""        
-echo "script-check-ns8:"    ls -ld script-check-ns8/polling script-check-ns8/nopolling 2>/dev/null || 
-echo "  ÔØî Cartelle polling/nopolling NON trovate"    
-echo ""        
-echo "script-check-ubuntu:"    [ -d "script-check-ubuntu/polling" ] && ls -ld script-check-ubuntu/polling 2>/dev/null    [ -d "script-check-ubuntu/nopolling" ] && ls -ld script-check-ubuntu/nopolling 2>/dev/null    [ ! -d "script-check-ubuntu/polling" ] && [ ! -d "script-check-ubuntu/nopolling" ] && 
-echo "  ÔØî Cartelle polling/nopolling NON trovate"    
-echo ""        
-echo "script-check-windows:"    [ -d "script-check-windows/polling" ] && ls -ld script-check-windows/polling 2>/dev/null    [ -d "script-check-windows/nopolling" ] && ls -ld script-check-windows/nopolling 2>/dev/null    [ ! -d "script-check-windows/polling" ] && [ ! -d "script-check-windows/nopolling" ] && 
-echo "  ÔØî Cartelle polling/nopolling NON trovate"    
-echo ""        
-echo "Proxmox:"    [ -d "Proxmox/polling" ] && ls -ld Proxmox/polling 2>/dev/null || 
-echo "  ÔÜá´©Å  polling/ vuota (normale)"    [ -d "Proxmox/nopolling" ] && ls -ld Proxmox/nopolling 2>/dev/null    [ ! -d "Proxmox/nopolling" ] && 
-echo "  ÔØî nopolling/ NON trovata"    
-echo ""else    
-echo "ÔØî Repository NON trovato in: $REPO_DIR"
+echo
+
+if command -v systemctl >/dev/null 2>&1; then
+  if systemctl list-unit-files | grep -q '^auto-git-sync\.service'; then
+    echo "OK: Servizio auto-git-sync.service trovato"
+    echo
+    echo "--- STATUS SERVIZIO ---"
+    systemctl status auto-git-sync.service --no-pager || true
+    echo
+    echo "--- ULTIMI LOG ---"
+    if command -v journalctl >/dev/null 2>&1; then
+      journalctl -u auto-git-sync.service -n 50 --no-pager || true
+    else
+      echo "WARN: journalctl non disponibile"
+    fi
+    echo
+  else
+    echo "WARN: Servizio auto-git-sync.service NON trovato"
+    echo
+  fi
+else
+  echo "WARN: systemctl non disponibile"
+  echo
 fi
-echo ""
+
+if [[ -d "$REPO_DIR" ]]; then
+  echo "--- STATO REPOSITORY LOCALE ---"
+  cd "$REPO_DIR"
+  echo "Directory: $REPO_DIR"
+  echo
+
+  if command -v git >/dev/null 2>&1; then
+    echo "Branch corrente: $(git branch --show-current 2>/dev/null || echo '<unknown>')"
+    echo "Ultimo commit locale: $(git log -1 --oneline 2>/dev/null || echo '<unknown>')"
+    git fetch origin 2>/dev/null || true
+    echo "Ultimo commit remoto (origin/main): $(git log origin/main -1 --oneline 2>/dev/null || echo '<unknown>')"
+    echo
+    echo "Stato git:"
+    git status || true
+  else
+    echo "WARN: git non disponibile"
+  fi
+
+  echo
+  echo "Verifica struttura cartelle:"
+  for p in \
+    "script-tools/remote" "script-tools/full" \
+    "Ydea-Toolkit/remote" "Ydea-Toolkit/full" \
+    "Fix/remote" "Fix/full" \
+    "script-notify-checkmk/remote" "script-notify-checkmk/full" \
+    "script-check-ns7/polling" "script-check-ns7/nopolling" \
+    "script-check-ns8/polling" "script-check-ns8/nopolling" \
+    "script-check-ubuntu/polling" "script-check-ubuntu/nopolling" \
+    "script-check-windows/polling" "script-check-windows/nopolling" \
+    "Proxmox/polling" "Proxmox/nopolling"; do
+    if [[ -e "$p" ]]; then
+      ls -ld "$p" 2>/dev/null || true
+    else
+      echo "MISSING: $p"
+    fi
+  done
+else
+  echo "ERROR: Repository NON trovato in: $REPO_DIR" >&2
+fi
+
+echo
 echo "========================================="
 echo "  Fine Diagnostica"
 echo "========================================="

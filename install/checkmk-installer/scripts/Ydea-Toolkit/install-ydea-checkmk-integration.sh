@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_391c70ba9f2748a79ddbf2223470c5a5'
 #!/bin/bash
 /usr/bin/env bash
 # install-ydea-checkmk-integration.sh
@@ -105,3 +113,6 @@ echo ""
 echo -e "${YELLOW}ÔÜá´©Å  RICORDA: Configura le credenziali in .env prima dell'uso!${NC}"  
 echo ""}
 # Main installationmain() {  check_root  check_checkmk  check_ydea_toolkit  install_scripts  setup_env  create_cache_files  setup_cron  test_connection  show_next_steps}mainexit 0
+
+CORRUPTED_391c70ba9f2748a79ddbf2223470c5a5
+

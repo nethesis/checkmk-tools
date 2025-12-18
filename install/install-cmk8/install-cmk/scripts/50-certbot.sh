@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_ec20c823472a41f0b877c2bc6ac9db32'
 #!/bin/bash
 /usr/bin/env bash
 # =====================================================
@@ -68,3 +76,6 @@ echo ">>> Challenge non eseguita. Potrai lanciarla manualmente in seguito, es.:"
 echo "    certbot certonly --$WS -d dominio.it"
 fi
 echo ">>> Installazione Certbot completata."
+
+CORRUPTED_ec20c823472a41f0b877c2bc6ac9db32
+

@@ -29,7 +29,7 @@ Script interattivo per l'installazione/disinstallazione automatizzata di CheckMK
    - **Nome host** (default: hostname corrente)
    - **Server FRP remoto** (default: monitor.nethlab.it)
    - **Porta remota** (obbligatorio, es: 20001)
-   - **Token di sicurezza** (default: conduit-reenact-talon-macarena-demotion-vaguely)
+   - **Token di sicurezza** (obbligatorio)
 4. Genera file `/etc/frp/frpc.toml` con la configurazione
 5. Crea servizio systemd per FRPC
 6. Avvia e verifica il tunnel
@@ -145,7 +145,7 @@ Inserisci le informazioni per la configurazione FRPC:
 Nome host [default: myserver]: 
 Server FRP remoto [default: monitor.nethlab.it]: 
 Porta remota [es: 20001]: 20001
-Token di sicurezza [default: conduit-reenact-talon-macarena-demotion-vaguely]: 
+Token di sicurezza (obbligatorio): 
 
 📝 Creazione file /etc/frp/frpc.toml...
 ✓ File di configurazione creato
@@ -191,7 +191,7 @@ Il file `/etc/frp/frpc.toml` viene creato automaticamente con questa struttura:
 server_addr = "monitor.nethlab.it"
 server_port = 7000
 auth.method = "token"
-auth.token  = "conduit-reenact-talon-macarena-demotion-vaguely"
+auth.token  = "your-secret-token"
 tls.enable = true
 log.to = "/var/log/frpc.log"
 log.level = "debug"

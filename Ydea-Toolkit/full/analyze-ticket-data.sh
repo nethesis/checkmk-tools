@@ -1,7 +1,56 @@
-#!/bin/bash
-/usr/bin/env bash
-# analyze-ticket-data.sh ÔÇö Analizza i ticket esistenti per estrarre categorie, priorit├á e SLA
-# Estrae gli ID unici dai ticket per capire la struttura datiset -euo pipefail
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+need jq
+
+limit="${1:-100}"
+if ! [[ "$limit" =~ ^[0-9]+$ ]]; then
+    echo "Usage: $0 [limit]" >&2
+    exit 2
+fi
+
+log_info "Fetching tickets (limit=$limit)"
+
+resp="$(ydea_api GET "/tickets?limit=$limit")" || {
+    log_error "API call failed"
+    printf '%s\n' "$resp" | jq . 2>/dev/null || printf '%s\n' "$resp" >&2
+    exit 1
+}
+
+dump_file="$SCRIPT_DIR/tickets-dump.json"
+printf '%s' "$resp" >"$dump_file"
+log_info "Dump saved to: $dump_file"
+
+echo ""
+echo "=== PRIORITA ==="
+printf '%s' "$resp" | jq -r '.objs[]? | "\(.priorita_id // .prioritaId // "")\t\(.priorita // "")"' 2>/dev/null | sort -u || true
+
+echo ""
+echo "=== STATI ==="
+printf '%s' "$resp" | jq -r '.objs[]? | "\(.stato_id // .statoId // "")\t\(.stato // "")"' 2>/dev/null | sort -u || true
+
+echo ""
+echo "=== TIPI (campo .tipo) ==="
+printf '%s' "$resp" | jq -r '.objs[]? | select(.tipo != null and .tipo != "") | .tipo' 2>/dev/null | sort -u || true
+
+echo ""
+echo "=== ESEMPIO customAttributes (primi 5) ==="
+printf '%s' "$resp" | jq -r '.objs[0:5][]? | "Ticket \(.codice // "") (#\(.id // ""))"' 2>/dev/null || true
+printf '%s' "$resp" | jq '.objs[0:5][]? | .customAttributes // {}' 2>/dev/null || true
+
+exit 0
+
+: <<'CORRUPTED_97fb9ae5f0914e2abfd7220dc199c02c'
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# analyze-ticket-data.sh - Analyze existing tickets to extract categories, priority and SLA
+# Extracts unique IDs to understand data structure
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 YDEA_TOOLKIT="${SCRIPT_DIR}/ydea-toolkit.sh"
 echo "DEBUG: Script dir: $SCRIPT_DIR" >&2
@@ -96,3 +145,6 @@ echo "     campi relativi a categoria/SLA"
 echo "  2. Prova a recuperare un ticket specifico con ID noto"
 echo "  3. Contatta il supporto Ydea per documentazione API completa"
 echo ""
+
+CORRUPTED_97fb9ae5f0914e2abfd7220dc199c02c
+

@@ -1,3 +1,186 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+TOOLKIT_SCRIPT="${SCRIPT_DIR}/ydea-toolkit.sh"
+CREATE_TICKET_SCRIPT="${SCRIPT_DIR}/create-monitoring-ticket.sh"
+
+ALERT_THRESHOLD_CPU="${ALERT_THRESHOLD_CPU:-90}"
+ALERT_THRESHOLD_MEM="${ALERT_THRESHOLD_MEM:-85}"
+ALERT_THRESHOLD_DISK="${ALERT_THRESHOLD_DISK:-90}"
+
+TICKET_CACHE="${YDEA_TICKET_CACHE:-/tmp/ydea_tickets_cache.json}"
+
+log_info() { printf '[%s] [INFO] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >&2; }
+log_warn() { printf '[%s] [WARN] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >&2; }
+log_error() { printf '[%s] [ERROR] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >&2; }
+
+need() { command -v "$1" >/dev/null 2>&1 || { log_error "Missing dependency: $1"; exit 127; }; }
+
+init_cache() {
+	if [[ ! -f "$TICKET_CACHE" ]]; then
+		printf '{}' >"$TICKET_CACHE"
+	fi
+}
+
+ticket_exists() {
+	local key="$1"
+	init_cache
+	jq -e --arg key "$key" '.[$key] != null' "$TICKET_CACHE" >/dev/null 2>&1
+}
+
+save_ticket_cache() {
+	local key="$1"
+	local ticket_id="$2"
+	init_cache
+	jq --arg key "$key" --arg id "$ticket_id" --arg ts "$(date -u +%s)" \
+		'.[$key] = {ticket_id: $id, created_at: ($ts|tonumber)}' \
+		"$TICKET_CACHE" >"${TICKET_CACHE}.tmp" && mv "${TICKET_CACHE}.tmp" "$TICKET_CACHE"
+}
+
+cleanup_cache() {
+	init_cache
+	local now max_age
+	now="$(date -u +%s)"
+	max_age=$((24 * 3600))
+	jq --argjson now "$now" --argjson max "$max_age" \
+		'to_entries | map(select(($now - (.value.created_at|tonumber)) < $max)) | from_entries' \
+		"$TICKET_CACHE" >"${TICKET_CACHE}.tmp" && mv "${TICKET_CACHE}.tmp" "$TICKET_CACHE"
+}
+
+create_ticket() {
+	local host="$1"; local service="$2"; local state="$3"; local output="$4"; local hostip="${5:-}"
+	if [[ -x "$CREATE_TICKET_SCRIPT" ]]; then
+		"$CREATE_TICKET_SCRIPT" "$host" "$service" "$state" "$output" "$hostip" | sed -n 's/^TICKET_ID=//p' | head -n1
+		return 0
+	fi
+
+	# Fallback: use ydea-toolkit directly (minimal)
+	# shellcheck disable=SC1090
+	source "$TOOLKIT_SCRIPT"
+	need jq
+	body="$(jq -n --arg titolo "[$state] $host - $service" --arg descr "$output" '{titolo:$titolo, descrizione:$descr}')"
+	resp="$(ydea_api POST "/ticket" "$body")" || return 1
+	printf '%s' "$resp" | jq -r '.id // empty' | head -n1
+}
+
+check_cpu_usage() {
+	local hostname="${1:-$(hostname)}"
+	need awk
+	if ! command -v top >/dev/null 2>&1; then
+		log_warn "top not available; skipping CPU check"
+		return 0
+	fi
+	cpu_usage="$(top -bn2 -d 1 2>/dev/null | grep "Cpu(s)" | tail -1 | awk '{print $2}' | cut -d'%' -f1 || echo 0)"
+	cpu_usage="${cpu_usage%.*}"
+	log_info "CPU usage on $hostname: ${cpu_usage}%"
+	if [[ "$cpu_usage" -gt "$ALERT_THRESHOLD_CPU" ]]; then
+		key="cpu_high_${hostname}"
+		if ! ticket_exists "$key"; then
+			log_warn "CPU over threshold ($ALERT_THRESHOLD_CPU%). Creating ticket..."
+			tid="$(create_ticket "$hostname" "CPU Usage" "CRITICAL" "CPU usage ${cpu_usage}% > ${ALERT_THRESHOLD_CPU}%")" || true
+			if [[ -n "$tid" ]]; then
+				save_ticket_cache "$key" "$tid"
+				log_info "Ticket created: $tid"
+			else
+				log_error "Ticket creation failed"
+			fi
+		fi
+	fi
+}
+
+check_memory_usage() {
+	local hostname="${1:-$(hostname)}"
+	if ! command -v free >/dev/null 2>&1; then
+		log_warn "free not available; skipping MEM check"
+		return 0
+	fi
+	mem_usage="$(free | awk '/Mem:/ {printf "%.0f", $3/$2*100}' 2>/dev/null || echo 0)"
+	log_info "Memory usage on $hostname: ${mem_usage}%"
+	if [[ "$mem_usage" -gt "$ALERT_THRESHOLD_MEM" ]]; then
+		key="mem_high_${hostname}"
+		if ! ticket_exists "$key"; then
+			log_warn "MEM over threshold ($ALERT_THRESHOLD_MEM%). Creating ticket..."
+			tid="$(create_ticket "$hostname" "Memory Usage" "CRITICAL" "Memory usage ${mem_usage}% > ${ALERT_THRESHOLD_MEM}%")" || true
+			if [[ -n "$tid" ]]; then
+				save_ticket_cache "$key" "$tid"
+				log_info "Ticket created: $tid"
+			else
+				log_error "Ticket creation failed"
+			fi
+		fi
+	fi
+}
+
+check_disk_usage() {
+	local hostname="${1:-$(hostname)}"
+	if ! command -v df >/dev/null 2>&1; then
+		log_warn "df not available; skipping DISK check"
+		return 0
+	fi
+	df -h | grep -vE '^Filesystem|tmpfs|cdrom|loop' | while read -r line; do
+		mp="$(printf '%s' "$line" | awk '{print $6}')"
+		usage="$(printf '%s' "$line" | awk '{print $5}' | sed 's/%//')"
+		[[ -z "$mp" || -z "$usage" ]] && continue
+		log_info "Disk usage on $hostname:$mp: ${usage}%"
+		if [[ "$usage" -gt "$ALERT_THRESHOLD_DISK" ]]; then
+			key="disk_high_${hostname}_${mp//\//_}"
+			if ! ticket_exists "$key"; then
+				log_warn "DISK over threshold ($ALERT_THRESHOLD_DISK%) on $mp. Creating ticket..."
+				tid="$(create_ticket "$hostname" "Disk Usage $mp" "CRITICAL" "Disk usage ${usage}% on ${mp} > ${ALERT_THRESHOLD_DISK}%")" || true
+				if [[ -n "$tid" ]]; then
+					save_ticket_cache "$key" "$tid"
+					log_info "Ticket created: $tid"
+				else
+					log_error "Ticket creation failed"
+				fi
+			fi
+		fi
+	done
+}
+
+usage() {
+	cat >&2 <<'USAGE'
+Ydea Monitoring Integration
+
+Usage:
+	./ydea-monitoring-integration.sh monitor
+	./ydea-monitoring-integration.sh cleanup
+
+Env:
+	ALERT_THRESHOLD_CPU=90
+	ALERT_THRESHOLD_MEM=85
+	ALERT_THRESHOLD_DISK=90
+	YDEA_TICKET_CACHE=/tmp/ydea_tickets_cache.json
+USAGE
+}
+
+case "${1:-}" in
+	monitor)
+		need jq
+		cleanup_cache
+		check_cpu_usage
+		check_memory_usage
+		check_disk_usage
+		;;
+	cleanup)
+		need jq
+		cleanup_cache
+		;;
+	-h|--help|help|"")
+		usage
+		exit 0
+		;;
+	*)
+		usage
+		exit 2
+		;;
+esac
+
+exit 0
+
+: <<'CORRUPTED_fb9a9a97ae46477cb0f2db7d237b37b3'
 #!/bin/bash
 /usr/bin/env bash
 # ydea-monitoring-integration.sh
@@ -77,3 +260,6 @@ do ticket
 SEND_CUSTOM="YES"  
 DEFAULT_RECIPIENT_CUSTOM="ydea"    
 # Script custom notification  custom_sender() {    /path/to/ydea-monitoring-integration.sh netdata-webhook << EOF    {      "alarm": "${alarm}",      "status": "${status}",      "hostname": "${host}",      "value": "${value}",      "chart": "${chart}"    }  EOF  }USAGE    exit 1    ;;esac
+
+CORRUPTED_fb9a9a97ae46477cb0f2db7d237b37b3
+

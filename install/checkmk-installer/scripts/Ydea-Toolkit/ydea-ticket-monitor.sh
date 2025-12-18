@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_3a513dd392784352b72c72f91e657f89'
 #!/bin/bash
 /usr/bin/env bash
 # ydea-ticket-monitor.sh - Monitoraggio automatico stato ticket tracciati
@@ -22,3 +30,6 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Avvio monitoraggio ticket tracciati"
 echo "$now" > "$cleanup_marker"  fi
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Monitoraggio completato"}
 # Esegui mainmainexit 0
+
+CORRUPTED_3a513dd392784352b72c72f91e657f89
+

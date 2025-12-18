@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_1231c1bd539d4c12bd062bc738a20c38'
 #!/bin/bash
 # =====================================================
 # Script Installazione CheckMK Agent + FRPC per Synology NAS
@@ -566,3 +574,6 @@ fi
 # Mostra riepilogoshow_summary
 echo -e "${GREEN}Ô£¿ Installazione terminata!${NC}"
 echo ""
+
+CORRUPTED_1231c1bd539d4c12bd062bc738a20c38
+

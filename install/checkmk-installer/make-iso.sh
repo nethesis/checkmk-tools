@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_8f2fa13f588340b99623a7d48086fc18'
 #!/bin/bash
 /usr/bin/env bash
 # make-iso.sh - Create bootable ISO with CheckMK installer
@@ -1395,3 +1403,6 @@ echo ""  if [[ ! $REPLY =~ ^[Yy]$ ]]; then    log_info "Aborted by user"
 # Handle interruptstrap '
 echo ""; log_warning "Build interrupted"; cleanup; exit 130' INT TERM
 # Run mainmain "$@"
+
+CORRUPTED_8f2fa13f588340b99623a7d48086fc18
+

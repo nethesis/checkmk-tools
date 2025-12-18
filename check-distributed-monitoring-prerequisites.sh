@@ -1,786 +1,92 @@
-#!/bin/bash
-/usr/bin/env bash
+#!/usr/bin/env bash
+set -euo pipefail
+
 # check-distributed-monitoring-prerequisites.sh
-# Verifica prerequisiti per distributed monitoring sulla VPS centralset -euo pipefail
-R='\033[0;31m'
-G='\033[0;32m'
-Y='\033[1;33m'
-B='\033[0;34m'
-N='\033[0m'
-echo -e "${B}ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù${N}"
-echo -e "${B}Ôòæ   CheckMK Distributed Monitoring - Prerequisites Check    Ôòæ${N}"
-echo -e "${B}ÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ${N}"
-echo ""
+# Verifica prerequisiti per distributed monitoring su una VPS CheckMK
+
 SITE="${1:-monitoring}"
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Check if site exists
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-echo -e "${Y}ÔåÆ Checking site '$SITE'...${N}"if ! omd sites | grep -q "^$SITE"; then
-    echo -e "${R}Ô£ù Site '$SITE' not found${N}"
+
+have_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+need_cmd() {
+  have_cmd "$1" || {
+    echo "ERROR: missing command: $1" >&2
     exit 1
-fi echo -e "${G}Ô£ô Site found${N}"
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Check Livestatus configuration
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-echo -e "\n${Y}ÔåÆ Checking Livestatus configuration...${N}"su
-do -u "$SITE" bash <<EOFset -ecd /omd/sites/$SITEsource .profile
-echo -e "${B}Current Livestatus settings:${N}"omd config show LIVESTATUS_TCPomd config show LIVESTATUS_TCP_PORTomd config show LIVESTATUS_TCP_TLSEOF
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Check listening ports
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-echo -e "\n${Y}ÔåÆ Checking listening ports...${N}"
-echo -e "${B}Port 5000 (Apache/CheckMK Web):${N}"su
-do ss -tlnp | grep ':5000' || 
-echo -e "${Y}ÔÜá Port 5000 not listening${N}"
-echo -e "\n${B}Port 6557 (Livestatus TCP):${N}"su
-do ss -tlnp | grep ':6557' || 
-echo -e "${Y}ÔÜá Port 6557 not listening (will be enabled)${N}"
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Check firewall
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-echo -e "\n${Y}ÔåÆ Checking firewall rules...${N}"if command -v ufw >/dev/null 2>&1; then
-    echo -e "${B}UFW status:${N}"    su
-do ufw status | grep -E "(6557|Status)" || true
-elif command -v firewall-cmd >/dev/null 2>&1; then
-    echo -e "${B}Firewalld status:${N}"    su
-do firewall-cmd --list-ports | grep 6557 || 
-echo -e "${Y}ÔÜá Port 6557 not open${N}"else    
-echo -e "${Y}ÔÜá No firewall manager detected${N}"fi
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Check Apache/HTTPS configuration
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-echo -e "\n${Y}ÔåÆ Checking Apache/HTTPS configuration...${N}"if [[ -f /etc/apache2/sites-available/checkmk.conf ]]; then
-    echo -e "${G}Ô£ô Apache vhost found${N}"    
-echo -e "${B}SSL Certificate:${N}"    su
-do grep -E "SSLCertificate" /etc/apache2/sites-available/checkmk.conf || true
-else    
-echo -e "${Y}ÔÜá Apache vhost not found at standard location${N}"fi
-echo -e "\n${B}Apache modules:${N}"su
-do apache2ctl -M | grep -E "(ssl|proxy|rewrite)" || true
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Check site version
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-echo -e "\n${Y}ÔåÆ Checking CheckMK version...${N}"su
-do -u "$SITE" bash <<EOFcd /omd/sites/$SITEsource .profileomd versionEOF
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Check distributed monitoring capability
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-echo -e "\n${Y}ÔåÆ Checking distributed monitoring support...${N}"if su
-do -u "$SITE" ls /omd/sites/$SITE/etc/check_mk/multisite.d/ >/dev/null 2>&1; then
-    echo -e "${G}Ô£ô Multisite configuration directory exists${N}"else    
-echo -e "${R}Ô£ù Multisite not available${N}"fi
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Summary
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-echo -e "\n${B}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${N}"
-echo -e "${B}SUMMARY${N}"
-echo -e "${B}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${N}"
-echo -e "\n${Y}What needs to be done:${N}"
-echo -e "  1. Enable Livestatus TCP on port 6557 with TLS"
-echo -e "  2. Open firewall port 6557"
-echo -e "  3. Configure distributed monitoring in CheckMK"
-echo -e "\n${G}Ready to proceed with distributed-monitoring-setup.sh${N}"
+  }
+}
+
+need_cmd omd
+
+if ! omd sites | awk '{print $1}' | grep -qx "$SITE"; then
+  echo "ERROR: Site '$SITE' not found" >&2
+  echo "Available sites:" >&2
+  omd sites >&2 || true
+  exit 1
+fi
+
+run_site() {
+  local cmd="$1"
+  if have_cmd sudo; then
+    sudo -u "$SITE" bash -lc "cd /omd/sites/$SITE; source .profile; $cmd"
+  else
+    bash -lc "cd /omd/sites/$SITE; source .profile; $cmd"
+  fi
+}
+
+echo "========================================="
+echo "  CheckMK Distributed Monitoring - Prereq"
+echo "========================================="
+echo
+echo "Site: $SITE"
+
+echo
+echo "--- Livestatus configuration ---"
+run_site "omd config show LIVESTATUS_TCP || true"
+run_site "omd config show LIVESTATUS_TCP_PORT || true"
+run_site "omd config show LIVESTATUS_TCP_TLS || true"
+
+echo
+echo "--- Listening ports ---"
+if have_cmd ss; then
+  (have_cmd sudo && sudo ss -tlnp || ss -tlnp) | grep -E ':(5000|6557)\b' || echo "WARN: ports 5000/6557 not listening (or ss output filtered)"
+else
+  echo "WARN: ss not available"
+fi
+
+echo
+echo "--- Firewall ---"
+if have_cmd ufw; then
+  (have_cmd sudo && sudo ufw status || ufw status) | grep -E '(6557|Status)' || true
+elif have_cmd firewall-cmd; then
+  (have_cmd sudo && sudo firewall-cmd --list-ports || firewall-cmd --list-ports) | grep -E '6557' || echo "WARN: port 6557 not listed in firewalld"
+else
+  echo "WARN: no firewall manager detected (ufw/firewalld)"
+fi
+
+echo
+echo "--- Apache/HTTPS ---"
+if [[ -f /etc/apache2/sites-available/checkmk.conf ]]; then
+  echo "OK: Apache vhost found (/etc/apache2/sites-available/checkmk.conf)"
+  (have_cmd sudo && sudo grep -E 'SSLCertificate' /etc/apache2/sites-available/checkmk.conf || grep -E 'SSLCertificate' /etc/apache2/sites-available/checkmk.conf) || true
+else
+  echo "WARN: Apache vhost not found at standard location"
+fi
+if have_cmd apache2ctl; then
+  (have_cmd sudo && sudo apache2ctl -M || apache2ctl -M) | grep -E '(ssl|proxy|rewrite)' || true
+fi
+
+echo
+echo "--- CheckMK version ---"
+run_site "omd version || true"
+
+echo
+echo "--- Multisite directory ---"
+run_site "test -d etc/check_mk/multisite.d && echo 'OK: etc/check_mk/multisite.d exists' || echo 'WARN: multisite.d missing'"
+
+echo
+echo "========================================="
+echo "Summary"
+echo "========================================="
+echo "- If needed: enable Livestatus TCP on port 6557 (with TLS)"
+echo "- Ensure firewall allows inbound 6557 (if required by your design)"
+echo "- Proceed with distributed monitoring configuration"

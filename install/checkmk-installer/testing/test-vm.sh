@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_5451711b5ae94a0fbafe0a9ec01437a3'
 #!/bin/bash
 /usr/bin/env bash
 # test-vm.sh - Automated testing suite for CheckMK Installer
@@ -881,3 +889,6 @@ echo ""
 # Generate report  
 echo ""  generate_report}
 # Run testsmain "$@"
+
+CORRUPTED_5451711b5ae94a0fbafe0a9ec01437a3
+

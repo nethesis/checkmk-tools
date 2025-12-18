@@ -1,6 +1,136 @@
-#!/bin/bash
-/usr/bin/env bash
-# create-monitoring-ticket.sh - Crea ticket Ydea da allarme CheckMKset -euo pipefail
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
+# shellcheck disable=SC1090
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+need jq
+
+CONFIG_FILE="$SCRIPT_DIR/../config/premium-mon-config.json"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    log_error "Config not found: $CONFIG_FILE"
+    exit 1
+fi
+
+cmk_host="${1:-}"
+cmk_service="${2:-}"
+cmk_state="${3:-}"
+cmk_output="${4:-}"
+cmk_hostip="${5:-}"
+
+if [[ -z "$cmk_host" || -z "$cmk_state" || -z "$cmk_output" ]]; then
+    cat >&2 <<USAGE
+Usage: $0 <HOST> <SERVICE> <STATE> <OUTPUT> [HOST_IP]
+
+Example:
+    $0 'mail.example.com' 'HTTP' 'CRITICAL' 'Connection timeout' '1.2.3.4'
+USAGE
+    exit 2
+fi
+
+anagrafica_id="$(jq -r '.anagrafica_id' "$CONFIG_FILE")"
+priorita_id="$(jq -r '.priorita_id' "$CONFIG_FILE")"
+fonte="$(jq -r '.fonte' "$CONFIG_FILE")"
+sla_id="$(jq -r '.sla_id // empty' "$CONFIG_FILE")"
+assegnatoa_id="$(jq -r '.assegnatoa_id // empty' "$CONFIG_FILE")"
+default_tipo="$(jq -r '.default_tipo' "$CONFIG_FILE")"
+
+determine_tipo() {
+    local hay
+    hay="$(printf '%s %s %s' "$cmk_service" "$cmk_output" "$cmk_host" | tr '[:upper:]' '[:lower:]')"
+    local key keyword
+    while IFS= read -r key; do
+        while IFS= read -r keyword; do
+            [[ -z "$keyword" ]] && continue
+            if printf '%s' "$hay" | grep -qi -- "$keyword"; then
+                jq -r ".tipologie.${key}.tipo_ydea" "$CONFIG_FILE"
+                return 0
+            fi
+        done < <(jq -r ".tipologie.${key}.keywords[]?" "$CONFIG_FILE")
+    done < <(jq -r '.tipologie | keys[]' "$CONFIG_FILE")
+    printf '%s' "$default_tipo"
+}
+
+tipo="$(determine_tipo)"
+
+title="[${cmk_state}] ${cmk_host}"
+if [[ -n "$cmk_service" && "$cmk_service" != "Host" ]]; then
+    title+=" - ${cmk_service}"
+fi
+if [[ -n "$cmk_hostip" ]]; then
+    title+=" [IP=${cmk_hostip}]"
+fi
+
+descrizione="Allarme generato da CheckMK (creazione automatica)"
+
+note_privata="Allarme CheckMK\n\nHost: ${cmk_host}\nService: ${cmk_service:-Host}\nState: ${cmk_state}\nIP: ${cmk_hostip:-N/A}\nTimestamp: $(date '+%Y-%m-%d %H:%M:%S')\n\nOutput:\n${cmk_output}\n"
+
+log_info "Creating ticket: $title"
+log_debug "Tipo: $tipo"
+
+body="$(jq -n \
+    --arg titolo "$title" \
+    --arg descrizione "$descrizione" \
+    --arg fonte "$fonte" \
+    --arg tipo "$tipo" \
+    --argjson anagrafica "$anagrafica_id" \
+    --argjson priorita "$priorita_id" \
+    '{titolo:$titolo, descrizione:$descrizione, anagrafica_id:$anagrafica, priorita_id:$priorita, fonte:$fonte, tipo:$tipo}')"
+
+if [[ -n "$sla_id" ]]; then
+    body="$(printf '%s' "$body" | jq --argjson sid "$sla_id" '. + {sla_id:$sid}')"
+fi
+if [[ -n "$assegnatoa_id" ]]; then
+    body="$(printf '%s' "$body" | jq --argjson uid "$assegnatoa_id" '. + {assegnatoa: [$uid]}')"
+fi
+
+resp="$(ydea_api POST "/ticket" "$body")" || {
+    log_error "Ticket creation failed"
+    printf '%s\n' "$resp" | jq . 2>/dev/null || printf '%s\n' "$resp" >&2
+    exit 1
+}
+
+ticket_id="$(printf '%s' "$resp" | jq -r '.id // .ticket_id // .data.id // empty' 2>/dev/null || true)"
+ticket_code="$(printf '%s' "$resp" | jq -r '.codice // .code // .data.codice // empty' 2>/dev/null || true)"
+
+if [[ -z "$ticket_id" || "$ticket_id" == "null" ]]; then
+    log_error "Could not extract ticket id from response"
+    printf '%s\n' "$resp" | jq . 2>/dev/null || printf '%s\n' "$resp" >&2
+    exit 1
+fi
+
+log_info "Ticket created: id=$ticket_id code=${ticket_code:-N/A}"
+
+# Add private note (best-effort)
+note_user_id="${YDEA_USER_ID_CREATE_NOTE}"
+note_body="$(jq -n \
+    --argjson tid "$ticket_id" \
+    --arg desc "$note_privata" \
+    --argjson uid "$note_user_id" \
+    '{ticket_id:$tid, atk:{descrizione:$desc, pubblico:false, creatoda:$uid}}')"
+
+if ydea_api POST "/ticket/atk" "$note_body" >/dev/null 2>&1; then
+    log_info "Private note added"
+else
+    log_warn "Private note not added (ticket created anyway)"
+fi
+
+# Track
+track_ticket "$ticket_id" "${ticket_code:-TK-$ticket_id}" "$cmk_host" "${cmk_service:-Host}" "$cmk_output" || true
+
+# Output for CheckMK local scripts
+printf 'TICKET_ID=%s\n' "$ticket_id"
+printf 'TICKET_CODE=%s\n' "${ticket_code:-}"
+
+exit 0
+
+: <<'CORRUPTED_41e54a724c8c43efb80cd681c66a3c59'
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# create-monitoring-ticket.sh - Create Ydea ticket from CheckMK alarm
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"source "$SCRIPT_DIR/ydea-toolkit.sh"
 # Carica configurazione Premium_Mon
 CONFIG_FILE="$SCRIPT_DIR/../config/premium-mon-config.json"
@@ -85,3 +215,5 @@ echo "$RESPONSE" | jq '.' 2>/dev/null ||
 echo "$RESPONSE"
     exit 1
 fi 
+CORRUPTED_41e54a724c8c43efb80cd681c66a3c59
+

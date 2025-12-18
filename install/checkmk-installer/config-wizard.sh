@@ -1,3 +1,245 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/menu.sh"
+
+TEMPLATE_FILE="${INSTALLER_ROOT}/.env.template"
+ENV_FILE="${INSTALLER_ROOT}/.env"
+
+print_header "Configuration Wizard"
+
+if [[ ! -f "$TEMPLATE_FILE" ]]; then
+	print_error "Missing template: $TEMPLATE_FILE"
+	exit 1
+fi
+
+if [[ ! -f "$ENV_FILE" ]]; then
+	cp "$TEMPLATE_FILE" "$ENV_FILE"
+	print_info "Created $ENV_FILE from template"
+else
+	print_info "Using existing $ENV_FILE"
+fi
+
+tmp_file="${ENV_FILE}.tmp"
+cp "$ENV_FILE" "$tmp_file"
+
+set_kv() {
+	local key="$1"
+	local value="$2"
+	if grep -qE "^${key}=" "$tmp_file"; then
+		sed -i -E "s|^${key}=.*|${key}=${value}|" "$tmp_file"
+	else
+		echo "${key}=${value}" >>"$tmp_file"
+	fi
+}
+
+ssh_port=$(prompt_input "SSH Port" "22")
+timezone=$(prompt_input "Timezone" "UTC")
+permit_root=$(prompt_input "PermitRootLogin (yes/no)" "no")
+
+site_name=$(prompt_input "CheckMK site name" "cmk")
+checkmk_server=$(prompt_input "CheckMK server (hostname/ip for agent downloads)" "")
+checkmk_deb_url=$(prompt_input "CheckMK server .deb URL (for server install)" "")
+
+frp_version=$(prompt_input "FRP version" "0.61.0")
+frpc_server_addr=$(prompt_input "FRPC server address" "")
+frpc_server_port=$(prompt_input "FRPC server port" "7000")
+
+ydea_id=$(prompt_input "Ydea ID" "")
+ydea_user=$(prompt_input "Ydea User ID (create ticket)" "")
+
+set_kv "SSH_PORT" "$ssh_port"
+set_kv "TIMEZONE" "$timezone"
+set_kv "PERMIT_ROOT_LOGIN" "$permit_root"
+set_kv "CHECKMK_SITE_NAME" "$site_name"
+set_kv "CHECKMK_SERVER" "$checkmk_server"
+set_kv "CHECKMK_DEB_URL" "$checkmk_deb_url"
+set_kv "FRP_VERSION" "$frp_version"
+set_kv "FRPC_SERVER_ADDR" "$frpc_server_addr"
+set_kv "FRPC_SERVER_PORT" "$frpc_server_port"
+set_kv "YDEA_ID" "$ydea_id"
+set_kv "YDEA_USER_ID_CREATE_TICKET" "$ydea_user"
+
+mv "$tmp_file" "$ENV_FILE"
+print_success "Saved configuration to $ENV_FILE"
+exit 0
+: <<'__CORRUPTED_TAIL__'
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/menu.sh"
+
+TEMPLATE_FILE="${INSTALLER_ROOT}/.env.template"
+ENV_FILE="${INSTALLER_ROOT}/.env"
+
+print_header "Configuration Wizard"
+
+if [[ ! -f "$TEMPLATE_FILE" ]]; then
+	print_error "Missing template: $TEMPLATE_FILE"
+	exit 1
+fi
+
+if [[ ! -f "$ENV_FILE" ]]; then
+	cp "$TEMPLATE_FILE" "$ENV_FILE"
+	print_info "Created $ENV_FILE from template"
+else
+	print_info "Using existing $ENV_FILE"
+fi
+
+tmp_file="${ENV_FILE}.tmp"
+cp "$ENV_FILE" "$tmp_file"
+
+set_kv() {
+	local key="$1"
+	local value="$2"
+	if grep -qE "^${key}=" "$tmp_file"; then
+		sed -i -E "s|^${key}=.*|${key}=${value}|" "$tmp_file"
+	else
+		echo "${key}=${value}" >>"$tmp_file"
+	fi
+}
+
+ssh_port=$(prompt_input "SSH Port" "22")
+timezone=$(prompt_input "Timezone" "UTC")
+permit_root=$(prompt_input "PermitRootLogin (yes/no)" "no")
+
+site_name=$(prompt_input "CheckMK site name" "cmk")
+checkmk_server=$(prompt_input "CheckMK server (hostname/ip for agent downloads)" "")
+checkmk_deb_url=$(prompt_input "CheckMK server .deb URL (for server install)" "")
+
+frp_version=$(prompt_input "FRP version" "0.61.0")
+frpc_server_addr=$(prompt_input "FRPC server address" "")
+frpc_server_port=$(prompt_input "FRPC server port" "7000")
+
+ydea_id=$(prompt_input "Ydea ID" "")
+ydea_user=$(prompt_input "Ydea User ID (create ticket)" "")
+
+set_kv "SSH_PORT" "$ssh_port"
+set_kv "TIMEZONE" "$timezone"
+set_kv "PERMIT_ROOT_LOGIN" "$permit_root"
+set_kv "CHECKMK_SITE_NAME" "$site_name"
+set_kv "CHECKMK_SERVER" "$checkmk_server"
+set_kv "CHECKMK_DEB_URL" "$checkmk_deb_url"
+set_kv "FRP_VERSION" "$frp_version"
+set_kv "FRPC_SERVER_ADDR" "$frpc_server_addr"
+set_kv "FRPC_SERVER_PORT" "$frpc_server_port"
+set_kv "YDEA_ID" "$ydea_id"
+set_kv "YDEA_USER_ID_CREATE_TICKET" "$ydea_user"
+
+mv "$tmp_file" "$ENV_FILE"
+print_success "Saved configuration to $ENV_FILE"
+#!/usr/bin/env bash
+set -euo pipefail
+
+# config-wizard.sh - Interactive configuration wizard
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=utils/colors.sh
+source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck source=utils/menu.sh
+source "${INSTALLER_ROOT}/utils/menu.sh"
+
+ENV_FILE="${INSTALLER_ROOT}/.env"
+ENV_TEMPLATE="${INSTALLER_ROOT}/.env.template"
+
+replace_kv() {
+	local file="$1" key="$2" value="$3"
+	# Escape backslashes and quotes for sed replacement
+	local escaped
+	escaped=$(printf '%s' "$value" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+	if grep -qE "^${key}=\"" "$file"; then
+		sed -i -E "s|^${key}=\".*\"|${key}=\"${escaped}\"|" "$file"
+	else
+		echo "${key}=\"${value}\"" >>"$file"
+	fi
+}
+
+replace_raw() {
+	local file="$1" key="$2" value="$3"
+	local escaped
+	escaped=$(printf '%s' "$value" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+	if grep -qE "^${key}=" "$file"; then
+		sed -i -E "s|^${key}=.*|${key}=\"${escaped}\"|" "$file"
+	else
+		echo "${key}=\"${value}\"" >>"$file"
+	fi
+}
+
+main() {
+	print_header "Configuration Wizard"
+
+	if [[ ! -f "$ENV_TEMPLATE" ]]; then
+		print_error "Template not found: $ENV_TEMPLATE"
+		exit 1
+	fi
+
+	if [[ -f "$ENV_FILE" ]]; then
+		print_warning "An existing .env was found: $ENV_FILE"
+		if ! confirm "Overwrite it with defaults from .env.template?" "n"; then
+			print_info "Keeping existing .env and updating selected values."
+		else
+			cp -a "$ENV_TEMPLATE" "$ENV_FILE"
+		fi
+	else
+		cp -a "$ENV_TEMPLATE" "$ENV_FILE"
+	fi
+
+	chmod 600 "$ENV_FILE" 2>/dev/null || true
+
+	print_info "Enter values (leave blank to keep defaults)"
+	echo ""
+
+	local timezone ssh_port permit_root install_server deb_url site_name http_port admin_pwd
+	local checkmk_server ydea_id ydea_key frpc_addr frpc_port frpc_token frpc_remote
+
+	timezone=$(input_text "Timezone" "Europe/Rome")
+	ssh_port=$(input_text "SSH port" "22")
+	permit_root=$(input_text "PermitRootLogin (yes/no)" "no")
+	install_server=$(input_text "Install CheckMK server? (yes/no)" "yes")
+	deb_url=$(input_text "CheckMK DEB URL (optional)" "")
+	site_name=$(input_text "CheckMK site name" "monitoring")
+	http_port=$(input_text "CheckMK HTTP port" "5000")
+	admin_pwd=$(input_text "CheckMK cmkadmin password" "")
+	checkmk_server=$(input_text "CheckMK server IP/host (clients)" "")
+
+	ydea_id=$(input_text "Ydea ID (optional)" "")
+	ydea_key=$(input_text "Ydea API key (optional)" "")
+
+	frpc_addr=$(input_text "FRPC server address (optional)" "")
+	frpc_port=$(input_text "FRPC server port" "7000")
+	frpc_token=$(input_text "FRPC token (optional)" "")
+	frpc_remote=$(input_text "FRPC remote port for CheckMK agent (optional)" "")
+
+	replace_kv "$ENV_FILE" "TIMEZONE" "$timezone"
+	replace_kv "$ENV_FILE" "SSH_PORT" "$ssh_port"
+	replace_kv "$ENV_FILE" "PERMIT_ROOT_LOGIN" "$permit_root"
+	replace_kv "$ENV_FILE" "INSTALL_CHECKMK_SERVER" "$install_server"
+	replace_kv "$ENV_FILE" "CHECKMK_SITE_NAME" "$site_name"
+	replace_kv "$ENV_FILE" "CHECKMK_HTTP_PORT" "$http_port"
+	[[ -n "$deb_url" ]] && replace_raw "$ENV_FILE" "CHECKMK_DEB_URL" "$deb_url" || true
+	[[ -n "$admin_pwd" ]] && replace_raw "$ENV_FILE" "CHECKMK_ADMIN_PASSWORD" "$admin_pwd" || true
+	[[ -n "$checkmk_server" ]] && replace_raw "$ENV_FILE" "CHECKMK_SERVER" "$checkmk_server" || true
+
+	[[ -n "$ydea_id" ]] && replace_raw "$ENV_FILE" "YDEA_ID" "$ydea_id" || true
+	[[ -n "$ydea_key" ]] && replace_raw "$ENV_FILE" "YDEA_API_KEY" "$ydea_key" || true
+
+	[[ -n "$frpc_addr" ]] && replace_raw "$ENV_FILE" "FRPC_SERVER_ADDR" "$frpc_addr" || true
+	replace_raw "$ENV_FILE" "FRPC_SERVER_PORT" "$frpc_port"
+	[[ -n "$frpc_token" ]] && replace_raw "$ENV_FILE" "FRPC_TOKEN" "$frpc_token" || true
+	[[ -n "$frpc_remote" ]] && replace_raw "$ENV_FILE" "FRPC_REMOTE_PORT" "$frpc_remote" || true
+
+	echo ""
+	print_success "Configuration saved to: $ENV_FILE"
+}
+
+main "$@"
 #!/bin/bash
 /usr/bin/env bash
 # config-wizard.sh - Interactive configuration wizard
@@ -1632,3 +1874,4 @@ echo ""  fi    press_any_key}
 echo ""  print_info "You can now run the installer to deploy your configuration"  
 echo ""}
 # Run wizardmain "$@"
+__CORRUPTED_TAIL__

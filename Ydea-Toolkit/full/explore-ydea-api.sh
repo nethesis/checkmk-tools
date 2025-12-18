@@ -1,3 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+need jq
+
+log_info "Exploring Ydea API base: ${YDEA_BASE_URL%/}"
+
+test_endpoint() {
+    local method="$1"
+    local endpoint="$2"
+    local desc="$3"
+
+    printf '\n=== %s: %s %s ===\n' "$desc" "$method" "$endpoint" >&2
+    if resp="$(ydea_api "$method" "$endpoint" 2>/dev/null)"; then
+        printf '%s\n' "$resp" | head -c 800
+        printf '\n' 
+        if printf '%s' "$resp" | jq -e . >/dev/null 2>&1; then
+            printf 'JSON keys: ' >&2
+            printf '%s' "$resp" | jq -r 'keys | join(", ")' >&2 || true
+            printf '\n' >&2
+            count="$(printf '%s' "$resp" | jq -r '.objs | length' 2>/dev/null || echo '')"
+            if [[ -n "$count" ]]; then
+                printf 'objs count: %s\n' "$count" >&2
+            fi
+        fi
+        return 0
+    fi
+    printf 'FAILED\n' >&2
+    return 1
+}
+
+endpoints=(
+    "/categories"
+    "/category"
+    "/ticket/categories"
+    "/sla"
+    "/slas"
+    "/priorities"
+    "/priority"
+    "/tickets?limit=1"
+    "/users?limit=1"
+    "/info"
+)
+
+for ep in "${endpoints[@]}"; do
+    test_endpoint GET "$ep" "Probe"
+done
+
+exit 0
+
+: <<'CORRUPTED_99c689c9e3b14d3b9d05ff684caafc3e'
 #!/bin/bash
 /usr/bin/env bash
 # explore-ydea-api.sh ÔÇö Esplora gli endpoint disponibili dell'API Ydea
@@ -74,3 +129,6 @@ echo ""
 echo "­ƒÆí Suggerimento: Cerca negli output sopra gli HTTP 200 per vedere"
 echo "   quali endpoint funzionano e quale struttura hanno i dati."
 echo ""
+
+CORRUPTED_99c689c9e3b14d3b9d05ff684caafc3e
+

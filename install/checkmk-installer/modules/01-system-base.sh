@@ -1,3 +1,293 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+load_env() {
+	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+		set -a
+		source "${INSTALLER_ROOT}/.env"
+		set +a
+	fi
+}
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+configure_ssh() {
+	local ssh_port="${SSH_PORT:-22}"
+	local permit_root="${PERMIT_ROOT_LOGIN:-no}"
+
+	if [[ -f /etc/ssh/sshd_config ]]; then
+		sed -i -E "s/^#?Port .*/Port ${ssh_port}/" /etc/ssh/sshd_config || true
+		if grep -qE '^#?PermitRootLogin' /etc/ssh/sshd_config; then
+			sed -i -E "s/^#?PermitRootLogin .*/PermitRootLogin ${permit_root}/" /etc/ssh/sshd_config || true
+		else
+			echo "PermitRootLogin ${permit_root}" >>/etc/ssh/sshd_config
+		fi
+	fi
+
+	systemctl enable --now ssh 2>/dev/null || systemctl enable --now sshd 2>/dev/null || true
+}
+
+configure_timezone() {
+	local tz="${TIMEZONE:-UTC}"
+	if command -v timedatectl >/dev/null 2>&1; then
+		timedatectl set-timezone "$tz" || true
+	fi
+}
+
+configure_firewall() {
+	local ssh_port="${SSH_PORT:-22}"
+	if command -v ufw >/dev/null 2>&1; then
+		ufw allow "${ssh_port}/tcp" || true
+		ufw --force enable || true
+	fi
+}
+
+main() {
+	require_root
+	load_env
+
+	print_header "System Base"
+	print_info "Installing base packages..."
+	apt-get update -y
+	DEBIAN_FRONTEND=noninteractive apt-get install -y \
+		ca-certificates curl wget git gnupg lsb-release \
+		openssh-server ufw
+
+	print_info "Configuring timezone/SSH/firewall..."
+	configure_timezone
+	configure_ssh
+	configure_firewall
+
+	print_success "System base completed"
+}
+
+main "$@"
+
+exit 0
+: <<'__CORRUPTED_TAIL__'
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+load_env() {
+	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+		set -a
+		source "${INSTALLER_ROOT}/.env"
+		set +a
+	fi
+}
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+configure_ssh() {
+	local ssh_port="${SSH_PORT:-22}"
+	local permit_root="${PERMIT_ROOT_LOGIN:-no}"
+
+	if [[ -f /etc/ssh/sshd_config ]]; then
+		sed -i -E "s/^#?Port .*/Port ${ssh_port}/" /etc/ssh/sshd_config || true
+		if grep -qE '^#?PermitRootLogin' /etc/ssh/sshd_config; then
+			sed -i -E "s/^#?PermitRootLogin .*/PermitRootLogin ${permit_root}/" /etc/ssh/sshd_config || true
+		else
+			echo "PermitRootLogin ${permit_root}" >>/etc/ssh/sshd_config
+		fi
+	fi
+
+	systemctl enable --now ssh 2>/dev/null || systemctl enable --now sshd 2>/dev/null || true
+}
+
+configure_timezone() {
+	local tz="${TIMEZONE:-UTC}"
+	if command -v timedatectl >/dev/null 2>&1; then
+		timedatectl set-timezone "$tz" || true
+	fi
+}
+
+configure_firewall() {
+	local ssh_port="${SSH_PORT:-22}"
+	if command -v ufw >/dev/null 2>&1; then
+		ufw allow "${ssh_port}/tcp" || true
+		ufw --force enable || true
+	fi
+}
+
+main() {
+	require_root
+	load_env
+
+	print_header "System Base"
+	print_info "Installing base packages..."
+	apt-get update -y
+	DEBIAN_FRONTEND=noninteractive apt-get install -y \
+		ca-certificates curl wget git gnupg lsb-release \
+		openssh-server ufw
+
+	print_info "Configuring timezone/SSH/firewall..."
+	configure_timezone
+	configure_ssh
+	configure_firewall
+
+	print_success "System base completed"
+}
+
+main "$@"
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODULE_NAME="System Base Configuration"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# shellcheck source=../utils/colors.sh
+source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck source=../utils/logger.sh
+source "${INSTALLER_ROOT}/utils/logger.sh"
+# shellcheck source=../utils/menu.sh
+source "${INSTALLER_ROOT}/utils/menu.sh"
+
+if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+	set -a
+	# shellcheck disable=SC1091
+	source "${INSTALLER_ROOT}/.env"
+	set +a
+	log_debug "Loaded configuration from .env"
+else
+	log_warning "No .env found; using defaults"
+fi
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		log_error "This module must be run as root"
+		exit 1
+	fi
+}
+
+apt_install() {
+	local packages=("$@")
+	log_info "Installing packages: ${packages[*]}"
+	DEBIAN_FRONTEND=noninteractive apt-get update -y
+	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${packages[@]}"
+}
+
+set_sshd_value() {
+	local key="$1" value="$2" file="$3"
+	if grep -Eq "^[#\s]*${key}\b" "$file"; then
+		sed -i -E "s|^[#\s]*${key}\\b.*|${key} ${value}|" "$file"
+	else
+		echo "${key} ${value}" >>"$file"
+	fi
+}
+
+configure_timezone() {
+	local tz="${TIMEZONE:-UTC}"
+	if command -v timedatectl >/dev/null 2>&1; then
+		log_info "Setting timezone: $tz"
+		timedatectl set-timezone "$tz" || log_warning "Failed to set timezone (timedatectl)"
+	else
+		log_warning "timedatectl not available; skipping timezone"
+	fi
+}
+
+configure_ssh() {
+	local ssh_config="/etc/ssh/sshd_config"
+	local ssh_port="${SSH_PORT:-22}"
+	local permit_root="${PERMIT_ROOT_LOGIN:-no}"
+	local client_alive_interval="${CLIENT_ALIVE_INTERVAL:-300}"
+	local client_alive_countmax="${CLIENT_ALIVE_COUNTMAX:-3}"
+	local login_grace_time="${LOGIN_GRACE_TIME:-60}"
+	local password_auth="${SSH_PASSWORD_AUTH:-yes}"
+
+	[[ -f "$ssh_config" ]] || {
+		log_warning "SSH config not found: $ssh_config"
+		return 0
+	}
+
+	log_info "Configuring SSH"
+	if [[ ! -f "${ssh_config}.bak" ]]; then
+		cp -a "$ssh_config" "${ssh_config}.bak"
+		log_debug "Backup created: ${ssh_config}.bak"
+	fi
+
+	set_sshd_value "Port" "$ssh_port" "$ssh_config"
+	set_sshd_value "PermitRootLogin" "$permit_root" "$ssh_config"
+	set_sshd_value "ClientAliveInterval" "$client_alive_interval" "$ssh_config"
+	set_sshd_value "ClientAliveCountMax" "$client_alive_countmax" "$ssh_config"
+	set_sshd_value "LoginGraceTime" "$login_grace_time" "$ssh_config"
+	set_sshd_value "PasswordAuthentication" "$password_auth" "$ssh_config"
+
+	if command -v sshd >/dev/null 2>&1; then
+		sshd -t || { log_error "sshd_config validation failed; restoring backup"; cp -a "${ssh_config}.bak" "$ssh_config"; return 1; }
+	fi
+
+	# Open firewall for new port before restarting SSH
+	if command -v ufw >/dev/null 2>&1; then
+		ufw allow "$ssh_port"/tcp >/dev/null 2>&1 || true
+	fi
+
+	if systemctl list-unit-files 2>/dev/null | grep -qE '^sshd\.service'; then
+		systemctl restart sshd
+	elif systemctl list-unit-files 2>/dev/null | grep -qE '^ssh\.service'; then
+		systemctl restart ssh
+	else
+		log_warning "SSH service not found; skipping restart"
+	fi
+
+	log_success "SSH configured (port: $ssh_port)"
+}
+
+configure_ufw() {
+	if ! command -v ufw >/dev/null 2>&1; then
+		log_warning "ufw not installed; skipping firewall"
+		return 0
+	fi
+
+	log_info "Configuring UFW firewall"
+	ufw --force reset >/dev/null 2>&1 || true
+	ufw default deny incoming >/dev/null 2>&1 || true
+	ufw default allow outgoing >/dev/null 2>&1 || true
+	ufw allow "${SSH_PORT:-22}"/tcp >/dev/null 2>&1 || true
+
+	if [[ "${OPEN_HTTP_HTTPS:-no}" == "yes" ]]; then
+		ufw allow 80/tcp >/dev/null 2>&1 || true
+		ufw allow 443/tcp >/dev/null 2>&1 || true
+	fi
+
+	ufw --force enable >/dev/null 2>&1 || true
+	log_success "UFW configured"
+}
+
+main() {
+	require_root
+	log_module_start "$MODULE_NAME"
+
+	apt_install ca-certificates curl wget jq git openssh-server ufw
+	configure_timezone
+	configure_ssh
+	configure_ufw
+
+	log_module_end "$MODULE_NAME" "success"
+}
+
+main "$@"
 #!/bin/bash
 /usr/bin/env bash
 # 01-system-base.sh - Base system configuration module
@@ -1086,3 +1376,5 @@ echo "  - Firewall: Active (use 'ufw status' to check)"
 echo "  - Fail2Ban: Active (use 'fail2ban-client status' to check)"  
 echo ""}
 # Run main functionmain "$@"
+
+__CORRUPTED_TAIL__

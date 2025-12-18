@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_32f8062172d94beea41450c5c1b90518'
 #!/bin/bash
 /usr/bin/env bash
 # ydea-toolkit.sh ÔÇö Toolkit completo per Ydea API v2
@@ -239,3 +247,6 @@ else    log_warn "File di log non esistente: $YDEA_LOG_FILE"  fi}case "${1:-}" i
 # Tracking operations  track)              shift; track_ticket "$@" ;;  update-tracking)    update_tracked_tickets ;;  cleanup-tracking)   cleanup_resolved_tickets ;;  list-tracking)      list_tracked_tickets ;;  stats)              show_tracking_stats ;;    
 # Log operations  logs)        shift; show_logs "$@" ;;  clearlog)    clear_log ;;    
 # Other  categories)  list_categories ;;  users)       shift; list_users "$@" ;;    -h|--help|help) show_usage; exit 0 ;;  *)           show_usage; exit 1 ;;esac
+
+CORRUPTED_32f8062172d94beea41450c5c1b90518
+

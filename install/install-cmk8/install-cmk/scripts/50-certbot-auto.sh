@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_54b3165471864de7b988acdf6b35e8f7'
 #!/bin/bash
 /usr/bin/env bash
 # =====================================================
@@ -99,3 +107,6 @@ else
 echo "ERROR: Nginx config invalid." >&2    exit 1  fi
 fi
 echo ">>> Done."
+
+CORRUPTED_54b3165471864de7b988acdf6b35e8f7
+

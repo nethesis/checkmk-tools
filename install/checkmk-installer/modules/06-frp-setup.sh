@@ -1,19 +1,10 @@
-#!/bin/bash
-/usr/bin/env bash
-# 06-frp-setup.sh - FRP Server/Client installation and configuration
-# Installs and configures either FRPS (server) or FRPC (client)set -euo pipefail
-MODULE_NAME="FRP Setup"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALLER_ROOT="$(dirname "$SCRIPT_DIR")"
-# Source utilitiessource "${INSTALLER_ROOT}/utils/colors.sh"source "${INSTALLER_ROOT}/utils/logger.sh"source "${INSTALLER_ROOT}/utils/validate.sh"source "${INSTALLER_ROOT}/utils/menu.sh"
-# Load configuration
-if [[ -f "${INSTALLER_ROOT}/.env" ]]; then  set -a  source "${INSTALLER_ROOT}/.env"  set +a
-fi
-# Module startlog_module_start "$MODULE_NAME"
-# Installation paths
-FRP_INSTALL_DIR="/usr/local/bin"
-FRP_CONFIG_DIR="/etc/frp"
-FRP_LOG_DIR="/var/log"
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Deprecated: use modules/06-frps-setup.sh or modules/06-frpc-setup.sh" >&2
+exit 0
+
+: <<'__CORRUPTED_TAIL__'
 #
 #
 #
@@ -905,3 +896,5 @@ else    configure_frpc  fi
 # Create systemd service  create_systemd_service "$install_type"    
 # Configure firewall  configure_firewall "$install_type"    log_module_end "$MODULE_NAME" "success"    display_summary "$install_type"}
 # Run main functionmain "$@"
+
+__CORRUPTED_TAIL__

@@ -1,3 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+	print_error "Module must run as root"
+	exit 1
+fi
+
+print_header "Certbot (SSL)"
+print_info "Installing certbot..."
+
+apt-get update -y
+DEBIAN_FRONTEND=noninteractive apt-get install -y certbot
+
+print_success "Certbot installed. Configure certificates manually for your domain."
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+	print_error "Module must run as root"
+	exit 1
+fi
+
+print_header "Certbot (SSL)"
+print_info "Installing certbot..."
+
+apt-get update -y
+DEBIAN_FRONTEND=noninteractive apt-get install -y certbot
+
+print_success "Certbot installed. Configure certificates manually for your domain."
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODULE_NAME="Certbot SSL Setup"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# shellcheck source=../utils/colors.sh
+source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck source=../utils/logger.sh
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		log_error "This module must be run as root"
+		exit 1
+	fi
+}
+
+main() {
+	require_root
+	log_module_start "$MODULE_NAME"
+
+	log_info "Installing certbot"
+	DEBIAN_FRONTEND=noninteractive apt-get update -y
+	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends certbot
+
+	print_separator "="
+	print_info "Certbot installed. Next steps depend on your domain and web server."
+	echo "Example (standalone):"
+	echo "  certbot certonly --standalone -d your.domain.tld"
+	echo "Example (Apache):"
+	echo "  certbot --apache -d your.domain.tld"
+	print_separator "="
+
+	log_module_end "$MODULE_NAME" "success"
+}
+
+main "$@"
+
+exit 0
+: <<'__CORRUPTED_TAIL__'
 #!/bin/bash
 /usr/bin/env bash
 # 07-certbot-ssl.sh - Let's Encrypt SSL certificate module
@@ -698,3 +779,5 @@ else    cat > "$nginx_conf" <<EOFserver {    listen 80;    server_name $domain; 
 # Configure webserver  case "$webserver" in    apache)      configure_apache_ssl "$domain" "$redirect_to_site" "$default_site"      ;;    nginx)      configure_nginx_ssl "$domain" "$redirect_to_site" "$default_site"      ;;    standalone)      log_warning "Webserver standalone: configurazione manuale necessaria"      ;;  esac    log_module_complete "$MODULE_NAME"}
 # Run if executed directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then  main "$@"fi
+
+__CORRUPTED_TAIL__

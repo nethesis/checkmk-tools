@@ -1,3 +1,344 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+load_env() {
+	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+		set -a
+		source "${INSTALLER_ROOT}/.env"
+		set +a
+	fi
+}
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+detect_arch() {
+	case "$(uname -m)" in
+		x86_64) echo "amd64" ;;
+		aarch64|arm64) echo "arm64" ;;
+		*) echo "amd64" ;;
+	esac
+}
+
+install_frps() {
+	local version="$1"
+	local arch
+	arch=$(detect_arch)
+	local url="https://github.com/fatedier/frp/releases/download/v${version}/frp_${version}_linux_${arch}.tar.gz"
+	local tmp_dir
+	tmp_dir=$(mktemp -d)
+
+	print_info "Downloading FRP: $url"
+	curl -fsSL "$url" -o "$tmp_dir/frp.tgz"
+	tar -xzf "$tmp_dir/frp.tgz" -C "$tmp_dir"
+
+	local bin
+	bin=$(find "$tmp_dir" -type f -name frps -print -quit)
+	install -m 0755 "$bin" /usr/local/bin/frps
+	rm -rf "$tmp_dir"
+}
+
+write_config() {
+	mkdir -p /etc/frp
+	cat >/etc/frp/frps.toml <<EOF
+bindPort = ${FRPS_BIND_PORT:-7000}
+
+[auth]
+token = "${FRP_TOKEN:-}"
+EOF
+}
+
+write_service() {
+	cat >/etc/systemd/system/frps.service <<'EOF'
+[Unit]
+Description=FRP Server Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/frps -c /etc/frp/frps.toml
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+}
+
+main() {
+	require_root
+	load_env
+
+	print_header "FRPS Setup"
+	local version="${FRP_VERSION:-0.61.0}"
+
+	install_frps "$version"
+	write_config
+	write_service
+	systemctl daemon-reload
+	systemctl enable --now frps || true
+	print_success "FRPS setup completed"
+}
+
+main "$@"
+
+exit 0
+: <<'__CORRUPTED_TAIL__'
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+load_env() {
+	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+		set -a
+		source "${INSTALLER_ROOT}/.env"
+		set +a
+	fi
+}
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+detect_arch() {
+	case "$(uname -m)" in
+		x86_64) echo "amd64" ;;
+		aarch64|arm64) echo "arm64" ;;
+		*) echo "amd64" ;;
+	esac
+}
+
+install_frps() {
+	local version="$1"
+	local arch
+	arch=$(detect_arch)
+	local url="https://github.com/fatedier/frp/releases/download/v${version}/frp_${version}_linux_${arch}.tar.gz"
+	local tmp_dir
+	tmp_dir=$(mktemp -d)
+
+	print_info "Downloading FRP: $url"
+	curl -fsSL "$url" -o "$tmp_dir/frp.tgz"
+	tar -xzf "$tmp_dir/frp.tgz" -C "$tmp_dir"
+
+	local bin
+	bin=$(find "$tmp_dir" -type f -name frps -print -quit)
+	install -m 0755 "$bin" /usr/local/bin/frps
+	rm -rf "$tmp_dir"
+}
+
+write_config() {
+	mkdir -p /etc/frp
+	cat >/etc/frp/frps.toml <<EOF
+bindPort = ${FRPS_BIND_PORT:-7000}
+
+[auth]
+token = "${FRP_TOKEN:-}"
+EOF
+}
+
+write_service() {
+	cat >/etc/systemd/system/frps.service <<'EOF'
+[Unit]
+Description=FRP Server Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/frps -c /etc/frp/frps.toml
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+}
+
+main() {
+	require_root
+	load_env
+
+	print_header "FRPS Setup"
+	local version="${FRP_VERSION:-0.61.0}"
+
+	install_frps "$version"
+	write_config
+	write_service
+	systemctl daemon-reload
+	systemctl enable --now frps || true
+	print_success "FRPS setup completed"
+}
+
+main "$@"
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODULE_NAME="FRPS Server Setup"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# shellcheck source=../utils/colors.sh
+source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck source=../utils/logger.sh
+source "${INSTALLER_ROOT}/utils/logger.sh"
+# shellcheck source=../utils/menu.sh
+source "${INSTALLER_ROOT}/utils/menu.sh"
+
+if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+	set -a
+	# shellcheck disable=SC1091
+	source "${INSTALLER_ROOT}/.env"
+	set +a
+fi
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		log_error "This module must be run as root"
+		exit 1
+	fi
+}
+
+apt_install() {
+	local packages=("$@")
+	DEBIAN_FRONTEND=noninteractive apt-get update -y
+	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${packages[@]}"
+}
+
+frp_arch() {
+	local arch
+	arch=$(uname -m)
+	case "$arch" in
+		x86_64|amd64) echo "amd64" ;;
+		aarch64|arm64) echo "arm64" ;;
+		armv7l|armv7) echo "arm" ;;
+		*) echo "amd64" ;;
+	esac
+}
+
+download_and_install_frps() {
+	local version="${FRPC_VERSION:-0.52.3}"
+	local arch
+	arch=$(frp_arch)
+	local url="https://github.com/fatedier/frp/releases/download/v${version}/frp_${version}_linux_${arch}.tar.gz"
+	local tmpdir
+	tmpdir=$(mktemp -d)
+
+	log_info "Downloading FRP v${version} (${arch})"
+	log_command "wget -O '${tmpdir}/frp.tgz' '${url}'"
+	log_command "tar -xzf '${tmpdir}/frp.tgz' -C '${tmpdir}'"
+
+	local extracted
+	extracted=$(find "$tmpdir" -maxdepth 1 -type d -name "frp_*" | head -n 1 || true)
+	[[ -n "$extracted" && -f "${extracted}/frps" ]] || { log_error "frps not found in archive"; rm -rf "$tmpdir"; return 1; }
+
+	install -m 0755 "${extracted}/frps" /usr/local/bin/frps
+	rm -rf "$tmpdir"
+	log_success "Installed frps to /usr/local/bin/frps"
+}
+
+write_frps_config() {
+	local cfg_dir="/etc/frp"
+	local log_dir="/var/log/frp"
+	mkdir -p "$cfg_dir" "$log_dir"
+	chmod 700 "$cfg_dir" || true
+
+	local bind_port="${FRPS_BIND_PORT:-7000}"
+	local dashboard_port="${FRPS_DASHBOARD_PORT:-7500}"
+	local dashboard_user="${FRPS_DASHBOARD_USER:-admin}"
+	local dashboard_pwd="${FRPS_DASHBOARD_PWD:-}"
+	local token="${FRPS_TOKEN:-}"
+
+	if [[ -z "$token" ]]; then
+		token=$(input_password "FRPS token")
+	fi
+	if [[ -z "$dashboard_pwd" ]]; then
+		dashboard_pwd=$(input_password "FRPS dashboard password")
+	fi
+
+	log_info "Writing /etc/frp/frps.toml"
+	cat >"${cfg_dir}/frps.toml" <<EOF
+bindPort = ${bind_port}
+
+auth.method = "token"
+auth.token = "${token}"
+
+webServer.addr = "0.0.0.0"
+webServer.port = ${dashboard_port}
+webServer.user = "${dashboard_user}"
+webServer.password = "${dashboard_pwd}"
+
+log.to = "${log_dir}/frps.log"
+log.level = "info"
+EOF
+
+	chmod 600 "${cfg_dir}/frps.toml"
+}
+
+install_systemd_service() {
+	if ! command -v systemctl >/dev/null 2>&1; then
+		log_warning "systemctl not available; skipping service setup"
+		return 0
+	fi
+
+	local unit="/etc/systemd/system/frps.service"
+	log_info "Creating systemd unit: frps.service"
+	cat >"$unit" <<'EOF'
+[Unit]
+Description=FRP Server (frps)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/frps -c /etc/frp/frps.toml
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+	systemctl daemon-reload
+	systemctl enable --now frps.service || true
+	log_success "frps.service enabled"
+}
+
+main() {
+	require_root
+	log_module_start "$MODULE_NAME"
+
+	apt_install ca-certificates wget tar
+	download_and_install_frps
+	write_frps_config
+	install_systemd_service
+
+	if command -v ufw >/dev/null 2>&1; then
+		ufw allow "${FRPS_BIND_PORT:-7000}"/tcp >/dev/null 2>&1 || true
+		ufw allow "${FRPS_DASHBOARD_PORT:-7500}"/tcp >/dev/null 2>&1 || true
+	fi
+
+	log_module_end "$MODULE_NAME" "success"
+}
+
+main "$@"
 #!/bin/bash
 /usr/bin/env bash
 # 06-frps-setup.sh - FRPS Server installation and configuration
@@ -796,3 +1137,5 @@ echo ""  print_separator "="}
 # Create systemd service  create_systemd_service    
 # Configure firewall  configure_firewall    log_module_end "$MODULE_NAME" "success"    display_summary}
 # Run main functionmain "$@"
+
+__CORRUPTED_TAIL__

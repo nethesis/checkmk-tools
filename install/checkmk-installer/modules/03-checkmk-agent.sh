@@ -1,3 +1,251 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+load_env() {
+	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+		set -a
+		source "${INSTALLER_ROOT}/.env"
+		set +a
+	fi
+}
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+main() {
+	require_root
+	load_env
+
+	print_header "CheckMK Agent"
+
+	local agent_url="${CHECKMK_AGENT_URL:-}"
+	local server="${CHECKMK_SERVER:-}"
+	local site="${CHECKMK_SITE_NAME:-cmk}"
+
+	if [[ -z "$agent_url" && -n "$server" ]]; then
+		agent_url="http://${server}/${site}/check_mk/agents/check-mk-agent_0.all.deb"
+	fi
+
+	if [[ -z "$agent_url" ]]; then
+		print_error "CHECKMK_AGENT_URL not set and CHECKMK_SERVER not provided"
+		print_info "Set CHECKMK_AGENT_URL (direct .deb URL) in .env"
+		exit 1
+	fi
+
+	local deb_path="/tmp/checkmk-agent.deb"
+	print_info "Downloading agent: $agent_url"
+	curl -fsSL "$agent_url" -o "$deb_path"
+
+	print_info "Installing agent"
+	dpkg -i "$deb_path" || true
+	apt-get -f install -y
+
+	systemctl enable --now check-mk-agent.socket 2>/dev/null || true
+	if command -v ufw >/dev/null 2>&1; then
+		ufw allow 6556/tcp || true
+	fi
+
+	print_success "CheckMK agent module completed"
+}
+
+main "$@"
+
+exit 0
+: <<'__CORRUPTED_TAIL__'
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+load_env() {
+	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+		set -a
+		source "${INSTALLER_ROOT}/.env"
+		set +a
+	fi
+}
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+main() {
+	require_root
+	load_env
+
+	print_header "CheckMK Agent"
+
+	local agent_url="${CHECKMK_AGENT_URL:-}"
+	local server="${CHECKMK_SERVER:-}"
+	local site="${CHECKMK_SITE_NAME:-cmk}"
+
+	if [[ -z "$agent_url" && -n "$server" ]]; then
+		agent_url="http://${server}/${site}/check_mk/agents/check-mk-agent_0.all.deb"
+	fi
+
+	if [[ -z "$agent_url" ]]; then
+		print_error "CHECKMK_AGENT_URL not set and CHECKMK_SERVER not provided"
+		print_info "Set CHECKMK_AGENT_URL (direct .deb URL) in .env"
+		exit 1
+	fi
+
+	local deb_path="/tmp/checkmk-agent.deb"
+	print_info "Downloading agent: $agent_url"
+	curl -fsSL "$agent_url" -o "$deb_path"
+
+	print_info "Installing agent"
+	dpkg -i "$deb_path" || true
+	apt-get -f install -y
+
+	systemctl enable --now check-mk-agent.socket 2>/dev/null || true
+	if command -v ufw >/dev/null 2>&1; then
+		ufw allow 6556/tcp || true
+	fi
+
+	print_success "CheckMK agent module completed"
+}
+
+main "$@"
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODULE_NAME="CheckMK Agent Installation"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# shellcheck source=../utils/colors.sh
+source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck source=../utils/logger.sh
+source "${INSTALLER_ROOT}/utils/logger.sh"
+# shellcheck source=../utils/menu.sh
+source "${INSTALLER_ROOT}/utils/menu.sh"
+
+if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+	set -a
+	# shellcheck disable=SC1091
+	source "${INSTALLER_ROOT}/.env"
+	set +a
+fi
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		log_error "This module must be run as root"
+		exit 1
+	fi
+}
+
+apt_install() {
+	local packages=("$@")
+	DEBIAN_FRONTEND=noninteractive apt-get update -y
+	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${packages[@]}"
+}
+
+discover_agent_deb_url() {
+	local server="$1" port="$2" site="$3"
+	local base_http="http://${server}:${port}/${site}/check_mk/agents/"
+	local base_https="https://${server}:${port}/${site}/check_mk/agents/"
+
+	local html agent_file
+	if html=$(curl -fsSL "$base_http" 2>/dev/null); then
+		agent_file=$(echo "$html" | grep -oE 'check-mk-agent_[^" ]+_all\.deb' | head -n 1 || true)
+		[[ -n "$agent_file" ]] && { echo "${base_http}${agent_file}"; return 0; }
+	fi
+
+	if html=$(curl -kfsSL "$base_https" 2>/dev/null); then
+		agent_file=$(echo "$html" | grep -oE 'check-mk-agent_[^" ]+_all\.deb' | head -n 1 || true)
+		[[ -n "$agent_file" ]] && { echo "${base_https}${agent_file}"; return 0; }
+	fi
+
+	# Fallback: common filename used by many CheckMK installs
+	echo "${base_http}check-mk-agent_2.4.0-1_all.deb"
+}
+
+download_and_install_agent() {
+	local url="$1"
+	local dest="/tmp/check-mk-agent.deb"
+
+	log_info "Downloading CheckMK agent: $url"
+	log_command "rm -f '$dest'"
+	set +e
+	wget --no-check-certificate -O "$dest" "$url"
+	local rc=$?
+	set -e
+	if [[ $rc -ne 0 ]] || [[ ! -s "$dest" ]]; then
+		log_error "Failed to download agent from $url"
+		return 1
+	fi
+
+	log_info "Installing CheckMK agent package"
+	set +e
+	dpkg -i "$dest"
+	local dpkg_rc=$?
+	set -e
+	if [[ $dpkg_rc -ne 0 ]]; then
+		log_warning "dpkg reported errors; attempting to fix dependencies"
+		DEBIAN_FRONTEND=noninteractive apt-get -f install -y
+		dpkg -i "$dest" || true
+	fi
+}
+
+enable_agent_service() {
+	local use_socket="${USE_SYSTEMD_SOCKET:-yes}"
+	if [[ "$use_socket" == "yes" ]] && systemctl list-unit-files 2>/dev/null | grep -qE '^check-mk-agent\.socket'; then
+		log_info "Enabling CheckMK agent socket"
+		systemctl enable --now check-mk-agent.socket || true
+	elif systemctl list-unit-files 2>/dev/null | grep -qE '^check-mk-agent\.service'; then
+		log_info "Enabling CheckMK agent service"
+		systemctl enable --now check-mk-agent.service || true
+	else
+		log_warning "No check-mk-agent systemd unit found; agent may be started via xinetd or manually"
+	fi
+
+	if command -v ufw >/dev/null 2>&1; then
+		ufw allow 6556/tcp >/dev/null 2>&1 || true
+	fi
+}
+
+main() {
+	require_root
+	log_module_start "$MODULE_NAME"
+
+	apt_install ca-certificates curl wget
+
+	local server="${CHECKMK_SERVER:-}"
+	local site="${CHECKMK_SITE_NAME:-monitoring}"
+	local port="${CHECKMK_HTTP_PORT:-5000}"
+
+	if [[ -z "$server" ]]; then
+		log_info "CHECKMK_SERVER is empty; skipping agent download (this may be the server)"
+		enable_agent_service
+		log_module_end "$MODULE_NAME" "success"
+		return 0
+	fi
+
+	local agent_url
+	agent_url=$(discover_agent_deb_url "$server" "$port" "$site")
+	download_and_install_agent "$agent_url"
+	enable_agent_service
+
+	log_module_end "$MODULE_NAME" "success"
+}
+
+main "$@"
 #!/bin/bash
 /usr/bin/env bash
 # 03-checkmk-agent.sh - CheckMK Agent installation module
@@ -1047,3 +1295,5 @@ else    configure_xinetd  fi
 # Test agent  sleep 2  test_agent || log_warning "Agent test inconclusive, check manually"    
 # Try to register with server  register_with_server    log_module_end "$MODULE_NAME" "success"    display_agent_info}
 # Run main functionmain "$@"
+
+__CORRUPTED_TAIL__

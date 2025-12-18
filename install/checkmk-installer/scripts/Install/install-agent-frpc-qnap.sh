@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_66d6d44ee5bc4eeaaa5de857ce4932d2'
 #!/bin/bash
 # =====================================================
 # Script Installazione CheckMK Agent + FRPC per QNAP NAS
@@ -446,9 +454,11 @@ FRP_SERVER=${FRP_SERVER:-"monitor.nethlab.it"}
 echo -ne "${CYAN}Porta remota ${NC}[es: 20001]: "    read -r REMOTE_PORT    while [ -z "$REMOTE_PORT" ]; do        
 echo -e "${RED}Ô£ù Porta remota obbligatoria!${NC}"        
 echo -ne "${CYAN}Porta remota: ${NC}"        read -r REMOTE_PORT    done        
-# Token di sicurezza    
-echo -ne "${CYAN}Token di sicurezza ${NC}[default: conduit-reenact-talon-macarena-demotion-vaguely]: "    read -r AUTH_TOKEN    
-AUTH_TOKEN=${AUTH_TOKEN:-"conduit-reenact-talon-macarena-demotion-vaguely"}        
+# Token di sicurezza
+while [ -z "${AUTH_TOKEN:-}" ]; do
+    echo -ne "${CYAN}Token di sicurezza (obbligatorio)${NC}: "
+    read -r AUTH_TOKEN
+done
 # Crea directory config    mkdir -p "$FRPC_DIR/conf"        
 # Genera configurazione TOML    
 echo -e "\n${YELLOW}­ƒôØ Creazione file configurazione FRPC...${NC}"        cat > "$FRPC_DIR/conf/frpc.toml" <<EOF
@@ -679,3 +689,6 @@ fi
 # Avvia servizistart_services
 # Test finalerun_tests
 # Mostra riepilogoshow_summaryexit 0
+
+CORRUPTED_66d6d44ee5bc4eeaaa5de857ce4932d2
+

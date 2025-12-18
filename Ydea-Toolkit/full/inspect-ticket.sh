@@ -1,53 +1,110 @@
-#!/bin/bash
-/usr/bin/env bash
-# inspect-ticket.sh - Ispeziona un singolo ticket per vedere la struttura completaset -euo pipefail
+#!/usr/bin/env bash
+set -euo pipefail
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Source del toolkit solo per funzioni helpersource "$SCRIPT_DIR/ydea-toolkit.sh"
-TICKET_ID="${1:-}"if [[ -z "$TICKET_ID" ]]; then
-    echo "ÔØî Uso: $0 <ticket_id>"  
-echo ""  
-echo "Esempio:"  
-echo "  $0 1486125"
-    exit 1
-fi echo "­ƒöì Ispezionan
-do ticket 
-#$TICKET_ID..."
+# shellcheck disable=SC1090
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+need jq
+
+ticket_id="${1:-}"
+if [[ -z "$ticket_id" ]]; then
+  echo "Usage: $0 <ticket_id>" >&2
+  exit 2
+fi
+
+log_info "Inspect ticket #$ticket_id (limit=100)"
+
+resp="$(ydea_api GET "/tickets?limit=100")" || {
+  log_error "API call failed"
+  printf '%s\n' "$resp" | jq . 2>/dev/null || printf '%s\n' "$resp" >&2
+  exit 1
+}
+
+ticket_json="$(printf '%s' "$resp" | jq --arg tid "$ticket_id" -c '.objs[]? | select(.id == ($tid|tonumber))' 2>/dev/null || true)"
+
+if [[ -z "$ticket_json" || "$ticket_json" == "null" ]]; then
+  log_warn "Ticket #$ticket_id not found in the first 100 tickets"
+  echo "Available tickets (first 20):" >&2
+  printf '%s' "$resp" | jq -r '.objs[]? | "\(.id) - \(.codice // "N/A") - \(.titolo // "")"' 2>/dev/null | head -n 20 >&2 || true
+  exit 1
+fi
+
+printf '%s\n' "$ticket_json" | jq .
+
+exit 0
+
+: <<'CORRUPTED_08ee04b901924b0fb6eb2d20453338cd'
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# inspect-ticket.sh - Inspect a single ticket for complete structure
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+TICKET_ID="${1:-}"
+
+if [[ -z "$TICKET_ID" ]]; then
+  echo "Usage: $0 <ticket_id>"
+  echo ""
+  echo "Example:"
+  echo "  $0 1486125"
+  exit 1
+fi
+
+echo "Inspecting ticket #$TICKET_ID..."
 echo ""
-# Assicurati di avere il tokenensure_token
+
+# Ensure token
+ensure_token
 TOKEN="$(load_token)"
-# Chiamata diretta all'API per ottenere lista ticket e filtrare per ID
-echo "­ƒôí Chiamata API: GET /tickets?limit=100"
+
+# Direct API call to get ticket list and filter by ID
+echo "API Call: GET /tickets?limit=100"
 echo ""
-RESPONSE=$(curl -s -w '\n%{http_code}' \  -H "Accept: application/json" \  -H "Authorization: Bearer ${TOKEN}" \  "${YDEA_BASE_URL}/tickets?limit=100")
-HTTP_BODY="$(
-echo "$RESPONSE" | sed '$d')"
-HTTP_CODE="$(
-echo "$RESPONSE" | tail -n1)"
-echo "­ƒôè HTTP Status: $HTTP_CODE"
-echo ""if [[ "$HTTP_CODE" != "200" ]]; then
-    echo "ÔØî Errore nella chiamata API"  
-echo "$HTTP_BODY" | jq . 2>/dev/null || 
-echo "$HTTP_BODY"
-    exit 1
-fi # Filtra per il ticket specifico
-TICKET_DATA=$(
-echo "$HTTP_BODY" | jq --arg tid "$TICKET_ID" '.objs[] | select(.id == ($tid|tonumber))')
+
+RESPONSE=$(curl -s -w '\n%{http_code}' \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  "${YDEA_BASE_URL}/tickets?limit=100")
+
+HTTP_BODY="$(echo "$RESPONSE" | sed '$d')"
+HTTP_CODE="$(echo "$RESPONSE" | tail -n1)"
+
+echo "HTTP Status: $HTTP_CODE"
+echo ""
+
+if [[ "$HTTP_CODE" != "200" ]]; then
+  echo "ERROR in API call"
+  echo "$HTTP_BODY" | jq . 2>/dev/null || echo "$HTTP_BODY"
+  exit 1
+fi
+
+# Filter for specific ticket
+TICKET_DATA=$(echo "$HTTP_BODY" | jq --arg tid "$TICKET_ID" '.objs[] | select(.id == ($tid|tonumber))' || true)
+
 if [[ -z "$TICKET_DATA" || "$TICKET_DATA" == "null" ]]; then
-    echo "ÔØî Ticket 
-#$TICKET_ID non trovato nei risultati"  
-echo ""  
-echo "Ticket disponibili:"  
-echo "$HTTP_BODY" | jq -r '.objs[] | "\(.id) - \(.codice) - \(.titolo)"' | head -20  exit 1
-fi echo "Ô£à Ticket trovato!"
+  echo "Ticket #$TICKET_ID not found in results"
+  echo ""
+  echo "Available tickets:"
+  echo "$HTTP_BODY" | jq -r '.objs[] | "\(.id) - \(.codice) - \(.titolo)"' | head -20
+  exit 1
+fi
+
+echo "Ticket found!"
 echo ""
-echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
-echo "STRUTTURA COMPLETA DEL TICKET"
-echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
+echo "=== COMPLETE TICKET STRUCTURE ==="
 echo ""
-# Mostra tutto il JSON formattato
+
+# Show formatted JSON
 echo "$TICKET_DATA" | jq '.'
+
 echo ""
-echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
+echo "=== END ==="
+
+exit 0
 echo "CAMPI CHIAVE ESTRATTI"
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo ""
@@ -110,3 +167,6 @@ echo ""
 echo "­ƒÆí Suggerimento: Per vedere solo i campi che contengono 'categoria' o 'sla':"
 echo "   
 echo '$TICKET_DATA' | jq 'to_entries | map(select(.key | test(\"categoria|sla|categor\"; \"i\")))'"
+
+CORRUPTED_08ee04b901924b0fb6eb2d20453338cd
+

@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_060e99abb09f47c081eb10b42b0827ee'
 #!/bin/bash
 /usr/bin/env bash
 # ydea-monitoring-integration.sh
@@ -77,3 +85,6 @@ do ticket
 SEND_CUSTOM="YES"  
 DEFAULT_RECIPIENT_CUSTOM="ydea"    
 # Script custom notification  custom_sender() {    /path/to/ydea-monitoring-integration.sh netdata-webhook << EOF    {      "alarm": "${alarm}",      "status": "${status}",      "hostname": "${host}",      "value": "${value}",      "chart": "${chart}"    }  EOF  }USAGE    exit 1    ;;esac
+
+CORRUPTED_060e99abb09f47c081eb10b42b0827ee
+

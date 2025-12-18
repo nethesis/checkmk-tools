@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_6cb933c2a5334c8f8d221baac9cddc19'
 #!/bin/bash
 /usr/bin/env bashset -euo pipefail
 # Timezone
@@ -11,3 +19,6 @@ DROPIN="/etc/ssh/sshd_config.d/99-bootstrap.conf"cat > "$DROPIN" <<EOF
 if [[ -n "${ROOT_PASSWORD:-}" ]]; then
     echo "root:${ROOT_PASSWORD}" | chpasswdfisystemctl enable --now sshsystemctl restart ssh || true
 echo "SSH configurato. Porta: ${SSH_PORT:-22}"
+
+CORRUPTED_6cb933c2a5334c8f8d221baac9cddc19
+

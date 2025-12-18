@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_12cfbe782c1c40ccb36a457a5d13d9e4'
 #!/bin/bash
 /usr/bin/env bash
 # makeiso-online.sh - Create lightweight bootable ISO with online bootstrap
@@ -1015,3 +1023,6 @@ do bash /cdrom/checkmk-installer/install.sh" \    "" \    "To write to USB:" \  
 do dd if=$output_iso of=/dev/sdX bs=4M status=progress"    log_success "Online ISO build completed successfully!"}
 # Trap cleanup on exittrap cleanup EXIT
 # Run mainmain "$@"
+
+CORRUPTED_12cfbe782c1c40ccb36a457a5d13d9e4
+

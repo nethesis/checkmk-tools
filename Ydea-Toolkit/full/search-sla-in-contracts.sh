@@ -1,3 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+need jq
+
+pages="${1:-10}"
+needle_regex="${2:-Premium|Mon|premium|mon}"
+out_dir="${YDEA_OUT_DIR:-/tmp}"
+out_all="$out_dir/ydea-contracts.json"
+out_match="$out_dir/ydea-contracts-matching.json"
+
+log_info "Searching contracts for regex: $needle_regex (pages=$pages)"
+
+fetch_contracts() {
+    local endpoint="$1"
+    local all='[]'
+    for ((page=1; page<=pages; page++)); do
+        log_info "GET $endpoint page=$page"
+        resp="$(ydea_api GET "/${endpoint}?limit=100&page=${page}" 2>/dev/null || echo '{"objs":[]}')"
+        count="$(printf '%s' "$resp" | jq -r '.objs | length' 2>/dev/null || echo 0)"
+        if [[ "$count" == "0" ]]; then
+            break
+        fi
+        objs="$(printf '%s' "$resp" | jq '.objs' 2>/dev/null || echo '[]')"
+        all="$(jq -n --argjson a "$all" --argjson b "$objs" '$a + $b')"
+    done
+    printf '%s' "$all"
+}
+
+contracts="$(fetch_contracts 'contratti')"
+if [[ "$(printf '%s' "$contracts" | jq 'length' 2>/dev/null || echo 0)" == "0" ]]; then
+    log_warn "No contracts via /contratti; trying /contracts"
+    contracts="$(fetch_contracts 'contracts')"
+fi
+
+printf '%s\n' "$contracts" >"$out_all"
+
+matches="$(printf '%s' "$contracts" | jq --arg re "$needle_regex" '[.[] | select((. | tostring) | test($re))]')"
+printf '%s\n' "$matches" >"$out_match"
+
+log_info "Total contracts: $(jq -r 'length' "$out_all" 2>/dev/null || echo 0)"
+log_info "Matching contracts: $(jq -r 'length' "$out_match" 2>/dev/null || echo 0)"
+log_info "Saved: $out_all"
+log_info "Saved: $out_match"
+
+exit 0
+
+: <<'CORRUPTED_4290558e7d434dd39657f9f1c76bada2'
 #!/bin/bash
 /usr/bin/env bash
 # search-sla-in-contracts.sh - Cerca SLA Premium_Mon nei contrattiset -euo pipefail
@@ -57,3 +109,6 @@ echo ""
 echo "­ƒÆ¥ File salvato: $ALL_CONTRACTS"
 echo ""
 echo "Ô£à Ricerca completata!"
+
+CORRUPTED_4290558e7d434dd39657f9f1c76bada2
+

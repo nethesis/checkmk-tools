@@ -1,3 +1,215 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+has_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+validate_system_requirements() {
+	local ok=0
+
+	if [[ "$(uname -s 2>/dev/null || echo '')" != "Linux" ]]; then
+		print_warning "Non-Linux environment detected; installer expects Linux"
+		ok=1
+	fi
+
+	for cmd in bash curl wget systemctl apt-get; do
+		if ! has_cmd "$cmd"; then
+			print_warning "Missing command: $cmd"
+			ok=1
+		fi
+	done
+
+	return $ok
+}
+
+: <<'__CORRUPTED_TAIL__'
+#!/usr/bin/env bash
+set -euo pipefail
+
+has_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+validate_system_requirements() {
+	local ok=0
+
+	if [[ "$(uname -s 2>/dev/null || echo '')" != "Linux" ]]; then
+		print_warning "Non-Linux environment detected; installer expects Linux"
+		ok=1
+	fi
+
+	for cmd in bash curl wget systemctl apt-get; do
+		if ! has_cmd "$cmd"; then
+			print_warning "Missing command: $cmd"
+			ok=1
+		fi
+	done
+
+	return $ok
+}
+#!/usr/bin/env bash
+
+# validate.sh - Input validation and basic system checks
+
+UTILS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=colors.sh
+source "${UTILS_DIR}/colors.sh"
+# shellcheck source=menu.sh
+source "${UTILS_DIR}/menu.sh" 2>/dev/null || true
+
+validate_ip() {
+	local ip="$1"
+	[[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
+	local IFS='.'
+	local -a octets
+	read -r -a octets <<<"$ip"
+	local octet
+	for octet in "${octets[@]}"; do
+		[[ "$octet" =~ ^[0-9]+$ ]] || return 1
+		(( octet >= 0 && octet <= 255 )) || return 1
+	done
+	return 0
+}
+
+validate_port() {
+	local port="$1"
+	[[ "$port" =~ ^[0-9]+$ ]] || return 1
+	(( port >= 1 && port <= 65535 ))
+}
+
+validate_email() {
+	local email="$1"
+	[[ "$email" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]
+}
+
+validate_hostname() {
+	local hostname="$1"
+	[[ "$hostname" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$ ]]
+}
+
+validate_url() {
+	local url="$1"
+	[[ "$url" =~ ^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/.*)?$ ]]
+}
+
+validate_domain() {
+	local domain="$1"
+	[[ "$domain" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$ ]]
+}
+
+validate_path_exists() { [[ -e "$1" ]]; }
+validate_dir_exists() { [[ -d "$1" ]]; }
+validate_file_exists() { [[ -f "$1" ]]; }
+validate_not_empty() { [[ -n "$1" ]]; }
+validate_number() { [[ "$1" =~ ^[0-9]+$ ]]; }
+
+validate_number_range() {
+	local num="$1" min="$2" max="$3"
+	validate_number "$num" || return 1
+	(( num >= min && num <= max ))
+}
+
+validate_disk_space() {
+	local path="$1" required_mb="$2"
+	command -v df >/dev/null 2>&1 || return 0
+	local available_mb
+	available_mb=$(df -Pm "$path" 2>/dev/null | awk 'NR==2 {print $4}' | tr -d ' ') || return 0
+	validate_number "$available_mb" || return 0
+	(( available_mb >= required_mb ))
+}
+
+validate_system_requirements() {
+	local errors=0
+	print_info "Checking system requirements..."
+
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "This script must be run as root"
+		((errors++))
+	else
+		print_success "Root privileges: OK"
+	fi
+
+	if validate_disk_space "/" 5000; then
+		print_success "Disk space: OK"
+	else
+		print_warning "Disk space: low (recommended >= 5GB free)"
+	fi
+
+	if command -v free >/dev/null 2>&1; then
+		local mem_mb
+		mem_mb=$(free -m | awk 'NR==2 {print $2}')
+		if validate_number "$mem_mb" && (( mem_mb >= 2000 )); then
+			print_success "Memory: OK (${mem_mb}MB)"
+		else
+			print_warning "Memory: low (${mem_mb:-unknown}MB, recommended >= 2GB)"
+		fi
+	fi
+
+
+	if command -v ping >/dev/null 2>&1; then
+		if ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+			print_success "Internet connectivity: OK"
+		else
+			print_warning "Internet connectivity: not available (offline mode)"
+		fi
+	fi
+
+	local required_commands=(curl wget jq systemctl apt-get)
+	local cmd
+	for cmd in "${required_commands[@]}"; do
+		if command -v "$cmd" >/dev/null 2>&1; then
+			print_success "Command '$cmd': OK"
+		else
+			print_warning "Command '$cmd': not found (may be installed by modules)"
+		fi
+	done
+
+	return $errors
+}
+
+# Input helpers (optional)
+input_ip() {
+	local prompt="$1" default="$2" ip
+	while true; do
+		ip=$(input_text "$prompt" "$default")
+		validate_ip "$ip" && { echo "$ip"; return 0; }
+		print_error "Invalid IP address"
+	done
+}
+
+input_port() {
+	local prompt="$1" default="$2" port
+	while true; do
+		port=$(input_text "$prompt" "$default")
+		validate_port "$port" && { echo "$port"; return 0; }
+		print_error "Invalid port (1-65535)"
+	done
+}
+
+input_email() {
+	local prompt="$1" default="$2" email
+	while true; do
+		email=$(input_text "$prompt" "$default")
+		validate_email "$email" && { echo "$email"; return 0; }
+		print_error "Invalid email"
+	done
+}
+
+input_url() {
+	local prompt="$1" default="$2" url
+	while true; do
+		url=$(input_text "$prompt" "$default")
+		validate_url "$url" && { echo "$url"; return 0; }
+		print_error "Invalid URL (must start with http:// or https://)"
+	done
+}
+
+input_hostname() {
+	local prompt="$1" default="$2" host
+	while true; do
+		host=$(input_text "$prompt" "$default")
+		validate_hostname "$host" && { echo "$host"; return 0; }
+		print_error "Invalid hostname"
+	done
+}
 #!/bin/bash
 /usr/bin/env bash
 # validate.sh - Input validation functions
@@ -47,3 +259,5 @@ do"    fi  done}input_port() {  local prompt="$1"  local default="$2"    while t
 do (deve iniziare con http:// o https://)"    fi  done}input_hostname() {  local prompt="$1"  local default="$2"    while true; dolocal hostnamelocal hostnamehostname=$(input_text "$prompt" "$default")    if validate_hostname "$hostname"; then
     echo "$hostname"      return 0    else      print_error "Hostname non vali
 do"    fi  done}
+
+__CORRUPTED_TAIL__

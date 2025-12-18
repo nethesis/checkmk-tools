@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_de6386f049b74056965ebb7407bfc203'
 #!/bin/bash
 /usr/bin/env bash
 # bootstrap-installer.sh - Bootstrap and launch CheckMK installer
@@ -880,3 +888,6 @@ echo ""
 # Handle interrupts gracefullytrap '
 echo ""; log_warning "Bootstrap interrupted"; exit 130' INT TERM
 # Run main functionmain "$@"
+
+CORRUPTED_de6386f049b74056965ebb7407bfc203
+

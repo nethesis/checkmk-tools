@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_52ab31fb55ba49f894cacef480369cdb'
 #!/bin/bash
 /usr/bin/env bashset -euo pipefail
 # Installa Checkmk Raw chieden
@@ -35,3 +43,6 @@ echo "   Site: ${SITE}"
 echo "   URL:  http://${IP}/${SITE}/  (se 80 ├â┬¿ aperta)"
 echo "         https://<tuo-dominio>/${SITE}/  (se hai certificato e 443 aperta)"
 echo ""
+
+CORRUPTED_52ab31fb55ba49f894cacef480369cdb
+

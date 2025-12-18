@@ -1,3 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CHECKMK_SITE="${CHECKMK_SITE:-monitoring}"
+CHECKMK_NOTIFY_DIR="/omd/sites/${CHECKMK_SITE}/local/share/check_mk/notifications"
+YDEA_TOOLKIT_DIR="${YDEA_TOOLKIT_DIR:-/opt/ydea-toolkit}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >&2; }
+
+require_root() {
+    if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+        log "ERROR: run as root (sudo)"
+        exit 1
+    fi
+}
+
+copy_if_exists() {
+    local src="$1"
+    local dst="$2"
+    if [[ -f "$src" ]]; then
+        install -m 0755 "$src" "$dst"
+        log "Installed: $dst"
+        return 0
+    fi
+    log "WARN: missing optional file: $src"
+    return 0
+}
+
+usage() {
+    cat >&2 <<USAGE
+Install CheckMK -> Ydea integration
+
+Env:
+    CHECKMK_SITE=monitoring
+    YDEA_TOOLKIT_DIR=/opt/ydea-toolkit
+
+Usage:
+    sudo $0
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || "${1:-}" == "help" ]]; then
+    usage
+    exit 0
+fi
+
+require_root
+
+if [[ ! -d "/omd/sites/${CHECKMK_SITE}" ]]; then
+    log "ERROR: CheckMK site not found: ${CHECKMK_SITE}"
+    exit 1
+fi
+
+mkdir -p "$CHECKMK_NOTIFY_DIR"
+mkdir -p "$YDEA_TOOLKIT_DIR"
+
+log "Installing notification scripts to: $CHECKMK_NOTIFY_DIR"
+
+# Discover notification scripts folder in repo
+notify_dir=""
+if [[ -d "${REPO_ROOT}/script-notify-checkmk/full" ]]; then
+    notify_dir="${REPO_ROOT}/script-notify-checkmk/full"
+elif [[ -d "${REPO_ROOT}/script-notify-checkmk" ]]; then
+    notify_dir="${REPO_ROOT}/script-notify-checkmk"
+fi
+
+if [[ -z "$notify_dir" ]]; then
+    log "WARN: could not locate script-notify-checkmk folder under $REPO_ROOT"
+else
+    copy_if_exists "${notify_dir}/ydea_realip" "${CHECKMK_NOTIFY_DIR}/ydea_realip"
+    copy_if_exists "${notify_dir}/mail_ydea_down" "${CHECKMK_NOTIFY_DIR}/mail_ydea_down"
+fi
+
+log "Installing Ydea toolkit scripts to: $YDEA_TOOLKIT_DIR"
+copy_if_exists "${SCRIPT_DIR}/ydea-toolkit.sh" "${YDEA_TOOLKIT_DIR}/ydea-toolkit.sh"
+copy_if_exists "${SCRIPT_DIR}/ydea-health-monitor.sh" "${YDEA_TOOLKIT_DIR}/ydea-health-monitor.sh"
+copy_if_exists "${SCRIPT_DIR}/create-monitoring-ticket.sh" "${YDEA_TOOLKIT_DIR}/create-monitoring-ticket.sh"
+
+if [[ -f "${SCRIPT_DIR}/../config/premium-mon-config.json" ]]; then
+    mkdir -p "${YDEA_TOOLKIT_DIR}/config"
+    install -m 0644 "${SCRIPT_DIR}/../config/premium-mon-config.json" "${YDEA_TOOLKIT_DIR}/config/premium-mon-config.json"
+    log "Installed: ${YDEA_TOOLKIT_DIR}/config/premium-mon-config.json"
+fi
+
+if [[ ! -f "${YDEA_TOOLKIT_DIR}/.env" ]]; then
+    if [[ -f "${SCRIPT_DIR}/.env" ]]; then
+        install -m 0644 "${SCRIPT_DIR}/.env" "${YDEA_TOOLKIT_DIR}/.env"
+        log "Installed template .env: ${YDEA_TOOLKIT_DIR}/.env"
+    else
+        cat >"${YDEA_TOOLKIT_DIR}/.env" <<'EOF'
+export YDEA_ID=""
+export YDEA_API_KEY=""
+export YDEA_ALERT_EMAIL=""
+EOF
+        chmod 0644 "${YDEA_TOOLKIT_DIR}/.env"
+        log "Created .env template: ${YDEA_TOOLKIT_DIR}/.env"
+    fi
+    log "IMPORTANT: edit ${YDEA_TOOLKIT_DIR}/.env with real credentials"
+else
+    log ".env already present: ${YDEA_TOOLKIT_DIR}/.env"
+fi
+
+log "Done. Next: cd ${YDEA_TOOLKIT_DIR}; source .env; ./ydea-toolkit.sh login"
+exit 0
+
+: <<'CORRUPTED_dcf4ee4e7b794061abd07608a69bc9d8'
 #!/bin/bash
 /usr/bin/env bash
 # install-ydea-checkmk-integration.sh
@@ -105,3 +214,6 @@ echo ""
 echo -e "${YELLOW}ÔÜá´©Å  RICORDA: Configura le credenziali in .env prima dell'uso!${NC}"  
 echo ""}
 # Main installationmain() {  check_root  check_checkmk  check_ydea_toolkit  install_scripts  setup_env  create_cache_files  setup_cron  test_connection  show_next_steps}mainexit 0
+
+CORRUPTED_dcf4ee4e7b794061abd07608a69bc9d8
+

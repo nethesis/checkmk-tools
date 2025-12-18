@@ -1,6 +1,62 @@
-#!/bin/bash
-/usr/bin/env bash
-# get-ticket-by-id.sh - Recupera un ticket specifico per ID numericoset -euo pipefail
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+need jq
+
+ticket_id="${1:-}"
+if [[ -z "$ticket_id" ]]; then
+    echo "Usage: $0 <ticket_id>" >&2
+    exit 2
+fi
+
+log_info "Get ticket #$ticket_id"
+
+# First try direct endpoint.
+direct="$(ydea_api GET "/tickets/$ticket_id")" && {
+    printf '%s\n' "$direct" | jq .
+    exit 0
+}
+
+log_warn "Direct endpoint failed; falling back to pagination search"
+
+limit=100
+max_pages=100
+
+page=1
+while [[ $page -le $max_pages ]]; do
+    resp="$(ydea_api GET "/tickets?limit=$limit&page=$page")" || {
+        log_error "Pagination API call failed (page=$page)"
+        printf '%s\n' "$resp" | jq . 2>/dev/null || printf '%s\n' "$resp" >&2
+        exit 1
+    }
+
+    count="$(printf '%s' "$resp" | jq -r '.objs | length' 2>/dev/null || echo 0)"
+    if [[ "$count" == "0" ]]; then
+        break
+    fi
+
+    ticket_json="$(printf '%s' "$resp" | jq --arg tid "$ticket_id" -c '.objs[]? | select(.id == ($tid|tonumber))' 2>/dev/null || true)"
+    if [[ -n "$ticket_json" && "$ticket_json" != "null" ]]; then
+        printf '%s\n' "$ticket_json" | jq .
+        exit 0
+    fi
+
+    page=$((page + 1))
+done
+
+log_error "Ticket #$ticket_id not found (searched up to page $max_pages)"
+exit 1
+
+: <<'CORRUPTED_aa846d8e8acd4ffab71dcf8f98ef660d'
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# get-ticket-by-id.sh - Get a specific ticket by numeric ID
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source del toolkit solo per funzioni helpersource "$SCRIPT_DIR/ydea-toolkit.sh"
 TICKET_ID="${1:-}"if [[ -z "$TICKET_ID" ]]; then
@@ -171,3 +227,6 @@ echo ""
 echo "­ƒÆ¥ Salvo il JSON completo in /tmp/ticket-${TICKET_ID}.json per riferimento futuro..."
 echo "$TICKET_DATA" | jq '.' > "/tmp/ticket-${TICKET_ID}.json"
 echo "   File salvato: /tmp/ticket-${TICKET_ID}.json"
+
+CORRUPTED_aa846d8e8acd4ffab71dcf8f98ef660d
+

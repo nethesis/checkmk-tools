@@ -1,8 +1,72 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ==================================================
-# Installazione FRPC client (0.64.0) - DRY RUN
-# Non modifica nulla, stampa solo le azioni che
-# verrebbero eseguite
+# install-frpc-dryrun.sh
+# DRY RUN installazione/configurazione FRPC (non modifica nulla)
+# ==================================================
+
+set -e
+
+FRP_VERSION="0.64.0"
+FRP_URL_DEFAULT="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz"
+
+detect_os() {
+    if [[ -f /etc/os-release ]]; then
+        if grep -qi "rocky" /etc/os-release; then
+            echo "rockylinux"; return
+        fi
+        if grep -qi "nethserver" /etc/os-release; then
+            echo "nethserver"; return
+        fi
+        if grep -qi "debian" /etc/os-release; then
+            if command -v dpkg >/dev/null 2>&1 && dpkg -l 2>/dev/null | grep -q pve-manager; then
+                echo "proxmox"; return
+            fi
+            echo "debian"; return
+        fi
+    fi
+    echo "altro"
+}
+
+echo "=== DRY RUN Installazione FRPC Client ==="
+OS_TYPE="$(detect_os)"
+echo "Rilevato sistema operativo: $OS_TYPE"
+echo
+
+read -r -p "URL pacchetto FRP [default: $FRP_URL_DEFAULT]: " FRP_URL
+FRP_URL=${FRP_URL:-$FRP_URL_DEFAULT}
+read -r -p "Nome host/proxy (es: rl94ns8): " HOSTNAME
+read -r -p "Porta remota da usare: " REMOTE_PORT
+echo
+
+echo "--- Azioni che verrebbero eseguite ---"
+echo "1. Scarico pacchetto da: $FRP_URL"
+echo "2. Estraggo e installo frpc in /usr/local/bin/frpc"
+echo "3. Creo config TOML in /etc/frp/frpc.toml con:"
+echo "   - server_addr = monitor.nethlab.it"
+echo "   - proxy_name  = $HOSTNAME"
+echo "   - remote_port = $REMOTE_PORT"
+echo
+
+case "$OS_TYPE" in
+    rockylinux|debian|proxmox)
+        echo "--- Creerei un systemd unit file in /etc/systemd/system/frpc.service ---"
+        ;;
+    nethserver)
+        echo "--- Creerei un template e-smith in /etc/e-smith/templates-custom/etc/systemd/system/frpc.service/10base ---"
+        echo "Poi eseguirei:"
+        echo "   config set frpc service status enabled"
+        echo "   signal-event runlevel-adjust"
+        ;;
+    *)
+        echo "Sistema operativo non riconosciuto: nessuna azione automatica"
+        ;;
+esac
+
+echo
+echo "=== DRY RUN completato ==="
+echo "Nessun file è stato modificato."
+
+: <<'__CORRUPTED_ORIGINAL_CONTENT__'
 # ==================================================
 FRP_VERSION="0.64.0"
 FRP_URL_DEFAULT="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz"
@@ -62,3 +126,5 @@ echo "├ó┼í┬á├»┬©┬Å Sistema operativo non riconosciuto: nessuna
 # ----------------------------echo
 echo "=== DRY RUN completato ==="
 echo "Nessun file ├â┬¿ stato modificato."
+
+__CORRUPTED_ORIGINAL_CONTENT__

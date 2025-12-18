@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_d003f84d013e4aa387e07f95772e91b0'
 #!/bin/bash
 # Test WARNING alert support in ydea_realip
 # Simula variabili d'ambiente CheckMK per alert WARNINGexport 
@@ -57,3 +65,6 @@ echo "1. Ticket creato su Ydea con priorit├á 'high' (3)"
 echo "2. SLA_ID = 147 (8-tipologie)"
 echo "3. Titolo: [WARNING] $NOTIFY_HOSTNAME - Test Service WARNING"
 echo "=========================================="
+
+CORRUPTED_d003f84d013e4aa387e07f95772e91b0
+

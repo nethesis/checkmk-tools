@@ -1,3 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+need() { command -v "$1" >/dev/null 2>&1 || { echo "Missing dependency: $1" >&2; exit 127; }; }
+need jq
+
+template_server_down() {
+    local hostname="$1"
+    local service="${2:-N/A}"
+    jq -n --arg t "[CRITICAL] Server $hostname non raggiungibile" \
+        --arg d "Server down alert\n\nHostname: $hostname\nServizio: $service\nData/Ora: $(date '+%Y-%m-%d %H:%M:%S')" \
+        '{title:$t, description:$d, priority:"critical", tags:["infrastruttura","downtime","server"]}'
+}
+
+template_backup_failed() {
+    local job="$1"
+    local error_msg="${2:-Unknown error}"
+    jq -n --arg t "[HIGH] Backup fallito: $job" \
+        --arg d "Backup failure alert\n\nJob: $job\nErrore: $error_msg\nData/Ora: $(date '+%Y-%m-%d %H:%M:%S')" \
+        '{title:$t, description:$d, priority:"high", tags:["backup","storage","dati"]}'
+}
+
+template_disk_full() {
+    local hostname="$1"
+    local mount_point="$2"
+    local usage="$3"
+    jq -n --arg t "[HIGH] Disco quasi pieno su $hostname:$mount_point" \
+        --arg d "Disk space alert\n\nHostname: $hostname\nMount: $mount_point\nUso: ${usage}%\nData/Ora: $(date '+%Y-%m-%d %H:%M:%S')" \
+        '{title:$t, description:$d, priority:"high", tags:["storage","disk","infrastruttura"]}'
+}
+
+template_ssl_expiring() {
+    local domain="$1"
+    local days_left="$2"
+    jq -n --arg t "[MEDIUM] Certificato SSL in scadenza per $domain" \
+        --arg d "SSL expiration\n\nDominio: $domain\nGiorni rimanenti: $days_left\nData/Ora: $(date '+%Y-%m-%d %H:%M:%S')" \
+        '{title:$t, description:$d, priority:"normal", tags:["ssl","sicurezza","certificati"]}'
+}
+
+template_app_error_rate() {
+    local app="$1"
+    local rate="$2"
+    local threshold="${3:-5}"
+    jq -n --arg t "[HIGH] Error rate elevato per $app" \
+        --arg d "Application error rate\n\nApp: $app\nError rate: ${rate}%\nSoglia: ${threshold}%\nData/Ora: $(date '+%Y-%m-%d %H:%M:%S')" \
+        '{title:$t, description:$d, priority:"high", tags:["applicazione","errori","performance"]}'
+}
+
+template_db_slow_queries() {
+    local db="$1"
+    local slow_count="$2"
+    jq -n --arg t "[MEDIUM] Query lente rilevate su database $db" \
+        --arg d "DB performance\n\nDatabase: $db\nQuery lente: $slow_count\nPeriodo: ultima ora\nData/Ora: $(date '+%Y-%m-%d %H:%M:%S')" \
+        '{title:$t, description:$d, priority:"normal", tags:["database","performance","ottimizzazione"]}'
+}
+
+template_failed_login() {
+    local username="$1"
+    local ip="$2"
+    local attempts="$3"
+    jq -n --arg t "[HIGH] Tentativi di login falliti per $username" \
+        --arg d "Failed login attempts\n\nUsername: $username\nIP: $ip\nTentativi: $attempts\nData/Ora: $(date '+%Y-%m-%d %H:%M:%S')" \
+        '{title:$t, description:$d, priority:"high", tags:["sicurezza","autenticazione","brute-force"]}'
+}
+
+template_planned_maintenance() {
+    local system="$1"
+    local date_time="$2"
+    local duration="$3"
+    jq -n --arg t "[PLANNED] Manutenzione programmata: $system" \
+        --arg d "Scheduled maintenance\n\nSistema: $system\nQuando: $date_time\nDurata: $duration\nCreato: $(date '+%Y-%m-%d %H:%M:%S')" \
+        '{title:$t, description:$d, priority:"normal", tags:["manutenzione","programmato","change"]}'
+}
+
+usage() {
+    cat >&2 <<'USAGE'
+Ydea Ticket Templates
+
+Usage:
+    ./ydea-templates.sh server-down <hostname> [service]
+    ./ydea-templates.sh backup-failed <job_name> [error_msg]
+    ./ydea-templates.sh disk-full <hostname> <mount_point> <usage_%>
+    ./ydea-templates.sh ssl-expiring <domain> <days_left>
+    ./ydea-templates.sh app-errors <app_name> <error_rate_%> [threshold]
+    ./ydea-templates.sh db-slow <db_name> <slow_query_count>
+    ./ydea-templates.sh failed-login <username> <ip_address> <attempts>
+    ./ydea-templates.sh maintenance <system> <date_time> <duration>
+USAGE
+}
+
+case "${1:-}" in
+    server-down) shift; template_server_down "$@" ;;
+    backup-failed) shift; template_backup_failed "$@" ;;
+    disk-full) shift; template_disk_full "$@" ;;
+    ssl-expiring) shift; template_ssl_expiring "$@" ;;
+    app-errors) shift; template_app_error_rate "$@" ;;
+    db-slow) shift; template_db_slow_queries "$@" ;;
+    failed-login) shift; template_failed_login "$@" ;;
+    maintenance) shift; template_planned_maintenance "$@" ;;
+    -h|--help|help|"") usage; exit 0 ;;
+    *) usage; exit 2 ;;
+esac
+
+exit 0
+
+: <<'CORRUPTED_33d377ed0f004b3a9a71a73535ea29a8'
 #!/bin/bash
 /usr/bin/env bash
 # ydea-templates.sh - Template predefiniti per ticket comuni
@@ -52,3 +158,6 @@ echo "$TEMPLATE" | jq -r '.title, .description, .priority'
 # Crea ticket direttamente  ./ydea-toolkit.sh api POST /tickets "$(./ydea-templates.sh disk-full server-01 /var 92)"    
 # Usa in script  if [[ $(df / | tail -1 | awk '{print $5}' | sed 's/%//') -gt 90 ]]; then
     TICKET=$(./ydea-templates.sh disk-full $(hostname) / 92)    ./ydea-toolkit.sh api POST /tickets "$TICKET"  fiUSAGE    exit 1    ;;esac
+
+CORRUPTED_33d377ed0f004b3a9a71a73535ea29a8
+

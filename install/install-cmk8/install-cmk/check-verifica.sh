@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_6a26c385d00f4d2fad80326bfe62ae6b'
 #!/bin/bash
 /usr/bin/env bashset -euo pipefail
 echo "===== VERIFICA SISTEMA ====="
@@ -27,3 +35,6 @@ else
 echo "Checkmk non installato"
 fi
 echo -e "\n===== VERIFICA COMPLETATA ====="
+
+CORRUPTED_6a26c385d00f4d2fad80326bfe62ae6b
+

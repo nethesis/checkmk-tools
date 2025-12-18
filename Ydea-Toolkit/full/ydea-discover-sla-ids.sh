@@ -1,3 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+need jq
+
+output_file="${1:-$SCRIPT_DIR/sla-premium-mon-ids.json}"
+
+macro_category="${MACRO_CATEGORY:-Premium_Mon}"
+sla_name="${SLA_NAME:-TK25/003209 SLA Personalizzata}"
+
+subcategories=(
+    "Centrale telefonica NethVoice"
+    "Firewall UTM NethSecurity"
+    "Collaboration Suite NethService"
+    "Computer client"
+    "Server"
+    "Apparati di rete - Networking"
+    "Hypervisor"
+    "Consulenza tecnica specialistica"
+)
+
+log_info "Discovery categories/SLA/priorities"
+log_info "macro_category=$macro_category"
+log_info "sla_name=$sla_name"
+log_info "output=$output_file"
+
+categories="$(ydea_api GET "/categories" 2>/dev/null || echo '{"objs":[]}')"
+printf '%s\n' "$categories" >"$SCRIPT_DIR/categories-full-dump.json" || true
+
+macro_id="$(printf '%s' "$categories" | jq -r --arg name "$macro_category" '.objs[]? | select(.nome == $name or .name == $name) | .id' | head -n1)"
+
+subcats_json='[]'
+for sub in "${subcategories[@]}"; do
+    id="$(printf '%s' "$categories" | jq -r --arg name "$sub" '.objs[]? | select(.nome == $name or .name == $name) | .id' | head -n1)"
+    if [[ -n "$id" && "$id" != "null" ]]; then
+        subcats_json="$(printf '%s' "$subcats_json" | jq --arg name "$sub" --argjson id "$id" '. + [{name:$name,id:$id}]')"
+    else
+        subcats_json="$(printf '%s' "$subcats_json" | jq --arg name "$sub" '. + [{name:$name,id:null}]')"
+    fi
+done
+
+sla="$(ydea_api GET "/sla" 2>/dev/null || ydea_api GET "/slas" 2>/dev/null || echo '{"objs":[]}')"
+printf '%s\n' "$sla" >"$SCRIPT_DIR/sla-full-dump.json" || true
+sla_id="$(printf '%s' "$sla" | jq -r --arg name "$sla_name" '.objs[]? | select((.nome // .name // .title) == $name) | .id' | head -n1)"
+if [[ -z "$sla_id" || "$sla_id" == "null" ]]; then
+    sla_id="$(printf '%s' "$sla" | jq -r '.objs[]? | select((.nome // .name // .title) | test("TK25/003209")) | .id' | head -n1)"
+fi
+
+priorities="$(ydea_api GET "/priorities" 2>/dev/null || echo '{"objs":[]}')"
+printf '%s\n' "$priorities" >"$SCRIPT_DIR/priorities-full-dump.json" || true
+low_priority_id="$(printf '%s' "$priorities" | jq -r '.objs[]? | select((.nome // .name) == "Bassa" or (.nome // .name) == "Low") | .id' | head -n1)"
+
+final="$(jq -n \
+    --arg date "$(date '+%Y-%m-%d %H:%M:%S')" \
+    --arg macro_name "$macro_category" \
+    --argjson macro_id "${macro_id:-null}" \
+    --argjson subcats "$subcats_json" \
+    --arg sla_name "$sla_name" \
+    --argjson sla_id "${sla_id:-null}" \
+    --argjson low_priority_id "${low_priority_id:-null}" \
+    '{
+        discovery_date: $date,
+        macro_category: {name:$macro_name, id:$macro_id},
+        subcategories: $subcats,
+        sla: {name:$sla_name, id:$sla_id},
+        low_priority: {name:"Bassa", id:$low_priority_id}
+    }')"
+
+printf '%s\n' "$final" >"$output_file"
+log_info "Wrote $output_file"
+
+missing=0
+printf '%s' "$final" | jq -e '.macro_category.id != null' >/dev/null 2>&1 || missing=1
+printf '%s' "$final" | jq -e '.sla.id != null' >/dev/null 2>&1 || missing=1
+
+if [[ "$missing" == "1" ]]; then
+    log_warn "Some IDs were not resolved; check dump files in $SCRIPT_DIR"
+    exit 1
+fi
+
+exit 0
+
+: <<'CORRUPTED_d404e88b17a440f09d3733592f3d8575'
 #!/bin/bash
 /usr/bin/env bash
 # ydea-discover-sla-ids.sh ÔÇö Scopri ID per categorie, sottocategorie e SLA personalizzata
@@ -107,3 +194,6 @@ echo "  1. Verifica il contenuto di: $OUTPUT_FILE"
 echo "  2. Integra questi ID negli script di notifica CheckMK"    
 echo "  3. Implementa la logica di mapping sottocategoria ÔåÆ tipo allarme"  fi}
 # Esegui mainmain "$@"
+
+CORRUPTED_d404e88b17a440f09d3733592f3d8575
+

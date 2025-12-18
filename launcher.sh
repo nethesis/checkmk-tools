@@ -40,7 +40,7 @@ load_favorites() {
 
 # Salva preferiti
 save_favorites() {
-    > "$FAVORITES_FILE"
+    : > "$FAVORITES_FILE"
     for fav in "${!FAVORITES[@]}"; do
         echo "$fav" >> "$FAVORITES_FILE"
     done
@@ -57,7 +57,7 @@ load_stats() {
 
 # Salva statistiche
 save_stats() {
-    > "$STATS_FILE"
+    : > "$STATS_FILE"
     for script in "${!STATS[@]}"; do
         echo "$script=${STATS[$script]}" >> "$STATS_FILE"
     done
@@ -78,7 +78,8 @@ get_script_description() {
     
     if [[ -f "$full_path" ]]; then
         # Cerca commento di descrizione nelle prime 10 righe
-        local desc=$(head -n 10 "$full_path" | grep -E "^# (Desc|Description|Purpose):" | sed 's/^# [^:]*: //')
+        local desc
+        desc=$(head -n 10 "$full_path" | grep -E "^# (Desc|Description|Purpose):" | sed 's/^# [^:]*: //')
         if [[ -n "$desc" ]]; then
     echo "$desc"
 else             # Fallback: seconda riga (solitamente descrizione)
@@ -116,8 +117,10 @@ scan_remote_scripts() {
     while IFS= read -r -d '' script; do
         # Ottieni path relativo
         local rel_path="${script#$SCRIPT_DIR/}"
-        local category=$(echo "$rel_path" | cut -d'/' -f1)
-        local script_name=$(basename "$script" .sh)
+        local category
+        category=$(echo "$rel_path" | cut -d'/' -f1)
+        local script_name
+        script_name=$(basename "$script" .sh)
         
         # Rimuovi prefisso 'r' se presente
         local display_name="${script_name#r}"
@@ -195,7 +198,7 @@ toggle_favorite() {
     local idx="$1"
     
     if [[ -n "${FAVORITES[$idx]:-}" ]]; then
-        unset FAVORITES[$idx]
+        unset 'FAVORITES[$idx]'
         echo -e "${GREEN}✓ Rimosso dai preferiti${NC}"
 else         FAVORITES[$idx]=1
         echo -e "${GREEN}✓ Aggiunto ai preferiti ⭐${NC}"
@@ -218,15 +221,16 @@ show_statistics() {
     done
     
     if [ ${#top_scripts[@]} -gt 0 ]; then
-    IFS=$'\n' sorted=($(sort -rn <<<"${top_scripts[*]}"))
-        unset IFS
+        local -a sorted=()
+        mapfile -t sorted < <(printf '%s\n' "${top_scripts[@]}" | sort -rn)
         
         local count=0
         for entry in "${sorted[@]}"; do
             [[ $count -ge 5 ]] && break
             local uses="${entry%%:*}"
             local idx="${entry##*:}"
-            local name=$(echo "${SCRIPTS[$idx]}" | sed 's/\[.*\] //')
+            local name
+            name=$(echo "${SCRIPTS[$idx]}" | sed 's/\[.*\] //')
             echo -e "${MAGENTA}║${NC}    ${BLUE}$((count+1)).${NC} $name ${CYAN}($uses)${NC}"
             ((count++))
         done
@@ -244,7 +248,8 @@ show_menu() {
     local current_category=""
     for i in "${!SCRIPTS[@]}"; do
         # Estrai categoria
-        local category=$(echo "${SCRIPTS[$i]}" | grep -oP '\[\K[^\]]+')
+        local category
+        category=$(echo "${SCRIPTS[$i]}" | grep -oP '\[\K[^\]]+')
         
         # Stampa intestazione categoria se cambia
         if [ "$category" != "$current_category" ]; then
@@ -297,23 +302,21 @@ execute_script() {
     read -r params
     
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
-    
-    # Esegui script remoto con su
-do usan
-do file temporaneo
-    TEMP_SCRIPT=$(mktemp)
+
+    # Scarica ed esegui script remoto tramite file temporaneo
+    local TEMP_SCRIPT
+    TEMP_SCRIPT="$(mktemp)"
     curl -fsSL "$remote_url" -o "$TEMP_SCRIPT"
-    
+    chmod +x "$TEMP_SCRIPT" 2>/dev/null || true
+
     if [ -n "$params" ]; then
-        su
-do bash "$TEMP_SCRIPT" $params
-else         su
-do bash "$TEMP_SCRIPT"
+        bash "$TEMP_SCRIPT" $params
+    else
+        bash "$TEMP_SCRIPT"
     fi
-    
-    rm -f "$TEMP_SCRIPT"
-    
+
     local exit_code=$?
+    rm -f "$TEMP_SCRIPT"
     
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     

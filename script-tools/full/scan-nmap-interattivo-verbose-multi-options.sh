@@ -1,6 +1,246 @@
-#!/bin/bash
-/usr/bin/env bash
+#!/usr/bin/env bash
 #
+# scan-nmap-interattivo-verbose-multi-options.sh (fixed)
+# Interattivo Nmap: multi-target, output unico (-oN), CSV riepilogo + TXT leggibile,
+# mantiene symlink "latest".
+
+set -euo pipefail
+
+DEFAULT_OUTDIR="./scans"
+DEFAULT_PORTS="1-1024"
+
+timestamp() { date +%Y%m%dT%H%M%S; }
+
+nmap_bin="$(command -v nmap || true)"
+if [[ -z "$nmap_bin" ]]; then
+    echo "Errore: nmap non trovato nel PATH. Installa nmap e riprova." >&2
+    exit 2
+fi
+
+echo "=== SCAN NMAP INTERATTIVO (output unico .txt + CSV riepilogo) ==="
+echo
+
+while true; do
+    read -r -p "Vuoi scansionare (1) subnet/range/host (multipli separati da spazi/virgole) oppure (2) file targets? [1/2] (default 1): " mode
+    mode=${mode:-1}
+    [[ "$mode" == "1" || "$mode" == "2" ]] && break
+    echo "Risposta non valida."
+done
+
+targets=()
+target_file=""
+if [[ "$mode" == "1" ]]; then
+    read -r -p "Inserisci targets (es. 192.168.1.0/24,10.0.0.0/24): " range_in
+    range_in=${range_in:-}
+    if [[ -z "$range_in" ]]; then
+        echo "Errore: nessun target fornito." >&2
+        exit 3
+    fi
+    range_in="$(printf "%s" "$range_in" | tr ',' ' ' | xargs)"
+    read -r -a targets <<< "$range_in"
+else
+    read -r -p "Inserisci percorso file targets (uno per riga, IP/host/CIDR): " target_file
+    target_file=${target_file:-}
+    if [[ -z "$target_file" || ! -f "$target_file" ]]; then
+        echo "Errore: file targets non valido o non esistente: $target_file" >&2
+        exit 4
+    fi
+fi
+
+while true; do
+    echo
+    echo "Tipo scansione:"
+    echo "  1) Scan porte (default)"
+    echo "  2) Discovery only (-sn)"
+    read -r -p "Scegli 1 o 2 [default 1]: " scan_choice
+    scan_choice=${scan_choice:-1}
+    [[ "$scan_choice" == "1" || "$scan_choice" == "2" ]] && break
+    echo "Risposta non valida."
+done
+
+ports="$DEFAULT_PORTS"
+if [[ "$scan_choice" == "1" ]]; then
+    read -r -p "Porte [default: ${DEFAULT_PORTS}]: " input_ports
+    ports=${input_ports:-$DEFAULT_PORTS}
+fi
+
+echo
+echo "Livello verbosità / debug:"
+echo "  0) Nessuna (default)"
+echo "  1) -v"
+echo "  2) -vv"
+echo "  3) -d + --packet-trace"
+read -r -p "Scegli 0|1|2|3 [default 0]: " vlevel
+vlevel=${vlevel:-0}
+if ! [[ "$vlevel" =~ ^[0-3]$ ]]; then
+    vlevel=0
+fi
+
+read -r -p "Opzioni nmap aggiuntive (NOTA: -o* ignorate): " nmap_extra
+nmap_extra=${nmap_extra:-}
+
+read -r -p "Directory output [default: ${DEFAULT_OUTDIR}]: " outdir
+outdir=${outdir:-$DEFAULT_OUTDIR}
+read -r -p "Timing template nmap 0..5 [default 3]: " nt
+nt=${nt:-3}
+if ! [[ "$nt" =~ ^[0-5]$ ]]; then
+    nt=3
+fi
+
+echo
+echo "Riepilogo:"
+if [[ "$mode" == "1" ]]; then
+    echo "  Targets: ${targets[*]}"
+else
+    echo "  Targets file: $target_file"
+fi
+echo "  Scan choice: $scan_choice"
+echo "  Output dir: $outdir"
+echo "  Timing: -T$nt"
+if [[ -n "$nmap_extra" ]]; then
+    echo "  Extra: $nmap_extra"
+fi
+echo
+read -r -p "Procedere con la scansione? [y/N]: " conf
+conf=${conf:-N}
+if [[ ! "$conf" =~ ^[Yy]$ ]]; then
+    echo "Annullato dall'utente."
+    exit 0
+fi
+
+mkdir -p "$outdir"
+if [[ ! -w "$outdir" ]]; then
+    echo "Errore: directory $outdir non scrivibile." >&2
+    exit 5
+fi
+
+ts="$(timestamp)"
+safe_label=""
+if [[ "$mode" == "1" ]]; then
+    safe_label="$(echo "${targets[0]}" | tr -c '[:alnum:]_.' '_' )_x${#targets[@]}"
+else
+    safe_label="$(basename "$target_file" | tr -c '[:alnum:]_.' '_' )"
+fi
+
+outbase="${outdir%/}/nmap-${ts}_${safe_label}"
+outtxt="${outbase}.txt"
+outcsv="${outbase}_summary.csv"
+outcsv_txt="${outbase}_summary_readable.txt"
+outsum="${outbase}_summary.txt"
+
+nmap_opts=()
+case "$vlevel" in
+    1) nmap_opts+=( -v ) ;;
+    2) nmap_opts+=( -vv ) ;;
+    3) nmap_opts+=( -d --packet-trace ) ;;
+esac
+nmap_opts+=( --reason -T"${nt}" )
+
+if [[ "$scan_choice" == "2" ]]; then
+    nmap_opts+=( -sn )
+else
+    if [[ "$(id -u)" -eq 0 ]]; then
+        nmap_opts+=( -sS -p "$ports" )
+    else
+        nmap_opts+=( -sT -p "$ports" )
+    fi
+fi
+
+extra_arr=()
+if [[ -n "$nmap_extra" ]]; then
+    read -r -a tmp <<< "$nmap_extra"
+    for tok in "${tmp[@]}"; do
+        [[ "$tok" =~ ^-o ]] && continue
+        extra_arr+=( "$tok" )
+    done
+fi
+
+nmap_cmd=( "$nmap_bin" "${nmap_opts[@]}" )
+if [[ "$mode" == "2" ]]; then
+    nmap_cmd+=( -iL "$target_file" )
+else
+    for t in "${targets[@]}"; do
+        nmap_cmd+=( "$t" )
+    done
+fi
+if (( ${#extra_arr[@]} )); then
+    nmap_cmd+=( "${extra_arr[@]}" )
+fi
+nmap_cmd+=( -oN "$outtxt" )
+
+echo
+printf 'Comando:'
+for part in "${nmap_cmd[@]}"; do printf ' %q' "$part"; done
+echo
+echo
+
+ec=0
+if "${nmap_cmd[@]}"; then
+    ec=0
+else
+    ec=$?
+fi
+
+printf '%s\n' "Hostname,IP,MAC,Vendor,Status,OpenPorts" > "$outcsv"
+awk -v OUTCSV="$outcsv" '
+    BEGIN { host=""; ip=""; mac=""; vendor=""; status=""; inports=0; openports="" }
+    /^Nmap scan report for/ {
+        if (host != "") {
+            gsub(/\"/, "\"\"", vendor); gsub(/\"/, "\"\"", host)
+            printf "\"%s\",%s,\"%s\",\"%s\",%s,\"%s\"\n", host, ip, mac, vendor, status, openports >> OUTCSV
+        }
+        host=$0; sub(/^Nmap scan report for /, "", host)
+        ip="N/A"; mac=""; vendor=""; status=""; openports=""
+        if (match(host, /\(([0-9.]+)\)/, a)) { ip=a[1]; split(host, h, " \\("); host=h[1] } else { if (host ~ /^[0-9.]+$/) ip=host }
+        next
+    }
+    /^[Hh]ost is up/ { status="up"; next }
+    /received no-response|[Hh]ost down/ { status="down"; next }
+    /^MAC Address:/ { mac=$3; vendor=substr($0, index($0,$4)); gsub(/^\(|\)$/, "", vendor); next }
+    /^PORT[[:space:]]+STATE/ { inports=1; next }
+    /^$/ { inports=0; next }
+    inports==1 && /^[0-9]+\/(tcp|udp)/ {
+        portproto=$1; state=$2; service=$3
+        if (state ~ /^open/) {
+            frag=portproto "(" service ")"
+            if (openports == "") openports=frag; else openports=openports ";" frag
+        }
+        next
+    }
+    END {
+        if (host != "") {
+            gsub(/\"/, "\"\"", vendor); gsub(/\"/, "\"\"", host)
+            printf "\"%s\",%s,\"%s\",\"%s\",%s,\"%s\"\n", host, ip, mac, vendor, status, openports >> OUTCSV
+        }
+    }
+' "$outtxt" || true
+
+{
+    printf "%-40s %-15s %-8s %s\n" "Hostname" "IP" "Status" "OpenPorts"
+    printf "%-40s %-15s %-8s %s\n" "--------" "----" "------" "--------"
+    awk -F',' 'NR>1 { gsub(/^\"|\"$/, "", $1); gsub(/^\"|\"$/, "", $6); printf "%-40s %-15s %-8s %s\n", $1, $2, $5, $6 }' "$outcsv"
+} > "$outcsv_txt" || true
+
+if [[ "$scan_choice" == "2" ]]; then
+    grep -E "Nmap scan report for|Host is up|MAC Address" "$outtxt" > "$outsum" || true
+else
+    awk -F',' 'NR>1 { gsub(/^\"|\"$/, "", $1); print $1 " | " $2 " | " $5 " | " $6 }' "$outcsv" > "$outsum" || true
+fi
+
+ln -sf "$(basename "$outtxt")" "${outdir%/}/nmap_latest.txt" || true
+ln -sf "$(basename "$outcsv")" "${outdir%/}/nmap_summary_latest.csv" || true
+ln -sf "$(basename "$outcsv_txt")" "${outdir%/}/nmap_summary_latest.txt" || true
+
+echo
+echo "Fine scansione (exit code: $ec)"
+echo "Output completo nmap: $outtxt"
+echo "CSV riepilogo unico: $outcsv"
+echo "TXT leggibile dal CSV: $outcsv_txt"
+echo "Summary breve: $outsum"
+echo "Link veloci in $outdir: nmap_latest.txt, nmap_summary_latest.csv, nmap_summary_latest.txt"
+exit "$ec"
+
+: <<'__CORRUPTED_ORIGINAL_CONTENT__'
 # scan-nmap-interattivo-verbose-multi-options.sh
 # Interattivo Nmap: multi-target, forzato -oN unico, genera CSV riepilogo + TXT leggibile,
 # e mantiene symlink "latest" per accesso rapi
@@ -147,3 +387,5 @@ echo "CSV riepilogo unico: $OUTCSV"
 echo "TXT leggibile dal CSV: $OUTCSV_TXT"
 echo "Summary breve: $OUTSUM"
 echo "Link veloci in $OUTDIR: nmap_latest.txt, nmap_summary_latest.csv, nmap_summary_latest.txt"exit $EC
+
+__CORRUPTED_ORIGINAL_CONTENT__

@@ -1,3 +1,331 @@
+#!/usr/bin/env bash
+# Smart Deploy for CheckMK Scripts - Hybrid system (fixed)
+# Deploys smart wrappers that auto-update from GitHub and execute a cached copy.
+
+set -euo pipefail
+
+GITHUB_REPO="Coverup20/checkmk-tools"
+BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main"
+
+declare -A SCRIPTS=(
+    ["check_cockpit_sessions"]="script-check-ns7/check_cockpit_sessions.sh:local"
+    ["check_dovecot_status"]="script-check-ns7/check_dovecot_status.sh:local"
+    ["check_ssh_root_sessions"]="script-check-ns7/check_ssh_root_sessions.sh:local"
+    ["check_postfix_status"]="script-check-ns7/check_postfix_status.sh:local"
+    ["telegram_realip"]="script-notify-checkmk/telegram_realip:notification"
+)
+
+log() {
+    echo "[$(date '+%H:%M:%S')] $*"
+}
+
+require_root() {
+    if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+        echo "ERROR: run as root" >&2
+        exit 1
+    fi
+}
+
+detect_omd_root() {
+    if [[ -d /omd/sites ]]; then
+        local site
+        site="$(ls /omd/sites 2>/dev/null | head -n1)"
+        echo "/omd/sites/${site:-monitoring}"
+    else
+        echo ""
+    fi
+}
+
+write_wrapper() {
+    local script_name="$1" github_path="$2" script_type="$3"
+
+    local omd_root target_dir
+    omd_root="$(detect_omd_root)"
+
+    case "$script_type" in
+        local) target_dir="/usr/lib/check_mk_agent/local" ;;
+        spool) target_dir="/usr/lib/check_mk_agent/spool" ;;
+        plugin) target_dir="/usr/lib/check_mk_agent/plugins" ;;
+        notification)
+            if [[ -n "$omd_root" ]]; then
+                target_dir="$omd_root/local/share/check_mk/notifications"
+            else
+                target_dir="/usr/lib/check_mk_agent/local"
+            fi
+            ;;
+        *) target_dir="/usr/lib/check_mk_agent/local" ;;
+    esac
+
+    mkdir -p "$target_dir" 2>/dev/null || true
+    local wrapper_file="$target_dir/$script_name"
+    local url="$BASE_URL/$github_path"
+
+    log "Deploy wrapper: $script_name ($script_type) -> $wrapper_file"
+
+    cat >"$wrapper_file" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_NAME="__SCRIPT_NAME__"
+GITHUB_URL="__GITHUB_URL__"
+TIMEOUT_SECONDS=5
+EXEC_TIMEOUT_SECONDS=30
+DEBUG="${DEBUG:-0}"
+
+log_debug() {
+    [[ "$DEBUG" == "1" ]] && echo "# Wrapper[$SCRIPT_NAME] $*" >&2 || true
+}
+
+download_to() {
+    local url="$1" out="$2"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL --max-time "$TIMEOUT_SECONDS" "$url" -o "$out"
+        return
+    fi
+    if command -v wget >/dev/null 2>&1; then
+        wget -q -T "$TIMEOUT_SECONDS" -O "$out" "$url"
+        return
+    fi
+    return 1
+}
+
+detect_env() {
+    if [[ -d /omd/sites ]]; then
+        local site
+        site="$(ls /omd/sites 2>/dev/null | head -n1)"
+        echo "/omd/sites/${site:-monitoring}"
+    else
+        echo ""
+    fi
+}
+
+main() {
+    local omd_root cache_dir cache_file tmp
+    omd_root="$(detect_env)"
+    if [[ -n "$omd_root" ]]; then
+        cache_dir="$omd_root/var/cache/checkmk-scripts"
+    else
+        cache_dir="/var/cache/checkmk-scripts"
+    fi
+    cache_file="$cache_dir/${SCRIPT_NAME}.sh"
+    mkdir -p "$cache_dir" 2>/dev/null || true
+
+    tmp="$cache_file.tmp"
+    if download_to "$GITHUB_URL" "$tmp" 2>/dev/null; then
+        if head -n 1 "$tmp" | grep -qE '^#!/.*bash'; then
+            mv -f "$tmp" "$cache_file"
+            chmod +x "$cache_file"
+            log_debug "Updated cache from GitHub"
+        else
+            rm -f "$tmp" 2>/dev/null || true
+            log_debug "Downloaded file invalid (no bash shebang)"
+        fi
+    else
+        rm -f "$tmp" 2>/dev/null || true
+        log_debug "Download failed (using cache if present)"
+    fi
+
+    if [[ -x "$cache_file" ]]; then
+        if command -v timeout >/dev/null 2>&1; then
+            timeout "$EXEC_TIMEOUT_SECONDS" "$cache_file" "$@"
+        else
+            "$cache_file" "$@"
+        fi
+        exit $?
+    fi
+
+    echo "2 ${SCRIPT_NAME} - CRITICAL: No cached script available"
+    exit 2
+}
+
+main "$@"
+EOF
+
+    sed -i "s|__SCRIPT_NAME__|$script_name|g" "$wrapper_file"
+    sed -i "s|__GITHUB_URL__|$url|g" "$wrapper_file"
+    chmod +x "$wrapper_file"
+}
+
+main() {
+    require_root
+
+    local key value github_path script_type
+    for key in "${!SCRIPTS[@]}"; do
+        value="${SCRIPTS[$key]}"
+        github_path="${value%%:*}"
+        script_type="${value##*:}"
+        write_wrapper "$key" "$github_path" "$script_type"
+    done
+
+    log "Done."
+}
+
+main "$@"
+
+: <<'__LEGACY_CORRUPTED_SMART_DEPLOY_HYBRID__'
+
+# Smart Deploy for CheckMK Scripts - Hybrid system (fixed)
+# Deploys "smart wrappers" that auto-update from GitHub and execute a cached copy.
+
+GITHUB_REPO="Coverup20/checkmk-tools"
+BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main"
+
+declare -A SCRIPTS=(
+    ["check_cockpit_sessions"]="script-check-ns7/check_cockpit_sessions.sh:local"
+    ["check_dovecot_status"]="script-check-ns7/check_dovecot_status.sh:local"
+    ["check_ssh_root_sessions"]="script-check-ns7/check_ssh_root_sessions.sh:local"
+    ["check_postfix_status"]="script-check-ns7/check_postfix_status.sh:local"
+    ["telegram_realip"]="script-notify-checkmk/telegram_realip:notification"
+)
+
+log() {
+    echo "[$(date '+%H:%M:%S')] $*"
+}
+
+require_root() {
+    if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+        echo "ERROR: run as root (needed to write into CheckMK dirs)" >&2
+    fi
+}
+
+detect_env() {
+    if [[ -d /omd/sites ]]; then
+        local site
+        site="$(ls /omd/sites 2>/dev/null | head -n1)"
+        echo "/omd/sites/${site:-monitoring}"
+    else
+        echo ""
+    fi
+}
+
+write_wrapper() {
+    local script_name="$1" github_path="$2" script_type="$3"
+
+    local omd_root target_dir
+    omd_root="$(detect_env)"
+    case "$script_type" in
+        local) target_dir="/usr/lib/check_mk_agent/local" ;;
+        spool) target_dir="/usr/lib/check_mk_agent/spool" ;;
+        notification)
+            if [[ -n "$omd_root" ]]; then
+                target_dir="$omd_root/local/share/check_mk/notifications"
+            else
+                target_dir="/usr/lib/check_mk_agent/local"
+            fi
+        *) target_dir="/usr/lib/check_mk_agent/local" ;;
+    esac
+
+    mkdir -p "$target_dir" 2>/dev/null || true
+    local wrapper_file="$target_dir/$script_name"
+
+    log "Deploy wrapper: $script_name ($script_type) -> $wrapper_file"
+
+    cat >"$wrapper_file" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_NAME="$script_name"
+GITHUB_URL="$BASE_URL/$github_path"
+TIMEOUT_SECONDS=5
+EXEC_TIMEOUT_SECONDS=30
+DEBUG=
+
+log_debug() {
+    [[ "
+download_to() {
+    local url="\$1" out="\$2"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL --max-time "\$TIMEOUT_SECONDS" "\$url" -o "\$out"
+        return
+    fi
+    if command -v wget >/dev/null 2>&1; then
+        wget -q -T "\$TIMEOUT_SECONDS" -O "\$out" "\$url"
+        return
+    fi
+    return 1
+}
+
+detect_env() {
+    if [[ -d /omd/sites ]]; then
+        local site
+        site="\$(ls /omd/sites 2>/dev/null | head -n1)"
+        echo "/omd/sites/\${site:-monitoring}"
+    else
+        echo ""
+    fi
+}
+
+main() {
+    local omd_root cache_dir cache_file tmp
+    omd_root="\$(detect_env)"
+    if [[ -n "\$omd_root" ]]; then
+        cache_dir="\$omd_root/var/cache/checkmk-scripts"
+    else
+        cache_dir="/var/cache/checkmk-scripts"
+    cache_file="\$cache_dir/\${SCRIPT_NAME}.sh"
+    mkdir -p "\$cache_dir" 2>/dev/null || true
+
+    tmp="\$cache_file.tmp"
+    if download_to "\$GITHUB_URL" "\$tmp" 2>/dev/null; then
+        if head -n 1 "\$tmp" | grep -qE '^#!/.*bash'; then
+            mv -f "\$tmp" "\$cache_file"
+            chmod +x "\$cache_file"
+            log_debug "Updated cache from GitHub"
+        else
+            rm -f "\$tmp" 2>/dev/null || true
+            log_debug "Downloaded file invalid (no bash shebang)"
+        fi
+    else
+        rm -f "\$tmp" 2>/dev/null || true
+        log_debug "Download failed (using cache if present)"
+    fi
+
+    if [[ -x "\$cache_file" ]]; then
+        if command -v timeout >/dev/null 2>&1; then
+            timeout "\$EXEC_TIMEOUT_SECONDS" "\$cache_file" "\$@"
+        else
+            "\$cache_file" "\$@"
+        fi
+        exit \$?
+    fi
+
+    echo "2 \${SCRIPT_NAME} - CRITICAL: No cached script available"
+    exit 2
+}
+
+main "\$@"
+EOF
+
+    chmod +x "$wrapper_file"
+}
+
+main() {
+    require_root
+    local omd_root
+    omd_root="$(detect_env)"
+    log "Environment: ${omd_root:+OMD Server ($omd_root)}${omd_root:++}"
+    [[ -z "$omd_root" ]] && log "Environment: Agent Client"
+
+    local key value name path type
+    for key in "${!SCRIPTS[@]}"; do
+        value="${SCRIPTS[$key]}"
+        name="$key"
+    path="${value%%:*}"
+    type="${value##*:}"
+    write_wrapper "$name" "$path" "$type"
+    done
+
+    log "Done."
+}
+
+main "$@"
+
+: <<'__CORRUPTED_ORIGINAL_CONTENT__'
+#!/bin/bash
+# Smart Deploy per CheckMK Scripts - Sistema Ibri
+do
+# Deploy iniziale + wrapper intelligenti per auto-updateset -euo pipefail
+# (corrupted original content preserved)
+__CORRUPTED_ORIGINAL_CONTENT__
 #!/bin/bash
 # Smart Deploy per CheckMK Scripts - Sistema Ibri
 do
@@ -179,3 +507,5 @@ echo "­ƒÄë Aggiornamento completato!"EOFchmod +x "$CACHE_DIR/update-all.sh"
 if [ "$ENV_TYPE" = "OMD Server" ]; then    log "     - Notifications: $CHECKMK_NOTIFICATION_DIR"filog ""log "­ƒÆí FUNZIONAMENTO:"log "   ÔÇó Gli script si auto-aggiornano da GitHub ad ogni esecuzione"log "   ÔÇó In caso di problemi di rete, usano la cache locale"log "   ÔÇó Aggiornamento manuale: $CACHE_DIR/update-all.sh"log ""log "­ƒº¬ TEST:"log "   ls -la $CHECKMK_LOCAL_DIR/"if [ -f "$CHECKMK_LOCAL_DIR/check_cockpit_sessions" ]; then    log "   $CHECKMK_LOCAL_DIR/check_cockpit_sessions"filog "   
 DEBUG=1 $CHECKMK_LOCAL_DIR/check_cockpit_sessions  
 # debug mode"
+
+__LEGACY_CORRUPTED_SMART_DEPLOY_HYBRID__

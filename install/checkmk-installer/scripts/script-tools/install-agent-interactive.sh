@@ -17,7 +17,7 @@ FRP_URL="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_$
 
 FRP_SERVER_DEFAULT="monitor.nethlab.it"
 FRP_SERVER_PORT="7000"
-FRP_TOKEN_DEFAULT="conduit-reenact-talon-macarena-demotion-vaguely"
+FRP_TOKEN_DEFAULT="${FRP_TOKEN:-}"
 
 MODE="install"
 
@@ -405,9 +405,11 @@ configure_frpc() {
         read -r remote_port
     done
 
-    echo -ne "${CYAN}Token di sicurezza [default: $FRP_TOKEN_DEFAULT]: ${NC}"
-    read -r token
-    token=${token:-"$FRP_TOKEN_DEFAULT"}
+    while [ -z "$token" ]; do
+        echo -ne "${CYAN}Token di sicurezza (obbligatorio) [default: ${FRP_TOKEN_DEFAULT:-<none>}]: ${NC}"
+        read -r token
+        token=${token:-"$FRP_TOKEN_DEFAULT"}
+    done
 
     write_frpc_config "$host" "$server" "$remote_port" "$token"
 
@@ -817,8 +819,8 @@ echo -e ${CYAN}Porta remota ${NC}[es: 20001]: )" REMOTE_PORT    while [ -z "$REM
 echo -e "${RED}Ô£ù Porta remota obbligatoria!${NC}"        read -r -p "$(
 echo -e ${CYAN}Porta remota: ${NC})" REMOTE_PORT    done        
 # Token di sicurezza    read -r -p "$(
-echo -e ${CYAN}Token di sicurezza ${NC}[default: conduit-reenact-talon-macarena-demotion-vaguely]: )" AUTH_TOKEN    
-AUTH_TOKEN=${AUTH_TOKEN:-"conduit-reenact-talon-macarena-demotion-vaguely"}        
+echo -e ${CYAN}Token di sicurezza ${NC}[default: <REDACTED_FRP_TOKEN>]: )" AUTH_TOKEN    
+AUTH_TOKEN=${AUTH_TOKEN:-""}        
 # Crea directory config    mkdir -p /etc/frp        
 # Genera configurazione TOML    
 echo -e "\n${YELLOW}­ƒôØ Creazione file /etc/frp/frpc.toml...${NC}"        cat > /etc/frp/frpc.toml <<EOF

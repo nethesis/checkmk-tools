@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_20d7440cdfa347b8ad82ffad9231054b'
 #!/bin/bash
 /usr/bin/env bash
 # Wrapper per eseguire il flusso interattivo di certificazione + vhost
@@ -36,3 +44,6 @@ if [[ "$EUID" -ne 0 ]]; then  exec su
 do --preserve-env=WS,LETSENCRYPT_EMAIL,LETSENCRYPT_DOMAINS,REDIRECT_TO_SITE,DEFAULT_SITE,CHECK_PREREQS \    bash "$AUTO_SCRIPT" --interactive
 else  exec bash "$AUTO_SCRIPT" --interactive
 fi
+
+CORRUPTED_20d7440cdfa347b8ad82ffad9231054b
+

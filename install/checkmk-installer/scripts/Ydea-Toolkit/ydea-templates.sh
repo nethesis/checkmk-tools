@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_c62403be13c041cda2539082c36c102c'
 #!/bin/bash
 /usr/bin/env bash
 # ydea-templates.sh - Template predefiniti per ticket comuni
@@ -52,3 +60,6 @@ echo "$TEMPLATE" | jq -r '.title, .description, .priority'
 # Crea ticket direttamente  ./ydea-toolkit.sh api POST /tickets "$(./ydea-templates.sh disk-full server-01 /var 92)"    
 # Usa in script  if [[ $(df / | tail -1 | awk '{print $5}' | sed 's/%//') -gt 90 ]]; then
     TICKET=$(./ydea-templates.sh disk-full $(hostname) / 92)    ./ydea-toolkit.sh api POST /tickets "$TICKET"  fiUSAGE    exit 1    ;;esac
+
+CORRUPTED_c62403be13c041cda2539082c36c102c
+

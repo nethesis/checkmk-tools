@@ -104,7 +104,7 @@ Lo script chiederà:
 - **Nome host**: Default = Computer name
 - **Server FRP**: Default = monitor.nethlab.it
 - **Porta remota**: Es. 20001 (obbligatoria)
-- **Token di sicurezza**: Default = conduit-reenact-talon-macarena-demotion-vaguely
+- **Token di sicurezza**: Obbligatorio (nessun default hardcoded)
 
 ## Output Example
 

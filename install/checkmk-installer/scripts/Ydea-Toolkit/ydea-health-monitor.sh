@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_68c4a10ce234443981bb4dc35278e584'
 #!/bin/bash
 /usr/bin/env bash
 # ydea-health-monitor.sh - Monitoraggio disponibilit├á Ydea API
@@ -54,3 +62,6 @@ else        log_error "Errore invio notifica"        update_state "down" "$conse
 else      
 # Aggiorna solo il contatore      update_state "down" "$consecutive_failures" "$was_notified"    fi  fi}
 # Esegui mainmainexit 0
+
+CORRUPTED_68c4a10ce234443981bb4dc35278e584
+

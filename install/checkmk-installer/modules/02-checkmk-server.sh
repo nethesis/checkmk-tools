@@ -1,3 +1,271 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+load_env() {
+	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+		set -a
+		source "${INSTALLER_ROOT}/.env"
+		set +a
+	fi
+}
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+main() {
+	require_root
+	load_env
+
+	print_header "CheckMK Server"
+
+	local deb_url="${CHECKMK_DEB_URL:-}"
+	local site_name="${CHECKMK_SITE_NAME:-cmk}"
+
+	if [[ -z "$deb_url" ]]; then
+		print_error "CHECKMK_DEB_URL is not set in .env"
+		print_info "Run Configuration Wizard and set a CheckMK .deb URL"
+		exit 1
+	fi
+
+	local deb_path="/tmp/checkmk-server.deb"
+	print_info "Downloading: $deb_url"
+	curl -fsSL "$deb_url" -o "$deb_path"
+
+	print_info "Installing .deb (may take a while)"
+	dpkg -i "$deb_path" || true
+	apt-get -f install -y
+
+	if command -v omd >/dev/null 2>&1; then
+		if ! omd sites 2>/dev/null | awk '{print $1}' | grep -qx "$site_name"; then
+			print_info "Creating site: $site_name"
+			omd create "$site_name"
+		fi
+		print_info "Starting site: $site_name"
+		omd start "$site_name" || true
+	else
+		print_warning "omd not found; CheckMK installation may be incomplete"
+	fi
+
+	print_success "CheckMK server module completed"
+}
+
+main "$@"
+
+exit 0
+: <<'__CORRUPTED_TAIL__'
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+load_env() {
+	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+		set -a
+		source "${INSTALLER_ROOT}/.env"
+		set +a
+	fi
+}
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+main() {
+	require_root
+	load_env
+
+	print_header "CheckMK Server"
+
+	local deb_url="${CHECKMK_DEB_URL:-}"
+	local site_name="${CHECKMK_SITE_NAME:-cmk}"
+
+	if [[ -z "$deb_url" ]]; then
+		print_error "CHECKMK_DEB_URL is not set in .env"
+		print_info "Run Configuration Wizard and set a CheckMK .deb URL"
+		exit 1
+	fi
+
+	local deb_path="/tmp/checkmk-server.deb"
+	print_info "Downloading: $deb_url"
+	curl -fsSL "$deb_url" -o "$deb_path"
+
+	print_info "Installing .deb (may take a while)"
+	dpkg -i "$deb_path" || true
+	apt-get -f install -y
+
+	if command -v omd >/dev/null 2>&1; then
+		if ! omd sites 2>/dev/null | awk '{print $1}' | grep -qx "$site_name"; then
+			print_info "Creating site: $site_name"
+			omd create "$site_name"
+		fi
+		print_info "Starting site: $site_name"
+		omd start "$site_name" || true
+	else
+		print_warning "omd not found; CheckMK installation may be incomplete"
+	fi
+
+	print_success "CheckMK server module completed"
+}
+
+main "$@"
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODULE_NAME="CheckMK Server Installation"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# shellcheck source=../utils/colors.sh
+source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck source=../utils/logger.sh
+source "${INSTALLER_ROOT}/utils/logger.sh"
+# shellcheck source=../utils/menu.sh
+source "${INSTALLER_ROOT}/utils/menu.sh"
+# shellcheck source=../utils/validate.sh
+source "${INSTALLER_ROOT}/utils/validate.sh"
+
+if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+	set -a
+	# shellcheck disable=SC1091
+	source "${INSTALLER_ROOT}/.env"
+	set +a
+fi
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		log_error "This module must be run as root"
+		exit 1
+	fi
+}
+
+apt_install() {
+	local packages=("$@")
+	DEBIAN_FRONTEND=noninteractive apt-get update -y
+	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${packages[@]}"
+}
+
+get_checkmk_url() {
+	local url="${CHECKMK_DEB_URL:-}"
+	if [[ -n "$url" ]]; then
+		echo "$url"
+		return 0
+	fi
+
+	print_info "CheckMK download URL is not set in .env"
+	print_info "Example: https://download.checkmk.com/checkmk/2.4.0p15/check-mk-raw-2.4.0p15_0.jammy_amd64.deb"
+	url=$(input_url "CheckMK DEB download URL" "")
+	if [[ -z "$url" ]]; then
+		log_error "No CheckMK URL provided"
+		return 1
+	fi
+	echo "$url"
+}
+
+download_checkmk() {
+	local url="$1"
+	local dest="/tmp/check-mk-raw.deb"
+	log_info "Downloading CheckMK: $url"
+	log_command "rm -f '$dest'"
+	log_command "wget -O '$dest' '$url'"
+	[[ -s "$dest" ]] || { log_error "Downloaded file is empty: $dest"; return 1; }
+}
+
+install_checkmk_package() {
+	local deb="/tmp/check-mk-raw.deb"
+	[[ -f "$deb" ]] || { log_error "Package not found: $deb"; return 1; }
+	log_info "Installing CheckMK package"
+	set +e
+	dpkg -i "$deb"
+	local rc=$?
+	set -e
+	if [[ $rc -ne 0 ]]; then
+		log_warning "dpkg reported errors; attempting to fix dependencies"
+		DEBIAN_FRONTEND=noninteractive apt-get -f install -y
+		dpkg -i "$deb" || true
+	fi
+}
+
+create_or_update_site() {
+	local site="${CHECKMK_SITE_NAME:-monitoring}"
+	local port="${CHECKMK_HTTP_PORT:-5000}"
+	local password="${CHECKMK_ADMIN_PASSWORD:-}"
+
+	command -v omd >/dev/null 2>&1 || { log_error "omd not found after installation"; return 1; }
+
+	if omd sites 2>/dev/null | awk '{print $1}' | grep -qx "$site"; then
+		log_info "Site already exists: $site"
+	else
+		log_info "Creating site: $site"
+		omd create "$site"
+		omd enable "$site" || true
+	fi
+
+	if [[ -n "$port" ]]; then
+		log_info "Setting site Apache port: $port"
+		omd config "$site" set APACHE_TCP_PORT "$port" 2>/dev/null || log_warning "Could not set APACHE_TCP_PORT (omd config)"
+	fi
+
+	if [[ -n "$password" ]]; then
+		log_info "Setting cmkadmin password"
+		omd su "$site" -c "htpasswd -b etc/htpasswd cmkadmin '$password'" || log_warning "Failed to set cmkadmin password"
+	fi
+
+	log_info "Starting site: $site"
+	omd start "$site" || true
+
+	if command -v ufw >/dev/null 2>&1; then
+		ufw allow "${port}"/tcp >/dev/null 2>&1 || true
+	fi
+
+	local server_ip
+	server_ip=$(hostname -I 2>/dev/null | awk '{print $1}' || true)
+	server_ip=${server_ip:-localhost}
+	print_separator "="
+	print_success "CheckMK server installation complete"
+	echo "URL: http://${server_ip}:${port}/${site}/"
+	echo "User: cmkadmin"
+	[[ -n "$password" ]] && echo "Password: (as configured in .env)"
+	print_separator "="
+}
+
+main() {
+	require_root
+	log_module_start "$MODULE_NAME"
+
+	if [[ "${INSTALL_CHECKMK_SERVER:-yes}" != "yes" ]]; then
+		log_info "INSTALL_CHECKMK_SERVER=no; skipping"
+		log_module_end "$MODULE_NAME" "success"
+		return 0
+	fi
+
+	apt_install ca-certificates wget curl jq apache2-utils xinetd || true
+
+	local url
+	url=$(get_checkmk_url)
+	download_checkmk "$url"
+	install_checkmk_package
+	create_or_update_site
+
+	log_module_end "$MODULE_NAME" "success"
+}
+
+main "$@"
 #!/bin/bash
 /usr/bin/env bash
 # 02-checkmk-server.sh - CheckMK Server installation module
@@ -1404,3 +1672,5 @@ echo ""}
 # Execute installation steps  install_checkmk_dependencies    download_checkmk "$url"  install_checkmk_package "/tmp/check-mk-raw.deb"    create_checkmk_site  configure_checkmk_site  configure_apache  apply_performance_tuning  configure_checkmk_firewall    start_checkmk_site    
 # Optional: install local agent  if [[ "${INSTALL_LOCAL_AGENT:-yes}" == "yes" ]]; then    install_local_agent  fi    create_backup_script    log_module_end "$MODULE_NAME" "success"    display_installation_summary}
 # Run main functionmain "$@"
+
+__CORRUPTED_TAIL__

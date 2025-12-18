@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_843a4a7315404c028e87725075ffab79'
 #!/bin/bash
 /usr/bin/env bashset -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"cd "$SCRIPT_DIR"
@@ -11,3 +19,6 @@ do."
     exit 1fiexport TIMEZONE SSH_PORT PERMIT_ROOT_LOGIN CLIENT_ALIVE_INTERVAL CLIENT_ALIVE_COUNTMAX LOGIN_GRACE_TIME ROOT_PASSWORD OPEN_HTTP_HTTPS LETSENCRYPT_EMAIL LETSENCRYPT_DOMAINS WEBSERVER NTP_SERVERS CHECKMK_ADMIN_PASSWORD CHECKMK_DEB_URLrun(){ 
 echo -e "\n===== ESECUZIONE: $1 ====="; bash "$SCRIPT_DIR/scripts/$1"; }run 10-ssh.shrun 15-ntp.shrun 20-packages.shrun 25-postfix.shrun 30-firewall.shrun 40-fail2ban.shrun 50-certbot.shrun 60-checkmk.shrun 80-timeshift.sh
 echo -e "\n├ó┼ôÔÇª Bootstrap completato."
+
+CORRUPTED_843a4a7315404c028e87725075ffab79
+

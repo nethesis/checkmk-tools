@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_11c31165644947cd9d82191de0db3458'
 #!/bin/bash
 /usr/bin/env bash
 # cleanup-full.sh - Complete cleanup of CheckMK installation
@@ -152,3 +160,6 @@ echo "  cd ~/checkmk-tools/Install/checkmk-installer"
 echo "  su
 do bash install.sh"
 echo ""
+
+CORRUPTED_11c31165644947cd9d82191de0db3458
+

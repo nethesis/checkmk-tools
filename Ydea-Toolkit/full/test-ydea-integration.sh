@@ -1,3 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CHECKMK_SITE="${CHECKMK_SITE:-monitoring}"
+NOTIFY_SCRIPT="/omd/sites/${CHECKMK_SITE}/local/share/check_mk/notifications/ydea_realip"
+YDEA_TOOLKIT_DIR="${YDEA_TOOLKIT_DIR:-/opt/ydea-toolkit}"
+YDEA_TOOLKIT="${YDEA_TOOLKIT_DIR%/}/ydea-toolkit.sh"
+HEALTH_SCRIPT="${YDEA_TOOLKIT_DIR%/}/ydea-health-monitor.sh"
+ENV_FILE="${YDEA_TOOLKIT_DIR%/}/.env"
+
+PASS=0
+FAIL=0
+
+ok() { PASS=$((PASS+1)); printf 'PASS: %s\n' "$*"; }
+bad() { FAIL=$((FAIL+1)); printf 'FAIL: %s\n' "$*" >&2; }
+warn() { printf 'WARN: %s\n' "$*" >&2; }
+
+check_file() {
+    local path="$1"
+    local desc="$2"
+    if [[ -f "$path" ]]; then ok "$desc: $path"; else bad "$desc missing: $path"; fi
+}
+
+check_exec() {
+    local path="$1"
+    local desc="$2"
+    if [[ -x "$path" ]]; then ok "$desc is executable"; else warn "$desc not executable: $path"; fi
+}
+
+check_file "$NOTIFY_SCRIPT" "CheckMK notification script"
+check_file "$YDEA_TOOLKIT" "Ydea toolkit"
+check_file "$HEALTH_SCRIPT" "Health monitor"
+
+check_exec "$NOTIFY_SCRIPT" "ydea_realip"
+check_exec "$YDEA_TOOLKIT" "ydea-toolkit.sh"
+check_exec "$HEALTH_SCRIPT" "ydea-health-monitor.sh"
+
+if [[ -f "$ENV_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+    if [[ -n "${YDEA_ID:-}" && "${YDEA_ID}" != "ID" ]]; then ok "YDEA_ID configured"; else bad "YDEA_ID not configured"; fi
+    if [[ -n "${YDEA_API_KEY:-}" && "${YDEA_API_KEY}" != "TOKEN" ]]; then ok "YDEA_API_KEY configured"; else bad "YDEA_API_KEY not configured"; fi
+else
+    warn ".env not found: $ENV_FILE"
+fi
+
+for cmd in jq curl bash; do
+    if command -v "$cmd" >/dev/null 2>&1; then ok "Dependency present: $cmd"; else bad "Dependency missing: $cmd"; fi
+done
+
+if [[ "${RUN_API_TESTS:-0}" == "1" ]]; then
+    if [[ -f "$ENV_FILE" && -f "$YDEA_TOOLKIT" ]]; then
+        # shellcheck disable=SC1090
+        source "$YDEA_TOOLKIT"
+        if ensure_token >/dev/null 2>&1; then
+            ok "Login/ensure_token succeeded"
+            if ydea_api GET "/tickets?limit=1" >/dev/null 2>&1; then
+                ok "API probe succeeded"
+            else
+                bad "API probe failed"
+            fi
+        else
+            bad "Login/ensure_token failed"
+        fi
+    else
+        warn "Skipping API tests (missing toolkit or env)"
+    fi
+else
+    warn "API tests skipped. Set RUN_API_TESTS=1 to enable."
+fi
+
+printf '\nSummary: PASS=%s FAIL=%s\n' "$PASS" "$FAIL"
+exit "$FAIL"
+
+: <<'CORRUPTED_446d5596d703418ab873e4070f084ffe'
 #!/bin/bash
 /usr/bin/env bash
 # test-ydea-integration.sh - Script di test completo integrazione CheckMK ÔåÆ Ydea
@@ -164,3 +239,6 @@ echo "=== CRON JOB ==="  crontab -l 2>/dev/null | grep ydea ||
 echo "Nessun cron job trovato"} > "$REPORT_FILE"
 echo "­ƒôä Report completo salvato in: $REPORT_FILE"
 echo ""exit $TESTS_FAILED
+
+CORRUPTED_446d5596d703418ab873e4070f084ffe
+

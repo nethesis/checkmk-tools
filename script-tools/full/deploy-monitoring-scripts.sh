@@ -1,6 +1,218 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ==========================================================
-#  Deploy Monitoring Scripts - Selezione Interattiva
+# deploy-monitoring-scripts.sh (fixed)
+# Deploy interattivo di script r*.sh nella directory Checkmk agent local
+# ==========================================================
+
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+TARGET_DIR="/usr/lib/check_mk_agent/local"
+
+print_header() {
+    echo
+    echo -e "${CYAN}========================================${NC}"
+    echo -e "${CYAN}  $1${NC}"
+    echo -e "${CYAN}========================================${NC}"
+    echo
+}
+
+print_info() { echo -e "${BLUE}INFO: $1${NC}"; }
+print_success() { echo -e "${GREEN}OK: $1${NC}"; }
+print_warning() { echo -e "${YELLOW}WARN: $1${NC}"; }
+print_error() { echo -e "${RED}ERR: $1${NC}"; }
+
+require_root() {
+    if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+        print_error "Questo script deve essere eseguito come root"
+        exit 1
+    fi
+}
+
+detect_system() {
+    if [[ -f /etc/nethserver-release ]]; then
+        echo "ns7"; return
+    fi
+    if [[ -f /etc/os-release ]]; then
+        if grep -qE '^ID="?nethserver"?$' /etc/os-release; then
+            if grep -qE '^VERSION_ID="?7"?$' /etc/os-release; then echo "ns7"; return; fi
+            if grep -qE '^VERSION_ID="?8"?$' /etc/os-release; then echo "ns8"; return; fi
+        fi
+        if grep -qiE 'NethServer 8|ns8' /etc/os-release; then
+            echo "ns8"; return
+        fi
+        if grep -qiE 'Ubuntu|Debian' /etc/os-release; then
+            echo "ubuntu"; return
+        fi
+    fi
+    if [[ -f /etc/pve/version ]]; then
+        echo "proxmox"; return
+    fi
+    echo "generic"
+}
+
+find_repository() {
+    local candidates=(
+        "/opt/checkmk-tools"
+        "/root/checkmk-tools"
+        "$HOME/checkmk-tools"
+    )
+    for d in "${candidates[@]}"; do
+        if [[ -d "$d/.git" ]]; then
+            echo "$d"
+            return
+        fi
+    done
+    echo ""
+}
+
+get_category_dir() {
+    local system_type="$1"
+    local repo_dir="$2"
+    case "$system_type" in
+        ns7) echo "$repo_dir/script-check-ns7/remote" ;;
+        ns8) echo "$repo_dir/script-check-ns8/remote" ;;
+        proxmox) echo "$repo_dir/script-check-proxmox/remote" ;;
+        ubuntu|generic) echo "$repo_dir/script-check-ubuntu/remote" ;;
+        *) echo "" ;;
+    esac
+}
+
+show_menu_and_get_selection() {
+    local category_dir="$1"
+    mapfile -t scripts < <(find "$category_dir" -type f -name 'r*.sh' 2>/dev/null | sort)
+    if (( ${#scripts[@]} == 0 )); then
+        print_error "Nessun file r*.sh trovato in: $category_dir"
+        return 1
+    fi
+
+    echo -e "${CYAN}Script disponibili:${NC}"
+    for i in "${!scripts[@]}"; do
+        printf "  %3d) %s\n" $((i+1)) "$(basename "${scripts[$i]}")"
+    done
+    echo
+    echo "Inserisci:"
+    echo "  - Numeri separati da spazi (es: 1 3 5)"
+    echo "  - 'a' per tutti"
+    echo "  - 'n' per nessuno"
+    echo
+
+    read -r -p "Selezione: " selection
+    selection=${selection:-n}
+
+    if [[ "$selection" =~ ^[Aa]$ ]]; then
+        printf '%s\n' "${scripts[@]}"
+        return 0
+    fi
+    if [[ "$selection" =~ ^[Nn]$ ]]; then
+        return 0
+    fi
+
+    local selected=()
+    for num in $selection; do
+        if [[ "$num" =~ ^[0-9]+$ ]] && (( num >= 1 && num <= ${#scripts[@]} )); then
+            selected+=( "${scripts[$((num-1))]}" )
+        else
+            print_warning "Numero non valido: $num (1-${#scripts[@]})"
+        fi
+    done
+
+    if (( ${#selected[@]} == 0 )); then
+        return 0
+    fi
+    printf '%s\n' "${selected[@]}"
+}
+
+deploy_scripts() {
+    local scripts=("$@")
+
+    if [[ ! -d "$TARGET_DIR" ]]; then
+        print_warning "Directory $TARGET_DIR non trovata, creazione..."
+        mkdir -p "$TARGET_DIR"
+    fi
+
+    local deployed=0
+    local failed=0
+    for script in "${scripts[@]}"; do
+        local script_name
+        script_name="$(basename "$script")"
+        local target_path="$TARGET_DIR/$script_name"
+        if cp "$script" "$target_path" 2>/dev/null; then
+            chmod +x "$target_path"
+            print_success "Installato: $script_name"
+            deployed=$((deployed+1))
+        else
+            print_error "Errore installando: $script_name"
+            failed=$((failed+1))
+        fi
+    done
+
+    echo
+    print_info "Deployment completato: installati=$deployed, falliti=$failed"
+}
+
+main() {
+    print_header "Deploy Monitoring Scripts"
+    require_root
+
+    local repo_dir
+    repo_dir="$(find_repository)"
+    if [[ -z "$repo_dir" ]]; then
+        print_error "Repository checkmk-tools non trovato"
+        print_info "Posizioni cercate: /opt/checkmk-tools, /root/checkmk-tools, $HOME/checkmk-tools"
+        exit 1
+    fi
+    print_success "Repository trovato: $repo_dir"
+
+    local system_type
+    system_type="$(detect_system)"
+    print_info "Sistema rilevato: $system_type"
+
+    local category_dir
+    category_dir="$(get_category_dir "$system_type" "$repo_dir")"
+    if [[ -z "$category_dir" || ! -d "$category_dir" ]]; then
+        print_error "Directory script non trovata: $category_dir"
+        exit 1
+    fi
+    print_info "Directory sorgente: $category_dir"
+    print_info "Directory destinazione: $TARGET_DIR"
+    echo
+
+    local tmp
+    tmp="$(mktemp)"
+    if ! show_menu_and_get_selection "$category_dir" > "$tmp"; then
+        rm -f "$tmp"
+        exit 1
+    fi
+    mapfile -t selected_scripts < <(grep -v '^\s*$' "$tmp" || true)
+    rm -f "$tmp"
+
+    if (( ${#selected_scripts[@]} == 0 )); then
+        print_info "Nessuno script selezionato"
+        exit 0
+    fi
+
+    echo
+    read -r -p "Procedere con l'installazione degli script selezionati? [S/n]: " confirm
+    confirm=${confirm:-S}
+    if [[ "$confirm" =~ ^[Nn]$ ]]; then
+        print_info "Operazione annullata"
+        exit 0
+    fi
+
+    deploy_scripts "${selected_scripts[@]}"
+    print_success "Operazione completata!"
+}
+
+main "$@"
+
+: <<'__CORRUPTED_ORIGINAL_CONTENT__'
 #  Rileva il sistema operativo e propone gli script
 #  disponibili per il deployment
 #  Autore: ChatGPT per Marzio Bordin
@@ -17,17 +229,31 @@ REPO_DIR=""
 TARGET_DIR="/usr/lib/check_mk_agent/local"
 SCRIPT_CATEGORIES=()
 # ==========================================================
-# Funzioni di utilit├á
-# ==========================================================print_header() {    
-echo ""    
-echo -e "${CYAN}========================================${NC}"    
-echo -e "${CYAN}  $1${NC}"    
-echo -e "${CYAN}========================================${NC}"    
-echo ""}print_info() {    
-echo -e "${BLUE}Ôä╣´©Å  $1${NC}"}print_success() {    
-echo -e "${GREEN}Ô£à $1${NC}"}print_warning() {    
-echo -e "${YELLOW}ÔÜá´©Å  $1${NC}"}print_error() {    
-echo -e "${RED}ÔØî $1${NC}"}
+# Funzioni di utilità
+# ==========================================================
+print_header() {
+	echo ""
+	echo -e "${CYAN}========================================${NC}"
+	echo -e "${CYAN}  $1${NC}"
+	echo -e "${CYAN}========================================${NC}"
+	echo ""
+}
+
+print_info() {
+	echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+print_success() {
+	echo -e "${GREEN}✓ $1${NC}"
+}
+
+print_warning() {
+	echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+	echo -e "${RED}✖ $1${NC}"
+}
 # ==========================================================
 # Funzioni di rilevamento sistema
 # ==========================================================detect_system() {    local os_type=""        
@@ -155,3 +381,5 @@ echo ""    exec < /dev/tty    read -r -p "Procedere con l'installazione degli sc
     exit 0    fi        
 # Deploy    deploy_scripts "${SELECTED_SCRIPTS[@]}"        print_success "Operazione completata!"    print_info "Gli script sono stati installati in: $TARGET_DIR"}
 # Esegui mainmain "$@"
+
+__CORRUPTED_ORIGINAL_CONTENT__

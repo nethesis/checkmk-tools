@@ -1,3 +1,262 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+deploy_local_checks() {
+	local src_root="${INSTALLER_ROOT}/scripts"
+	local dst_root="/usr/lib/check_mk_agent/local"
+
+	if [[ ! -d "$src_root" ]]; then
+		print_warning "Scripts source directory not found: $src_root"
+		return 0
+	fi
+
+	mkdir -p "$dst_root"
+
+	local count=0
+	while IFS= read -r -d '' f; do
+		cp -f "$f" "$dst_root/"
+		chmod +x "$dst_root/$(basename "$f")" || true
+		count=$((count + 1))
+	done < <(find "$src_root" -type f -path "*/script-check-*/full/*.sh" -print0 2>/dev/null || true)
+
+	print_info "Deployed $count local check scripts to $dst_root"
+}
+
+deploy_notifications() {
+	local src_root="${INSTALLER_ROOT}/scripts"
+	local dst_root="/usr/share/check_mk/notifications"
+
+	if [[ ! -d "$src_root" ]]; then
+		return 0
+	fi
+
+	if [[ ! -d "$dst_root" ]]; then
+		return 0
+	fi
+
+	local count=0
+	while IFS= read -r -d '' f; do
+		cp -f "$f" "$dst_root/"
+		chmod +x "$dst_root/$(basename "$f")" || true
+		count=$((count + 1))
+	done < <(find "$src_root" -type f -path "*/script-notify-checkmk/full/*.sh" -print0 2>/dev/null || true)
+
+	print_info "Deployed $count notification scripts to $dst_root"
+}
+
+main() {
+	require_root
+	print_header "Scripts Deployment"
+	deploy_local_checks
+	deploy_notifications
+	print_success "Scripts deployment completed"
+}
+
+main "$@"
+
+exit 0
+: <<'__CORRUPTED_TAIL__'
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+deploy_local_checks() {
+	local src_root="${INSTALLER_ROOT}/scripts"
+	local dst_root="/usr/lib/check_mk_agent/local"
+
+	if [[ ! -d "$src_root" ]]; then
+		print_warning "Scripts source directory not found: $src_root"
+		return 0
+	fi
+
+	mkdir -p "$dst_root"
+
+	local count=0
+	while IFS= read -r -d '' f; do
+		cp -f "$f" "$dst_root/"
+		chmod +x "$dst_root/$(basename "$f")" || true
+		count=$((count + 1))
+	done < <(find "$src_root" -type f -path "*/script-check-*/full/*.sh" -print0 2>/dev/null || true)
+
+	print_info "Deployed $count local check scripts to $dst_root"
+}
+
+deploy_notifications() {
+	local src_root="${INSTALLER_ROOT}/scripts"
+	local dst_root="/usr/share/check_mk/notifications"
+
+	if [[ ! -d "$src_root" ]]; then
+		return 0
+	fi
+
+	if [[ ! -d "$dst_root" ]]; then
+		return 0
+	fi
+
+	local count=0
+	while IFS= read -r -d '' f; do
+		cp -f "$f" "$dst_root/"
+		chmod +x "$dst_root/$(basename "$f")" || true
+		count=$((count + 1))
+	done < <(find "$src_root" -type f -path "*/script-notify-checkmk/full/*.sh" -print0 2>/dev/null || true)
+
+	print_info "Deployed $count notification scripts to $dst_root"
+}
+
+main() {
+	require_root
+	print_header "Scripts Deployment"
+	deploy_local_checks
+	deploy_notifications
+	print_success "Scripts deployment completed"
+}
+
+main "$@"
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODULE_NAME="Monitoring Scripts Deployment"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# shellcheck source=../utils/colors.sh
+source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck source=../utils/logger.sh
+source "${INSTALLER_ROOT}/utils/logger.sh"
+# shellcheck source=../utils/menu.sh
+source "${INSTALLER_ROOT}/utils/menu.sh"
+
+if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+	set -a
+	# shellcheck disable=SC1091
+	source "${INSTALLER_ROOT}/.env"
+	set +a
+fi
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		log_error "This module must be run as root"
+		exit 1
+	fi
+}
+
+detect_scripts_source() {
+	# Prefer ISO/USB mount points, then embedded installer scripts, then repository layout
+	if [[ -d "/cdrom/script-notify-checkmk" ]]; then
+		echo "/cdrom"
+		return 0
+	fi
+	if [[ -d "${INSTALLER_ROOT}/scripts/script-notify-checkmk" ]]; then
+		echo "${INSTALLER_ROOT}/scripts"
+		return 0
+	fi
+	if [[ -d "/mnt/usbdisk/script-notify-checkmk" ]]; then
+		echo "/mnt/usbdisk"
+		return 0
+	fi
+	if [[ -d "${INSTALLER_ROOT}/../../script-notify-checkmk" ]]; then
+		( cd "${INSTALLER_ROOT}/../.." && pwd )
+		return 0
+	fi
+	local parent_dir
+	parent_dir="$(dirname "$INSTALLER_ROOT")"
+	if [[ -d "$parent_dir/script-notify-checkmk" ]]; then
+		echo "$parent_dir"
+		return 0
+	fi
+	echo "$INSTALLER_ROOT"
+}
+
+deploy_local_checks() {
+	local scripts_src="$1"
+	local local_dir="/usr/lib/check_mk_agent/local"
+	local plugins_dir="/usr/lib/check_mk_agent/plugins"
+
+	mkdir -p "$local_dir" "$plugins_dir"
+
+	log_info "Deploying local checks to $local_dir"
+	local found=0
+	local dir
+	for dir in "$scripts_src"/script-check-*/full "$scripts_src"/script-check-*/polling "$scripts_src"/script-check-*/nopolling; do
+		[[ -d "$dir" ]] || continue
+		local f
+		for f in "$dir"/*.sh; do
+			[[ -f "$f" ]] || continue
+			cp -a "$f" "$local_dir/"
+			chmod +x "$local_dir/$(basename "$f")"
+			found=1
+		done
+	done
+
+	if [[ $found -eq 0 ]]; then
+		log_warning "No local checks found under $scripts_src/script-check-*"
+	else
+		log_success "Local checks deployed"
+	fi
+}
+
+deploy_notifications() {
+	local scripts_src="$1"
+	local site="${CHECKMK_SITE_NAME:-monitoring}"
+	local notify_src="$scripts_src/script-notify-checkmk/full"
+	local notify_dest="/opt/omd/sites/${site}/local/share/check_mk/notifications"
+
+	if [[ ! -d "$notify_src" ]]; then
+		log_warning "Notification scripts not found: $notify_src"
+		return 0
+	fi
+
+	if [[ ! -d "/opt/omd/sites/${site}" ]]; then
+		log_info "CheckMK site not found at /opt/omd/sites/${site}; skipping notification deployment"
+		return 0
+	fi
+
+	log_info "Deploying notification scripts to $notify_dest"
+	mkdir -p "$notify_dest"
+	cp -a "$notify_src"/*.sh "$notify_dest/" 2>/dev/null || true
+	chmod +x "$notify_dest"/*.sh 2>/dev/null || true
+	log_success "Notification scripts deployed"
+}
+
+main() {
+	require_root
+	log_module_start "$MODULE_NAME"
+
+	local scripts_src
+	scripts_src=$(detect_scripts_source)
+	log_info "Script source: $scripts_src"
+
+	deploy_local_checks "$scripts_src"
+	deploy_notifications "$scripts_src"
+
+	log_module_end "$MODULE_NAME" "success"
+}
+
+main "$@"
 #!/bin/bash
 /usr/bin/env bash
 # 04-scripts-deploy.sh - Deploy monitoring scripts
@@ -1193,3 +1452,5 @@ echo ""  print_separator "="}
 # Install additional components  install_remote_launchers  create_update_script  create_script_inventory    
 # Configure CheckMK if available  configure_checkmk_notifications    log_module_end "$MODULE_NAME" "success"    display_deployment_summary}
 # Run main functionmain "$@"
+
+__CORRUPTED_TAIL__

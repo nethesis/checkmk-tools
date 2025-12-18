@@ -1,4 +1,23 @@
-#!/usr/bin/env bash# ydea_realip - CheckMK notification script per Ydea ticketing# Gestisce creazione automatica ticket e aggiornamenti con note privateset -euo pipefail# ===== CONFIG =====
+#!/usr/bin/env bash
+# ydea_la - launcher (installer bundle)
+# Downloads and runs the maintained Ydea notification script from GitHub.
+
+set -euo pipefail
+
+SCRIPT_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-notify-checkmk/full/ydea_la"
+
+if command -v curl >/dev/null 2>&1; then
+	exec bash <(curl -fsSL "$SCRIPT_URL") "$@"
+fi
+
+if command -v wget >/dev/null 2>&1; then
+	exec bash <(wget -qO- "$SCRIPT_URL") "$@"
+fi
+
+echo "ERROR: curl or wget is required to download: $SCRIPT_URL" >&2
+exit 2
+
+: <<'__CORRUPTED_ORIGINAL_CONTENT__'
 YDEA_TOOLKIT_DIR="/opt/ydea-toolkit"YDEA_TOOLKIT="${
 YDEA_TOOLKIT_DIR}/ydea-toolkit.sh"YDEA_ENV="${
 YDEA_TOOLKIT_DIR}/.env"TICKET_CACHE="/tmp/ydea_checkmk_tickets.json"FLAPPING_CACHE="/tmp/ydea_checkmk_flapping.json"CACHE_LOCK="/tmp/ydea_cache.lock"  # Usa /tmp invece di /var/lock per 
@@ -338,3 +357,5 @@ NOTIFY_OMD_SITE:-monitoring}"            TICKET_ID=$(create_ydea_ticket "$TITLE"
 then
 log "✅ Ticket creato: #$TICKET_ID per $TICKET_KEY"        save_ticket_cache "$TICKET_KEY" "$TICKET_ID" "$STATE"      fi
 fi  fi}# Esegui mainmainexit 0
+
+__CORRUPTED_ORIGINAL_CONTENT__

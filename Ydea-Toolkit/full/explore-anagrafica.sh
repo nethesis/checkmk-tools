@@ -1,3 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1090
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+need jq
+
+anagrafica_id="${1:-2339268}"
+out_dir="${YDEA_OUT_DIR:-/tmp}"
+
+log_info "Exploring anagrafica id=$anagrafica_id"
+
+endpoints=(
+    "/anagrafica/${anagrafica_id}"
+    "/anagrafiche/${anagrafica_id}"
+    "/clienti/${anagrafica_id}"
+    "/cliente/${anagrafica_id}"
+    "/aziende/${anagrafica_id}"
+    "/azienda/${anagrafica_id}"
+    "/anagrafiche?id=${anagrafica_id}"
+    "/sla?anagrafica_id=${anagrafica_id}"
+    "/contracts?anagrafica_id=${anagrafica_id}"
+    "/contratti?anagrafica_id=${anagrafica_id}"
+)
+
+found=0
+for ep in "${endpoints[@]}"; do
+    log_info "GET $ep"
+    if resp="$(ydea_api GET "$ep" 2>/dev/null)"; then
+        printf '%s\n' "$resp" | jq . || printf '%s\n' "$resp"
+        file="$out_dir/ydea-anagrafica-${anagrafica_id}-$(printf '%s' "$ep" | tr '/?=&' '____').json"
+        printf '%s\n' "$resp" >"$file"
+        log_info "Saved: $file"
+        found=$((found + 1))
+    else
+        log_warn "Endpoint failed: $ep"
+    fi
+done
+
+log_info "Successful endpoints: $found/${#endpoints[@]}"
+
+log_info "Searching tickets for anagrafica_id=$anagrafica_id (limit=50)"
+tickets="$(ydea_api GET "/tickets?limit=50" 2>/dev/null || echo '{"objs":[]}')"
+matching="$(printf '%s' "$tickets" | jq --arg aid "$anagrafica_id" '[.objs[]? | select(.anagrafica_id == ($aid|tonumber))]')"
+count="$(printf '%s' "$matching" | jq -r 'length')"
+log_info "Found $count tickets"
+if [[ "$count" != "0" ]]; then
+    log_info "First ticket sample:"
+    printf '%s\n' "$matching" | jq '.[0]'
+    log_info "Available keys across matching tickets:"
+    printf '%s\n' "$matching" | jq '[.[].keys[]] | unique | sort[]'
+fi
+
+exit 0
+
+: <<'CORRUPTED_550a91e664c448978b1c63856150c1e7'
 #!/bin/bash
 /usr/bin/env bash
 # explore-anagrafica.sh - Esplora i dati dell'anagrafica per trovare la SLAset -euo pipefail
@@ -70,3 +128,6 @@ echo "Valori customAttributes nei ticket di questa anagrafica:"
 echo "$MATCHING_TICKETS" | jq '[.[].customAttributes // {}] | unique'fi
 echo ""
 echo "Ô£à Esplorazione completata!"
+
+CORRUPTED_550a91e664c448978b1c63856150c1e7
+

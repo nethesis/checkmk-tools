@@ -1,3 +1,127 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TOOLKIT_DIR="${YDEA_TOOLKIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+YDEA_TOOLKIT="${TOOLKIT_DIR%/}/ydea-toolkit.sh"
+YDEA_ENV="${TOOLKIT_DIR%/}/.env"
+
+STATE_FILE="${YDEA_HEALTH_STATE_FILE:-/tmp/ydea_health_state.json}"
+MAIL_SCRIPT="${YDEA_MAIL_SCRIPT:-/omd/sites/monitoring/local/share/check_mk/notifications/mail_ydea_down}"
+
+ALERT_EMAIL="${YDEA_ALERT_EMAIL:-}"
+FAILURE_THRESHOLD="${YDEA_FAILURE_THRESHOLD:-3}"
+
+log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >&2; }
+
+init_state() {
+    if [[ ! -f "$STATE_FILE" ]]; then
+        printf '{"status":"unknown","last_check":0,"consecutive_failures":0,"last_failure":0,"notified":false}\n' >"$STATE_FILE"
+    fi
+}
+
+get_state() {
+    local field="$1"
+    jq -r ".${field} // empty" "$STATE_FILE" 2>/dev/null || true
+}
+
+update_state() {
+    local status="$1"
+    local consecutive_failures="$2"
+    local notified="$3"
+    local now
+    now="$(date -u +%s)"
+    jq -n \
+        --arg status "$status" \
+        --argjson now "$now" \
+        --argjson failures "$consecutive_failures" \
+        --argjson notified "$notified" \
+        --argjson last_failure "$( [[ "$status" == "down" ]] && echo "$now" || echo "$(get_state last_failure | sed 's/[^0-9]//g' || echo 0)" )" \
+        '{status:$status,last_check:$now,consecutive_failures:$failures,last_failure:$last_failure,notified:$notified}' \
+        >"$STATE_FILE"
+}
+
+send_email_alert() {
+    local subject="$1"
+    local body="$2"
+
+    if [[ -z "$ALERT_EMAIL" ]]; then
+        log "No ALERT_EMAIL configured; skipping email"
+        return 0
+    fi
+
+    if [[ -x "$MAIL_SCRIPT" ]]; then
+        export NOTIFY_HOSTNAME="ydea.cloud"
+        export NOTIFY_HOSTADDRESS="my.ydea.cloud"
+        export NOTIFY_WHAT="HOST"
+        export NOTIFY_HOSTSTATE="DOWN"
+        export NOTIFY_HOSTOUTPUT="$subject"
+        export NOTIFY_CONTACTEMAIL="$ALERT_EMAIL"
+        export NOTIFY_DATE="$(date '+%Y-%m-%d')"
+        export NOTIFY_SHORTDATETIME="$(date '+%Y-%m-%d %H:%M:%S')"
+        "$MAIL_SCRIPT" >/dev/null 2>&1 || true
+        return 0
+    fi
+
+    if command -v mail >/dev/null 2>&1; then
+        printf '%s\n' "$body" | mail -s "$subject" "$ALERT_EMAIL"
+        return 0
+    fi
+
+    log "No mail sender available; skipping email"
+    return 0
+}
+
+test_ydea() {
+    if [[ -f "$YDEA_ENV" ]]; then
+        # shellcheck disable=SC1090
+        source "$YDEA_ENV"
+    fi
+    if [[ ! -f "$YDEA_TOOLKIT" ]]; then
+        log "ERROR: ydea-toolkit.sh not found: $YDEA_TOOLKIT"
+        return 1
+    fi
+    # shellcheck disable=SC1090
+    source "$YDEA_TOOLKIT"
+    need jq
+    need curl
+    ensure_token >/dev/null 2>&1
+    ydea_api GET "/tickets?limit=1" >/dev/null 2>&1
+}
+
+main() {
+    init_state
+    local current_status failures notified
+    current_status="$(get_state status)"
+    failures="$(get_state consecutive_failures)"
+    notified="$(get_state notified)"
+    failures="${failures:-0}"
+    notified="${notified:-false}"
+
+    log "Checking Ydea API health..."
+
+    if test_ydea; then
+        log "OK: Ydea reachable"
+        if [[ "$current_status" == "down" && "$notified" == "true" ]]; then
+            send_email_alert "[RECOVERY] Ydea API reachable" "Ydea API is reachable again at $(date '+%Y-%m-%d %H:%M:%S')"
+        fi
+        update_state "up" 0 false
+        exit 0
+    fi
+
+    failures=$((failures + 1))
+    log "DOWN: Ydea not reachable (failures: $failures/$FAILURE_THRESHOLD)"
+
+    if [[ "$failures" -ge "$FAILURE_THRESHOLD" && "$notified" != "true" ]]; then
+        send_email_alert "[ALERT] Ydea API down" "Ydea API is not reachable at $(date '+%Y-%m-%d %H:%M:%S')."
+        update_state "down" "$failures" true
+    else
+        update_state "down" "$failures" "$notified"
+    fi
+}
+
+main
+
+: <<'CORRUPTED_ccdd988fe90e43748340dba4479a951c'
 #!/bin/bash
 /usr/bin/env bash
 # ydea-health-monitor.sh - Monitoraggio disponibilit├á Ydea API
@@ -55,3 +179,6 @@ else        log_error "Errore invio notifica"        update_state "down" "$conse
 else      
 # Aggiorna solo il contatore      update_state "down" "$consecutive_failures" "$was_notified"    fi  fi}
 # Esegui mainmainexit 0
+
+CORRUPTED_ccdd988fe90e43748340dba4479a951c
+

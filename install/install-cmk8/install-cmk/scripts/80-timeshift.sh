@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_dfbd18dffa7744d594f8793599a2729e'
 #!/bin/bash
 /usr/bin/env bashset -euo pipefail
 echo -e "\n===== INSTALLAZIONE E CONFIGURAZIONE TIMESHiFT ====="
@@ -30,3 +38,6 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 VERSION=$(timeshift --version 2>/dev/null || 
 echo "sconosciuta")
 echo "[OK] Installazione e configurazione Timeshift completata (versione: $VERSION)." | tee -a "$LOG_FILE"
+
+CORRUPTED_dfbd18dffa7744d594f8793599a2729e
+

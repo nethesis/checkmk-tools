@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_b46bb71456f74cabb4dc751845d7b256'
 #!/bin/bash
 /usr/bin/env bash
 # make-bootstrap-iso.sh - Create minimal bootstrap ISO for CheckMK installer
@@ -794,3 +802,6 @@ echo "ÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔ
 echo -e "${NC}"  
 echo ""    check_dependencies  create_iso_structure  build_iso  show_summary    log_success "Bootstrap ISO build completed!"}
 # Run mainmain "$@"
+
+CORRUPTED_b46bb71456f74cabb4dc751845d7b256
+

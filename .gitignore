@@ -1,5 +1,12 @@
 *.iso
 
+# Generated backups / quarantine artifacts
+*.bak.*
+*.corrupted.*
+
+# Generated bash -n reports
+bashn-*.txt
+
 .vagrant/
 *.vhdx
 *.vmcx

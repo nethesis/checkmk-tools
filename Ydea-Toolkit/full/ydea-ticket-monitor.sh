@@ -1,3 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TOOLKIT_DIR="${YDEA_TOOLKIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+YDEA_TOOLKIT="${TOOLKIT_DIR%/}/ydea-toolkit.sh"
+YDEA_ENV="${TOOLKIT_DIR%/}/.env"
+
+if [[ -f "$YDEA_ENV" ]]; then
+    # shellcheck disable=SC1090
+    source "$YDEA_ENV"
+fi
+
+if [[ ! -f "$YDEA_TOOLKIT" ]]; then
+    echo "ERROR: ydea-toolkit.sh not found: $YDEA_TOOLKIT" >&2
+    exit 1
+fi
+
+usage() {
+    cat >&2 <<USAGE
+Usage:
+    $0 run
+
+Notes:
+    This script relies on functions in ydea-toolkit.sh. If your restored
+    toolkit doesn't expose update/cleanup helpers, it will just print
+    the tracking file path and current tracked tickets.
+USAGE
+}
+
+cmd="${1:-run}"
+
+case "$cmd" in
+    run)
+        if declare -F init_tracking_file >/dev/null 2>&1; then
+            init_tracking_file
+        fi
+        if declare -F update_tracking >/dev/null 2>&1; then
+            update_tracking
+            exit 0
+        fi
+        if declare -F cleanup_tracking >/dev/null 2>&1; then
+            cleanup_tracking
+            exit 0
+        fi
+        # Fallback: show tracking content
+        tracking_file="${YDEA_TRACKING_FILE:-/var/log/ydea-tickets-tracking.json}"
+        echo "Tracking file: $tracking_file" >&2
+        if [[ -f "$tracking_file" ]]; then
+            if command -v jq >/dev/null 2>&1; then
+                jq -r '.tickets[]? | "\(.ticket_id) \(.codice) \(.host) \(.service)"' "$tracking_file" || true
+            else
+                cat "$tracking_file"
+            fi
+        else
+            echo "No tracking file present" >&2
+        fi
+        ;;
+    -h|--help|help)
+        usage
+        exit 0
+        ;;
+    *)
+        usage
+        exit 2
+        ;;
+esac
+
+exit 0
+
+: <<'CORRUPTED_5add3c91bb614d53906f92f28f7966b9'
 #!/bin/bash
 /usr/bin/env bash
 # ydea-ticket-monitor.sh - Monitoraggio automatico stato ticket tracciati
@@ -61,3 +131,6 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] ÔÅ¡´©Å  Cleanup non necessario (pross
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Ô£à Monitoraggio completato"  
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"}
 # Esegui mainmainexit 0
+
+CORRUPTED_5add3c91bb614d53906f92f28f7966b9
+

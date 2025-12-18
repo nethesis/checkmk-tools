@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "ERROR: this script was quarantined because it was syntactically broken." >&2
+echo "A copy of the previous content was saved next to this file." >&2
+exit 1
+
+: <<'CORRUPTED_ef000f62a548410885f346cb5c3f62d2'
 #!/bin/bash
 #
 # Script per diagnosticare la connessione FRP ÔåÆ CheckMK Agent
@@ -44,3 +52,6 @@ echo "     Get-Service frpc"
 echo "     netstat -ano | findstr 6556"
 echo ""
 echo "=== FINE DIAGNOSTICA ==="
+
+CORRUPTED_ef000f62a548410885f346cb5c3f62d2
+
