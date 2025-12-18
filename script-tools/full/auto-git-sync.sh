@@ -112,7 +112,12 @@ reset_to_remote_default() {
     # Aggressive cleanup (handles renames and deleted paths)
     (
         cd "$target_dir" 2>/dev/null || exit 1
-        git clean -fdx >/dev/null 2>&1 || true
+        # Preserve local configuration/state files that must survive sync.
+        # NOTE: `git clean -x` would delete even ignored files, so we explicitly exclude them.
+        git clean -fdx \
+            -e .env -e .env.* \
+            -e install/checkmk-installer/.env -e install/checkmk-installer/.env.* \
+            >/dev/null 2>&1 || true
     )
 
     # Keep scripts executable

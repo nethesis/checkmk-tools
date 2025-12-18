@@ -33,7 +33,22 @@ set -a
 source "$ENV_FILE" 2>/dev/null || true
 set +a
 
-tmp_file="${ENV_FILE}.tmp"
+tmp_file=""
+cleanup_tmp_file() {
+	[[ -n "${tmp_file:-}" && -f "${tmp_file}" ]] && rm -f "${tmp_file}" >/dev/null 2>&1 || true
+}
+trap cleanup_tmp_file EXIT
+
+# IMPORTANT: keep the temp file OUTSIDE the git repo.
+# auto-git-sync may run `git clean` while this wizard is open, which can delete untracked files.
+tmp_file="$(mktemp -p "${TMPDIR:-/tmp}" checkmk-installer-env.XXXXXX 2>/dev/null || true)"
+if [[ -z "$tmp_file" ]]; then
+	# Fallback (should be rare): still try in-place, but ensure the directory exists.
+	tmp_file="${ENV_FILE}.tmp"
+	mkdir -p "$(dirname "$tmp_file")" >/dev/null 2>&1 || true
+	: >"$tmp_file"
+fi
+
 cp "$ENV_FILE" "$tmp_file"
 
 set_env() {
@@ -193,7 +208,13 @@ else
 	set_env "YDEA_API_KEY" ""
 fi
 
-mv "$tmp_file" "$ENV_FILE"
+(
+	umask 077
+	cp "$tmp_file" "$ENV_FILE"
+) || {
+	print_error "Failed to write configuration to $ENV_FILE"
+	exit 1
+}
 chmod 600 "$ENV_FILE" 2>/dev/null || true
 print_success "Saved configuration to $ENV_FILE"
 exit 0
