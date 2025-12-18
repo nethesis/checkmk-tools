@@ -284,10 +284,20 @@ EOF
 				set_now="$(input_text "Vuoi impostare ora una password per cmkadmin? (y/N)" "N" "^(y|Y|n|N)$")"
 				if [[ "$set_now" =~ ^[yY]$ ]]; then
 					print_info "Impostazione password cmkadmin..."
-					if omd su "$site_name" -c "htpasswd -m etc/htpasswd cmkadmin"; then
-						print_success "Password cmkadmin aggiornata."
+					if omd su "$site_name" -c "command -v cmk-passwd >/dev/null 2>&1"; then
+						if omd su "$site_name" -c "cmk-passwd cmkadmin"; then
+							omd su "$site_name" -c "omd reload apache" >/dev/null 2>&1 || true
+							print_success "Password cmkadmin aggiornata."
+						else
+							print_warning "Impossibile aggiornare la password cmkadmin (cmk-passwd)."
+						fi
 					else
-						print_warning "Impossibile aggiornare la password cmkadmin (puoi riprovare manualmente)."
+						if omd su "$site_name" -c "htpasswd -m etc/htpasswd cmkadmin"; then
+							omd su "$site_name" -c "omd reload apache" >/dev/null 2>&1 || true
+							print_success "Password cmkadmin aggiornata."
+						else
+							print_warning "Impossibile aggiornare la password cmkadmin (htpasswd)."
+						fi
 					fi
 				fi
 				press_any_key "Premi un tasto per continuare..."
