@@ -77,7 +77,7 @@ reset_to_remote_default() {
     log INFO "Fetching updates"
     if ! (
         cd "$target_dir" 2>/dev/null || exit 1
-        timeout 120 git fetch --prune origin
+        timeout 120 git fetch origin
     ); then
         log ERROR "git fetch failed"
         return 1
@@ -86,10 +86,13 @@ reset_to_remote_default() {
     local remote_head local_branch
     remote_head="$(
         cd "$target_dir" 2>/dev/null || exit 1
-        git symbolic-ref -q --short refs/remotes/origin/HEAD || true
+        git symbolic-ref -q refs/remotes/origin/HEAD || true
     )"
     if [[ -z "$remote_head" ]]; then
         remote_head="origin/main"
+    else
+        # Convert refs/remotes/origin/main -> origin/main
+        remote_head="${remote_head#refs/remotes/}"
     fi
     local_branch="${remote_head#origin/}"
 

@@ -11,37 +11,146 @@ set -e
 # (e.g., repo being recloned while this installer runs).
 cd / 2>/dev/null || true
 
+detect_os() {
+    OS_ID="unknown"
+    OS_LIKE=""
+    OS_VERSION_ID=""
+    if [[ -r /etc/os-release ]]; then
+        # shellcheck disable=SC1091
+        . /etc/os-release
+        OS_ID="${ID:-unknown}"
+        OS_LIKE="${ID_LIKE:-}"
+        OS_VERSION_ID="${VERSION_ID:-}"
+    fi
+    export OS_ID OS_LIKE OS_VERSION_ID
+}
+
+pick_pkg_manager() {
+    PKG_MGR=""
+    if command -v apt-get >/dev/null 2>&1; then
+        PKG_MGR="apt"
+    elif command -v dnf >/dev/null 2>&1; then
+        PKG_MGR="dnf"
+    elif command -v yum >/dev/null 2>&1; then
+        PKG_MGR="yum"
+    fi
+    export PKG_MGR
+}
+
+pkg_update() {
+    case "${PKG_MGR:-}" in
+        apt) timeout 300 apt-get update -qq || true ;;
+        yum) timeout 300 yum -y makecache fast || timeout 300 yum -y makecache || true ;;
+        dnf) timeout 300 dnf -y makecache || true ;;
+        *) return 1 ;;
+    esac
+}
+
+pkg_install_git() {
+    case "${PKG_MGR:-}" in
+        apt)
+            pkg_update
+            timeout 300 apt-get install -y git
+            ;;
+        yum)
+            pkg_update
+            timeout 300 yum install -y git
+            ;;
+        dnf)
+            pkg_update
+            timeout 300 dnf install -y git
+            ;;
+        *)
+            echo "❌ Package manager non supportato. Installa git manualmente."
+            return 1
+            ;;
+    esac
+}
+
+pkg_upgrade_git() {
+    case "${PKG_MGR:-}" in
+        apt)
+            pkg_update
+            timeout 300 apt-get install -y git || true
+            ;;
+        yum)
+            pkg_update
+            # On CentOS/RHEL 7 this may still keep git 1.8.x unless extra repos are enabled.
+            timeout 300 yum -y update git || timeout 300 yum -y install git || true
+            ;;
+        dnf)
+            pkg_update
+            timeout 300 dnf -y upgrade git || timeout 300 dnf -y install git || true
+            ;;
+        *)
+            echo "⚠️  Package manager non supportato per upgrade automatico."
+            ;;
+    esac
+}
+
+detect_os
+pick_pkg_manager
+
+echo "ℹ️  OS rilevato: ${OS_ID}${OS_VERSION_ID:+ $OS_VERSION_ID}${OS_LIKE:+ (like: $OS_LIKE)}"
+if [[ -n "${PKG_MGR:-}" ]]; then
+    echo "ℹ️  Package manager: ${PKG_MGR}"
+fi
+
 # Funzione per installare git
 install_git() {
     echo "ℹ️  Git non trovato, installazione in corso..."
-    if command -v apt-get &> /dev/null; then
-        timeout 300 apt-get update -qq && timeout 300 apt-get install -y git || {
-            echo "❌ Timeout durante installazione git"
-    exit 1
-        }
-    elif command -v yum &> /dev/null; then
-        timeout 300 yum install -y git || {
-            echo "❌ Timeout durante installazione git"
-    exit 1
-        }
-    elif command -v dnf &> /dev/null; then
-        timeout 300 dnf install -y git || {
-            echo "❌ Timeout durante installazione git"
-    exit 1
-        }
-    else
-        echo "❌ Package manager non supportato. Installa git manualmente:"
-        echo "   - Debian/Ubuntu: apt-get install git"
-        echo "   - CentOS/RHEL: yum install git"
-    exit 1
+    if ! pkg_install_git; then
+        echo "❌ Errore durante installazione git"
+        exit 1
     fi
-echo "✅ Git installato"
+    echo "✅ Git installato"
 }
 
 # Verifica se git è installato
 if ! command -v git &> /dev/null; then
     install_git
 fi
+
+get_git_version() {
+    # Example: "git version 1.8.3.1" -> "1.8.3.1"
+    git --version 2>/dev/null | awk '{print $3}'
+}
+
+maybe_upgrade_git() {
+    local ver major minor
+    ver="$(get_git_version)"
+    if [[ -z "${ver:-}" ]]; then
+        return 0
+    fi
+    major="${ver%%.*}"
+    local rest
+    rest="${ver#*.}"
+    minor="${rest%%.*}"
+    major="${major:-0}"
+    minor="${minor:-0}"
+
+    # Git < 2.x is very old; offer an upgrade (best-effort).
+    if [[ "$major" =~ ^[0-9]+$ ]] && [[ "$major" -lt 2 ]]; then
+        echo "⚠️  Git rilevato: $ver (molto vecchio)"
+        echo "   Posso provare ad aggiornarlo (best-effort) tramite il package manager."
+        read -r -p "Vuoi provare ad aggiornare Git ora? [s/N]: " upgrade_choice
+        upgrade_choice="${upgrade_choice//$'\r'/}"
+        if [[ "$upgrade_choice" =~ ^[SsYy]$ ]]; then
+            echo "ℹ️  Tentativo aggiornamento Git..."
+			pkg_upgrade_git
+
+            local new_ver
+            new_ver="$(get_git_version)"
+            if [[ -n "${new_ver:-}" ]]; then
+                echo "ℹ️  Git versione attuale: $new_ver"
+            fi
+        else
+            echo "ℹ️  Upgrade Git saltato."
+        fi
+    fi
+}
+
+maybe_upgrade_git
 
 # Cerca il repository checkmk-tools
 # Priorità: /opt, poi /root, poi $HOME
