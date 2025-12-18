@@ -224,7 +224,7 @@ EOF
 	fi
 
 	if command -v omd >/dev/null 2>&1; then
-		local create_output="" site_created="no"
+		local create_output="" site_created="no" shown_pwd=""
 		if ! omd sites 2>/dev/null | awk '{print $1}' | grep -qx "$site_name"; then
 			print_info "Creating site: $site_name"
 			create_output="$(omd create "$site_name" 2>&1)" || {
@@ -252,14 +252,30 @@ EOF
 		print_info "Starting site: $site_name"
 		omd start "$site_name" || true
 
-		if [[ "$site_created" == "yes" ]]; then
-			local shown_pwd="" host url_http url_https url_alt
-			if [[ -n "$admin_pwd" ]]; then
-				shown_pwd="$admin_pwd"
+		# Determine which password to show.
+		if [[ -n "$admin_pwd" ]]; then
+			shown_pwd="$admin_pwd"
+		elif [[ -n "$create_output" ]]; then
+			shown_pwd="$(printf '%s\n' "$create_output" | sed -n -E 's/.*[Pp]assword[^:]*:[[:space:]]*([^[:space:]]+).*/\1/p' | head -n 1)"
+		fi
+
+		# If the site is new and we still couldn't capture the auto-generated password,
+		# generate one and set it non-interactively so we can show it to the user.
+		if [[ "$site_created" == "yes" && -z "$shown_pwd" ]]; then
+			local generated_pwd=""
+			generated_pwd="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24 || true)"
+			if [[ -z "$generated_pwd" ]]; then
+				generated_pwd="$(date +%s%N | sha256sum 2>/dev/null | awk '{print substr($1,1,24)}' || true)"
 			fi
-			if [[ -z "$shown_pwd" && -n "$create_output" ]]; then
-				shown_pwd="$(printf '%s\n' "$create_output" | sed -n -E 's/.*password:[[:space:]]*([^[:space:]]+).*/\1/p' | head -n 1)"
+			if [[ -n "$generated_pwd" ]] && printf '%s\n' "$generated_pwd" | omd su "$site_name" -c "htpasswd -i -m etc/htpasswd cmkadmin" >/dev/null 2>&1; then
+				shown_pwd="$generated_pwd"
+			else
+				print_warning "Password non catturata e fallback fallito: usa 'cmk-passwd cmkadmin'"
 			fi
+		fi
+
+		{
+			local host url_http url_https url_alt
 			host="$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")"
 			url_http="http://${host}/${site_name}/"
 			url_https="https://${host}/${site_name}/"
@@ -282,7 +298,7 @@ EOF
 			fi
 			echo ""
 			print_info "Cambio password (manuale): sudo su - ${site_name} -c \"cmk-passwd cmkadmin\""
-		fi
+		} || true
 	else
 		print_warning "omd not found; CheckMK installation may be incomplete"
 	fi
