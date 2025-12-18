@@ -47,6 +47,29 @@ stop_disable_unit() {
     fi
 }
 
+cleanup_site_user_group() {
+    local site_name="$1"
+    [[ -n "$site_name" ]] || return 0
+
+    # In Checkmk/OMD, the site name usually matches both the system user and group.
+    if command -v getent >/dev/null 2>&1; then
+        if getent passwd "$site_name" >/dev/null 2>&1; then
+            # -r removes the home directory; OK if it's already gone.
+            run_quiet userdel -r "$site_name"
+            # Fallback without -r (some distros/policies may block it)
+            run_quiet userdel "$site_name"
+        fi
+        if getent group "$site_name" >/dev/null 2>&1; then
+            run_quiet groupdel "$site_name"
+        fi
+    else
+        # Best-effort fallback
+        run_quiet userdel -r "$site_name"
+        run_quiet userdel "$site_name"
+        run_quiet groupdel "$site_name"
+    fi
+}
+
 cleanup_checkmk_site() {
     local site_name="$1"
 
@@ -121,7 +144,7 @@ cleanup_ufw_rules() {
     for p in "${ports[@]}"; do
         [[ -n "$p" ]] || continue
         run_quiet ufw --force delete allow "${p}/tcp"
-        done
+    done
 }
 
 main() {
@@ -153,6 +176,9 @@ main() {
 
     log "[3/8] Removing CheckMK packages"
     remove_checkmk_packages
+
+	log "[3.5/8] Removing CheckMK site user/group"
+	cleanup_site_user_group "$site_name"
 
     log "[4/8] Removing FRP files"
     run rm -f /etc/systemd/system/frps.service /etc/systemd/system/frpc.service
