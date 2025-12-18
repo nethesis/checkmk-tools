@@ -273,7 +273,7 @@ execute_script() {
     local selection=$1
     
     if [ "$selection" -eq 0 ]; then
-    echo -e "${GREEN}Arrivederci! 👋${NC}"
+    echo -e "${GREEN}Arrivederci!${NC}"
     exit 0
     fi
     
@@ -298,17 +298,31 @@ execute_script() {
     
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
     
-    # Esegui script remoto con su
-do usan
-do file temporaneo
+    # Esegui script remoto usando un file temporaneo
+    local TEMP_SCRIPT
     TEMP_SCRIPT=$(mktemp)
     curl -fsSL "$remote_url" -o "$TEMP_SCRIPT"
     
     if [ -n "$params" ]; then
-        su
-do bash "$TEMP_SCRIPT" $params
-else         su
-do bash "$TEMP_SCRIPT"
+        if [ "${EUID:-$(id -u)}" -eq 0 ]; then
+            bash "$TEMP_SCRIPT" $params
+        elif command -v sudo >/dev/null 2>&1; then
+            sudo bash "$TEMP_SCRIPT" $params
+        elif command -v su >/dev/null 2>&1; then
+            su -c "bash '$TEMP_SCRIPT' $params"
+        else
+            bash "$TEMP_SCRIPT" $params
+        fi
+    else
+        if [ "${EUID:-$(id -u)}" -eq 0 ]; then
+            bash "$TEMP_SCRIPT"
+        elif command -v sudo >/dev/null 2>&1; then
+            sudo bash "$TEMP_SCRIPT"
+        elif command -v su >/dev/null 2>&1; then
+            su -c "bash '$TEMP_SCRIPT'"
+        else
+            bash "$TEMP_SCRIPT"
+        fi
     fi
     
     rm -f "$TEMP_SCRIPT"
