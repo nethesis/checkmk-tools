@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1091
 set -euo pipefail
 
 INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -96,8 +97,6 @@ main() {
 }
 
 main "$@"
-
-exit 0
 : <<'__CORRUPTED_TAIL__'
 #!/usr/bin/env bash
 set -euo pipefail

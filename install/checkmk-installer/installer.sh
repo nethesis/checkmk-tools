@@ -5,13 +5,13 @@ set -euo pipefail
 
 INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# shellcheck source=utils/colors.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/colors.sh"
-# shellcheck source=utils/logger.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/logger.sh"
-# shellcheck source=utils/menu.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/menu.sh"
-# shellcheck source=utils/validate.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/validate.sh"
 
 init_logging
@@ -67,11 +67,17 @@ install_full_server() {
 		return 0
 	fi
 
+	load_configuration || true
+
 	run_module "01-system-base.sh" || { log_error "System base failed"; return 1; }
 	run_module "02-checkmk-server.sh" || { log_error "CheckMK server failed"; return 1; }
 	run_module "04-scripts-deploy.sh" || { log_error "Scripts deployment failed"; return 1; }
 	run_module "05-ydea-toolkit.sh" || { log_error "Ydea toolkit failed"; return 1; }
-	run_module "06-frps-setup.sh" || { log_error "FRPS setup failed"; return 1; }
+	if [[ "${INSTALL_FRPS:-no}" == "yes" ]]; then
+		run_module "06-frps-setup.sh" || { log_error "FRPS setup failed"; return 1; }
+	else
+		log_info "FRPS skipped (INSTALL_FRPS!=yes)"
+	fi
 
 	print_separator "="
 	print_success "FULL SERVER INSTALLATION COMPLETED!"
@@ -94,10 +100,16 @@ install_client_agent() {
 		return 0
 	fi
 
+	load_configuration || true
+
 	run_module "01-system-base.sh" || { log_error "System base failed"; return 1; }
 	run_module "03-checkmk-agent.sh" || { log_error "CheckMK agent failed"; return 1; }
 	run_module "04-scripts-deploy.sh" || { log_error "Scripts deployment failed"; return 1; }
-	run_module "06-frpc-setup.sh" || { log_error "FRPC client setup failed"; return 1; }
+	if [[ "${INSTALL_FRPC:-no}" == "yes" ]]; then
+		run_module "06-frpc-setup.sh" || { log_error "FRPC client setup failed"; return 1; }
+	else
+		log_info "FRPC skipped (INSTALL_FRPC!=yes)"
+	fi
 
 	print_separator "="
 	print_success "CLIENT AGENT INSTALLATION COMPLETED!"
@@ -331,13 +343,13 @@ set -euo pipefail
 
 INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# shellcheck source=utils/colors.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/colors.sh"
-# shellcheck source=utils/logger.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/logger.sh"
-# shellcheck source=utils/menu.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/menu.sh"
-# shellcheck source=utils/validate.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/validate.sh"
 
 init_logging
@@ -658,13 +670,13 @@ set -euo pipefail
 
 INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# shellcheck source=utils/colors.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/colors.sh"
-# shellcheck source=utils/logger.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/logger.sh"
-# shellcheck source=utils/menu.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/menu.sh"
-# shellcheck source=utils/validate.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/validate.sh"
 
 init_logging
@@ -1039,13 +1051,13 @@ set -euo pipefail
 
 INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# shellcheck source=utils/colors.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/colors.sh"
-# shellcheck source=utils/logger.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/logger.sh"
-# shellcheck source=utils/menu.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/menu.sh"
-# shellcheck source=utils/validate.sh
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/validate.sh"
 
 init_logging
@@ -1413,6 +1425,7 @@ main() {
 trap 'echo ""; print_warning "Installation interrupted"; exit 130' INT TERM
 main "$@"
 exit 0
+# shellcheck disable=SC2317
 : <<'__CORRUPTED_TAIL__'
 #!/bin/bash
 /usr/bin/env bash

@@ -129,14 +129,28 @@ set_env "USE_SYSTEMD_SOCKET" "$use_socket"
 
 echo ""
 print_header "FRPC (optional)"
-frpc_addr=$(input_text "FRPC server address" "${FRPC_SERVER_ADDR:-}")
-frpc_port=$(input_port "FRPC server port" "${FRPC_SERVER_PORT:-7000}")
-frpc_token=$(input_secret "FRPC token" "${FRPC_TOKEN:-}")
-frpc_remote=$(input_text "FRPC remote port (agent)" "${FRPC_REMOTE_PORT:-}")
-set_env "FRPC_SERVER_ADDR" "$frpc_addr"
-set_env "FRPC_SERVER_PORT" "$frpc_port"
-set_env "FRPC_TOKEN" "$frpc_token"
-set_env "FRPC_REMOTE_PORT" "$frpc_remote"
+install_frps=$(input_text "Install FRPS server? (yes/no)" "${INSTALL_FRPS:-no}" "^(yes|no)$")
+install_frpc=$(input_text "Install FRPC client? (yes/no)" "${INSTALL_FRPC:-no}" "^(yes|no)$")
+
+set_env "INSTALL_FRPS" "$install_frps"
+set_env "INSTALL_FRPC" "$install_frpc"
+
+if [[ "$install_frpc" == "yes" ]]; then
+	frpc_addr=$(input_text "FRPC server address" "${FRPC_SERVER_ADDR:-}")
+	frpc_port=$(input_port "FRPC server port" "${FRPC_SERVER_PORT:-7000}")
+	frpc_token=$(input_secret "FRPC token" "${FRPC_TOKEN:-}")
+	frpc_remote=$(input_text "FRPC remote port (agent)" "${FRPC_REMOTE_PORT:-}")
+	set_env "FRPC_SERVER_ADDR" "$frpc_addr"
+	set_env "FRPC_SERVER_PORT" "$frpc_port"
+	set_env "FRPC_TOKEN" "$frpc_token"
+	set_env "FRPC_REMOTE_PORT" "$frpc_remote"
+else
+	# Ensure we don't accidentally configure FRPC when not requested
+	set_env "FRPC_SERVER_ADDR" ""
+	set_env "FRPC_SERVER_PORT" "7000"
+	set_env "FRPC_TOKEN" ""
+	set_env "FRPC_REMOTE_PORT" ""
+fi
 
 echo ""
 print_header "Ydea (optional)"
