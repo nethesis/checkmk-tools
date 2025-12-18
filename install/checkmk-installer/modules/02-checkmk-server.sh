@@ -35,9 +35,23 @@ main() {
 	print_header "CheckMK Server"
 
 	local deb_url="${CHECKMK_DEB_URL:-}"
+	local checkmk_version="${CHECKMK_VERSION:-}"
+	local checkmk_codename="${CHECKMK_DISTRO_CODENAME:-${CHECKMK_CODENAME:-}}"
+	local checkmk_edition="${CHECKMK_EDITION:-raw}"
 	local site_name="${CHECKMK_SITE_NAME:-cmk}"
 	local http_port="${CHECKMK_HTTP_PORT:-5000}"
 	local admin_pwd="${CHECKMK_ADMIN_PASSWORD:-}"
+
+	build_deb_url() {
+		local version="$1" codename="$2" edition="$3"
+		[[ -n "$version" && -n "$codename" ]] || return 1
+		case "$edition" in
+			raw) edition="raw" ;;
+			enterprise) edition="enterprise" ;;
+			*) edition="raw" ;;
+		esac
+		echo "https://download.checkmk.com/checkmk/${version}/check-mk-${edition}-${version}_0.${codename}_amd64.deb"
+	}
 
 	download_deb() {
 		local url="$1" dest="$2"
@@ -72,14 +86,34 @@ main() {
 	}
 
 	if [[ -z "$deb_url" ]]; then
-		print_info "CheckMK .deb URL non impostato."
-		print_info "Esempio: https://download.checkmk.com/checkmk/2.4.0p15/check-mk-raw-2.4.0p15_0.jammy_amd64.deb"
-		deb_url=$(input_url "Inserisci URL .deb" "")
-		if [[ -z "$deb_url" ]]; then
-			print_error "Nessun URL fornito"
-			exit 1
+		# Try to build from version+codename first (no prompt needed if already configured)
+		if [[ -n "$checkmk_version" && -n "$checkmk_codename" ]]; then
+			deb_url=$(build_deb_url "$checkmk_version" "$checkmk_codename" "$checkmk_edition")
+			print_info "Using generated URL: $deb_url"
+			set_env_kv "CHECKMK_DEB_URL" "$deb_url"
+		else
+			print_info "CheckMK .deb URL non impostato."
+			print_info "Puoi incollare l'URL completo oppure inserire solo versione+distro e lo genero io."
+			print_info "Esempio URL: https://download.checkmk.com/checkmk/2.4.0p17/check-mk-raw-2.4.0p17_0.noble_amd64.deb"
+			deb_url=$(input_url "Inserisci URL .deb (INVIO per generare)" "")
+			if [[ -z "$deb_url" ]]; then
+				checkmk_version=$(input_text "CheckMK version (es. 2.4.0p17)" "${checkmk_version}")
+				checkmk_codename=$(input_text "Ubuntu/Debian codename (es. noble, jammy)" "${checkmk_codename}")
+				checkmk_edition=$(input_text "CheckMK edition (raw/enterprise)" "${checkmk_edition}" "^(raw|enterprise)$")
+				deb_url=$(build_deb_url "$checkmk_version" "$checkmk_codename" "$checkmk_edition") || true
+				if [[ -z "$deb_url" ]]; then
+					print_error "Impossibile costruire l'URL: versione/codename mancanti"
+					exit 1
+				fi
+				set_env_kv "CHECKMK_VERSION" "$checkmk_version"
+				set_env_kv "CHECKMK_DISTRO_CODENAME" "$checkmk_codename"
+				set_env_kv "CHECKMK_EDITION" "$checkmk_edition"
+				set_env_kv "CHECKMK_DEB_URL" "$deb_url"
+				print_info "Generated URL: $deb_url"
+			else
+				set_env_kv "CHECKMK_DEB_URL" "$deb_url"
+			fi
 		fi
-		set_env_kv "CHECKMK_DEB_URL" "$deb_url"
 	fi
 
 	local deb_path="/tmp/checkmk-server.deb"
