@@ -61,7 +61,7 @@ pkg_install_git() {
             timeout 300 dnf install -y git
             ;;
         *)
-            echo "❌ Package manager non supportato. Installa git manualmente."
+            echo " Package manager non supportato. Installa git manualmente."
             return 1
             ;;
     esac
@@ -83,7 +83,7 @@ pkg_upgrade_git() {
             timeout 300 dnf -y upgrade git || timeout 300 dnf -y install git || true
             ;;
         *)
-            echo "⚠️  Package manager non supportato per upgrade automatico."
+            echo "WARN  Package manager non supportato per upgrade automatico."
             ;;
     esac
 }
@@ -91,22 +91,22 @@ pkg_upgrade_git() {
 detect_os
 pick_pkg_manager
 
-echo "ℹ️  OS rilevato: ${OS_ID}${OS_VERSION_ID:+ $OS_VERSION_ID}${OS_LIKE:+ (like: $OS_LIKE)}"
+echo "i  OS rilevato: ${OS_ID}${OS_VERSION_ID:+ $OS_VERSION_ID}${OS_LIKE:+ (like: $OS_LIKE)}"
 if [[ -n "${PKG_MGR:-}" ]]; then
-    echo "ℹ️  Package manager: ${PKG_MGR}"
+    echo "i  Package manager: ${PKG_MGR}"
 fi
 
 # Funzione per installare git
 install_git() {
-    echo "ℹ️  Git non trovato, installazione in corso..."
+    echo "i  Git non trovato, installazione in corso..."
     if ! pkg_install_git; then
-        echo "❌ Errore durante installazione git"
+        echo " Errore durante installazione git"
         exit 1
     fi
-    echo "✅ Git installato"
+    echo "OK Git installato"
 }
 
-# Verifica se git è installato
+# Verifica se git e installato
 if ! command -v git &> /dev/null; then
     install_git
 fi
@@ -131,21 +131,21 @@ maybe_upgrade_git() {
 
     # Git < 2.x is very old; offer an upgrade (best-effort).
     if [[ "$major" =~ ^[0-9]+$ ]] && [[ "$major" -lt 2 ]]; then
-        echo "⚠️  Git rilevato: $ver (molto vecchio)"
+        echo "WARN  Git rilevato: $ver (molto vecchio)"
         echo "   Posso provare ad aggiornarlo (best-effort) tramite il package manager."
         read -r -p "Vuoi provare ad aggiornare Git ora? [s/N]: " upgrade_choice
         upgrade_choice="${upgrade_choice//$'\r'/}"
         if [[ "$upgrade_choice" =~ ^[SsYy]$ ]]; then
-            echo "ℹ️  Tentativo aggiornamento Git..."
+            echo "i  Tentativo aggiornamento Git..."
 			pkg_upgrade_git
 
             local new_ver
             new_ver="$(get_git_version)"
             if [[ -n "${new_ver:-}" ]]; then
-                echo "ℹ️  Git versione attuale: $new_ver"
+                echo "i  Git versione attuale: $new_ver"
             fi
         else
-            echo "ℹ️  Upgrade Git saltato."
+            echo "i  Upgrade Git saltato."
         fi
     fi
 }
@@ -153,20 +153,20 @@ maybe_upgrade_git() {
 maybe_upgrade_git
 
 # Cerca il repository checkmk-tools
-# Priorità: /opt, poi /root, poi $HOME
+# Priorita: /opt, poi /root, poi $HOME
 if [[ -d "/opt/checkmk-tools/.git" ]]; then
     REPO_DIR="/opt/checkmk-tools"
 elif [[ -d "/root/checkmk-tools/.git" ]]; then
     REPO_DIR="/root/checkmk-tools"
 elif [[ -d "$HOME/checkmk-tools/.git" ]]; then
     REPO_DIR="$HOME/checkmk-tools"
-else     echo "❌ Repository checkmk-tools non trovato"
+else     echo " Repository checkmk-tools non trovato"
     echo "   Posizioni cercate:"
     echo "   - /opt/checkmk-tools (consigliato)"
     echo "   - /root/checkmk-tools"
     echo "   - $HOME/checkmk-tools"
     echo ""
-    echo "ℹ️  Se vuoi clonare il repository in /opt/checkmk-tools:"
+    echo "i  Se vuoi clonare il repository in /opt/checkmk-tools:"
     echo "   cd /opt && git clone https://github.com/Coverup20/checkmk-tools.git"
     echo ""
     read -r -p "Inserisci il path del repository [/opt/checkmk-tools]: " REPO_DIR
@@ -176,7 +176,7 @@ else     echo "❌ Repository checkmk-tools non trovato"
     if [[ ! -d "$REPO_DIR/.git" ]]; then
         read -r -p "Repository non trovato. Vuoi clonarlo in $REPO_DIR? [S/n]: " clone_choice
         if [[ "$clone_choice" =~ ^[Nn] ]]; then
-    echo "❌ Installazione annullata"
+    echo " Installazione annullata"
     exit 1
         fi
         
@@ -184,18 +184,18 @@ else     echo "❌ Repository checkmk-tools non trovato"
         PARENT_DIR=$(dirname "$REPO_DIR")
         mkdir -p "$PARENT_DIR"
         
-        echo "📥 Clonazione repository in $REPO_DIR..."
+        echo " Clonazione repository in $REPO_DIR..."
         if ! timeout 120 git clone https://github.com/Coverup20/checkmk-tools.git "$REPO_DIR" 2>&1; then
-    echo "❌ Errore durante la clonazione (timeout o errore rete)"
+    echo " Errore durante la clonazione (timeout o errore rete)"
     exit 1
         fi
         
         # Verifica che il clone sia riuscito
         if [[ ! -d "$REPO_DIR/.git" ]]; then
-    echo "❌ Repository clonato ma .git non trovato"
+    echo " Repository clonato ma .git non trovato"
     exit 1
         fi
-echo "✅ Repository clonato con successo"
+echo "OK Repository clonato con successo"
     fi
 fi
 echo "========================================="
@@ -205,16 +205,15 @@ echo ""
 
 # Verifica esecuzione come root
 if [[ $EUID -ne 0 ]]; then
-    echo "❌ Questo script deve essere eseguito come root"
-    echo "   Usa: su
-do bash install-auto-git-sync.sh"
+    echo " Questo script deve essere eseguito come root"
+    echo "   Usa: sudo bash install-auto-git-sync.sh"
     exit 1
 fi
-echo "✅ Esecuzione come root"
+echo "OK Esecuzione come root"
 
 # Chiedi intervallo di sync
 echo ""
-echo "⏱️  Configurazione intervallo di sync"
+echo "  Configurazione intervallo di sync"
 echo ""
 echo "Scegli ogni quanto eseguire il git pull:"
 echo "  1) Ogni 30 secondi"
@@ -241,46 +240,47 @@ case "$interval_choice" in
     6)
         read -r -p "Inserisci intervallo in secondi (10-3600): " SYNC_INTERVAL
         if ! [[ "$SYNC_INTERVAL" =~ ^[0-9]+$ ]] || [ "$SYNC_INTERVAL" -lt 10 ] || [ "$SYNC_INTERVAL" -gt 3600 ]; then
-    echo "❌ Valore non vali
+    echo " Valore non vali
 do (deve essere tra 10 e 3600), uso default 60 secondi"
             SYNC_INTERVAL=60
         fi
         ;;
     *)
-        echo "❌ Scelta non valida, uso default 60 secondi"
+        echo " Scelta non valida, uso default 60 secondi"
         SYNC_INTERVAL=60
         ;;
 esac
 
-echo "✅ Intervallo impostato: $SYNC_INTERVAL secondi"
+echo "OK Intervallo impostato: $SYNC_INTERVAL secondi"
 echo ""
 
 # Rileva l'utente proprietario del repository
 REPO_OWNER=$(stat -c '%U' "$REPO_DIR" 2>/dev/null || echo "root")
 REPO_OWNER_HOME=$(eval echo "~$REPO_OWNER" 2>/dev/null || echo "/root")
 
-echo "ℹ️  Repository owner: $REPO_OWNER"
-echo "ℹ️  Repository path: $REPO_DIR"
-echo "ℹ️  Home directory: $REPO_OWNER_HOME"
+echo "i  Repository owner: $REPO_OWNER"
+echo "i  Repository path: $REPO_DIR"
+echo "i  Home directory: $REPO_OWNER_HOME"
 echo ""
 
 # Il servizio esegue direttamente da GitHub, non serve controllare il file locale
-echo "ℹ️  Il servizio eseguirà lo script direttamente da GitHub"
+echo "i  Il servizio eseguira lo script direttamente da GitHub"
 
 # Crea directory log se non esiste
 if ! mkdir -p /var/log 2>/dev/null; then
-    echo "⚠️  Impossibile creare directory /var/log (già esistente)"
+    echo "WARN  Impossibile creare directory /var/log (gia esistente)"
 fi
 
 if touch /var/log/auto-git-sync.log 2>/dev/null; then
-    chown "$REPO_OWNER:$REPO_OWNER" /var/log/auto-git-sync.log 2>/dev/null || echo "⚠️  Impossibile cambiare owner del log file"
-    echo "✅ Log file preparato"
-else     echo "⚠️  Impossibile creare log file, verrà usato journalctl"
+    chown "$REPO_OWNER:$REPO_OWNER" /var/log/auto-git-sync.log 2>/dev/null || echo "WARN  Impossibile cambiare owner del log file"
+    echo "OK Log file preparato"
+else     echo "WARN  Impossibile creare log file, verra usato journalctl"
 fi
 
 # Crea service file personalizzato che esegue direttamente da GitHub
-echo "ℹ️  Creazione service file personalizzato..."
-cat > /etc/systemd/system/auto-git-sync.service << 'EOFSERVICE'
+echo "i  Creazione service file personalizzato..."
+cat > /etc/systemd/system/auto-git-sync.service << '\1
+SERVICE'
 [Unit]
 Description=Auto Git Sync Service
 Documentation=https://github.com/Coverup20/checkmk-tools
@@ -308,7 +308,8 @@ NoNewPrivileges=yes
 
 [Install]
 WantedBy=multi-user.target
-EOFSERVICE
+\1
+SERVICE
 
 # Sostituisci placeholder con valori reali
 sed -i "s|PLACEHOLDER_USER|$REPO_OWNER|g" /etc/systemd/system/auto-git-sync.service
@@ -317,34 +318,34 @@ sed -i "s|PLACEHOLDER_HOME|$REPO_OWNER_HOME|g" /etc/systemd/system/auto-git-sync
 sed -i "s|PLACEHOLDER_REPO|$REPO_DIR|g" /etc/systemd/system/auto-git-sync.service
 sed -i "s|PLACEHOLDER_INTERVAL|$SYNC_INTERVAL|g" /etc/systemd/system/auto-git-sync.service
 
-echo "✅ Service file creato e installato"
+echo "OK Service file creato e installato"
 
 # Verifica che systemd sia disponibile
 if ! command -v systemctl &> /dev/null; then
-    echo "❌ systemd non disponibile su questo sistema"
-    echo "   Il servizio non può essere installato"
+    echo " systemd non disponibile su questo sistema"
+    echo "   Il servizio non puo essere installato"
     exit 1
 fi
 
 # Ricarica systemd
 if ! systemctl daemon-reload 2>&1; then
-    echo "❌ Errore durante reload di systemd"
+    echo " Errore durante reload di systemd"
     exit 1
 fi
-echo "✅ Systemd ricaricato"
+echo "OK Systemd ricaricato"
 
 # Abilita il servizio all'avvio
 if ! systemctl enable auto-git-sync.service 2>&1; then
-    echo "❌ Errore durante abilitazione servizio"
+    echo " Errore durante abilitazione servizio"
     exit 1
 fi
-echo "✅ Servizio abilitato all'avvio"
+echo "OK Servizio abilitato all'avvio"
 
-# Riavvia il servizio se già attivo
+# Riavvia il servizio se gia attivo
 if systemctl is-active --quiet auto-git-sync.service; then
-    echo "ℹ️  Servizio già attivo, riavvio in corso..."
+    echo "i  Servizio gia attivo, riavvio in corso..."
     systemctl restart auto-git-sync.service
-    echo "✅ Servizio riavviato con nuova configurazione"
+    echo "OK Servizio riavviato con nuova configurazione"
 fi
 
 # Mostra menu opzioni
@@ -353,32 +354,32 @@ echo "========================================="
 echo "  Installazione Completata!"
 echo "========================================="
 echo ""
-echo "📊 Configurazione:"
-echo "   • Utente: $REPO_OWNER"
-echo "   • Repository: $REPO_DIR"
-echo "   • Intervallo sync: $SYNC_INTERVAL secondi"
+echo " Configurazione:"
+echo "   - Utente: $REPO_OWNER"
+echo "   - Repository: $REPO_DIR"
+echo "   - Intervallo sync: $SYNC_INTERVAL secondi"
 echo ""
 echo "Comandi disponibili:"
 echo ""
-echo "  • Avvia servizio:"
+echo "  - Avvia servizio:"
 echo "    systemctl start auto-git-sync"
 echo ""
-echo "  • Ferma servizio:"
+echo "  - Ferma servizio:"
 echo "    systemctl stop auto-git-sync"
 echo ""
-echo "  • Riavvia servizio:"
+echo "  - Riavvia servizio:"
 echo "    systemctl restart auto-git-sync"
 echo ""
-echo "  • Stato servizio:"
+echo "  - Stato servizio:"
 echo "    systemctl status auto-git-sync"
 echo ""
-echo "  • Log in tempo reale:"
+echo "  - Log in tempo reale:"
 echo "    journalctl -u auto-git-sync -f"
 echo ""
-echo "  • Log completo:"
+echo "  - Log completo:"
 echo "    tail -f /var/log/auto-git-sync.log"
 echo ""
-echo "  • Disabilita servizio:"
+echo "  - Disabilita servizio:"
 echo "    systemctl disable auto-git-sync"
 echo ""
 
@@ -386,12 +387,12 @@ read -r -p "Vuoi avviare il servizio ora? (s/N): " start_now
 if [[ "$start_now" =~ ^[sS]$ ]]; then
     systemctl start auto-git-sync
     echo ""
-    echo "✅ Servizio avviato!"
+    echo "OK Servizio avviato!"
     echo ""
     sleep 2
     systemctl status auto-git-sync --no-pager
 else     echo ""
-    echo "ℹ️  Servizio non avviato. Usa 'systemctl start auto-git-sync' per avviarlo."
+    echo "i  Servizio non avviato. Usa 'systemctl start auto-git-sync' per avviarlo."
 fi
 echo ""
 echo "========================================="

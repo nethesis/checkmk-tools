@@ -1,6 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# smart-wrapper-template.sh
+# Template di wrapper "smart" per script Checkmk.
+# - Tenta update da URL (curl) con timeout
+# - Usa cache locale come fallback
+# - Se manca la cache: output CRITICAL in formato local check
+
+SCRIPT_NAME="check_example"
+SCRIPT_TYPE="local"   # local|spool|plugin|notification
+GITHUB_URL="https://example.invalid/path/to/script.sh"
+TIMEOUT_SECONDS=5
+
+die() { echo "[ERR] $*" >&2; exit 1; }
+
+detect_cache_dir() {
+    if [[ -d /omd/sites ]]; then
+        site="$(ls /omd/sites 2>/dev/null | head -n1 || true)"
+        site="${site:-monitoring}"
+        echo "/omd/sites/$site/var/cache/checkmk-scripts"
+    else
+        echo "/var/cache/checkmk-scripts"
+    fi
+}
+
+update_script() {
+    local cache_file="$1" tmp
+    tmp="${cache_file}.tmp"
+
+    command -v curl >/dev/null 2>&1 || return 1
+    curl -fsSL --max-time "$TIMEOUT_SECONDS" "$GITHUB_URL" -o "$tmp" 2>/dev/null || { rm -f "$tmp" 2>/dev/null || true; return 1; }
+    head -n 1 "$tmp" | grep -qE '^#!/.*bash' || { rm -f "$tmp" 2>/dev/null || true; return 1; }
+
+    mv "$tmp" "$cache_file"
+    chmod +x "$cache_file" || true
+    return 0
+}
+
+main() {
+    cache_dir="$(detect_cache_dir)"
+    cache_file="$cache_dir/$SCRIPT_NAME.sh"
+
+    mkdir -p "$cache_dir" 2>/dev/null || true
+    update_script "$cache_file" >/dev/null 2>&1 || true
+
+    if [[ -x "$cache_file" ]]; then
+        exec "$cache_file" "$@"
+    fi
+
+    if [[ "$SCRIPT_TYPE" == "local" ]]; then
+        echo "2 ${SCRIPT_NAME} - CRITICAL: No cached script available"
+    fi
+    exit 2
+}
+
+main "$@"
+
+exit 0
+
+: <<'LEGACY'
 #!/bin/bash
 # Smart CheckMK Script Wrapper - TEMPLATE
-# Questo file ├¿ il template base per creare wrapper ibridi
+# Questo file e il template base per creare wrapper ibridi
 # NON usare direttamente - usa smart-deploy-hybrid.sh per l'installazione
 #
 # Logica: Prova a scaricare la versione fresca, usa cache locale come fallback
@@ -53,7 +114,7 @@ else        rm -f "$temp_file" 2>/dev/null        return 1    fi}
 # LOGICA PRINCIPALE
 # =====================================================
 # Verifica environment CheckMKlog_info() {    
-# Log solo se DEBUG ├¿ abilitato    [ "${DEBUG:-0}" = "1" ] && 
+# Log solo se DEBUG e abilitato    [ "${DEBUG:-0}" = "1" ] && 
 echo "
 # CheckMK Wrapper [$SCRIPT_NAME]: $1" >&2}log_info "Environment: $([ -d "/omd/sites" ] && 
 echo "OMD Server" || 
@@ -66,3 +127,5 @@ else
 echo "2 ${SCRIPT_NAME} - CRITICAL: No script available (cache miss, GitHub unreachable)"    log_info "CRITICAL: No cached script available"
     exit 2
 fi 
+
+LEGACY
