@@ -39,13 +39,28 @@ cp "$ENV_FILE" "$tmp_file"
 set_env() {
 	local key="$1"
 	local value="$2"
-	local escaped
-	escaped=$(printf '%s' "$value" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
-	if grep -qE "^${key}=" "$tmp_file"; then
-		sed -i -E "s|^${key}=.*|${key}=\"${escaped}\"|" "$tmp_file"
-	else
-		echo "${key}=\"${escaped}\"" >>"$tmp_file"
+	local escaped env_line found=0
+	local new_file="${tmp_file}.new"
+
+	escaped=${value//\\/\\\\}
+	escaped=${escaped//"/\\"}
+	env_line="${key}=\"${escaped}\""
+
+	: >"$new_file"
+	while IFS= read -r line || [[ -n "${line:-}" ]]; do
+		if [[ "$line" == ${key}=* ]]; then
+			printf '%s\n' "$env_line" >>"$new_file"
+			found=1
+		else
+			printf '%s\n' "$line" >>"$new_file"
+		fi
+	done <"$tmp_file"
+
+	if [[ $found -eq 0 ]]; then
+		printf '%s\n' "$env_line" >>"$new_file"
 	fi
+
+	mv "$new_file" "$tmp_file"
 }
 
 print_info "Premi INVIO per tenere il valore di default."

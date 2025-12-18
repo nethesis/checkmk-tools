@@ -76,13 +76,28 @@ main() {
 		local key="$1" value="$2"
 		local env_file="${INSTALLER_ROOT}/.env"
 		[[ -f "$env_file" ]] || return 0
-		local escaped
-		escaped=$(printf '%s' "$value" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
-		if grep -qE "^${key}=" "$env_file"; then
-			sed -i -E "s|^${key}=.*|${key}=\"${escaped}\"|" "$env_file" || true
-		else
-			echo "${key}=\"${escaped}\"" >>"$env_file"
+		local escaped env_line found=0
+		local new_file="${env_file}.new"
+
+		escaped=${value//\\/\\\\}
+		escaped=${escaped//"/\\"}
+		env_line="${key}=\"${escaped}\""
+
+		: >"$new_file"
+		while IFS= read -r line || [[ -n "${line:-}" ]]; do
+			if [[ "$line" == ${key}=* ]]; then
+				printf '%s\n' "$env_line" >>"$new_file"
+				found=1
+			else
+				printf '%s\n' "$line" >>"$new_file"
+			fi
+		done <"$env_file"
+
+		if [[ $found -eq 0 ]]; then
+			printf '%s\n' "$env_line" >>"$new_file"
 		fi
+
+		mv "$new_file" "$env_file"
 	}
 
 	if [[ -z "$deb_url" ]]; then
