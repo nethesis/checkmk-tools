@@ -47,6 +47,26 @@ stop_disable_unit() {
     fi
 }
 
+cleanup_system_apache_checkmk_vhost() {
+    # The installer may create /etc/apache2/sites-available/checkmk.conf
+    # to reverse-proxy Checkmk on 80/443.
+    if [[ ! -d /etc/apache2 ]]; then
+        return 0
+    fi
+
+    # Disable site if enabled
+    if command -v a2dissite >/dev/null 2>&1; then
+        run_quiet a2dissite checkmk.conf
+    fi
+
+    run rm -f /etc/apache2/sites-enabled/checkmk.conf
+    run rm -f /etc/apache2/sites-available/checkmk.conf
+
+    if command -v systemctl >/dev/null 2>&1; then
+        run_quiet systemctl restart apache2
+    fi
+}
+
 cleanup_site_user_group() {
     local site_name="$1"
     [[ -n "$site_name" ]] || return 0
@@ -201,6 +221,9 @@ main() {
 
     log "[7/8] Cleaning UFW rules"
     cleanup_ufw_rules "$http_port"
+
+    log "[7.5/8] Cleaning system Apache vhost"
+    cleanup_system_apache_checkmk_vhost
 
     log "[8/8] Reloading systemd"
     if command -v systemctl >/dev/null 2>&1; then

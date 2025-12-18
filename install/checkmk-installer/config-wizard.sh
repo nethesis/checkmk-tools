@@ -71,9 +71,9 @@ timezone=$(input_text "Timezone" "${TIMEZONE:-Europe/Rome}")
 ssh_port=$(input_port "SSH port" "${SSH_PORT:-22}")
 permit_root=$(input_text "PermitRootLogin (yes/no)" "${PERMIT_ROOT_LOGIN:-no}" "^(yes|no)$")
 
-fail2ban_email=$(input_email "Fail2Ban notification email" "${FAIL2BAN_EMAIL:-root@localhost}")
+fail2ban_email=$(input_email "Fail2Ban notification email" "${FAIL2BAN_EMAIL:-marzio@nethesis.it}")
 
-open_http_https=$(input_text "Open HTTP/HTTPS in firewall (yes/no)" "${OPEN_HTTP_HTTPS:-no}" "^(yes|no)$")
+open_http_https=$(input_text "Open HTTP/HTTPS in firewall (yes/no)" "${OPEN_HTTP_HTTPS:-yes}" "^(yes|no)$")
 disable_ipv6=$(input_text "Disable IPv6 (yes/no)" "${DISABLE_IPV6:-no}" "^(yes|no)$")
 
 set_env "TIMEZONE" "$timezone"
@@ -101,30 +101,42 @@ fi
 echo ""
 print_header "CheckMK server"
 install_server=$(input_text "Install CheckMK server? (yes/no)" "${INSTALL_CHECKMK_SERVER:-yes}" "^(yes|no)$")
-deb_url=$(input_url "CheckMK .deb URL (optional; can be asked during install)" "${CHECKMK_DEB_URL:-}")
-checkmk_version=$(input_text "CheckMK version (es. 2.4.0p17)" "${CHECKMK_VERSION:-}")
-checkmk_codename=$(input_text "Ubuntu/Debian codename (es. noble, jammy)" "${CHECKMK_DISTRO_CODENAME:-${CHECKMK_CODENAME:-}}")
-checkmk_edition=$(input_text "CheckMK edition (raw/enterprise)" "${CHECKMK_EDITION:-raw}" "^(raw|enterprise)$")
-site_name=$(input_text "CheckMK site name" "${CHECKMK_SITE_NAME:-monitoring}" "^[a-z][a-z0-9_-]*$")
-http_port=$(input_port "CheckMK HTTP port" "${CHECKMK_HTTP_PORT:-5000}")
+set_env "INSTALL_CHECKMK_SERVER" "$install_server"
+
+# Ask server-specific settings only if we're actually installing the server.
 if [[ "$install_server" == "yes" ]]; then
-	install_local_agent=$(input_text "Install agent on server itself? (yes/no)" "${INSTALL_LOCAL_AGENT:-yes}" "^(yes|no)$")
-else
-	install_local_agent=$(input_text "Install agent on this host? (yes/no)" "${INSTALL_LOCAL_AGENT:-yes}" "^(yes|no)$")
+	deb_url=$(input_url "CheckMK .deb URL (optional; can be asked during install)" "${CHECKMK_DEB_URL:-}")
+	checkmk_version=$(input_text "CheckMK version (es. 2.4.0p17)" "${CHECKMK_VERSION:-}")
+	checkmk_codename=$(input_text "Ubuntu/Debian codename (es. noble, jammy)" "${CHECKMK_DISTRO_CODENAME:-${CHECKMK_CODENAME:-}}")
+	checkmk_edition=$(input_text "CheckMK edition (raw/enterprise)" "${CHECKMK_EDITION:-raw}" "^(raw|enterprise)$")
+	site_name=$(input_text "CheckMK site name" "${CHECKMK_SITE_NAME:-monitoring}" "^[a-z][a-z0-9_-]*$")
+	http_port=$(input_port "CheckMK HTTP port" "${CHECKMK_HTTP_PORT:-5000}")
+
+	set_env "CHECKMK_DEB_URL" "$deb_url"
+	set_env "CHECKMK_VERSION" "$checkmk_version"
+	set_env "CHECKMK_DISTRO_CODENAME" "$checkmk_codename"
+	set_env "CHECKMK_EDITION" "$checkmk_edition"
+	set_env "CHECKMK_SITE_NAME" "$site_name"
+	set_env "CHECKMK_HTTP_PORT" "$http_port"
 fi
 
-set_env "INSTALL_CHECKMK_SERVER" "$install_server"
-set_env "CHECKMK_DEB_URL" "$deb_url"
-set_env "CHECKMK_VERSION" "$checkmk_version"
-set_env "CHECKMK_DISTRO_CODENAME" "$checkmk_codename"
-set_env "CHECKMK_EDITION" "$checkmk_edition"
-set_env "CHECKMK_SITE_NAME" "$site_name"
-set_env "CHECKMK_HTTP_PORT" "$http_port"
+# Keep the password value as-is; the installer can optionally set it at the end.
 set_env "CHECKMK_ADMIN_PASSWORD" "${CHECKMK_ADMIN_PASSWORD:-}"
-set_env "INSTALL_LOCAL_AGENT" "$install_local_agent"
 
 echo ""
 print_header "CheckMK agent clients"
+install_local_agent_default="${INSTALL_LOCAL_AGENT:-}"
+if [[ -z "$install_local_agent_default" ]]; then
+	if [[ "$install_server" == "yes" ]]; then
+		install_local_agent_default="yes"
+	else
+		install_local_agent_default="no"
+	fi
+fi
+
+install_local_agent=$(input_text "Install CheckMK agent on this host? (yes/no)" "$install_local_agent_default" "^(yes|no)$")
+set_env "INSTALL_LOCAL_AGENT" "$install_local_agent"
+
 if [[ "$install_local_agent" != "yes" ]]; then
 	# No local agent requested: don't ask for any agent-client settings.
 	set_env "CHECKMK_SERVER" ""
@@ -185,59 +197,12 @@ mv "$tmp_file" "$ENV_FILE"
 chmod 600 "$ENV_FILE" 2>/dev/null || true
 print_success "Saved configuration to $ENV_FILE"
 exit 0
+
+# The remainder of this file contains duplicated/legacy content kept only for forensics.
+# It must not be executed or parsed as code.
 # shellcheck disable=SC2317
 : <<'__CORRUPTED_TAIL__'
-#!/usr/bin/env bash
-set -euo pipefail
-
-INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-source "${INSTALLER_ROOT}/utils/colors.sh"
-source "${INSTALLER_ROOT}/utils/menu.sh"
-
-TEMPLATE_FILE="${INSTALLER_ROOT}/.env.template"
-ENV_FILE="${INSTALLER_ROOT}/.env"
-
-print_header "Configuration Wizard"
-
-if [[ ! -f "$TEMPLATE_FILE" ]]; then
-	print_error "Missing template: $TEMPLATE_FILE"
-	exit 1
-fi
-
-if [[ ! -f "$ENV_FILE" ]]; then
-	cp "$TEMPLATE_FILE" "$ENV_FILE"
-	print_info "Created $ENV_FILE from template"
-else
-	print_info "Using existing $ENV_FILE"
-fi
-
-tmp_file="${ENV_FILE}.tmp"
-cp "$ENV_FILE" "$tmp_file"
-
-set_kv() {
-	local key="$1"
-	local value="$2"
-	if grep -qE "^${key}=" "$tmp_file"; then
-		sed -i -E "s|^${key}=.*|${key}=${value}|" "$tmp_file"
-	else
-		echo "${key}=${value}" >>"$tmp_file"
-	fi
-}
-
-ssh_port=$(prompt_input "SSH Port" "22")
-timezone=$(prompt_input "Timezone" "UTC")
-permit_root=$(prompt_input "PermitRootLogin (yes/no)" "no")
-
-site_name=$(prompt_input "CheckMK site name" "cmk")
-checkmk_server=$(prompt_input "CheckMK server (hostname/ip for agent downloads)" "")
-checkmk_deb_url=$(prompt_input "CheckMK server .deb URL (for server install)" "")
-
-frp_version=$(prompt_input "FRP version" "0.61.0")
-frpc_server_addr=$(prompt_input "FRPC server address" "")
-frpc_server_port=$(prompt_input "FRPC server port" "7000")
-
-ydea_id=$(prompt_input "Ydea ID" "")
+ 
 ydea_user=$(prompt_input "Ydea User ID (create ticket)" "")
 
 set_kv "SSH_PORT" "$ssh_port"
