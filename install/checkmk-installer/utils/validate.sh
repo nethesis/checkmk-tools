@@ -1,7 +1,56 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+UTILS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${UTILS_DIR}/menu.sh"
+
 has_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+validate_port() {
+	local port="$1"
+	[[ "$port" =~ ^[0-9]+$ ]] || return 1
+	(( port >= 1 && port <= 65535 ))
+}
+
+validate_email() {
+	local email="$1"
+	[[ "$email" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]
+}
+
+validate_url() {
+	local url="$1"
+	[[ "$url" =~ ^https?://[^[:space:]]+$ ]]
+}
+
+input_port() {
+	local prompt="$1" default="$2" port
+	while true; do
+		port=$(input_text "$prompt" "$default")
+		validate_port "$port" && { echo "$port"; return 0; }
+		echo "Invalid port (1-65535)"
+	done
+}
+
+input_email() {
+	local prompt="$1" default="$2" email
+	while true; do
+		email=$(input_text "$prompt" "$default")
+		validate_email "$email" && { echo "$email"; return 0; }
+		echo "Invalid email"
+	done
+}
+
+input_url() {
+	local prompt="$1" default="$2" url
+	while true; do
+		url=$(input_text "$prompt" "$default")
+		[[ -z "$url" ]] && { echo ""; return 0; }
+		validate_url "$url" && { echo "$url"; return 0; }
+		echo "Invalid URL (must start with http:// or https://)"
+	done
+}
 
 validate_system_requirements() {
 	local ok=0
@@ -21,6 +70,7 @@ validate_system_requirements() {
 	return $ok
 }
 
+# shellcheck disable=SC2317
 : <<'__CORRUPTED_TAIL__'
 #!/usr/bin/env bash
 set -euo pipefail

@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
 
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/menu.sh"
+# shellcheck disable=SC1091
+source "${INSTALLER_ROOT}/utils/validate.sh"
 
 TEMPLATE_FILE="${INSTALLER_ROOT}/.env.template"
 ENV_FILE="${INSTALLER_ROOT}/.env"
@@ -23,49 +27,108 @@ else
 	print_info "Using existing $ENV_FILE"
 fi
 
+# Load current defaults
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE" 2>/dev/null || true
+set +a
+
 tmp_file="${ENV_FILE}.tmp"
 cp "$ENV_FILE" "$tmp_file"
 
-set_kv() {
+set_env() {
 	local key="$1"
 	local value="$2"
+	local escaped
+	escaped=$(printf '%s' "$value" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
 	if grep -qE "^${key}=" "$tmp_file"; then
-		sed -i -E "s|^${key}=.*|${key}=${value}|" "$tmp_file"
+		sed -i -E "s|^${key}=.*|${key}=\"${escaped}\"|" "$tmp_file"
 	else
-		echo "${key}=${value}" >>"$tmp_file"
+		echo "${key}=\"${escaped}\"" >>"$tmp_file"
 	fi
 }
 
-ssh_port=$(prompt_input "SSH Port" "22")
-timezone=$(prompt_input "Timezone" "UTC")
-permit_root=$(prompt_input "PermitRootLogin (yes/no)" "no")
+print_info "Premi INVIO per tenere il valore di default."
+echo ""
 
-site_name=$(prompt_input "CheckMK site name" "cmk")
-checkmk_server=$(prompt_input "CheckMK server (hostname/ip for agent downloads)" "")
-checkmk_deb_url=$(prompt_input "CheckMK server .deb URL (for server install)" "")
+# ===== System base =====
+timezone=$(input_text "Timezone" "${TIMEZONE:-Europe/Rome}")
+ssh_port=$(input_port "SSH port" "${SSH_PORT:-22}")
+permit_root=$(input_text "PermitRootLogin (yes/no)" "${PERMIT_ROOT_LOGIN:-no}" "^(yes|no)$")
 
-frp_version=$(prompt_input "FRP version" "0.61.0")
-frpc_server_addr=$(prompt_input "FRPC server address" "")
-frpc_server_port=$(prompt_input "FRPC server port" "7000")
+fail2ban_email=$(input_email "Fail2Ban notification email" "${FAIL2BAN_EMAIL:-root@localhost}")
 
-ydea_id=$(prompt_input "Ydea ID" "")
-ydea_user=$(prompt_input "Ydea User ID (create ticket)" "")
+open_http_https=$(input_text "Open HTTP/HTTPS in firewall (yes/no)" "${OPEN_HTTP_HTTPS:-no}" "^(yes|no)$")
+disable_ipv6=$(input_text "Disable IPv6 (yes/no)" "${DISABLE_IPV6:-no}" "^(yes|no)$")
 
-set_kv "SSH_PORT" "$ssh_port"
-set_kv "TIMEZONE" "$timezone"
-set_kv "PERMIT_ROOT_LOGIN" "$permit_root"
-set_kv "CHECKMK_SITE_NAME" "$site_name"
-set_kv "CHECKMK_SERVER" "$checkmk_server"
-set_kv "CHECKMK_DEB_URL" "$checkmk_deb_url"
-set_kv "FRP_VERSION" "$frp_version"
-set_kv "FRPC_SERVER_ADDR" "$frpc_server_addr"
-set_kv "FRPC_SERVER_PORT" "$frpc_server_port"
-set_kv "YDEA_ID" "$ydea_id"
-set_kv "YDEA_USER_ID_CREATE_TICKET" "$ydea_user"
+set_env "TIMEZONE" "$timezone"
+set_env "SSH_PORT" "$ssh_port"
+set_env "PERMIT_ROOT_LOGIN" "$permit_root"
+set_env "FAIL2BAN_EMAIL" "$fail2ban_email"
+set_env "OPEN_HTTP_HTTPS" "$open_http_https"
+set_env "DISABLE_IPV6" "$disable_ipv6"
+
+echo ""
+print_header "Postfix / SMTP relay"
+smtp_host=$(input_text "SMTP relay host (blank to disable)" "${SMTP_RELAY_HOST:-smtp-relay.nethesis.it}")
+if [[ -z "$smtp_host" ]]; then
+	set_env "SMTP_RELAY_HOST" ""
+	set_env "SMTP_RELAY_USER" ""
+	set_env "SMTP_RELAY_PASSWORD" ""
+else
+	set_env "SMTP_RELAY_HOST" "$smtp_host"
+	smtp_user=$(input_text "SMTP username" "${SMTP_RELAY_USER:-}")
+	smtp_pass=$(input_secret "SMTP password" "${SMTP_RELAY_PASSWORD:-}")
+	set_env "SMTP_RELAY_USER" "$smtp_user"
+	set_env "SMTP_RELAY_PASSWORD" "$smtp_pass"
+fi
+
+echo ""
+print_header "CheckMK server"
+install_server=$(input_text "Install CheckMK server? (yes/no)" "${INSTALL_CHECKMK_SERVER:-yes}" "^(yes|no)$")
+deb_url=$(input_url "CheckMK .deb URL (optional; can be asked during install)" "${CHECKMK_DEB_URL:-}")
+site_name=$(input_text "CheckMK site name" "${CHECKMK_SITE_NAME:-monitoring}" "^[a-z][a-z0-9_-]*$")
+http_port=$(input_port "CheckMK HTTP port" "${CHECKMK_HTTP_PORT:-5000}")
+admin_pwd=$(input_secret "CheckMK cmkadmin password" "${CHECKMK_ADMIN_PASSWORD:-}")
+install_local_agent=$(input_text "Install agent on server itself? (yes/no)" "${INSTALL_LOCAL_AGENT:-yes}" "^(yes|no)$")
+
+set_env "INSTALL_CHECKMK_SERVER" "$install_server"
+set_env "CHECKMK_DEB_URL" "$deb_url"
+set_env "CHECKMK_SITE_NAME" "$site_name"
+set_env "CHECKMK_HTTP_PORT" "$http_port"
+set_env "CHECKMK_ADMIN_PASSWORD" "$admin_pwd"
+set_env "INSTALL_LOCAL_AGENT" "$install_local_agent"
+
+echo ""
+print_header "CheckMK agent clients"
+checkmk_server=$(input_text "CheckMK server IP/host (blank if this is the server)" "${CHECKMK_SERVER:-}")
+use_socket=$(input_text "Use systemd socket for agent? (yes/no)" "${USE_SYSTEMD_SOCKET:-yes}" "^(yes|no)$")
+set_env "CHECKMK_SERVER" "$checkmk_server"
+set_env "USE_SYSTEMD_SOCKET" "$use_socket"
+
+echo ""
+print_header "FRPC (optional)"
+frpc_addr=$(input_text "FRPC server address" "${FRPC_SERVER_ADDR:-}")
+frpc_port=$(input_port "FRPC server port" "${FRPC_SERVER_PORT:-7000}")
+frpc_token=$(input_secret "FRPC token" "${FRPC_TOKEN:-}")
+frpc_remote=$(input_text "FRPC remote port (agent)" "${FRPC_REMOTE_PORT:-}")
+set_env "FRPC_SERVER_ADDR" "$frpc_addr"
+set_env "FRPC_SERVER_PORT" "$frpc_port"
+set_env "FRPC_TOKEN" "$frpc_token"
+set_env "FRPC_REMOTE_PORT" "$frpc_remote"
+
+echo ""
+print_header "Ydea (optional)"
+ydea_id=$(input_text "Ydea ID" "${YDEA_ID:-}")
+ydea_key=$(input_secret "Ydea API key" "${YDEA_API_KEY:-}")
+set_env "YDEA_ID" "$ydea_id"
+set_env "YDEA_API_KEY" "$ydea_key"
 
 mv "$tmp_file" "$ENV_FILE"
+chmod 600 "$ENV_FILE" 2>/dev/null || true
 print_success "Saved configuration to $ENV_FILE"
 exit 0
+# shellcheck disable=SC2317
 : <<'__CORRUPTED_TAIL__'
 #!/usr/bin/env bash
 set -euo pipefail

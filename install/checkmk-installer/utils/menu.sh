@@ -14,6 +14,42 @@ prompt_input() {
 	fi
 }
 
+input_text() {
+	local prompt="$1"
+	local default_value="${2:-}"
+	local pattern="${3:-}"
+	local value
+
+	while true; do
+		value=$(prompt_input "$prompt" "$default_value")
+		if [[ -z "$pattern" ]] || [[ "$value" =~ $pattern ]]; then
+			echo "$value"
+			return 0
+		fi
+		echo "Invalid value"
+	done
+}
+
+input_secret() {
+	local prompt="$1"
+	local default_value="${2:-}"
+	local value
+
+	if [[ -n "$default_value" ]]; then
+		read -r -s -p "$prompt [hidden, default set]: " value || true
+		echo ""
+		echo "${value:-$default_value}"
+	else
+		read -r -s -p "$prompt [hidden]: " value || true
+		echo ""
+		echo "$value"
+	fi
+}
+
+press_any_key() {
+	read -r -p "Press ENTER to continue..." _ || true
+}
+
 confirm() {
 	local prompt="$1"
 	local default_answer="${2:-y}"
@@ -76,7 +112,9 @@ show_main_menu() {
 	echo "9) Full Cleanup"
 	echo "10) Exit"
 	echo ""
+	# shellcheck disable=SC2034
 	MENU_SELECTION=$(prompt_input "Select an option" "10")
+	export MENU_SELECTION
 }
 
 : <<'__CORRUPTED_TAIL__'

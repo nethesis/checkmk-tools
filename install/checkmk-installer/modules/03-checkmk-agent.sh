@@ -3,12 +3,19 @@ set -euo pipefail
 
 INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/logger.sh"
+# shellcheck disable=SC1091
+source "${INSTALLER_ROOT}/utils/menu.sh"
+# shellcheck disable=SC1091
+source "${INSTALLER_ROOT}/utils/validate.sh"
 
 load_env() {
 	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
 		set -a
+		# shellcheck disable=SC1091
 		source "${INSTALLER_ROOT}/.env"
 		set +a
 	fi
@@ -43,7 +50,20 @@ main() {
 
 	local deb_path="/tmp/checkmk-agent.deb"
 	print_info "Downloading agent: $agent_url"
-	curl -fsSL "$agent_url" -o "$deb_path"
+	if command -v curl >/dev/null 2>&1; then
+		local -a curl_opts=(--fail --location --show-error --connect-timeout 10 --max-time 600 --retry 5 --retry-connrefused --retry-delay 2 --speed-time 30 --speed-limit 1024)
+		if [[ -t 1 ]]; then
+			curl "${curl_opts[@]}" --progress-bar -o "$deb_path" "$agent_url"
+		else
+			curl "${curl_opts[@]}" --silent -o "$deb_path" "$agent_url"
+		fi
+	elif command -v wget >/dev/null 2>&1; then
+		wget --tries=5 --timeout=30 --progress=dot:giga -O "$deb_path" "$agent_url"
+	else
+		print_error "Neither curl nor wget found"
+		exit 1
+	fi
+	[[ -s "$deb_path" ]] || { print_error "Downloaded file is empty: $deb_path"; exit 1; }
 
 	print_info "Installing agent"
 	dpkg -i "$deb_path" || true
@@ -60,6 +80,7 @@ main() {
 main "$@"
 
 exit 0
+# shellcheck disable=SC2317
 : <<'__CORRUPTED_TAIL__'
 #!/usr/bin/env bash
 set -euo pipefail

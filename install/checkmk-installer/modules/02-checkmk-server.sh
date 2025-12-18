@@ -3,12 +3,19 @@ set -euo pipefail
 
 INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/logger.sh"
+# shellcheck disable=SC1091
+source "${INSTALLER_ROOT}/utils/menu.sh"
+# shellcheck disable=SC1091
+source "${INSTALLER_ROOT}/utils/validate.sh"
 
 load_env() {
 	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
 		set -a
+		# shellcheck disable=SC1091
 		source "${INSTALLER_ROOT}/.env"
 		set +a
 	fi
@@ -29,25 +36,74 @@ main() {
 
 	local deb_url="${CHECKMK_DEB_URL:-}"
 	local site_name="${CHECKMK_SITE_NAME:-cmk}"
+	local http_port="${CHECKMK_HTTP_PORT:-5000}"
+	local admin_pwd="${CHECKMK_ADMIN_PASSWORD:-}"
+
+	download_deb() {
+		local url="$1" dest="$2"
+		print_info "Downloading: $url"
+		if command -v curl >/dev/null 2>&1; then
+				local -a curl_opts=(--fail --location --show-error --connect-timeout 10 --max-time 1200 --retry 5 --retry-connrefused --retry-delay 2 --speed-time 30 --speed-limit 1024)
+			if [[ -t 1 ]]; then
+				curl "${curl_opts[@]}" --progress-bar -o "$dest" "$url"
+			else
+				curl "${curl_opts[@]}" --silent -o "$dest" "$url"
+			fi
+		elif command -v wget >/dev/null 2>&1; then
+			wget --tries=5 --timeout=30 --progress=dot:giga -O "$dest" "$url"
+		else
+			print_error "Neither curl nor wget found"
+			return 1
+		fi
+		[[ -s "$dest" ]] || { print_error "Downloaded file is empty: $dest"; return 1; }
+	}
+
+	set_env_kv() {
+		local key="$1" value="$2"
+		local env_file="${INSTALLER_ROOT}/.env"
+		[[ -f "$env_file" ]] || return 0
+		local escaped
+		escaped=$(printf '%s' "$value" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+		if grep -qE "^${key}=" "$env_file"; then
+			sed -i -E "s|^${key}=.*|${key}=\"${escaped}\"|" "$env_file" || true
+		else
+			echo "${key}=\"${escaped}\"" >>"$env_file"
+		fi
+	}
 
 	if [[ -z "$deb_url" ]]; then
-		print_error "CHECKMK_DEB_URL is not set in .env"
-		print_info "Run Configuration Wizard and set a CheckMK .deb URL"
-		exit 1
+		print_info "CheckMK .deb URL non impostato."
+		print_info "Esempio: https://download.checkmk.com/checkmk/2.4.0p15/check-mk-raw-2.4.0p15_0.jammy_amd64.deb"
+		deb_url=$(input_url "Inserisci URL .deb" "")
+		if [[ -z "$deb_url" ]]; then
+			print_error "Nessun URL fornito"
+			exit 1
+		fi
+		set_env_kv "CHECKMK_DEB_URL" "$deb_url"
 	fi
 
 	local deb_path="/tmp/checkmk-server.deb"
-	print_info "Downloading: $deb_url"
-	curl -fsSL "$deb_url" -o "$deb_path"
+	download_deb "$deb_url" "$deb_path"
 
 	print_info "Installing .deb (may take a while)"
 	dpkg -i "$deb_path" || true
 	apt-get -f install -y
 
+	if [[ -n "$admin_pwd" ]] && command -v omd >/dev/null 2>&1; then
+		# Best-effort: set password after site creation.
+		true
+	fi
+
 	if command -v omd >/dev/null 2>&1; then
 		if ! omd sites 2>/dev/null | awk '{print $1}' | grep -qx "$site_name"; then
 			print_info "Creating site: $site_name"
 			omd create "$site_name"
+		fi
+		if [[ -n "$http_port" ]]; then
+			omd config "$site_name" set APACHE_TCP_PORT "$http_port" 2>/dev/null || true
+		fi
+		if [[ -n "$admin_pwd" ]]; then
+			omd su "$site_name" -c "htpasswd -b etc/htpasswd cmkadmin '$admin_pwd'" 2>/dev/null || true
 		fi
 		print_info "Starting site: $site_name"
 		omd start "$site_name" || true
@@ -61,6 +117,7 @@ main() {
 main "$@"
 
 exit 0
+# shellcheck disable=SC2317
 : <<'__CORRUPTED_TAIL__'
 #!/usr/bin/env bash
 set -euo pipefail
