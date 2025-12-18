@@ -1,67 +1,171 @@
-#!/bin/bash
-# ==========================================================
-#  Checkmk RAW - LOG OPTIMIZATION PACK (Versione 2)
-#  Include TUTTI i log: Nagios, Apache, OMD, Event Console,
-#  Piggyback, Crash dump, Notify.
-#  Autore: ChatGPT per Marzio Bordin
-# ==========================================================
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+	cat <<'USAGE'
+Usage: install-checkmk-log-optimizer.sh [--site SITE]
+
+Installa un set di configurazioni logrotate + cleanup cron per un sito Checkmk/OMD.
+
+Opzioni:
+	--site SITE   Nome site OMD (default: monitoring)
+USAGE
+}
+
 SITE="monitoring"
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		--site) SITE="${2:-}"; shift 2 ;;
+		-h|--help) usage; exit 0 ;;
+		*) echo "Unknown arg: $1" >&2; usage; exit 2 ;;
+	esac
+done
+
+if [[ -z "$SITE" ]]; then
+	echo "ERROR: --site is empty" >&2
+	exit 2
+fi
+
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+	echo "ERROR: run as root" >&2
+	exit 1
+fi
+
 SITE_PATH="/opt/omd/sites/$SITE"
-echo " "
+if [[ ! -d "$SITE_PATH" ]]; then
+	echo "ERROR: site path not found: $SITE_PATH" >&2
+	echo "Check available sites with: omd sites" >&2
+	exit 1
+fi
+
+echo
 echo "==============================================="
 echo "   INSTALLAZIONE LOG OPTIMIZATION PACK"
-echo "   Checkmk RAW - sito: $SITE"
+echo "   Checkmk/OMD - site: $SITE"
 echo "==============================================="
-echo " "
-# ==========================================================
-# 1. LOGROTATE NAGIOS (core)
-# ==========================================================
-echo "­ƒæë Configurazione logrotate per NAGIOS..."cat > $SITE_PATH/etc/logrotate.d/nagios << 'EOF'/opt/omd/sites/monitoring/var/nagios/nagios.log {    daily    rotate 14    size 100M    compress    delaycompress    missingok    notifempty    create 640 monitoring monitoring    sharedscripts    postrotate        /opt/omd/sites/monitoring/bin/omd reload monitoring > /dev/null 2>&1 || true    endscript}EOFchown root:root $SITE_PATH/etc/logrotate.d/nagioschmod 644 $SITE_PATH/etc/logrotate.d/nagios
-# ==========================================================
-# 2. LOGROTATE APACHE DEL SITO
-# ==========================================================
-echo "­ƒæë Configurazione logrotate per APACHE interno..."cat > $SITE_PATH/etc/logrotate.d/apache << 'EOF'/opt/omd/sites/monitoring/var/log/apache/*log* {    daily    rotate 14    size 50M    compress    delaycompress    missingok    notifempty    create 640 monitoring monitoring    sharedscripts    postrotate        /opt/omd/sites/monitoring/bin/apache reload monitoring > /dev/null 2>&1 || true    endscript}EOFchown root:root $SITE_PATH/etc/logrotate.d/apachechmod 644 $SITE_PATH/etc/logrotate.d/apache
-# ==========================================================
-# 3. LOGROTATE OMD CORE (cmk.log, notify.log, web.log, ecc.)
-# ==========================================================
-echo "­ƒæë Configurazione logrotate per OMD core..."cat > $SITE_PATH/etc/logrotate.d/omd << 'EOF'/opt/omd/sites/monitoring/var/log/*.log {    daily    rotate 14    size 50M    compress    delaycompress    missingok    notifempty    create 640 monitoring monitoring}EOFchown root:root $SITE_PATH/etc/logrotate.d/omdchmod 644 $SITE_PATH/etc/logrotate.d/omd
-# ==========================================================
-# 4. LOGROTATE EVENT CONSOLE (mkeventd)
-# ==========================================================
-echo "­ƒæë Configurazione logrotate per EVENT CONSOLE..."cat > $SITE_PATH/etc/logrotate.d/mkeventd << 'EOF'/opt/omd/sites/monitoring/var/log/mkeventd.log {    weekly    rotate 8    size 20M    compress    delaycompress    missingok    notifempty}EOFchown root:root $SITE_PATH/etc/logrotate.d/mkeventdchmod 644 $SITE_PATH/etc/logrotate.d/mkeventd
-# ==========================================================
-# 5. CLEANUP AUTOMATICO PIGGYBACK
-# ==========================================================
-echo "­ƒæë Installazione script pulizia PIGGYBACK..."cat > $SITE_PATH/local/lib/cleanup-piggyback.sh << 'EOF'
-#!/bin/bashfind /opt/omd/sites/monitoring/var/piggyback -type f -mtime +3 -deletefind /opt/omd/sites/monitoring/var/piggyback -type d -empty -deleteEOFchmod +x $SITE_PATH/local/lib/cleanup-piggyback.shcat > $SITE_PATH/etc/cron.d/cleanup-piggyback << 'EOF'0 3 * * * monitoring /opt/omd/sites/monitoring/local/lib/cleanup-piggyback.shEOFchown monitoring:monitoring $SITE_PATH/etc/cron.d/cleanup-piggybackchmod 644 $SITE_PATH/etc/cron.d/cleanup-piggyback
-# ==========================================================
-# 6. CLEANUP CRASH DUMP
-# ==========================================================
-echo "­ƒæë Installazione script pulizia CRASH dump..."cat > $SITE_PATH/local/lib/cleanup-crash.sh << 'EOF'
-#!/bin/bashfind /opt/omd/sites/monitoring/var/check_mk/crash -type f -mtime +7 -deleteEOFchmod +x $SITE_PATH/local/lib/cleanup-crash.shcat > $SITE_PATH/etc/cron.d/cleanup-crash << 'EOF'10 3 * * * monitoring /opt/omd/sites/monitoring/local/lib/cleanup-crash.shEOFchown monitoring:monitoring $SITE_PATH/etc/cron.d/cleanup-crashchmod 644 $SITE_PATH/etc/cron.d/cleanup-crash
-# ==========================================================
-# 7. CLEANUP NOTIFY LOGS (telegram / mail)
-# ==========================================================
-echo "­ƒæë Installazione script pulizia NOTIFY logs..."cat > $SITE_PATH/local/lib/cleanup-notify.sh << 'EOF'
-#!/bin/bashfind /opt/omd/sites/monitoring/var/log/notify -type f -mtime +5 -deleteEOFchmod +x $SITE_PATH/local/lib/cleanup-notify.shcat > $SITE_PATH/etc/cron.d/cleanup-notify << 'EOF'20 3 * * * monitoring /opt/omd/sites/monitoring/local/lib/cleanup-notify.shEOFchown monitoring:monitoring $SITE_PATH/etc/cron.d/cleanup-notifychmod 644 $SITE_PATH/etc/cron.d/cleanup-notify
-# ==========================================================
-#  REPORT FINALE
-# ==========================================================
-echo ""
+echo
+
+mkdir -p "$SITE_PATH/etc/logrotate.d" "$SITE_PATH/local/lib" "$SITE_PATH/etc/cron.d"
+
+echo "Configuro logrotate per Nagios (core)..."
+cat >"$SITE_PATH/etc/logrotate.d/nagios" <<EOF
+$SITE_PATH/var/nagios/nagios.log {
+		daily
+		rotate 14
+		size 100M
+		compress
+		delaycompress
+		missingok
+		notifempty
+		create 640 $SITE $SITE
+		sharedscripts
+		postrotate
+				$SITE_PATH/bin/omd reload $SITE >/dev/null 2>&1 || true
+		endscript
+}
+EOF
+
+echo "Configuro logrotate per Apache interno del site..."
+cat >"$SITE_PATH/etc/logrotate.d/apache" <<EOF
+$SITE_PATH/var/log/apache/*log* {
+		daily
+		rotate 14
+		size 50M
+		compress
+		delaycompress
+		missingok
+		notifempty
+		create 640 $SITE $SITE
+		sharedscripts
+		postrotate
+				$SITE_PATH/bin/apache reload $SITE >/dev/null 2>&1 || true
+		endscript
+}
+EOF
+
+echo "Configuro logrotate per log OMD (var/log/*.log)..."
+cat >"$SITE_PATH/etc/logrotate.d/omd" <<EOF
+$SITE_PATH/var/log/*.log {
+		daily
+		rotate 14
+		size 50M
+		compress
+		delaycompress
+		missingok
+		notifempty
+		create 640 $SITE $SITE
+}
+EOF
+
+echo "Configuro logrotate per Event Console (mkeventd.log)..."
+cat >"$SITE_PATH/etc/logrotate.d/mkeventd" <<EOF
+$SITE_PATH/var/log/mkeventd.log {
+		weekly
+		rotate 8
+		size 20M
+		compress
+		delaycompress
+		missingok
+		notifempty
+}
+EOF
+
+chown root:root "$SITE_PATH/etc/logrotate.d/nagios" "$SITE_PATH/etc/logrotate.d/apache" "$SITE_PATH/etc/logrotate.d/omd" "$SITE_PATH/etc/logrotate.d/mkeventd"
+chmod 0644 "$SITE_PATH/etc/logrotate.d/nagios" "$SITE_PATH/etc/logrotate.d/apache" "$SITE_PATH/etc/logrotate.d/omd" "$SITE_PATH/etc/logrotate.d/mkeventd"
+
+echo "Installo cleanup piggyback (+cron)..."
+cat >"$SITE_PATH/local/lib/cleanup-piggyback.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+find "$SITE_PATH/var/piggyback" -type f -mtime +3 -delete
+find "$SITE_PATH/var/piggyback" -type d -empty -delete
+EOF
+chmod +x "$SITE_PATH/local/lib/cleanup-piggyback.sh"
+
+cat >"$SITE_PATH/etc/cron.d/cleanup-piggyback" <<EOF
+0 3 * * * $SITE $SITE_PATH/local/lib/cleanup-piggyback.sh
+EOF
+chown "$SITE:$SITE" "$SITE_PATH/etc/cron.d/cleanup-piggyback"
+chmod 0644 "$SITE_PATH/etc/cron.d/cleanup-piggyback"
+
+echo "Installo cleanup crash dump (+cron)..."
+cat >"$SITE_PATH/local/lib/cleanup-crash.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+find "$SITE_PATH/var/check_mk/crash" -type f -mtime +7 -delete
+EOF
+chmod +x "$SITE_PATH/local/lib/cleanup-crash.sh"
+
+cat >"$SITE_PATH/etc/cron.d/cleanup-crash" <<EOF
+10 3 * * * $SITE $SITE_PATH/local/lib/cleanup-crash.sh
+EOF
+chown "$SITE:$SITE" "$SITE_PATH/etc/cron.d/cleanup-crash"
+chmod 0644 "$SITE_PATH/etc/cron.d/cleanup-crash"
+
+echo "Installo cleanup notify logs (+cron)..."
+cat >"$SITE_PATH/local/lib/cleanup-notify.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+[[ -d "$SITE_PATH/var/log/notify" ]] || exit 0
+find "$SITE_PATH/var/log/notify" -type f -mtime +5 -delete
+EOF
+chmod +x "$SITE_PATH/local/lib/cleanup-notify.sh"
+
+cat >"$SITE_PATH/etc/cron.d/cleanup-notify" <<EOF
+20 3 * * * $SITE $SITE_PATH/local/lib/cleanup-notify.sh
+EOF
+chown "$SITE:$SITE" "$SITE_PATH/etc/cron.d/cleanup-notify"
+chmod 0644 "$SITE_PATH/etc/cron.d/cleanup-notify"
+
+echo
 echo "==============================================="
-echo "   Ô£ö INSTALLAZIONE COMPLETATA CON SUCCESSO"
+echo "   INSTALLAZIONE COMPLETATA"
 echo "==============================================="
-echo "Log gestiti:"
-echo " - Nagios (core)"
-echo " - Apache del sito"
-echo " - OMD core"
-echo " - Event Console"
-echo ""
-echo "Cleanup automatici attivi:"
-echo " - Piggyback"
-echo " - Crash dump"
-echo " - Notify logs"
-echo ""
-echo "Puoi testare con:"
-echo " Ô×ñ logrotate -vf $SITE_PATH/etc/logrotate.d/apache"
-echo ""
+echo "File creati in:"
+echo " - $SITE_PATH/etc/logrotate.d/"
+echo " - $SITE_PATH/local/lib/"
+echo " - $SITE_PATH/etc/cron.d/"
+echo
+echo "Test veloce (esempio):"
+echo "  logrotate -vf $SITE_PATH/etc/logrotate.d/apache"
+echo
