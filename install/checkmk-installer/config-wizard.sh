@@ -160,10 +160,18 @@ fi
 
 echo ""
 print_header "Ydea (optional)"
-ydea_id=$(input_text "Ydea ID" "${YDEA_ID:-}")
-ydea_key=$(input_secret "Ydea API key" "${YDEA_API_KEY:-}")
-set_env "YDEA_ID" "$ydea_id"
-set_env "YDEA_API_KEY" "$ydea_key"
+install_ydea=$(input_text "Install Ydea toolkit? (yes/no)" "${INSTALL_YDEA:-no}" "^(yes|no)$")
+set_env "INSTALL_YDEA" "$install_ydea"
+
+if [[ "$install_ydea" == "yes" ]]; then
+	ydea_id=$(input_text "Ydea ID" "${YDEA_ID:-}")
+	ydea_key=$(input_secret "Ydea API key" "${YDEA_API_KEY:-}")
+	set_env "YDEA_ID" "$ydea_id"
+	set_env "YDEA_API_KEY" "$ydea_key"
+else
+	set_env "YDEA_ID" ""
+	set_env "YDEA_API_KEY" ""
+fi
 
 mv "$tmp_file" "$ENV_FILE"
 chmod 600 "$ENV_FILE" 2>/dev/null || true

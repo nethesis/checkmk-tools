@@ -27,6 +27,11 @@ main() {
 
 	print_header "Ydea Toolkit"
 
+	if [[ "${INSTALL_YDEA:-no}" != "yes" ]]; then
+		print_info "INSTALL_YDEA!=yes; skipping Ydea Toolkit"
+		return 0
+	fi
+
 	local src_dir="${INSTALLER_ROOT}/scripts/Ydea-Toolkit"
 	local dst_dir="/opt/ydea-toolkit"
 
@@ -42,8 +47,9 @@ main() {
 
 	local env_file="/etc/ydea-toolkit.env"
 	cat >"$env_file" <<EOF
-YDEA_ID=${YDEA_ID:-}
-YDEA_USER_ID_CREATE_TICKET=${YDEA_USER_ID_CREATE_TICKET:-}
+YDEA_ID="${YDEA_ID:-}"
+YDEA_API_KEY="${YDEA_API_KEY:-}"
+YDEA_USER_ID_CREATE_TICKET="${YDEA_USER_ID_CREATE_TICKET:-}"
 EOF
 	chmod 600 "$env_file" || true
 

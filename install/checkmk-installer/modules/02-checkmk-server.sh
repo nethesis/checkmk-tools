@@ -167,6 +167,8 @@ main() {
 		if [[ -n "$admin_pwd" ]]; then
 			omd su "$site_name" -c "htpasswd -b etc/htpasswd cmkadmin '$admin_pwd'" 2>/dev/null || true
 		fi
+		print_info "Updating system Apache config (best-effort)"
+		omd update-apache-config "$site_name" 2>/dev/null || true
 		print_info "Starting site: $site_name"
 		omd start "$site_name" || true
 

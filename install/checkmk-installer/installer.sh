@@ -72,7 +72,11 @@ install_full_server() {
 	run_module "01-system-base.sh" || { log_error "System base failed"; return 1; }
 	run_module "02-checkmk-server.sh" || { log_error "CheckMK server failed"; return 1; }
 	run_module "04-scripts-deploy.sh" || { log_error "Scripts deployment failed"; return 1; }
-	run_module "05-ydea-toolkit.sh" || { log_error "Ydea toolkit failed"; return 1; }
+	if [[ "${INSTALL_YDEA:-no}" == "yes" ]]; then
+		run_module "05-ydea-toolkit.sh" || { log_error "Ydea toolkit failed"; return 1; }
+	else
+		log_info "Ydea Toolkit skipped (INSTALL_YDEA!=yes)"
+	fi
 	if [[ "${INSTALL_FRPS:-no}" == "yes" ]]; then
 		run_module "06-frps-setup.sh" || { log_error "FRPS setup failed"; return 1; }
 	else
@@ -144,7 +148,12 @@ install_ydea_only() {
 		return 0
 	fi
 
-	run_module "05-ydea-toolkit.sh" || { log_error "Ydea toolkit failed"; return 1; }
+	load_configuration || true
+	local prev_install_ydea="${INSTALL_YDEA:-}"
+	INSTALL_YDEA="yes"
+	export INSTALL_YDEA
+	run_module "05-ydea-toolkit.sh" || { log_error "Ydea toolkit failed"; INSTALL_YDEA="$prev_install_ydea"; return 1; }
+	INSTALL_YDEA="$prev_install_ydea"
 	print_success "YDEA TOOLKIT INSTALLATION COMPLETED!"
 	press_any_key
 }
@@ -225,8 +234,9 @@ show_current_config() {
 			echo ""
 		fi
 
-		if [[ -n "${YDEA_ID:-}" ]]; then
+		if [[ "${INSTALL_YDEA:-no}" == "yes" || -n "${YDEA_ID:-}" ]]; then
 			echo "${CYAN}Ydea Configuration:${NC}"
+			echo "  Enabled: ${INSTALL_YDEA:-no}"
 			echo "  Ydea ID: ${YDEA_ID}"
 			echo "  User ID: ${YDEA_USER_ID_CREATE_TICKET:-N/A}"
 			echo ""
