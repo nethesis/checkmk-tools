@@ -37,14 +37,88 @@ main() {
 	local agent_url="${CHECKMK_AGENT_URL:-}"
 	local server="${CHECKMK_SERVER:-}"
 	local site="${CHECKMK_SITE_NAME:-cmk}"
+	local checkmk_version="${CHECKMK_VERSION:-}"
+	local server_proto="${CHECKMK_SERVER_PROTO:-https}"
+	local server_port="${CHECKMK_HTTP_PORT:-}"
+
+	set_env_kv() {
+		local key="$1" value="$2"
+		local env_file="${INSTALLER_ROOT}/.env"
+		[[ -f "$env_file" ]] || return 0
+		local escaped
+		escaped=$(printf '%s' "$value" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+		if grep -qE "^${key}=" "$env_file"; then
+			sed -i -E "s|^${key}=.*|${key}=\"${escaped}\"|" "$env_file" || true
+		else
+			echo "${key}=\"${escaped}\"" >>"$env_file"
+		fi
+	}
+
+	url_exists() {
+		local url="$1"
+		if command -v curl >/dev/null 2>&1; then
+			curl --head --location --fail --silent --show-error --connect-timeout 5 --max-time 20 \
+				--retry 2 --retry-connrefused --retry-delay 1 \
+				"$url" >/dev/null
+		elif command -v wget >/dev/null 2>&1; then
+			wget --spider -q --timeout=20 --tries=1 "$url"
+		else
+			return 1
+		fi
+	}
+
+	discover_agent_url() {
+		local base_host="$1" proto="$2" port="$3" site_name="$4" version="$5"
+		local port_part=""
+		if [[ -n "$port" && "$port" != "80" && "$port" != "443" ]]; then
+			port_part=":${port}"
+		fi
+
+		local base
+		if [[ "$base_host" =~ ^https?:// ]]; then
+			base="${base_host%/}/${site_name}/check_mk/agents"
+		else
+			base="${proto}://${base_host}${port_part}/${site_name}/check_mk/agents"
+		fi
+
+		local -a candidates=()
+		if [[ -n "$version" ]]; then
+			local rev
+			for rev in 1 2 3 4 5; do
+				candidates+=("check-mk-agent_${version}-${rev}_all.deb")
+			done
+			candidates+=("check-mk-agent_${version}_all.deb")
+		fi
+		candidates+=("check-mk-agent_0.all.deb")
+
+		local file url
+		for file in "${candidates[@]}"; do
+			url="${base}/${file}"
+			if url_exists "$url"; then
+				echo "$url"
+				return 0
+			fi
+		done
+
+		return 1
+	}
 
 	if [[ -z "$agent_url" && -n "$server" ]]; then
-		agent_url="http://${server}/${site}/check_mk/agents/check-mk-agent_0.all.deb"
+		print_info "Searching agent package on server (may try multiple filename variants)"
+		agent_url=$(discover_agent_url "$server" "$server_proto" "$server_port" "$site" "$checkmk_version" || true)
+		if [[ -z "$agent_url" && "$server_proto" == "https" ]]; then
+			agent_url=$(discover_agent_url "$server" "http" "$server_port" "$site" "$checkmk_version" || true)
+		fi
+		if [[ -n "$agent_url" ]]; then
+			print_info "Found agent URL: $agent_url"
+			set_env_kv "CHECKMK_AGENT_URL" "$agent_url"
+		fi
 	fi
 
 	if [[ -z "$agent_url" ]]; then
-		print_error "CHECKMK_AGENT_URL not set and CHECKMK_SERVER not provided"
+		print_error "Unable to determine agent download URL"
 		print_info "Set CHECKMK_AGENT_URL (direct .deb URL) in .env"
+		print_info "Or set CHECKMK_SERVER + CHECKMK_SITE_NAME (+ optional CHECKMK_VERSION)"
 		exit 1
 	fi
 
