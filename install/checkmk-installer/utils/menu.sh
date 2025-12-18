@@ -37,11 +37,11 @@ input_secret() {
 
 	if [[ -n "$default_value" ]]; then
 		read -r -s -p "$prompt [hidden, default set]: " value || true
-		echo ""
+		printf '\n' >&2
 		echo "${value:-$default_value}"
 	else
 		read -r -s -p "$prompt [hidden]: " value || true
-		echo ""
+		printf '\n' >&2
 		echo "$value"
 	fi
 }
