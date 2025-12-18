@@ -107,7 +107,11 @@ checkmk_codename=$(input_text "Ubuntu/Debian codename (es. noble, jammy)" "${CHE
 checkmk_edition=$(input_text "CheckMK edition (raw/enterprise)" "${CHECKMK_EDITION:-raw}" "^(raw|enterprise)$")
 site_name=$(input_text "CheckMK site name" "${CHECKMK_SITE_NAME:-monitoring}" "^[a-z][a-z0-9_-]*$")
 http_port=$(input_port "CheckMK HTTP port" "${CHECKMK_HTTP_PORT:-5000}")
-install_local_agent=$(input_text "Install agent on server itself? (yes/no)" "${INSTALL_LOCAL_AGENT:-yes}" "^(yes|no)$")
+if [[ "$install_server" == "yes" ]]; then
+	install_local_agent=$(input_text "Install agent on server itself? (yes/no)" "${INSTALL_LOCAL_AGENT:-yes}" "^(yes|no)$")
+else
+	install_local_agent=$(input_text "Install agent on this host? (yes/no)" "${INSTALL_LOCAL_AGENT:-yes}" "^(yes|no)$")
+fi
 
 set_env "INSTALL_CHECKMK_SERVER" "$install_server"
 set_env "CHECKMK_DEB_URL" "$deb_url"
@@ -121,16 +125,21 @@ set_env "INSTALL_LOCAL_AGENT" "$install_local_agent"
 
 echo ""
 print_header "CheckMK agent clients"
-if [[ "$install_server" == "yes" ]]; then
+if [[ "$install_local_agent" != "yes" ]]; then
+	# No local agent requested: don't ask for any agent-client settings.
+	set_env "CHECKMK_SERVER" ""
+	set_env "USE_SYSTEMD_SOCKET" "${USE_SYSTEMD_SOCKET:-yes}"
+elif [[ "$install_server" == "yes" ]]; then
 	# Server install: don't ask for server address (it would be confusing/no-op here)
 	set_env "CHECKMK_SERVER" "${CHECKMK_SERVER:-}"
+	use_socket=$(input_text "Use systemd socket for agent? (yes/no)" "${USE_SYSTEMD_SOCKET:-yes}" "^(yes|no)$")
+	set_env "USE_SYSTEMD_SOCKET" "$use_socket"
 else
 	checkmk_server=$(input_text "CheckMK server IP/host" "${CHECKMK_SERVER:-}" ".+")
 	set_env "CHECKMK_SERVER" "$checkmk_server"
+	use_socket=$(input_text "Use systemd socket for agent? (yes/no)" "${USE_SYSTEMD_SOCKET:-yes}" "^(yes|no)$")
+	set_env "USE_SYSTEMD_SOCKET" "$use_socket"
 fi
-
-use_socket=$(input_text "Use systemd socket for agent? (yes/no)" "${USE_SYSTEMD_SOCKET:-yes}" "^(yes|no)$")
-set_env "USE_SYSTEMD_SOCKET" "$use_socket"
 
 echo ""
 print_header "FRPC (optional)"
