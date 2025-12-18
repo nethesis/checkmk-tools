@@ -1,57 +1,144 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "ERROR: this script was quarantined because it was syntactically broken." >&2
-echo "A copy of the previous content was saved next to this file." >&2
-exit 1
+usage() {
+    cat <<'USAGE'
+Usage: test-frp-connection.sh [--host HOST] [--port PORT] [--site SITE] [--user USER]
 
-: <<'CORRUPTED_ef000f62a548410885f346cb5c3f62d2'
-#!/bin/bash
-#
-# Script per diagnosticare la connessione FRP ÔåÆ CheckMK Agent
-#
-echo "=== DIAGNOSTICA CONNESSIONE FRP ==="
-echo ""
-# 1. Verifica che frps sia in ascolto su porta 6045
-echo "1. Verifica che FRP server sia in ascolto su porta 6045..."netstat -tlnp 2>/dev/null | grep ":6045" || ss -tlnp 2>/dev/null | grep ":6045"
-if [ $? -eq 0 ]; then
-    echo "   Ô£ô FRP server in ascolto su porta 6045"
-else    
-echo "   Ô£ù FRP server NON in ascolto su porta 6045!"    
-echo ""    
-echo "Verifica il servizio frps:"    systemctl status frps 2>/dev/null || service frps status 2>/dev/null
+Diagnostica di base per connessione FRP + Checkmk.
+
+Opzioni:
+    --host HOST   Host Checkmk (default: WS2022AD)
+    --port PORT   Porta FRP server da verificare (default: 6045)
+    --site SITE   Nome sito OMD (default: monitoring)
+    --user USER   Utente site (default: monitoring)
+
+Note:
+    - Alcuni step richiedono accesso a `su` e ai comandi Checkmk (`cmk`).
+    - Il test TCP usa `nc` se disponibile, altrimenti /dev/tcp.
+USAGE
+}
+
+HOST_NAME="WS2022AD"
+FRP_PORT="6045"
+OMD_SITE="monitoring"
+SITE_USER="monitoring"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --host) HOST_NAME="${2:-}"; shift 2 ;;
+        --port) FRP_PORT="${2:-}"; shift 2 ;;
+        --site) OMD_SITE="${2:-}"; shift 2 ;;
+        --user) SITE_USER="${2:-}"; shift 2 ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "Unknown arg: $1" >&2; usage; exit 2 ;;
+    esac
+done
+
+if [[ -z "$HOST_NAME" || -z "$FRP_PORT" || -z "$OMD_SITE" || -z "$SITE_USER" ]]; then
+    echo "ERROR: missing required value" >&2
+    usage
+    exit 2
 fi
-echo ""
-# 2. Test connessione diretta a localhost:6045
-echo "2. Test connessione diretta a localhost:6045..."timeout 5 bash -c '
-echo "<<<check_mk>>>" | nc localhost 6045' > /tmp/frp_test.txt 2>&1
-if [ -s /tmp/frp_test.txt ]; then
-    echo "   Ô£ô Connessione riuscita! Output ricevuto:"    head -10 /tmp/frp_test.txt
-else    
-echo "   Ô£ù Nessun output ricevuto da localhost:6045"    
-echo "   Errore: $(cat /tmp/frp_test.txt 2>/dev/null || 
-echo 'Timeout o connessione rifiutata')"fi
-echo ""
-# 3. Verifica configurazione CheckMK per WS2022AD
-echo "3. Verifica configurazione CheckMK per WS2022AD..."su - monitoring -c "
-cmk -D WS2022AD" 2>&1 | grep -E "(IP|Port|Address|datasource_programs)" | head -20
-echo ""
-# 4. Test con 
-cmk -d
-echo "4. Test connessione CheckMK all'host..."su - monitoring -c "
-cmk -d WS2022AD 2>&1" | head -30
-echo ""
-# 5. Verifica regole Agent port
-echo "5. Verifica regole 'Agent port' configurate..."su - monitoring -c "cd /omd/sites/monitoring/etc/check_mk/conf.d && grep -r 'tcp_connect_timeout\|agent.*port' ." 2>/dev/null
-echo ""
-# 6. Verifica frpc su WS2022AD sia connesso
-echo "6. Verifica stato client FRP su WS2022AD..."
-echo "   (Devi verificare manualmente su WS2022AD che frpc sia running)"
-echo "   Comandi da eseguire su WS2022AD:"
-echo "     Get-Service frpc"
-echo "     netstat -ano | findstr 6556"
-echo ""
-echo "=== FINE DIAGNOSTICA ==="
 
-CORRUPTED_ef000f62a548410885f346cb5c3f62d2
+say() { printf '%s\n' "$*"; }
+section() { say; say "=== $* ==="; }
+
+check_listen_port() {
+    local port="$1"
+    if command -v ss >/dev/null 2>&1; then
+        ss -ltnp 2>/dev/null | grep -E "[:\.]${port}[[:space:]]" >/dev/null 2>&1
+        return $?
+    fi
+    if command -v netstat >/dev/null 2>&1; then
+        netstat -tlnp 2>/dev/null | grep ":${port} " >/dev/null 2>&1
+        return $?
+    fi
+    return 127
+}
+
+tcp_probe() {
+    local host="$1"
+    local port="$2"
+    local out_file="$3"
+    : >"$out_file"
+
+    if command -v timeout >/dev/null 2>&1; then
+        if command -v nc >/dev/null 2>&1; then
+            timeout 5 bash -c "printf '<<<check_mk>>>\\n' | nc -w 4 '$host' '$port'" >"$out_file" 2>&1 || true
+            return 0
+        fi
+        timeout 5 bash -c "exec 3<>/dev/tcp/$host/$port; printf '<<<check_mk>>>\\n' >&3; cat <&3" >"$out_file" 2>&1 || true
+        return 0
+    fi
+
+    if command -v nc >/dev/null 2>&1; then
+        printf '<<<check_mk>>>\n' | nc -w 4 "$host" "$port" >"$out_file" 2>&1 || true
+        return 0
+    fi
+    bash -c "exec 3<>/dev/tcp/$host/$port; printf '<<<check_mk>>>\\n' >&3; cat <&3" >"$out_file" 2>&1 || true
+}
+
+run_as_site() {
+    local cmd="$1"
+    if command -v su >/dev/null 2>&1; then
+        su - "$SITE_USER" -c "$cmd"
+        return $?
+    fi
+    echo "WARN: 'su' not available; cannot run as site user ($SITE_USER)" >&2
+    return 127
+}
+
+section "DIAGNOSTICA CONNESSIONE FRP"
+say "Host Checkmk: $HOST_NAME"
+say "Site: $OMD_SITE (user: $SITE_USER)"
+say "Porta FRP: $FRP_PORT"
+
+section "1) Verifica listen FRP server"
+if check_listen_port "$FRP_PORT"; then
+    say "OK: una porta in ascolto su :$FRP_PORT"
+else
+    rc=$?
+    if [[ $rc -eq 127 ]]; then
+        say "WARN: impossibile verificare (manca ss/netstat)"
+    else
+        say "WARN: nessun listener trovato su :$FRP_PORT"
+    fi
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl status frps 2>/dev/null || true
+    fi
+fi
+
+section "2) Test TCP verso localhost:$FRP_PORT"
+TMP_FILE="/tmp/frp_test_${HOST_NAME}_${FRP_PORT}_$$.txt"
+tcp_probe "localhost" "$FRP_PORT" "$TMP_FILE"
+if [[ -s "$TMP_FILE" ]]; then
+    say "OK: output ricevuto (prime righe):"
+    head -n 20 "$TMP_FILE" || true
+else
+    say "WARN: nessun output ricevuto"
+    if [[ -f "$TMP_FILE" ]]; then
+        say "Dettaglio:"; sed -n '1,40p' "$TMP_FILE" || true
+    fi
+fi
+rm -f "$TMP_FILE" || true
+
+section "3) Config Checkmk (cmk -D $HOST_NAME)"
+run_as_site "cmk -D '$HOST_NAME'" 2>&1 | grep -E "(Address|IP|Port|datasource_programs|datasource_program)" | head -n 50 || true
+
+section "4) Test connessione Checkmk (cmk -d $HOST_NAME)"
+run_as_site "cmk -d '$HOST_NAME'" 2>&1 | head -n 60 || true
+
+section "5) Ricerca regole agent port/tcp timeout (conf.d)"
+run_as_site "cd '/omd/sites/$OMD_SITE/etc/check_mk/conf.d' 2>/dev/null && grep -RInE 'tcp_connect_timeout|agent.*port' ." 2>/dev/null | head -n 80 || true
+
+section "6) Nota su frpc lato client"
+say "Verifica sul client Windows che frpc sia in esecuzione e connesso."
+say "Esempi (PowerShell):"
+say "  Get-Service frpc"
+say "  netstat -ano | findstr 6556"
+
+section "FINE"
+
+# Nota: il contenuto precedente (corrotto) è stato rimosso; usare git history se serve.
 
