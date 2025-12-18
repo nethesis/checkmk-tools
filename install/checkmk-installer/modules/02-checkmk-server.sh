@@ -100,6 +100,14 @@ main() {
 		mv "$new_file" "$env_file"
 	}
 
+	# Avoid accidentally reusing legacy/default passwords from old .env files.
+	# If a known placeholder is present, ignore it and clear it from .env.
+	if [[ "${admin_pwd}" == "Nethesis,1234" ]]; then
+		print_warning "CHECKMK_ADMIN_PASSWORD is set to a legacy default value; ignoring it."
+		admin_pwd=""
+		set_env_kv "CHECKMK_ADMIN_PASSWORD" ""
+	fi
+
 	ensure_system_apache_https_proxy() {
 		local site="$1" port="$2"
 		local host
@@ -230,7 +238,7 @@ EOF
 		omd config "$site_name" set APACHE_TCP_ADDR 127.0.0.1 2>/dev/null || true
 		if [[ -n "$admin_pwd" ]]; then
 			# Prefer reading password from stdin to avoid quoting issues.
-			if ! printf '%s\n' "$admin_pwd" | omd su "$site_name" -c "htpasswd -i etc/htpasswd cmkadmin" >/dev/null 2>&1; then
+			if ! printf '%s\n' "$admin_pwd" | omd su "$site_name" -c "htpasswd -i -m etc/htpasswd cmkadmin" >/dev/null 2>&1; then
 				print_warning "Failed to set cmkadmin password (keeping auto-generated one). You can change it with: omd su $site_name -c 'cmk-passwd cmkadmin'"
 			fi
 		fi
@@ -242,7 +250,10 @@ EOF
 		omd start "$site_name" || true
 
 		if [[ "$site_created" == "yes" ]]; then
-			local shown_pwd="$admin_pwd" host url_http url_https url_alt
+			local shown_pwd="" host url_http url_https url_alt
+			if [[ -n "$admin_pwd" ]]; then
+				shown_pwd="$admin_pwd"
+			fi
 			if [[ -z "$shown_pwd" && -n "$create_output" ]]; then
 				shown_pwd="$(printf '%s\n' "$create_output" | sed -n -E 's/.*password:[[:space:]]*([^[:space:]]+).*/\1/p' | head -n 1)"
 			fi
@@ -266,7 +277,19 @@ EOF
 			else
 				print_warning "Password non disponibile: usa 'cmk-passwd cmkadmin'"
 			fi
+
+			# Optional: let the operator set cmkadmin password interactively at the end.
 			if [[ -t 0 ]]; then
+				local set_now
+				set_now="$(input_text "Vuoi impostare ora una password per cmkadmin? (y/N)" "N" "^(y|Y|n|N)$")"
+				if [[ "$set_now" =~ ^[yY]$ ]]; then
+					print_info "Impostazione password cmkadmin..."
+					if omd su "$site_name" -c "htpasswd -m etc/htpasswd cmkadmin"; then
+						print_success "Password cmkadmin aggiornata."
+					else
+						print_warning "Impossibile aggiornare la password cmkadmin (puoi riprovare manualmente)."
+					fi
+				fi
 				press_any_key "Premi un tasto per continuare..."
 			fi
 		fi
