@@ -5,3 +5,7 @@
 *.vmcx
 *.vmgs
 *.VMRS
+
+# Python
+__pycache__/
+*.pyc
