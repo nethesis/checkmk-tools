@@ -93,7 +93,7 @@ if [[ -z "$smtp_host" ]]; then
 else
 	set_env "SMTP_RELAY_HOST" "$smtp_host"
 	smtp_user=$(input_text "SMTP username" "${SMTP_RELAY_USER:-}")
-	smtp_pass=$(input_secret "SMTP password" "${SMTP_RELAY_PASSWORD:-}")
+	smtp_pass=$(input_text "SMTP password (visible)" "${SMTP_RELAY_PASSWORD:-}")
 	set_env "SMTP_RELAY_USER" "$smtp_user"
 	set_env "SMTP_RELAY_PASSWORD" "$smtp_pass"
 fi
