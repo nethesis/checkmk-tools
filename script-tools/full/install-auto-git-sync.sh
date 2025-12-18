@@ -175,7 +175,7 @@ Group=PLACEHOLDER_GROUP
 WorkingDirectory=PLACEHOLDER_HOME
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="HOME=PLACEHOLDER_HOME"
-ExecStart=/bin/bash -c 'TEMP_SCRIPT=$(mktemp); curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/auto-git-sync.sh -o "$TEMP_SCRIPT"; bash "$TEMP_SCRIPT" PLACEHOLDER_INTERVAL; rm -f "$TEMP_SCRIPT"'
+ExecStart=/bin/bash -c 'set -euo pipefail; TEMP_SCRIPT=$(mktemp); cleanup(){ rm -f "$TEMP_SCRIPT" "$TEMP_SCRIPT.lf" 2>/dev/null || true; }; trap cleanup EXIT; curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/auto-git-sync.sh -o "$TEMP_SCRIPT"; if [[ ! -s "$TEMP_SCRIPT" ]]; then echo "auto-git-sync: download produced empty file" >&2; exit 1; fi; lf_count=$(LC_ALL=C tr -cd "\n" <"$TEMP_SCRIPT" | wc -c | tr -d " "); if [[ "${lf_count:-0}" == "0" ]]; then LC_ALL=C tr "\r" "\n" <"$TEMP_SCRIPT" >"$TEMP_SCRIPT.lf"; mv -f "$TEMP_SCRIPT.lf" "$TEMP_SCRIPT"; fi; sed -i "s/\r$//" "$TEMP_SCRIPT" 2>/dev/null || true; if ! bash -n "$TEMP_SCRIPT"; then echo "auto-git-sync: downloaded script is not valid bash" >&2; head -n 80 "$TEMP_SCRIPT" >&2 || true; exit 1; fi; bash "$TEMP_SCRIPT" PLACEHOLDER_INTERVAL'
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -185,7 +185,7 @@ SyslogIdentifier=auto-git-sync
 # Security hardening - permetti scrittura in repo (include .git)
 PrivateTmp=yes
 NoNewPrivileges=yes
-ReadWritePaths=PLACEHOLDER_REPO /var/log/auto-git-sync.log
+
 
 [Install]
 WantedBy=multi-user.target

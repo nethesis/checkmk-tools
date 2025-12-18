@@ -1,3 +1,504 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# shellcheck disable=SC1091
+source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck disable=SC1091
+source "${INSTALLER_ROOT}/utils/logger.sh"
+# shellcheck disable=SC1091
+source "${INSTALLER_ROOT}/utils/menu.sh"
+# shellcheck disable=SC1091
+source "${INSTALLER_ROOT}/utils/validate.sh"
+
+load_env() {
+	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+		set -a
+		# shellcheck disable=SC1091
+		source "${INSTALLER_ROOT}/.env"
+		set +a
+	fi
+}
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+main() {
+	require_root
+	load_env
+
+	print_header "CheckMK Server"
+
+	local deb_url="${CHECKMK_DEB_URL:-}"
+	local checkmk_version="${CHECKMK_VERSION:-}"
+	local checkmk_codename="${CHECKMK_DISTRO_CODENAME:-${CHECKMK_CODENAME:-}}"
+	local checkmk_edition="${CHECKMK_EDITION:-raw}"
+	local site_name="${CHECKMK_SITE_NAME:-cmk}"
+	local http_port="${CHECKMK_HTTP_PORT:-5000}"
+	local admin_pwd="${CHECKMK_ADMIN_PASSWORD:-}"
+
+	build_deb_url() {
+		local version="$1" codename="$2" edition="$3"
+		[[ -n "$version" && -n "$codename" ]] || return 1
+		case "$edition" in
+			raw) edition="raw" ;;
+			enterprise) edition="enterprise" ;;
+			*) edition="raw" ;;
+		esac
+		echo "https://download.checkmk.com/checkmk/${version}/check-mk-${edition}-${version}_0.${codename}_amd64.deb"
+	}
+
+	download_deb() {
+		local url="$1" dest="$2"
+		print_info "Downloading: $url"
+		if command -v curl >/dev/null 2>&1; then
+				local -a curl_opts=(--fail --location --show-error --connect-timeout 10 --max-time 1200 --retry 5 --retry-connrefused --retry-delay 2 --speed-time 30 --speed-limit 1024)
+			if [[ -t 1 ]]; then
+				curl "${curl_opts[@]}" --progress-bar -o "$dest" "$url"
+			else
+				curl "${curl_opts[@]}" --silent -o "$dest" "$url"
+			fi
+		elif command -v wget >/dev/null 2>&1; then
+			wget --tries=5 --timeout=30 --progress=dot:giga -O "$dest" "$url"
+		else
+			print_error "Neither curl nor wget found"
+			return 1
+		fi
+		[[ -s "$dest" ]] || { print_error "Downloaded file is empty: $dest"; return 1; }
+	}
+
+	set_env_kv() {
+		local key="$1" value="$2"
+		local env_file="${INSTALLER_ROOT}/.env"
+		[[ -f "$env_file" ]] || return 0
+		local escaped env_line found=0
+		local new_file="${env_file}.new"
+
+		escaped=${value//\\/\\\\}
+		escaped=${escaped//"/\\"}
+		env_line="${key}=\"${escaped}\""
+
+		: >"$new_file"
+		while IFS= read -r line || [[ -n "${line:-}" ]]; do
+			if [[ "$line" == ${key}=* ]]; then
+				printf '%s\n' "$env_line" >>"$new_file"
+				found=1
+			else
+				printf '%s\n' "$line" >>"$new_file"
+			fi
+		done <"$env_file"
+
+		if [[ $found -eq 0 ]]; then
+			printf '%s\n' "$env_line" >>"$new_file"
+		fi
+
+		mv "$new_file" "$env_file"
+	}
+
+	# Avoid accidentally reusing legacy/default passwords from old .env files.
+	# If a known placeholder is present, ignore it and clear it from .env.
+	if [[ "${admin_pwd}" == "Nethesis,1234" ]]; then
+		print_warning "CHECKMK_ADMIN_PASSWORD is set to a legacy default value; ignoring it."
+		admin_pwd=""
+		set_env_kv "CHECKMK_ADMIN_PASSWORD" ""
+	fi
+
+	ensure_system_apache_https_proxy() {
+		local site="$1" port="$2"
+		local host
+		host="$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")"
+		[[ -n "${port:-}" ]] || port="5000"
+
+		DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y --no-install-recommends apache2 ssl-cert >/dev/null 2>&1 || true
+		if ! command -v a2enmod >/dev/null 2>&1; then
+			return 0
+		fi
+		for mod in proxy proxy_http proxy_wstunnel headers rewrite ssl; do
+			a2enmod "$mod" >/dev/null 2>&1 || true
+		done
+
+		local conf="/etc/apache2/sites-available/checkmk.conf"
+		if [[ -f "$conf" ]]; then
+			cp -a "$conf" "${conf}.bak.$(date +%Y%m%d_%H%M%S)" >/dev/null 2>&1 || true
+		fi
+
+		cat >"$conf" <<EOF
+<VirtualHost *:80>
+    ServerName ${host}
+
+	RewriteEngine On
+	RewriteCond %{HTTPS} off
+	RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName ${host}
+
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/certs/ssl-cert-snakeoil.pem
+    SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key
+
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:${port}/ retry=0
+    ProxyPassReverse / http://127.0.0.1:${port}/
+
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule ^/(.*) ws://127.0.0.1:${port}/$1 [P,L]
+
+    Header always set Strict-Transport-Security "max-age=31536000"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+</VirtualHost>
+EOF
+
+	a2ensite checkmk.conf >/dev/null 2>&1 || true
+	a2dissite 000-default.conf >/dev/null 2>&1 || true
+
+	if command -v systemctl >/dev/null 2>&1; then
+		systemctl reload apache2 >/dev/null 2>&1 || systemctl restart apache2 >/dev/null 2>&1 || true
+	fi
+	}
+
+	if [[ -z "$deb_url" ]]; then
+		# Try to build from version+codename first (no prompt needed if already configured)
+		if [[ -n "$checkmk_version" && -n "$checkmk_codename" ]]; then
+			deb_url=$(build_deb_url "$checkmk_version" "$checkmk_codename" "$checkmk_edition")
+			print_info "Using generated URL: $deb_url"
+			set_env_kv "CHECKMK_DEB_URL" "$deb_url"
+		else
+			print_info "CheckMK .deb URL non impostato."
+			print_info "Puoi incollare l'URL completo oppure inserire solo versione+distro e lo genero io."
+			print_info "Esempio URL: https://download.checkmk.com/checkmk/2.4.0p17/check-mk-raw-2.4.0p17_0.noble_amd64.deb"
+			deb_url=$(input_url "Inserisci URL .deb (INVIO per generare)" "")
+			if [[ -z "$deb_url" ]]; then
+				checkmk_version=$(input_text "CheckMK version (es. 2.4.0p17)" "${checkmk_version}")
+				checkmk_codename=$(input_text "Ubuntu/Debian codename (es. noble, jammy)" "${checkmk_codename}")
+				checkmk_edition=$(input_text "CheckMK edition (raw/enterprise)" "${checkmk_edition}" "^(raw|enterprise)$")
+				deb_url=$(build_deb_url "$checkmk_version" "$checkmk_codename" "$checkmk_edition") || true
+				if [[ -z "$deb_url" ]]; then
+					print_error "Impossibile costruire l'URL: versione/codename mancanti"
+					exit 1
+				fi
+				set_env_kv "CHECKMK_VERSION" "$checkmk_version"
+				set_env_kv "CHECKMK_DISTRO_CODENAME" "$checkmk_codename"
+				set_env_kv "CHECKMK_EDITION" "$checkmk_edition"
+				set_env_kv "CHECKMK_DEB_URL" "$deb_url"
+				print_info "Generated URL: $deb_url"
+			else
+				set_env_kv "CHECKMK_DEB_URL" "$deb_url"
+			fi
+		fi
+	fi
+
+	local deb_path="/tmp/checkmk-server.deb"
+	download_deb "$deb_url" "$deb_path"
+
+	print_info "Installing .deb (may take a while)"
+	DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get update -y >/dev/null 2>&1 || true
+	if ! (
+		cd "$(dirname "$deb_path")" &&
+		DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y --no-install-recommends "./$(basename "$deb_path")"
+	); then
+		print_info "apt-get local install failed; falling back to dpkg + apt-get -f install"
+		if ! dpkg -i "$deb_path"; then
+			# dpkg often fails here because dependencies are missing; this is expected.
+			print_info "dpkg reported missing dependencies; attempting to fix with apt"
+		fi
+		if ! DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -f install -y; then
+			print_error "apt-get -f install failed; dpkg/apt is in a broken state"
+			exit 1
+		fi
+		dpkg -i "$deb_path" >/dev/null 2>&1 || true
+	fi
+
+	if [[ -n "$admin_pwd" ]] && command -v omd >/dev/null 2>&1; then
+		# Best-effort: set password after site creation.
+		true
+	fi
+
+	if command -v omd >/dev/null 2>&1; then
+		local create_output="" site_created="no"
+		if ! omd sites 2>/dev/null | awk '{print $1}' | grep -qx "$site_name"; then
+			print_info "Creating site: $site_name"
+			create_output="$(omd create "$site_name" 2>&1)" || {
+				print_error "Failed to create site: $site_name"
+				printf '%s\n' "$create_output" >&2
+				exit 1
+			}
+			printf '%s\n' "$create_output"
+			site_created="yes"
+		fi
+		if [[ -n "$http_port" ]]; then
+			omd config "$site_name" set APACHE_TCP_PORT "$http_port" 2>/dev/null || true
+		fi
+		omd config "$site_name" set APACHE_TCP_ADDR 127.0.0.1 2>/dev/null || true
+		if [[ -n "$admin_pwd" ]]; then
+			# Prefer reading password from stdin to avoid quoting issues.
+			if ! printf '%s\n' "$admin_pwd" | omd su "$site_name" -c "htpasswd -i -m etc/htpasswd cmkadmin" >/dev/null 2>&1; then
+				print_warning "Failed to set cmkadmin password (keeping auto-generated one). You can change it with: omd su $site_name -c 'cmk-passwd cmkadmin'"
+			fi
+		fi
+		print_info "Updating system Apache config (best-effort)"
+		omd update-apache-config "$site_name" 2>/dev/null || true
+		print_info "Configuring HTTPS reverse proxy on port 443 (self-signed, best-effort)"
+		ensure_system_apache_https_proxy "$site_name" "$http_port" || true
+		print_info "Starting site: $site_name"
+		omd start "$site_name" || true
+
+		if [[ "$site_created" == "yes" ]]; then
+			local shown_pwd="" host url_http url_https url_alt
+			if [[ -n "$admin_pwd" ]]; then
+				shown_pwd="$admin_pwd"
+			fi
+			if [[ -z "$shown_pwd" && -n "$create_output" ]]; then
+				shown_pwd="$(printf '%s\n' "$create_output" | sed -n -E 's/.*password:[[:space:]]*([^[:space:]]+).*/\1/p' | head -n 1)"
+			fi
+			host="$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")"
+			url_http="http://${host}/${site_name}/"
+			url_https="https://${host}/${site_name}/"
+			url_alt="http://${host}"
+			if [[ -n "$http_port" && "$http_port" != "80" ]]; then
+				url_alt="${url_alt}:${http_port}"
+			fi
+			url_alt="${url_alt}/${site_name}/"
+
+			echo ""
+			print_header "Credenziali CheckMK"
+			print_info "URL (HTTP):  ${url_http}"
+			print_info "URL (HTTPS): ${url_https}"
+			print_info "URL (alt):   ${url_alt}"
+			print_info "User: cmkadmin"
+			if [[ -n "$shown_pwd" ]]; then
+				print_info "Password: ${shown_pwd}"
+			else
+				print_warning "Password non disponibile: usa 'cmk-passwd cmkadmin'"
+			fi
+			echo ""
+			print_info "Cambio password (manuale): sudo su - ${site_name} -c \"cmk-passwd cmkadmin\""
+		fi
+	else
+		print_warning "omd not found; CheckMK installation may be incomplete"
+	fi
+
+	print_success "CheckMK server module completed"
+}
+
+main "$@"
+
+exit 0
+# shellcheck disable=SC2317
+: <<'__CORRUPTED_TAIL__'
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+load_env() {
+	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+		set -a
+		source "${INSTALLER_ROOT}/.env"
+		set +a
+	fi
+}
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+main() {
+	require_root
+	load_env
+
+	print_header "CheckMK Server"
+
+	local deb_url="${CHECKMK_DEB_URL:-}"
+	local site_name="${CHECKMK_SITE_NAME:-cmk}"
+
+	if [[ -z "$deb_url" ]]; then
+		print_error "CHECKMK_DEB_URL is not set in .env"
+		print_info "Run Configuration Wizard and set a CheckMK .deb URL"
+		exit 1
+	fi
+
+	local deb_path="/tmp/checkmk-server.deb"
+	print_info "Downloading: $deb_url"
+	curl -fsSL "$deb_url" -o "$deb_path"
+
+	print_info "Installing .deb (may take a while)"
+	dpkg -i "$deb_path" || true
+	apt-get -f install -y
+
+	if command -v omd >/dev/null 2>&1; then
+		if ! omd sites 2>/dev/null | awk '{print $1}' | grep -qx "$site_name"; then
+			print_info "Creating site: $site_name"
+			omd create "$site_name"
+		fi
+		print_info "Starting site: $site_name"
+		omd start "$site_name" || true
+	else
+		print_warning "omd not found; CheckMK installation may be incomplete"
+	fi
+
+	print_success "CheckMK server module completed"
+}
+
+main "$@"
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODULE_NAME="CheckMK Server Installation"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# shellcheck source=../utils/colors.sh
+source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck source=../utils/logger.sh
+source "${INSTALLER_ROOT}/utils/logger.sh"
+# shellcheck source=../utils/menu.sh
+source "${INSTALLER_ROOT}/utils/menu.sh"
+# shellcheck source=../utils/validate.sh
+source "${INSTALLER_ROOT}/utils/validate.sh"
+
+if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+	set -a
+	# shellcheck disable=SC1091
+	source "${INSTALLER_ROOT}/.env"
+	set +a
+fi
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		log_error "This module must be run as root"
+		exit 1
+	fi
+}
+
+apt_install() {
+	local packages=("$@")
+	DEBIAN_FRONTEND=noninteractive apt-get update -y
+	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${packages[@]}"
+}
+
+get_checkmk_url() {
+	local url="${CHECKMK_DEB_URL:-}"
+	if [[ -n "$url" ]]; then
+		echo "$url"
+		return 0
+	fi
+
+	print_info "CheckMK download URL is not set in .env"
+	print_info "Example: https://download.checkmk.com/checkmk/2.4.0p15/check-mk-raw-2.4.0p15_0.jammy_amd64.deb"
+	url=$(input_url "CheckMK DEB download URL" "")
+	if [[ -z "$url" ]]; then
+		log_error "No CheckMK URL provided"
+		return 1
+	fi
+	echo "$url"
+}
+
+download_checkmk() {
+	local url="$1"
+	local dest="/tmp/check-mk-raw.deb"
+	log_info "Downloading CheckMK: $url"
+	log_command "rm -f '$dest'"
+	log_command "wget -O '$dest' '$url'"
+	[[ -s "$dest" ]] || { log_error "Downloaded file is empty: $dest"; return 1; }
+}
+
+install_checkmk_package() {
+	local deb="/tmp/check-mk-raw.deb"
+	[[ -f "$deb" ]] || { log_error "Package not found: $deb"; return 1; }
+	log_info "Installing CheckMK package"
+	set +e
+	dpkg -i "$deb"
+	local rc=$?
+	set -e
+	if [[ $rc -ne 0 ]]; then
+		log_warning "dpkg reported errors; attempting to fix dependencies"
+		DEBIAN_FRONTEND=noninteractive apt-get -f install -y
+		dpkg -i "$deb" || true
+	fi
+}
+
+create_or_update_site() {
+	local site="${CHECKMK_SITE_NAME:-monitoring}"
+	local port="${CHECKMK_HTTP_PORT:-5000}"
+	local password="${CHECKMK_ADMIN_PASSWORD:-}"
+
+	command -v omd >/dev/null 2>&1 || { log_error "omd not found after installation"; return 1; }
+
+	if omd sites 2>/dev/null | awk '{print $1}' | grep -qx "$site"; then
+		log_info "Site already exists: $site"
+	else
+		log_info "Creating site: $site"
+		omd create "$site"
+		omd enable "$site" || true
+	fi
+
+	if [[ -n "$port" ]]; then
+		log_info "Setting site Apache port: $port"
+		omd config "$site" set APACHE_TCP_PORT "$port" 2>/dev/null || log_warning "Could not set APACHE_TCP_PORT (omd config)"
+	fi
+
+	if [[ -n "$password" ]]; then
+		log_info "Setting cmkadmin password"
+		omd su "$site" -c "htpasswd -b etc/htpasswd cmkadmin '$password'" || log_warning "Failed to set cmkadmin password"
+	fi
+
+	log_info "Starting site: $site"
+	omd start "$site" || true
+
+	if command -v ufw >/dev/null 2>&1; then
+		ufw allow "${port}"/tcp >/dev/null 2>&1 || true
+	fi
+
+	local server_ip
+	server_ip=$(hostname -I 2>/dev/null | awk '{print $1}' || true)
+	server_ip=${server_ip:-localhost}
+	print_separator "="
+	print_success "CheckMK server installation complete"
+	echo "URL: http://${server_ip}:${port}/${site}/"
+	echo "User: cmkadmin"
+	[[ -n "$password" ]] && echo "Password: (as configured in .env)"
+	print_separator "="
+}
+
+main() {
+	require_root
+	log_module_start "$MODULE_NAME"
+
+	if [[ "${INSTALL_CHECKMK_SERVER:-yes}" != "yes" ]]; then
+		log_info "INSTALL_CHECKMK_SERVER=no; skipping"
+		log_module_end "$MODULE_NAME" "success"
+		return 0
+	fi
+
+	apt_install ca-certificates wget curl jq apache2-utils xinetd || true
+
+	local url
+	url=$(get_checkmk_url)
+	download_checkmk "$url"
+	install_checkmk_package
+	create_or_update_site
+
+	log_module_end "$MODULE_NAME" "success"
+}
+
+main "$@"
 #!/bin/bash
 /usr/bin/env bash
 # 02-checkmk-server.sh - CheckMK Server installation module
@@ -1404,3 +1905,5 @@ echo ""}
 # Execute installation steps  install_checkmk_dependencies    download_checkmk "$url"  install_checkmk_package "/tmp/check-mk-raw.deb"    create_checkmk_site  configure_checkmk_site  configure_apache  apply_performance_tuning  configure_checkmk_firewall    start_checkmk_site    
 # Optional: install local agent  if [[ "${INSTALL_LOCAL_AGENT:-yes}" == "yes" ]]; then    install_local_agent  fi    create_backup_script    log_module_end "$MODULE_NAME" "success"    display_installation_summary}
 # Run main functionmain "$@"
+
+__CORRUPTED_TAIL__

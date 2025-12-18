@@ -1,3 +1,330 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
+
+# shellcheck disable=SC1091
+source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck disable=SC1091
+source "${INSTALLER_ROOT}/utils/menu.sh"
+# shellcheck disable=SC1091
+source "${INSTALLER_ROOT}/utils/validate.sh"
+
+TEMPLATE_FILE="${INSTALLER_ROOT}/.env.template"
+ENV_FILE="${INSTALLER_ROOT}/.env"
+
+print_header "Configuration Wizard"
+
+if [[ ! -f "$TEMPLATE_FILE" ]]; then
+	print_error "Missing template: $TEMPLATE_FILE"
+	exit 1
+fi
+
+if [[ ! -f "$ENV_FILE" ]]; then
+	cp "$TEMPLATE_FILE" "$ENV_FILE"
+	print_info "Created $ENV_FILE from template"
+else
+	print_info "Using existing $ENV_FILE"
+fi
+
+# Load current defaults
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE" 2>/dev/null || true
+set +a
+
+tmp_file="${ENV_FILE}.tmp"
+cp "$ENV_FILE" "$tmp_file"
+
+set_env() {
+	local key="$1"
+	local value="$2"
+	local escaped env_line found=0
+	local new_file="${tmp_file}.new"
+
+	escaped=${value//\\/\\\\}
+	escaped=${escaped//"/\\"}
+	env_line="${key}=\"${escaped}\""
+
+	: >"$new_file"
+	while IFS= read -r line || [[ -n "${line:-}" ]]; do
+		if [[ "$line" == ${key}=* ]]; then
+			printf '%s\n' "$env_line" >>"$new_file"
+			found=1
+		else
+			printf '%s\n' "$line" >>"$new_file"
+		fi
+	done <"$tmp_file"
+
+	if [[ $found -eq 0 ]]; then
+		printf '%s\n' "$env_line" >>"$new_file"
+	fi
+
+	mv "$new_file" "$tmp_file"
+}
+
+print_info "Premi INVIO per tenere il valore di default."
+echo ""
+
+# ===== System base =====
+timezone=$(input_text "Timezone" "${TIMEZONE:-Europe/Rome}")
+ssh_port=$(input_port "SSH port" "${SSH_PORT:-22}")
+permit_root=$(input_text "PermitRootLogin (yes/no)" "${PERMIT_ROOT_LOGIN:-no}" "^(yes|no)$")
+
+fail2ban_email=$(input_email "Fail2Ban notification email" "${FAIL2BAN_EMAIL:-marzio@nethesis.it}")
+
+open_http_https=$(input_text "Open HTTP/HTTPS in firewall (yes/no)" "${OPEN_HTTP_HTTPS:-yes}" "^(yes|no)$")
+disable_ipv6=$(input_text "Disable IPv6 (yes/no)" "${DISABLE_IPV6:-no}" "^(yes|no)$")
+
+set_env "TIMEZONE" "$timezone"
+set_env "SSH_PORT" "$ssh_port"
+set_env "PERMIT_ROOT_LOGIN" "$permit_root"
+set_env "FAIL2BAN_EMAIL" "$fail2ban_email"
+set_env "OPEN_HTTP_HTTPS" "$open_http_https"
+set_env "DISABLE_IPV6" "$disable_ipv6"
+
+echo ""
+print_header "Postfix / SMTP relay"
+smtp_host=$(input_text "SMTP relay host (blank to disable)" "${SMTP_RELAY_HOST:-smtp-relay.nethesis.it}")
+if [[ -z "$smtp_host" ]]; then
+	set_env "SMTP_RELAY_HOST" ""
+	set_env "SMTP_RELAY_USER" ""
+	set_env "SMTP_RELAY_PASSWORD" ""
+else
+	set_env "SMTP_RELAY_HOST" "$smtp_host"
+	smtp_user=$(input_text "SMTP username" "${SMTP_RELAY_USER:-}")
+	smtp_pass=$(input_text "SMTP password (visible)" "${SMTP_RELAY_PASSWORD:-}")
+	set_env "SMTP_RELAY_USER" "$smtp_user"
+	set_env "SMTP_RELAY_PASSWORD" "$smtp_pass"
+fi
+
+echo ""
+print_header "CheckMK server"
+install_server=$(input_text "Install CheckMK server? (yes/no)" "${INSTALL_CHECKMK_SERVER:-yes}" "^(yes|no)$")
+set_env "INSTALL_CHECKMK_SERVER" "$install_server"
+
+# Ask server-specific settings only if we're actually installing the server.
+if [[ "$install_server" == "yes" ]]; then
+	deb_url=$(input_url "CheckMK .deb URL (optional; can be asked during install)" "${CHECKMK_DEB_URL:-}")
+	checkmk_version=$(input_text "CheckMK version (es. 2.4.0p17)" "${CHECKMK_VERSION:-}")
+	checkmk_codename=$(input_text "Ubuntu/Debian codename (es. noble, jammy)" "${CHECKMK_DISTRO_CODENAME:-${CHECKMK_CODENAME:-}}")
+	checkmk_edition=$(input_text "CheckMK edition (raw/enterprise)" "${CHECKMK_EDITION:-raw}" "^(raw|enterprise)$")
+	site_name=$(input_text "CheckMK site name" "${CHECKMK_SITE_NAME:-monitoring}" "^[a-z][a-z0-9_-]*$")
+	http_port=$(input_port "CheckMK HTTP port" "${CHECKMK_HTTP_PORT:-5000}")
+
+	set_env "CHECKMK_DEB_URL" "$deb_url"
+	set_env "CHECKMK_VERSION" "$checkmk_version"
+	set_env "CHECKMK_DISTRO_CODENAME" "$checkmk_codename"
+	set_env "CHECKMK_EDITION" "$checkmk_edition"
+	set_env "CHECKMK_SITE_NAME" "$site_name"
+	set_env "CHECKMK_HTTP_PORT" "$http_port"
+fi
+
+# Keep the password value as-is; the installer can optionally set it at the end.
+set_env "CHECKMK_ADMIN_PASSWORD" "${CHECKMK_ADMIN_PASSWORD:-}"
+
+echo ""
+print_header "CheckMK agent clients"
+install_local_agent_default="${INSTALL_LOCAL_AGENT:-}"
+if [[ -z "$install_local_agent_default" ]]; then
+	if [[ "$install_server" == "yes" ]]; then
+		install_local_agent_default="yes"
+	else
+		install_local_agent_default="no"
+	fi
+fi
+
+install_local_agent=$(input_text "Install CheckMK agent on this host? (yes/no)" "$install_local_agent_default" "^(yes|no)$")
+set_env "INSTALL_LOCAL_AGENT" "$install_local_agent"
+
+if [[ "$install_local_agent" != "yes" ]]; then
+	# No local agent requested: don't ask for any agent-client settings.
+	set_env "CHECKMK_SERVER" ""
+	set_env "USE_SYSTEMD_SOCKET" "${USE_SYSTEMD_SOCKET:-yes}"
+elif [[ "$install_server" == "yes" ]]; then
+	# Server install: don't ask for server address (it would be confusing/no-op here)
+	set_env "CHECKMK_SERVER" "${CHECKMK_SERVER:-}"
+	use_socket=$(input_text "Use systemd socket for agent? (yes/no)" "${USE_SYSTEMD_SOCKET:-yes}" "^(yes|no)$")
+	set_env "USE_SYSTEMD_SOCKET" "$use_socket"
+else
+	checkmk_server=$(input_text "CheckMK server IP/host" "${CHECKMK_SERVER:-}" ".+")
+	set_env "CHECKMK_SERVER" "$checkmk_server"
+	use_socket=$(input_text "Use systemd socket for agent? (yes/no)" "${USE_SYSTEMD_SOCKET:-yes}" "^(yes|no)$")
+	set_env "USE_SYSTEMD_SOCKET" "$use_socket"
+fi
+
+echo ""
+print_header "FRPC (optional)"
+install_frps=$(input_text "Install FRPS server? (yes/no)" "${INSTALL_FRPS:-no}" "^(yes|no)$")
+install_frpc=$(input_text "Install FRPC client? (yes/no)" "${INSTALL_FRPC:-no}" "^(yes|no)$")
+
+set_env "INSTALL_FRPS" "$install_frps"
+set_env "INSTALL_FRPC" "$install_frpc"
+
+if [[ "$install_frpc" == "yes" ]]; then
+	frpc_addr=$(input_text "FRPC server address" "${FRPC_SERVER_ADDR:-}")
+	frpc_port=$(input_port "FRPC server port" "${FRPC_SERVER_PORT:-7000}")
+	frpc_token=$(input_secret "FRPC token" "${FRPC_TOKEN:-}")
+	frpc_remote=$(input_text "FRPC remote port (agent)" "${FRPC_REMOTE_PORT:-}")
+	set_env "FRPC_SERVER_ADDR" "$frpc_addr"
+	set_env "FRPC_SERVER_PORT" "$frpc_port"
+	set_env "FRPC_TOKEN" "$frpc_token"
+	set_env "FRPC_REMOTE_PORT" "$frpc_remote"
+else
+	# Ensure we don't accidentally configure FRPC when not requested
+	set_env "FRPC_SERVER_ADDR" ""
+	set_env "FRPC_SERVER_PORT" "7000"
+	set_env "FRPC_TOKEN" ""
+	set_env "FRPC_REMOTE_PORT" ""
+fi
+
+echo ""
+print_header "Ydea (optional)"
+install_ydea=$(input_text "Install Ydea toolkit? (yes/no)" "${INSTALL_YDEA:-no}" "^(yes|no)$")
+set_env "INSTALL_YDEA" "$install_ydea"
+
+if [[ "$install_ydea" == "yes" ]]; then
+	ydea_id=$(input_text "Ydea ID" "${YDEA_ID:-}")
+	ydea_key=$(input_secret "Ydea API key" "${YDEA_API_KEY:-}")
+	set_env "YDEA_ID" "$ydea_id"
+	set_env "YDEA_API_KEY" "$ydea_key"
+else
+	set_env "YDEA_ID" ""
+	set_env "YDEA_API_KEY" ""
+fi
+
+mv "$tmp_file" "$ENV_FILE"
+chmod 600 "$ENV_FILE" 2>/dev/null || true
+print_success "Saved configuration to $ENV_FILE"
+exit 0
+
+# The remainder of this file contains duplicated/legacy content kept only for forensics.
+# It must not be executed or parsed as code.
+# shellcheck disable=SC2317
+: <<'__CORRUPTED_TAIL__'
+ 
+ydea_user=$(prompt_input "Ydea User ID (create ticket)" "")
+
+set_kv "SSH_PORT" "$ssh_port"
+set_kv "TIMEZONE" "$timezone"
+set_kv "PERMIT_ROOT_LOGIN" "$permit_root"
+set_kv "CHECKMK_SITE_NAME" "$site_name"
+set_kv "CHECKMK_SERVER" "$checkmk_server"
+set_kv "CHECKMK_DEB_URL" "$checkmk_deb_url"
+set_kv "FRP_VERSION" "$frp_version"
+set_kv "FRPC_SERVER_ADDR" "$frpc_server_addr"
+set_kv "FRPC_SERVER_PORT" "$frpc_server_port"
+set_kv "YDEA_ID" "$ydea_id"
+set_kv "YDEA_USER_ID_CREATE_TICKET" "$ydea_user"
+
+mv "$tmp_file" "$ENV_FILE"
+print_success "Saved configuration to $ENV_FILE"
+#!/usr/bin/env bash
+set -euo pipefail
+
+# config-wizard.sh - Interactive configuration wizard
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=utils/colors.sh
+source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck source=utils/menu.sh
+source "${INSTALLER_ROOT}/utils/menu.sh"
+
+ENV_FILE="${INSTALLER_ROOT}/.env"
+ENV_TEMPLATE="${INSTALLER_ROOT}/.env.template"
+
+replace_kv() {
+	local file="$1" key="$2" value="$3"
+	# Escape backslashes and quotes for sed replacement
+	local escaped
+	escaped=$(printf '%s' "$value" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+	if grep -qE "^${key}=\"" "$file"; then
+		sed -i -E "s|^${key}=\".*\"|${key}=\"${escaped}\"|" "$file"
+	else
+		echo "${key}=\"${value}\"" >>"$file"
+	fi
+}
+
+replace_raw() {
+	local file="$1" key="$2" value="$3"
+	local escaped
+	escaped=$(printf '%s' "$value" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+	if grep -qE "^${key}=" "$file"; then
+		sed -i -E "s|^${key}=.*|${key}=\"${escaped}\"|" "$file"
+	else
+		echo "${key}=\"${value}\"" >>"$file"
+	fi
+}
+
+main() {
+	print_header "Configuration Wizard"
+
+	if [[ ! -f "$ENV_TEMPLATE" ]]; then
+		print_error "Template not found: $ENV_TEMPLATE"
+		exit 1
+	fi
+
+	if [[ -f "$ENV_FILE" ]]; then
+		print_warning "An existing .env was found: $ENV_FILE"
+		if ! confirm "Overwrite it with defaults from .env.template?" "n"; then
+			print_info "Keeping existing .env and updating selected values."
+		else
+			cp -a "$ENV_TEMPLATE" "$ENV_FILE"
+		fi
+	else
+		cp -a "$ENV_TEMPLATE" "$ENV_FILE"
+	fi
+
+	chmod 600 "$ENV_FILE" 2>/dev/null || true
+
+	print_info "Enter values (leave blank to keep defaults)"
+	echo ""
+
+	local timezone ssh_port permit_root install_server deb_url site_name http_port admin_pwd
+	local checkmk_server ydea_id ydea_key frpc_addr frpc_port frpc_token frpc_remote
+
+	timezone=$(input_text "Timezone" "Europe/Rome")
+	ssh_port=$(input_text "SSH port" "22")
+	permit_root=$(input_text "PermitRootLogin (yes/no)" "no")
+	install_server=$(input_text "Install CheckMK server? (yes/no)" "yes")
+	deb_url=$(input_text "CheckMK DEB URL (optional)" "")
+	site_name=$(input_text "CheckMK site name" "monitoring")
+	http_port=$(input_text "CheckMK HTTP port" "5000")
+	admin_pwd=$(input_text "CheckMK cmkadmin password" "")
+	checkmk_server=$(input_text "CheckMK server IP/host (clients)" "")
+
+	ydea_id=$(input_text "Ydea ID (optional)" "")
+	ydea_key=$(input_text "Ydea API key (optional)" "")
+
+	frpc_addr=$(input_text "FRPC server address (optional)" "")
+	frpc_port=$(input_text "FRPC server port" "7000")
+	frpc_token=$(input_text "FRPC token (optional)" "")
+	frpc_remote=$(input_text "FRPC remote port for CheckMK agent (optional)" "")
+
+	replace_kv "$ENV_FILE" "TIMEZONE" "$timezone"
+	replace_kv "$ENV_FILE" "SSH_PORT" "$ssh_port"
+	replace_kv "$ENV_FILE" "PERMIT_ROOT_LOGIN" "$permit_root"
+	replace_kv "$ENV_FILE" "INSTALL_CHECKMK_SERVER" "$install_server"
+	replace_kv "$ENV_FILE" "CHECKMK_SITE_NAME" "$site_name"
+	replace_kv "$ENV_FILE" "CHECKMK_HTTP_PORT" "$http_port"
+	[[ -n "$deb_url" ]] && replace_raw "$ENV_FILE" "CHECKMK_DEB_URL" "$deb_url" || true
+	[[ -n "$admin_pwd" ]] && replace_raw "$ENV_FILE" "CHECKMK_ADMIN_PASSWORD" "$admin_pwd" || true
+	[[ -n "$checkmk_server" ]] && replace_raw "$ENV_FILE" "CHECKMK_SERVER" "$checkmk_server" || true
+
+	[[ -n "$ydea_id" ]] && replace_raw "$ENV_FILE" "YDEA_ID" "$ydea_id" || true
+	[[ -n "$ydea_key" ]] && replace_raw "$ENV_FILE" "YDEA_API_KEY" "$ydea_key" || true
+
+	[[ -n "$frpc_addr" ]] && replace_raw "$ENV_FILE" "FRPC_SERVER_ADDR" "$frpc_addr" || true
+	replace_raw "$ENV_FILE" "FRPC_SERVER_PORT" "$frpc_port"
+	[[ -n "$frpc_token" ]] && replace_raw "$ENV_FILE" "FRPC_TOKEN" "$frpc_token" || true
+	[[ -n "$frpc_remote" ]] && replace_raw "$ENV_FILE" "FRPC_REMOTE_PORT" "$frpc_remote" || true
+
+	echo ""
+	print_success "Configuration saved to: $ENV_FILE"
+}
+
+main "$@"
 #!/bin/bash
 /usr/bin/env bash
 # config-wizard.sh - Interactive configuration wizard
@@ -1632,3 +1959,4 @@ echo ""  fi    press_any_key}
 echo ""  print_info "You can now run the installer to deploy your configuration"  
 echo ""}
 # Run wizardmain "$@"
+__CORRUPTED_TAIL__

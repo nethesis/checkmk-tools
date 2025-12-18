@@ -1,3 +1,270 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+load_env() {
+	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+		set -a
+		source "${INSTALLER_ROOT}/.env"
+		set +a
+	fi
+}
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+main() {
+	require_root
+	load_env
+
+	print_header "Ydea Toolkit"
+
+	if [[ "${INSTALL_YDEA:-no}" != "yes" ]]; then
+		print_info "INSTALL_YDEA!=yes; skipping Ydea Toolkit"
+		return 0
+	fi
+
+	local src_dir="${INSTALLER_ROOT}/scripts/Ydea-Toolkit"
+	local dst_dir="/opt/ydea-toolkit"
+
+	if [[ ! -d "$src_dir" ]]; then
+		print_warning "Ydea Toolkit source not found at $src_dir"
+		print_info "Skipping deploy (source missing)"
+		return 0
+	fi
+
+	rm -rf "$dst_dir"
+	mkdir -p "$dst_dir"
+	cp -a "$src_dir/." "$dst_dir/"
+
+	local env_file="/etc/ydea-toolkit.env"
+	cat >"$env_file" <<EOF
+YDEA_ID="${YDEA_ID:-}"
+YDEA_API_KEY="${YDEA_API_KEY:-}"
+YDEA_USER_ID_CREATE_TICKET="${YDEA_USER_ID_CREATE_TICKET:-}"
+EOF
+	chmod 600 "$env_file" || true
+
+	print_success "Ydea Toolkit deployed to $dst_dir"
+}
+
+main "$@"
+
+exit 0
+: <<'__CORRUPTED_TAIL__'
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+source "${INSTALLER_ROOT}/utils/colors.sh"
+source "${INSTALLER_ROOT}/utils/logger.sh"
+
+load_env() {
+	if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+		set -a
+		source "${INSTALLER_ROOT}/.env"
+		set +a
+	fi
+}
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		print_error "Module must run as root"
+		exit 1
+	fi
+}
+
+main() {
+	require_root
+	load_env
+
+	print_header "Ydea Toolkit"
+
+	local src_dir="${INSTALLER_ROOT}/scripts/Ydea-Toolkit"
+	local dst_dir="/opt/ydea-toolkit"
+
+	if [[ ! -d "$src_dir" ]]; then
+		print_warning "Ydea Toolkit source not found at $src_dir"
+		print_info "Skipping deploy (source missing)"
+		return 0
+	fi
+
+	rm -rf "$dst_dir"
+	mkdir -p "$dst_dir"
+	cp -a "$src_dir/." "$dst_dir/"
+
+	local env_file="/etc/ydea-toolkit.env"
+	cat >"$env_file" <<EOF
+YDEA_ID=${YDEA_ID:-}
+YDEA_USER_ID_CREATE_TICKET=${YDEA_USER_ID_CREATE_TICKET:-}
+EOF
+	chmod 600 "$env_file" || true
+
+	print_success "Ydea Toolkit deployed to $dst_dir"
+}
+
+main "$@"
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODULE_NAME="Ydea Toolkit Installation"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# shellcheck source=../utils/colors.sh
+source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck source=../utils/logger.sh
+source "${INSTALLER_ROOT}/utils/logger.sh"
+# shellcheck source=../utils/menu.sh
+source "${INSTALLER_ROOT}/utils/menu.sh"
+
+if [[ -f "${INSTALLER_ROOT}/.env" ]]; then
+	set -a
+	# shellcheck disable=SC1091
+	source "${INSTALLER_ROOT}/.env"
+	set +a
+fi
+
+require_root() {
+	if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+		log_error "This module must be run as root"
+		exit 1
+	fi
+}
+
+detect_scripts_source() {
+	if [[ -d "${INSTALLER_ROOT}/scripts/Ydea-Toolkit" ]]; then
+		echo "${INSTALLER_ROOT}/scripts"
+		return 0
+	fi
+	if [[ -d "/cdrom/Ydea-Toolkit" ]]; then
+		echo "/cdrom"
+		return 0
+	fi
+	if [[ -d "${INSTALLER_ROOT}/../../Ydea-Toolkit" ]]; then
+		( cd "${INSTALLER_ROOT}/../.." && pwd )
+		return 0
+	fi
+	local parent_dir
+	parent_dir="$(dirname "$INSTALLER_ROOT")"
+	if [[ -d "$parent_dir/Ydea-Toolkit" ]]; then
+		echo "$parent_dir"
+		return 0
+	fi
+	echo "$INSTALLER_ROOT"
+}
+
+write_env_file() {
+	local env_file="/etc/ydea-toolkit.env"
+	log_info "Writing Ydea environment file: $env_file"
+	cat >"$env_file" <<EOF
+YDEA_ID="${YDEA_ID:-}"
+YDEA_API_KEY="${YDEA_API_KEY:-}"
+YDEA_USER_ID_CREATE_TICKET="${YDEA_USER_ID_CREATE_TICKET:-}"
+YDEA_USER_ID_CREATE_NOTE="${YDEA_USER_ID_CREATE_NOTE:-}"
+YDEA_TRACKING_RETENTION_DAYS="${YDEA_TRACKING_RETENTION_DAYS:-365}"
+YDEA_MONITOR_INTERVAL="${YDEA_MONITOR_INTERVAL:-30}"
+YDEA_DEBUG="${YDEA_DEBUG:-0}"
+EOF
+	chmod 600 "$env_file"
+}
+
+install_timer_if_configured() {
+	local interval_min="${YDEA_MONITOR_INTERVAL:-30}"
+	local use_timer="${USE_SYSTEMD_TIMER:-yes}"
+	local toolkit_dir="/opt/ydea-toolkit"
+	local monitor_script="${toolkit_dir}/ydea-ticket-monitor.sh"
+
+	if [[ "$use_timer" != "yes" ]]; then
+		log_info "USE_SYSTEMD_TIMER!=yes; skipping systemd timer"
+		return 0
+	fi
+	if [[ ! -f "$monitor_script" ]]; then
+		log_warning "Monitor script not found: $monitor_script (skipping timer)"
+		return 0
+	fi
+	if ! command -v systemctl >/dev/null 2>&1; then
+		log_warning "systemctl not available; skipping timer"
+		return 0
+	fi
+
+	local svc="/etc/systemd/system/ydea-ticket-monitor.service"
+	local timer="/etc/systemd/system/ydea-ticket-monitor.timer"
+
+	log_info "Creating systemd service and timer for Ydea ticket monitor"
+	cat >"$svc" <<'EOF'
+[Unit]
+Description=Ydea Ticket Monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/ydea-toolkit.env
+WorkingDirectory=/opt/ydea-toolkit
+ExecStart=/opt/ydea-toolkit/ydea-ticket-monitor.sh
+EOF
+
+	cat >"$timer" <<EOF
+[Unit]
+Description=Run Ydea Ticket Monitor every ${interval_min} minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=${interval_min}min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+	systemctl daemon-reload
+	systemctl enable --now ydea-ticket-monitor.timer || true
+	log_success "Ydea ticket monitor timer enabled"
+}
+
+main() {
+	require_root
+	log_module_start "$MODULE_NAME"
+
+	local scripts_root
+	scripts_root=$(detect_scripts_source)
+	local src_dir="${scripts_root}/Ydea-Toolkit"
+	local dest_dir="/opt/ydea-toolkit"
+
+	if [[ ! -d "$src_dir" ]]; then
+		log_error "Ydea-Toolkit not found at: $src_dir"
+		log_module_end "$MODULE_NAME" "failed"
+		return 1
+	fi
+
+	log_info "Deploying Ydea-Toolkit to $dest_dir"
+	rm -rf "$dest_dir"
+	mkdir -p "$dest_dir"
+	cp -a "$src_dir/." "$dest_dir/"
+	chmod +x "$dest_dir"/*.sh 2>/dev/null || true
+
+	ln -sf "$dest_dir/ydea-toolkit.sh" /usr/local/bin/ydea-toolkit
+	chmod +x /usr/local/bin/ydea-toolkit
+
+	write_env_file
+	install_timer_if_configured
+
+	log_success "Ydea toolkit installed"
+	log_module_end "$MODULE_NAME" "success"
+}
+
+main "$@"
 #!/bin/bash
 /usr/bin/env bash
 # 05-ydea-toolkit.sh - Ydea Toolkit installation and configuration
@@ -1115,3 +1382,5 @@ else    configure_cron  fi
 # Additional setup  create_helper_scripts    
 # Test connection  test_ydea_connection || log_warning "Connection test failed, configure manually"    log_module_end "$MODULE_NAME" "success"    display_installation_summary}
 # Run main functionmain "$@"
+
+__CORRUPTED_TAIL__
