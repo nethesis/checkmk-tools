@@ -100,6 +100,61 @@ main() {
 		mv "$new_file" "$env_file"
 	}
 
+	ensure_system_apache_https_proxy() {
+		local site="$1" port="$2"
+		local host
+		host="$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")"
+		[[ -n "${port:-}" ]] || port="5000"
+
+		DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y --no-install-recommends apache2 ssl-cert >/dev/null 2>&1 || true
+		if ! command -v a2enmod >/dev/null 2>&1; then
+			return 0
+		fi
+		for mod in proxy proxy_http proxy_wstunnel headers rewrite ssl; do
+			a2enmod "$mod" >/dev/null 2>&1 || true
+		done
+
+		local conf="/etc/apache2/sites-available/checkmk.conf"
+		if [[ -f "$conf" ]]; then
+			cp -a "$conf" "${conf}.bak.$(date +%Y%m%d_%H%M%S)" >/dev/null 2>&1 || true
+		fi
+
+		cat >"$conf" <<EOF
+<VirtualHost *:80>
+    ServerName ${host}
+    Redirect permanent / https://${host}/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName ${host}
+
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/certs/ssl-cert-snakeoil.pem
+    SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key
+
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:${port}/ retry=0
+    ProxyPassReverse / http://127.0.0.1:${port}/
+
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule ^/(.*) ws://127.0.0.1:${port}/$1 [P,L]
+
+    Header always set Strict-Transport-Security "max-age=31536000"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+</VirtualHost>
+EOF
+
+	a2ensite checkmk.conf >/dev/null 2>&1 || true
+	a2dissite 000-default.conf >/dev/null 2>&1 || true
+
+	if command -v systemctl >/dev/null 2>&1; then
+		systemctl reload apache2 >/dev/null 2>&1 || systemctl restart apache2 >/dev/null 2>&1 || true
+	fi
+	}
+
 	if [[ -z "$deb_url" ]]; then
 		# Try to build from version+codename first (no prompt needed if already configured)
 		if [[ -n "$checkmk_version" && -n "$checkmk_codename" ]]; then
@@ -181,16 +236,8 @@ main() {
 		fi
 		print_info "Updating system Apache config (best-effort)"
 		omd update-apache-config "$site_name" 2>/dev/null || true
-		# Best-effort: make HTTPS reachable (even with self-signed cert)
-		if command -v a2enmod >/dev/null 2>&1; then
-			DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y --no-install-recommends apache2 ssl-cert >/dev/null 2>&1 || true
-			for mod in proxy proxy_http proxy_wstunnel headers rewrite ssl; do
-				a2enmod "$mod" >/dev/null 2>&1 || true
-			done
-			if command -v systemctl >/dev/null 2>&1; then
-				systemctl reload apache2 >/dev/null 2>&1 || systemctl restart apache2 >/dev/null 2>&1 || true
-			fi
-		fi
+		print_info "Configuring HTTPS reverse proxy on port 443 (self-signed, best-effort)"
+		ensure_system_apache_https_proxy "$site_name" "$http_port" || true
 		print_info "Starting site: $site_name"
 		omd start "$site_name" || true
 
