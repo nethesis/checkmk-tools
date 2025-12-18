@@ -107,7 +107,6 @@ checkmk_codename=$(input_text "Ubuntu/Debian codename (es. noble, jammy)" "${CHE
 checkmk_edition=$(input_text "CheckMK edition (raw/enterprise)" "${CHECKMK_EDITION:-raw}" "^(raw|enterprise)$")
 site_name=$(input_text "CheckMK site name" "${CHECKMK_SITE_NAME:-monitoring}" "^[a-z][a-z0-9_-]*$")
 http_port=$(input_port "CheckMK HTTP port" "${CHECKMK_HTTP_PORT:-5000}")
-admin_pwd=$(input_secret "CheckMK cmkadmin password" "${CHECKMK_ADMIN_PASSWORD:-}")
 install_local_agent=$(input_text "Install agent on server itself? (yes/no)" "${INSTALL_LOCAL_AGENT:-yes}" "^(yes|no)$")
 
 set_env "INSTALL_CHECKMK_SERVER" "$install_server"
@@ -117,7 +116,7 @@ set_env "CHECKMK_DISTRO_CODENAME" "$checkmk_codename"
 set_env "CHECKMK_EDITION" "$checkmk_edition"
 set_env "CHECKMK_SITE_NAME" "$site_name"
 set_env "CHECKMK_HTTP_PORT" "$http_port"
-set_env "CHECKMK_ADMIN_PASSWORD" "$admin_pwd"
+set_env "CHECKMK_ADMIN_PASSWORD" "${CHECKMK_ADMIN_PASSWORD:-}"
 set_env "INSTALL_LOCAL_AGENT" "$install_local_agent"
 
 echo ""

@@ -174,7 +174,10 @@ main() {
 		fi
 		omd config "$site_name" set APACHE_TCP_ADDR 127.0.0.1 2>/dev/null || true
 		if [[ -n "$admin_pwd" ]]; then
-			omd su "$site_name" -c "htpasswd -b etc/htpasswd cmkadmin '$admin_pwd'" 2>/dev/null || true
+			# Prefer reading password from stdin to avoid quoting issues.
+			if ! printf '%s\n' "$admin_pwd" | omd su "$site_name" -c "htpasswd -i etc/htpasswd cmkadmin" >/dev/null 2>&1; then
+				print_warning "Failed to set cmkadmin password (keeping auto-generated one). You can change it with: omd su $site_name -c 'cmk-passwd cmkadmin'"
+			fi
 		fi
 		print_info "Updating system Apache config (best-effort)"
 		omd update-apache-config "$site_name" 2>/dev/null || true
