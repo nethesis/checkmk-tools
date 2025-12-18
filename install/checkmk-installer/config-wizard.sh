@@ -122,9 +122,15 @@ set_env "INSTALL_LOCAL_AGENT" "$install_local_agent"
 
 echo ""
 print_header "CheckMK agent clients"
-checkmk_server=$(input_text "CheckMK server IP/host (blank if this is the server)" "${CHECKMK_SERVER:-}")
+if [[ "$install_server" == "yes" ]]; then
+	# Server install: don't ask for server address (it would be confusing/no-op here)
+	set_env "CHECKMK_SERVER" "${CHECKMK_SERVER:-}"
+else
+	checkmk_server=$(input_text "CheckMK server IP/host" "${CHECKMK_SERVER:-}" ".+")
+	set_env "CHECKMK_SERVER" "$checkmk_server"
+fi
+
 use_socket=$(input_text "Use systemd socket for agent? (yes/no)" "${USE_SYSTEMD_SOCKET:-yes}" "^(yes|no)$")
-set_env "CHECKMK_SERVER" "$checkmk_server"
 set_env "USE_SYSTEMD_SOCKET" "$use_socket"
 
 echo ""

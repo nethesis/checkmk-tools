@@ -135,8 +135,14 @@ main() {
 	download_deb "$deb_url" "$deb_path"
 
 	print_info "Installing .deb (may take a while)"
-	dpkg -i "$deb_path" || true
-	apt-get -f install -y
+	if ! dpkg -i "$deb_path"; then
+		# dpkg often fails here because dependencies are missing; this is expected.
+		print_info "dpkg reported missing dependencies; attempting to fix with apt"
+	fi
+	if ! DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -f install -y; then
+		print_error "apt-get -f install failed; dpkg/apt is in a broken state"
+		exit 1
+	fi
 
 	if [[ -n "$admin_pwd" ]] && command -v omd >/dev/null 2>&1; then
 		# Best-effort: set password after site creation.
@@ -144,9 +150,16 @@ main() {
 	fi
 
 	if command -v omd >/dev/null 2>&1; then
+		local create_output="" site_created="no"
 		if ! omd sites 2>/dev/null | awk '{print $1}' | grep -qx "$site_name"; then
 			print_info "Creating site: $site_name"
-			omd create "$site_name"
+			create_output="$(omd create "$site_name" 2>&1)" || {
+				print_error "Failed to create site: $site_name"
+				printf '%s\n' "$create_output" >&2
+				exit 1
+			}
+			printf '%s\n' "$create_output"
+			site_created="yes"
 		fi
 		if [[ -n "$http_port" ]]; then
 			omd config "$site_name" set APACHE_TCP_PORT "$http_port" 2>/dev/null || true
@@ -156,6 +169,32 @@ main() {
 		fi
 		print_info "Starting site: $site_name"
 		omd start "$site_name" || true
+
+		if [[ "$site_created" == "yes" ]]; then
+			local shown_pwd="$admin_pwd" host url
+			if [[ -z "$shown_pwd" && -n "$create_output" ]]; then
+				shown_pwd="$(printf '%s\n' "$create_output" | sed -n -E 's/.*password:[[:space:]]*([^[:space:]]+).*/\1/p' | head -n 1)"
+			fi
+			host="$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")"
+			url="http://${host}"
+			if [[ -n "$http_port" && "$http_port" != "80" ]]; then
+				url="${url}:${http_port}"
+			fi
+			url="${url}/${site_name}/"
+
+			echo ""
+			print_header "Credenziali CheckMK"
+			print_info "URL: ${url}"
+			print_info "User: cmkadmin"
+			if [[ -n "$shown_pwd" ]]; then
+				print_info "Password: ${shown_pwd}"
+			else
+				print_warning "Password non disponibile: usa 'cmk-passwd cmkadmin'"
+			fi
+			if [[ -t 0 ]]; then
+				press_any_key "Premi un tasto per continuare..."
+			fi
+		fi
 	else
 		print_warning "omd not found; CheckMK installation may be incomplete"
 	fi
