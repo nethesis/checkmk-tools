@@ -7,8 +7,7 @@
 # ==========================================================
 
 # Imposta PATH per systemd
-export 
-PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 # Configurazione
 REPO_URL="https://github.com/Coverup20/checkmk-tools.git"
 # Cerca il repository: prima /opt, poi /root, poi $HOME
@@ -18,12 +17,11 @@ elif [[ -d "/root/checkmk-tools/.git" ]]; then
     TARGET_DIR="/root/checkmk-tools"
 elif [[ -d "$HOME/checkmk-tools/.git" ]]; then
     TARGET_DIR="$HOME/checkmk-tools"
-else    
-TARGET_DIR="$HOME/checkmk-tools"  
-# Default se non esiste ancora
+else
+	TARGET_DIR="$HOME/checkmk-tools"  # Default se non esiste ancora
 fi
-SYNC_INTERVAL="${1:-60}"  
-# Primo parametro o default 60 secondi
+
+SYNC_INTERVAL="${1:-60}"  # Primo parametro o default 60 secondi
 LOG_FILE="/var/log/auto-git-sync.log"
 # Colori per output
 RED='\033[0;31m'
@@ -137,7 +135,7 @@ do_git_pull() {
 		cd ..
 		rm -rf "$TARGET_DIR"
 		init_repository
-		return $?
+		return
 	fi
 	
 	# Salva commit corrente
@@ -158,7 +156,7 @@ do_git_pull() {
 	fi
 	
 	# Verifica se ci sono modifiche locali o file non tracciati
-	if ! git diff-index --quiet HEAD -- 2>/dev/null || [[ -n $(git ls-files --others --exclude-standard) ]]; then
+	if ! git diff-index --quiet HEAD -- 2>/dev/null || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
 		print_warning "Modifiche locali o file non tracciati rilevati"
 		
 		# Reset HARD per allineare completamente al remote
@@ -179,7 +177,7 @@ do_git_pull() {
 	local local_commit
 	local_commit=$(git rev-parse HEAD)
 	local remote_commit
-	remote_commit=$(git rev-parse origin/$current_branch 2>/dev/null)
+	remote_commit=$(git rev-parse "origin/$current_branch" 2>/dev/null)
 	
 	if [[ -z "$remote_commit" ]]; then
 		print_warning "Branch remoto non trovato: origin/$current_branch"
@@ -198,9 +196,9 @@ do_git_pull() {
 	# Se locale e remote divergono, FORZA allineamento al remote
 	if [[ "$local_commit" != "$remote_commit" ]]; then
 		local behind_count
-		behind_count=$(git rev-list --count HEAD..origin/$current_branch 2>/dev/null || echo "?")
+		behind_count=$(git rev-list --count "HEAD..origin/$current_branch" 2>/dev/null || echo "?")
 		local ahead_count
-		ahead_count=$(git rev-list --count origin/$current_branch..HEAD 2>/dev/null || echo "0")
+		ahead_count=$(git rev-list --count "origin/$current_branch..HEAD" 2>/dev/null || echo "0")
 		
 		if [[ "$ahead_count" != "0" ]] && [[ "$ahead_count" != "?" ]]; then
 			print_warning "Repository locale è AVANTI di $ahead_count commit rispetto al remote"
@@ -210,7 +208,7 @@ do_git_pull() {
 		fi
 		
 		# HARD reset al remote e pulizia aggressiva per gestire rinominazioni
-		if timeout 30 git reset --hard origin/$current_branch 2>&1 | tee -a "$LOG_FILE"; then
+		if timeout 30 git reset --hard "origin/$current_branch" 2>&1 | tee -a "$LOG_FILE"; then
 			local new_commit
 			new_commit=$(git rev-parse --short HEAD)
 			

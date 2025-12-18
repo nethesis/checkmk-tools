@@ -216,11 +216,25 @@ ls -lh /opt/omd/sites/monitoring/local/share/check_mk/notifications/{ydea_realip
 
 log ""
 log "Check agents (primi 5):"
-ls -lh /usr/lib/check_mk_agent/plugins/*.sh 2>/dev/null | head -5 || log_warning "Plugin non trovati"
+count=0
+for f in /usr/lib/check_mk_agent/plugins/*.sh; do
+    [[ -e "$f" ]] || break
+    ls -lh "$f" 2>/dev/null || true
+    count=$((count + 1))
+    [[ $count -ge 5 ]] && break
+done
+[[ $count -eq 0 ]] && log_warning "Plugin non trovati"
 
 log ""
 log "Tools (primi 5):"
-ls -lh /opt/omd/sites/monitoring/local/bin/*.sh 2>/dev/null | head -5 || log_warning "Tools non trovati"
+count=0
+for f in /opt/omd/sites/monitoring/local/bin/*.sh; do
+    [[ -e "$f" ]] || break
+    ls -lh "$f" 2>/dev/null || true
+    count=$((count + 1))
+    [[ $count -ge 5 ]] && break
+done
+[[ $count -eq 0 ]] && log_warning "Tools non trovati"
 
 log ""
 log_success "Aggiornamento completato!"

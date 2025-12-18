@@ -28,8 +28,13 @@ require_root() {
 
 detect_omd_root() {
     if [[ -d /omd/sites ]]; then
-        local site
-        site="$(ls /omd/sites 2>/dev/null | head -n1)"
+        local site="" d
+        for d in /omd/sites/*; do
+            [[ -e "$d" ]] || break
+            [[ -d "$d" ]] || continue
+            site="${d##*/}"
+            break
+        done
         echo "/omd/sites/${site:-monitoring}"
     else
         echo ""
@@ -91,8 +96,13 @@ download_to() {
 
 detect_env() {
     if [[ -d /omd/sites ]]; then
-        local site
-        site="$(ls /omd/sites 2>/dev/null | head -n1)"
+        local site="" d
+        for d in /omd/sites/*; do
+            [[ -e "$d" ]] || break
+            [[ -d "$d" ]] || continue
+            site="${d##*/}"
+            break
+        done
         echo "/omd/sites/${site:-monitoring}"
     else
         echo ""
@@ -190,8 +200,13 @@ require_root() {
 
 detect_env() {
     if [[ -d /omd/sites ]]; then
-        local site
-        site="$(ls /omd/sites 2>/dev/null | head -n1)"
+        local site="" d
+        for d in /omd/sites/*; do
+            [[ -e "$d" ]] || break
+            [[ -d "$d" ]] || continue
+            site="${d##*/}"
+            break
+        done
         echo "/omd/sites/${site:-monitoring}"
     else
         echo ""
@@ -247,7 +262,13 @@ download_to() {
 detect_env() {
     if [[ -d /omd/sites ]]; then
         local site
-        site="\$(ls /omd/sites 2>/dev/null | head -n1)"
+        site=""
+        for d in /omd/sites/*; do
+            [ -e "\$d" ] || break
+            [ -d "\$d" ] || continue
+            site="\${d##*/}"
+            break
+        done
         echo "/omd/sites/\${site:-monitoring}"
     else
         echo ""
@@ -338,7 +359,13 @@ BASE_URL="https://raw.githubusercontent.com/$GITHUB_REPO/main"
 # Auto-detection environment CheckMK
 if [ -d "/omd/sites" ]; then    
 # Ambiente CheckMK Server (OMD)    
-SITE_NAME=$(ls /omd/sites/ 2>/dev/null | head -n1)    
+SITE_NAME=""    
+for d in /omd/sites/*; do    
+    [ -e "$d" ] || break    
+    [ -d "$d" ] || continue    
+    SITE_NAME="${d##*/}"    
+    break    
+done    
 OMD_ROOT="/omd/sites/${SITE_NAME:-monitoring}"    
 CHECKMK_LOCAL_DIR="/usr/lib/check_mk_agent/local"    
 CHECKMK_SPOOL_DIR="/usr/lib/check_mk_agent/spool"    

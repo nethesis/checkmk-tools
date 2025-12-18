@@ -31,8 +31,7 @@ if command -v timeshift >/dev/null 2>&1; then
     if [[ "$tssnap" =~ ^[Ss]$ ]]; then
         log "Creazione snapshot Timeshift pre-ottimizzazione..."
         SNAP_COMMENT="Pre-checkmk-optimize $(date +%F_%T) - created by checkmk-optimize"
-        /usr/bin/timeshift --create --comments "$SNAP_COMMENT" --tags D
-        if [[ $? -eq 0 ]]; then
+        if /usr/bin/timeshift --create --comments "$SNAP_COMMENT" --tags D; then
             log "Snapshot Timeshift pre-ottimizzazione completato."
             echo "[$(date +%F_%T)] Snapshot PRE creato con successo: $SNAP_COMMENT" >> "$TSLOG"
         else
@@ -164,8 +163,7 @@ if command -v timeshift >/dev/null 2>&1; then
     if [[ "$postts" =~ ^[Ss]$ ]]; then
         log "Creazione snapshot Timeshift post-ottimizzazione..."
         SNAP_COMMENT="Post-checkmk-optimize $(date +%F_%T) - created by checkmk-optimize"
-        /usr/bin/timeshift --create --comments "$SNAP_COMMENT" --tags D
-        if [[ $? -eq 0 ]]; then
+        if /usr/bin/timeshift --create --comments "$SNAP_COMMENT" --tags D; then
             log "Snapshot Timeshift post-ottimizzazione completato."
             echo "[$(date +%F_%T)] Snapshot POST creato con successo: $SNAP_COMMENT" >> "$TSLOG"
         else

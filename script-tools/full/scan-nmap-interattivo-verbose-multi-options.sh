@@ -240,6 +240,7 @@ echo "Summary breve: $outsum"
 echo "Link veloci in $outdir: nmap_latest.txt, nmap_summary_latest.csv, nmap_summary_latest.txt"
 exit "$ec"
 
+# shellcheck disable=SC2317
 : <<'__CORRUPTED_ORIGINAL_CONTENT__'
 # scan-nmap-interattivo-verbose-multi-options.sh
 # Interattivo Nmap: multi-target, forzato -oN unico, genera CSV riepilogo + TXT leggibile,

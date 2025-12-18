@@ -5,7 +5,6 @@
 set -euo pipefail
 
 SCRIPT_NAME="check_cockpit_sessions"
-SCRIPT_TYPE="local"
 GITHUB_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-check-ns7/check_cockpit_sessions.sh"
 TIMEOUT_SECONDS=5
 EXEC_TIMEOUT_SECONDS=30
@@ -30,8 +29,13 @@ download_to() {
 
 detect_env() {
     if [[ -d /omd/sites ]]; then
-        local site
-        site="$(ls /omd/sites 2>/dev/null | head -n1)"
+        local site="" d
+        for d in /omd/sites/*; do
+            [[ -e "$d" ]] || break
+            [[ -d "$d" ]] || continue
+            site="${d##*/}"
+            break
+        done
         echo "/omd/sites/${site:-monitoring}"
     else
         echo ""
@@ -81,6 +85,7 @@ main() {
 
 main "$@"
 
+# shellcheck disable=SC2317
 : <<'__CORRUPTED_ORIGINAL_CONTENT__'
 # NON usare direttamente - usa smart-deploy-hybrid.sh per l'installazione
 #
@@ -100,7 +105,13 @@ TIMEOUT=5
 # Auto-detection del tipo di environment CheckMK
 if [ -d "/omd/sites" ]; then    
 # Ambiente CheckMK Server (OMD)    
-SITE_NAME=$(ls /omd/sites/ 2>/dev/null | head -n1)    
+SITE_NAME=""  
+for d in /omd/sites/*; do  
+    [ -e "$d" ] || break  
+    [ -d "$d" ] || continue  
+    SITE_NAME="${d##*/}"  
+    break  
+done    
 OMD_ROOT="/omd/sites/${SITE_NAME:-monitoring}"        case "$SCRIPT_TYPE" in        "local")        
 TARGET_DIR="/usr/lib/check_mk_agent/local" ;;        "spool")        
 TARGET_DIR="/usr/lib/check_mk_agent/spool" ;;        "plugin")       

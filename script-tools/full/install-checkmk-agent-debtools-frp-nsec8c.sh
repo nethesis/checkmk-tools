@@ -12,7 +12,6 @@ TMPDIR="/tmp/checkmk-deb"
 REPO_BASE="https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base"
 REPO_PACKAGES="https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages"
 DEB_URL="https://monitoring.nethlab.it/monitoring/check_mk/agents/check-mk-agent_2.4.0p14-1_all.deb"
-AGENT_TAR="/tmp/check-mk-agent_2.4.0p14.tar.gz"
 
 FRP_VER="0.64.0"
 FRPC_BIN="/usr/local/bin/frpc"

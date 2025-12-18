@@ -8,7 +8,6 @@
 set -e
 
 SITE_NAME="monitoring"
-CHECKMK_EDITION="cre"  # cre = CheckMK Raw Edition
 DOWNLOAD_DIR="/tmp/checkmk-upgrade"
 BACKUP_DIR="/opt/omd/backups"
 
@@ -141,7 +140,8 @@ backup_site() {
     print_header "Backup Sito CheckMK"
     mkdir -p "$BACKUP_DIR"
 
-    local backup_file="$BACKUP_DIR/${SITE_NAME}_pre-upgrade_$(date +%Y%m%d_%H%M%S).tar.gz"
+    local backup_file
+    backup_file="$BACKUP_DIR/${SITE_NAME}_pre-upgrade_$(date +%Y%m%d_%H%M%S).tar.gz"
     print_info "Creazione backup in: $backup_file"
 
     if omd backup "$SITE_NAME" "$backup_file"; then

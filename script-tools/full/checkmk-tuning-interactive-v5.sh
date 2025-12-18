@@ -108,7 +108,7 @@ sleep 30
 
 CPU_AFTER=$(mpstat 3 3 | awk '/Average/ && $12 ~ /[0-9.]+/ {s+=100-$12;c++} END{if(c) printf("%.2f",s/c); else print 0}')
 LOAD_AFTER=$(awk '{print $1}' /proc/loadavg)
-CHECKS_AFTER=$(ps -eo comm | grep -c '^check_' || true)
+CHECKS_AFTER=$(ps -eo comm= | awk '$1 ~ /^check_/ {c++} END{print c+0}' 2>/dev/null || echo 0)
 
 clear
 echo -e "${C}=== Benchmark prima e dopo ===${N}"

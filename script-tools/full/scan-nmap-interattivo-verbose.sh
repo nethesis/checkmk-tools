@@ -187,6 +187,7 @@ echo "Output: $outtxt"
 echo "Summary: $outsum"
 exit "$ec"
 
+# shellcheck disable=SC2317
 : <<'__CORRUPTED_ORIGINAL_CONTENT__'
 # scan-nmap-interattivo-verbose.sh
 # Interattivo Nmap: scelta target (range/file), scelta modalit├â┬á (port-scan / discovery-only),

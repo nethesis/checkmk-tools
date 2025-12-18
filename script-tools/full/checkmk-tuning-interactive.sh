@@ -109,7 +109,7 @@ su -s /bin/bash -c "tail -n 10 '$SITEPATH/var/nagios/nagios.log'" "$SITE" 2>/dev
 
 echo
 echo -e "${CYAN}Processi di check attivi:${NC}"
-ps -eo comm | grep -c '^check_' || true
+ps -eo comm= | awk '$1 ~ /^check_/ {c++} END{print c+0}' 2>/dev/null || echo 0
 
 echo
 echo -e "${GREEN}Ottimizzazione completata!${NC}"

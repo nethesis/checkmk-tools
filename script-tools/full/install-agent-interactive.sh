@@ -24,7 +24,6 @@ MODE="install"
 OS=""
 VER=""
 PKG_TYPE=""
-PKG_MANAGER=""
 
 show_usage() {
     cat <<EOF
@@ -74,11 +73,11 @@ detect_os() {
 
     case "$OS" in
         ubuntu|debian)
-            PKG_TYPE="deb"; PKG_MANAGER="apt";;
+            PKG_TYPE="deb";;
         centos|rhel|rocky|almalinux|nethserver-enterprise|fedora)
-            PKG_TYPE="rpm"; PKG_MANAGER="yum";;
+            PKG_TYPE="rpm";;
         openwrt)
-            PKG_TYPE="openwrt"; PKG_MANAGER="opkg";;
+            PKG_TYPE="openwrt";;
         *)
             die "Sistema operativo non supportato: $OS";;
     esac
@@ -501,6 +500,7 @@ main "$@"
 
 exit 0
 
+# shellcheck disable=SC2317
 : <<'CORRUPTED_ORIGINAL'
 # =====================================================
 # Script Interattivo: Installazione CheckMK Agent + FRPC (opzionale)

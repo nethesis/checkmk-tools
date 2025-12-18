@@ -11,10 +11,12 @@ set -e
 install_git() {
     echo "ℹ️  Git non trovato, installazione in corso..."
     if command -v apt-get &> /dev/null; then
-        timeout 300 apt-get update -qq && timeout 300 apt-get install -y git || {
+        if timeout 300 apt-get update -qq && timeout 300 apt-get install -y git; then
+            :
+        else
             echo "❌ Timeout durante installazione git"
-    exit 1
-        }
+            exit 1
+        fi
     elif command -v yum &> /dev/null; then
         timeout 300 yum install -y git || {
             echo "❌ Timeout durante installazione git"
