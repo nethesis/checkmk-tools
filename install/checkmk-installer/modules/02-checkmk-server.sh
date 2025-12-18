@@ -130,7 +130,10 @@ main() {
 		cat >"$conf" <<EOF
 <VirtualHost *:80>
     ServerName ${host}
-    Redirect permanent / https://${host}/
+
+	RewriteEngine On
+	RewriteCond %{HTTPS} off
+	RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 </VirtualHost>
 
 <VirtualHost *:443>
