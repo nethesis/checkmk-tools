@@ -113,6 +113,12 @@ echo "  6) Personalizzato"
 echo ""
 read -r -p "Scelta [2]: " interval_choice
 
+# Normalize common terminal artifacts (spaces, tabs, CRLF).
+interval_choice="${interval_choice//$'\r'/}"
+interval_choice="${interval_choice//$'\n'/}"
+interval_choice="${interval_choice//$'\t'/}"
+interval_choice="${interval_choice// /}"
+
 case "$interval_choice" in
     1) SYNC_INTERVAL=30 ;;
     2|"") SYNC_INTERVAL=60 ;;
