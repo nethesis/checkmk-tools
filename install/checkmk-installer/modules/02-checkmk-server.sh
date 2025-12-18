@@ -135,13 +135,21 @@ main() {
 	download_deb "$deb_url" "$deb_path"
 
 	print_info "Installing .deb (may take a while)"
-	if ! dpkg -i "$deb_path"; then
-		# dpkg often fails here because dependencies are missing; this is expected.
-		print_info "dpkg reported missing dependencies; attempting to fix with apt"
-	fi
-	if ! DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -f install -y; then
-		print_error "apt-get -f install failed; dpkg/apt is in a broken state"
-		exit 1
+	DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get update -y >/dev/null 2>&1 || true
+	if ! (
+		cd "$(dirname "$deb_path")" &&
+		DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y --no-install-recommends "./$(basename "$deb_path")"
+	); then
+		print_info "apt-get local install failed; falling back to dpkg + apt-get -f install"
+		if ! dpkg -i "$deb_path"; then
+			# dpkg often fails here because dependencies are missing; this is expected.
+			print_info "dpkg reported missing dependencies; attempting to fix with apt"
+		fi
+		if ! DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -f install -y; then
+			print_error "apt-get -f install failed; dpkg/apt is in a broken state"
+			exit 1
+		fi
+		dpkg -i "$deb_path" >/dev/null 2>&1 || true
 	fi
 
 	if [[ -n "$admin_pwd" ]] && command -v omd >/dev/null 2>&1; then
@@ -164,29 +172,44 @@ main() {
 		if [[ -n "$http_port" ]]; then
 			omd config "$site_name" set APACHE_TCP_PORT "$http_port" 2>/dev/null || true
 		fi
+		omd config "$site_name" set APACHE_TCP_ADDR 127.0.0.1 2>/dev/null || true
 		if [[ -n "$admin_pwd" ]]; then
 			omd su "$site_name" -c "htpasswd -b etc/htpasswd cmkadmin '$admin_pwd'" 2>/dev/null || true
 		fi
 		print_info "Updating system Apache config (best-effort)"
 		omd update-apache-config "$site_name" 2>/dev/null || true
+		# Best-effort: make HTTPS reachable (even with self-signed cert)
+		if command -v a2enmod >/dev/null 2>&1; then
+			DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y --no-install-recommends apache2 ssl-cert >/dev/null 2>&1 || true
+			for mod in proxy proxy_http proxy_wstunnel headers rewrite ssl; do
+				a2enmod "$mod" >/dev/null 2>&1 || true
+			done
+			if command -v systemctl >/dev/null 2>&1; then
+				systemctl reload apache2 >/dev/null 2>&1 || systemctl restart apache2 >/dev/null 2>&1 || true
+			fi
+		fi
 		print_info "Starting site: $site_name"
 		omd start "$site_name" || true
 
 		if [[ "$site_created" == "yes" ]]; then
-			local shown_pwd="$admin_pwd" host url
+			local shown_pwd="$admin_pwd" host url_http url_https url_alt
 			if [[ -z "$shown_pwd" && -n "$create_output" ]]; then
 				shown_pwd="$(printf '%s\n' "$create_output" | sed -n -E 's/.*password:[[:space:]]*([^[:space:]]+).*/\1/p' | head -n 1)"
 			fi
 			host="$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")"
-			url="http://${host}"
+			url_http="http://${host}/${site_name}/"
+			url_https="https://${host}/${site_name}/"
+			url_alt="http://${host}"
 			if [[ -n "$http_port" && "$http_port" != "80" ]]; then
-				url="${url}:${http_port}"
+				url_alt="${url_alt}:${http_port}"
 			fi
-			url="${url}/${site_name}/"
+			url_alt="${url_alt}/${site_name}/"
 
 			echo ""
 			print_header "Credenziali CheckMK"
-			print_info "URL: ${url}"
+			print_info "URL (HTTP):  ${url_http}"
+			print_info "URL (HTTPS): ${url_https}"
+			print_info "URL (alt):   ${url_alt}"
 			print_info "User: cmkadmin"
 			if [[ -n "$shown_pwd" ]]; then
 				print_info "Password: ${shown_pwd}"

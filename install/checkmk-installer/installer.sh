@@ -68,6 +68,14 @@ install_full_server() {
 	fi
 
 	load_configuration || true
+	if [[ -z "${INSTALL_YDEA:-}" ]]; then
+		if confirm "Install Ydea Toolkit (optional)?" "n"; then
+			INSTALL_YDEA="yes"
+		else
+			INSTALL_YDEA="no"
+		fi
+		export INSTALL_YDEA
+	fi
 
 	run_module "01-system-base.sh" || { log_error "System base failed"; return 1; }
 	run_module "02-checkmk-server.sh" || { log_error "CheckMK server failed"; return 1; }
