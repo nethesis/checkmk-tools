@@ -3,7 +3,9 @@ set -euo pipefail
 
 INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/colors.sh"
+# shellcheck disable=SC1091
 source "${INSTALLER_ROOT}/utils/logger.sh"
 
 load_env() {
@@ -46,10 +48,31 @@ configure_timezone() {
 
 configure_firewall() {
 	local ssh_port="${SSH_PORT:-22}"
-	if command -v ufw >/dev/null 2>&1; then
-		ufw allow "${ssh_port}/tcp" || true
-		ufw --force enable || true
+	if ! command -v ufw >/dev/null 2>&1; then
+		return 0
 	fi
+
+	# Base: always allow SSH
+	ufw allow "${ssh_port}/tcp" >/dev/null 2>&1 || true
+
+	# Server: open web ports for Checkmk UI
+	if [[ "${INSTALL_CHECKMK_SERVER:-no}" == "yes" ]] || [[ "${OPEN_HTTP_HTTPS:-no}" == "yes" ]]; then
+		ufw allow 80/tcp >/dev/null 2>&1 || true
+		ufw allow 443/tcp >/dev/null 2>&1 || true
+	fi
+
+	# Agent: open 6556 when agent is installed locally (or when server is installed)
+	if [[ "${INSTALL_LOCAL_AGENT:-no}" == "yes" ]] || [[ "${INSTALL_CHECKMK_SERVER:-no}" == "yes" ]]; then
+		ufw allow 6556/tcp >/dev/null 2>&1 || true
+	fi
+
+	# FRPS: open bind + dashboard ports when enabled
+	if [[ "${INSTALL_FRPS:-no}" == "yes" ]]; then
+		ufw allow "${FRPS_BIND_PORT:-7000}/tcp" >/dev/null 2>&1 || true
+		ufw allow "${FRPS_DASHBOARD_PORT:-7500}/tcp" >/dev/null 2>&1 || true
+	fi
+
+	ufw --force enable >/dev/null 2>&1 || true
 }
 
 main() {
@@ -72,8 +95,6 @@ main() {
 }
 
 main "$@"
-
-exit 0
 : <<'__CORRUPTED_TAIL__'
 #!/usr/bin/env bash
 set -euo pipefail
