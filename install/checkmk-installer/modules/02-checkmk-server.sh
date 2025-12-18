@@ -100,6 +100,48 @@ main() {
 		mv "$new_file" "$env_file"
 	}
 
+	ensure_htpasswd() {
+		if command -v htpasswd >/dev/null 2>&1; then
+			return 0
+		fi
+
+		print_info "Installing htpasswd tools (best-effort)"
+		if command -v apt-get >/dev/null 2>&1; then
+			DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get update -y >/dev/null 2>&1 || true
+			DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y --no-install-recommends apache2-utils >/dev/null 2>&1 || true
+		elif command -v dnf >/dev/null 2>&1; then
+			dnf install -y httpd-tools >/dev/null 2>&1 || true
+		elif command -v yum >/dev/null 2>&1; then
+			yum install -y httpd-tools >/dev/null 2>&1 || true
+		fi
+
+		command -v htpasswd >/dev/null 2>&1
+	}
+
+	generate_random_password() {
+		local out=""
+		out="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24 || true)"
+		if [[ -z "$out" ]]; then
+			out="$(date +%s%N | sha256sum 2>/dev/null | awk '{print substr($1,1,24)}' || true)"
+		fi
+		printf '%s' "$out"
+	}
+
+	write_root_credentials_file() {
+		local password="$1"
+		local file="/root/checkmk-${site_name}-credentials.txt"
+		(
+			umask 077
+			cat >"$file" <<EOF
+CheckMK credentials
+Site: ${site_name}
+User: cmkadmin
+Password: ${password}
+EOF
+		) || return 1
+		printf '%s' "$file"
+	}
+
 	# Avoid accidentally reusing legacy/default passwords from old .env files.
 	# If a known placeholder is present, ignore it and clear it from .env.
 	if [[ "${admin_pwd}" == "Nethesis,1234" ]]; then
@@ -240,9 +282,13 @@ EOF
 		fi
 		omd config "$site_name" set APACHE_TCP_ADDR 127.0.0.1 2>/dev/null || true
 		if [[ -n "$admin_pwd" ]]; then
+			if ! ensure_htpasswd; then
+				print_warning "htpasswd not available; cannot set cmkadmin password automatically"
+			else
 			# Prefer reading password from stdin to avoid quoting issues.
 			if ! printf '%s\n' "$admin_pwd" | omd su "$site_name" -c "htpasswd -i -m etc/htpasswd cmkadmin" >/dev/null 2>&1; then
 				print_warning "Failed to set cmkadmin password (keeping auto-generated one). You can change it with: omd su $site_name -c 'cmk-passwd cmkadmin'"
+			fi
 			fi
 		fi
 		print_info "Updating system Apache config (best-effort)"
@@ -259,18 +305,44 @@ EOF
 			shown_pwd="$(printf '%s\n' "$create_output" | sed -n -E 's/.*[Pp]assword[^:]*:[[:space:]]*([^[:space:]]+).*/\1/p' | head -n 1)"
 		fi
 
+		# If the site already exists, we can't recover an existing cmkadmin password.
+		# Offer a safe, explicit reset (type YES) so the installer can show a usable password.
+		local credentials_file=""
+		if [[ -z "$shown_pwd" && "$site_created" != "yes" && -z "$admin_pwd" ]]; then
+			print_warning "Password non disponibile (sito '${site_name}' gia' esistente)."
+			print_info "Se confermi, resetto la password di 'cmkadmin' e te la mostro a fine installazione."
+			if confirm_type_yes "RESET password cmkadmin per il sito '${site_name}'?"; then
+				if ! ensure_htpasswd; then
+					print_warning "htpasswd non disponibile: impossibile resettare automaticamente la password."
+				else
+					local generated_pwd=""
+					generated_pwd="$(generate_random_password)"
+					if [[ -n "$generated_pwd" ]] && printf '%s\n' "$generated_pwd" | omd su "$site_name" -c "htpasswd -i -m etc/htpasswd cmkadmin" >/dev/null 2>&1; then
+						shown_pwd="$generated_pwd"
+						credentials_file="$(write_root_credentials_file "$shown_pwd" || true)"
+					else
+						print_warning "Reset password fallito: usa 'cmk-passwd cmkadmin' manualmente."
+					fi
+				fi
+			else
+				print_info "Reset password saltato."
+			fi
+		fi
+
 		# If the site is new and we still couldn't capture the auto-generated password,
 		# generate one and set it non-interactively so we can show it to the user.
 		if [[ "$site_created" == "yes" && -z "$shown_pwd" ]]; then
-			local generated_pwd=""
-			generated_pwd="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24 || true)"
-			if [[ -z "$generated_pwd" ]]; then
-				generated_pwd="$(date +%s%N | sha256sum 2>/dev/null | awk '{print substr($1,1,24)}' || true)"
-			fi
-			if [[ -n "$generated_pwd" ]] && printf '%s\n' "$generated_pwd" | omd su "$site_name" -c "htpasswd -i -m etc/htpasswd cmkadmin" >/dev/null 2>&1; then
-				shown_pwd="$generated_pwd"
+			if ! ensure_htpasswd; then
+				print_warning "htpasswd non disponibile: impossibile impostare un fallback password."
 			else
-				print_warning "Password non catturata e fallback fallito: usa 'cmk-passwd cmkadmin'"
+				local generated_pwd=""
+				generated_pwd="$(generate_random_password)"
+				if [[ -n "$generated_pwd" ]] && printf '%s\n' "$generated_pwd" | omd su "$site_name" -c "htpasswd -i -m etc/htpasswd cmkadmin" >/dev/null 2>&1; then
+					shown_pwd="$generated_pwd"
+					credentials_file="$(write_root_credentials_file "$shown_pwd" || true)"
+				else
+					print_warning "Password non catturata e fallback fallito: usa 'cmk-passwd cmkadmin'"
+				fi
 			fi
 		fi
 
@@ -293,6 +365,9 @@ EOF
 			print_info "User: cmkadmin"
 			if [[ -n "$shown_pwd" ]]; then
 				print_info "Password: ${shown_pwd}"
+				if [[ -n "${credentials_file}" ]]; then
+					print_info "Credenziali salvate in: ${credentials_file}"
+				fi
 			else
 				print_warning "Password non disponibile: usa 'cmk-passwd cmkadmin'"
 			fi

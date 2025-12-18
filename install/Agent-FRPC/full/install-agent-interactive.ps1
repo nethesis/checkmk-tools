@@ -49,7 +49,6 @@ $CHECKMK_MSI_URLS = @(
     "https://monitoring.nethlab.it/monitoring/check_mk/agents/windows/check_mk_agent.msi",
     "https://download.checkmk.com/checkmk/$CHECKMK_VERSION/check-mk-agent-$CHECKMK_VERSION-1_all.msi"
 )
-$CHECKMK_MSI_URL = $CHECKMK_MSI_URLS[0]  # Primary URL
 
 # NSSM download URLs (fallback se uno fallisce)
 $NSSM_URLS = @(
@@ -57,7 +56,6 @@ $NSSM_URLS = @(
     "https://nssm.cc/ci/nssm-$NSSM_VERSION-101-g897c7ad.zip",
     "https://github.com/kirillkovalenko/nssm/releases/download/$NSSM_VERSION/nssm-$NSSM_VERSION.zip"
 )
-$NSSM_URL = $NSSM_URLS[0]  # Primary URL
 
 $DOWNLOAD_DIR = "$env:TEMP\CheckMK-Setup"
 $AGENT_INSTALL_DIR = "C:\Program Files (x86)\checkmk\service"
@@ -98,7 +96,7 @@ function Test-Administrator {
 # =====================================================
 # Funzione: Scarica e installa NSSM se non presente
 # =====================================================
-function Ensure-NSSM {
+function Install-NSSM {
     $nssm = Get-Command nssm.exe -ErrorAction SilentlyContinue
     if ($nssm) {
         Write-Host "    [OK] NSSM già disponibile" -ForegroundColor Green
