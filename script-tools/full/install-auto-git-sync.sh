@@ -7,6 +7,10 @@
 
 set -e
 
+# Avoid getcwd/job-working-directory warnings if the current directory is removed
+# (e.g., repo being recloned while this installer runs).
+cd / 2>/dev/null || true
+
 # Funzione per installare git
 install_git() {
     echo "ℹ️  Git non trovato, installazione in corso..."

@@ -59,7 +59,10 @@ clone_repo_if_needed() {
 }
 
 repo_is_valid() {
-    git -C "$1" rev-parse --is-inside-work-tree >/dev/null 2>&1
+    (
+        cd "$1" 2>/dev/null || exit 1
+        git rev-parse --is-inside-work-tree >/dev/null 2>&1
+    )
 }
 
 reset_to_remote_default() {
@@ -72,13 +75,19 @@ reset_to_remote_default() {
     fi
 
     log INFO "Fetching updates"
-    if ! timeout 120 git -C "$target_dir" fetch --prune origin; then
+    if ! (
+        cd "$target_dir" 2>/dev/null || exit 1
+        timeout 120 git fetch --prune origin
+    ); then
         log ERROR "git fetch failed"
         return 1
     fi
 
     local remote_head local_branch
-    remote_head="$(git -C "$target_dir" symbolic-ref -q --short refs/remotes/origin/HEAD || true)"
+    remote_head="$(
+        cd "$target_dir" 2>/dev/null || exit 1
+        git symbolic-ref -q --short refs/remotes/origin/HEAD || true
+    )"
     if [[ -z "$remote_head" ]]; then
         remote_head="origin/main"
     fi
@@ -86,13 +95,22 @@ reset_to_remote_default() {
 
     log INFO "Reset to $remote_head"
     # Force local branch to track the remote default.
-    git -C "$target_dir" checkout -B "$local_branch" "$remote_head" >/dev/null 2>&1 || true
-    if ! timeout 60 git -C "$target_dir" reset --hard "$remote_head"; then
+    (
+        cd "$target_dir" 2>/dev/null || exit 1
+        git checkout -B "$local_branch" "$remote_head" >/dev/null 2>&1 || true
+    )
+    if ! (
+        cd "$target_dir" 2>/dev/null || exit 1
+        timeout 60 git reset --hard "$remote_head"
+    ); then
         log ERROR "git reset --hard failed"
         return 1
     fi
     # Aggressive cleanup (handles renames and deleted paths)
-    git -C "$target_dir" clean -fdx >/dev/null 2>&1 || true
+    (
+        cd "$target_dir" 2>/dev/null || exit 1
+        git clean -fdx >/dev/null 2>&1 || true
+    )
 
     # Keep scripts executable
     find "$target_dir" -type f -name "*.sh" -exec chmod +x {} + 2>/dev/null || true
