@@ -1,7 +1,9 @@
-#!/bin/bash
-/usr/bin/env bash[ -z "$BASH_VERSION" ] && exec /bin/bash "$0" "$@"
-# check-sosid-ns7.sh - versione pulita e verificata, una sola riga per Checkmk
-# Evita qualunque carattere o virgolette non bilanciata.set -uo pipefail
+#!/usr/bin/env bash
+
+# check-pkg-install.sh - una sola riga per Checkmk
+
+set -o pipefail
+
 YUM_LOG="/var/log/yum.log"
 STATE_FILE="/var/lib/check_pkg_install/last_event"
 WARN_TIMEOUT_MINUTES=5
@@ -10,7 +12,7 @@ if [[ ! -r "$YUM_LOG" ]]; then
     exit 2
 fi
 
-mkdir -p /var/lib/check_pkg_install >/dev/null 2>&1 || true
+mkdir -p "${STATE_FILE%/*}" >/dev/null 2>&1 || true
 
 event_line=$(grep -E 'Installed:|Updated:|Erased:|Removed:' "$YUM_LOG" | tail -n 1)
 

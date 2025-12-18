@@ -4,7 +4,8 @@
 
 set -euo pipefail
 
-REPO_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
+# Repo usa il branch `master`.
+REPO_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/master"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FAVORITES_FILE="$HOME/.launcher-favorites"
 STATS_FILE="$HOME/.launcher-stats"
@@ -81,12 +82,14 @@ get_script_description() {
         local desc
         desc=$(head -n 10 "$full_path" | grep -E "^# (Desc|Description|Purpose):" | sed 's/^# [^:]*: //')
         if [[ -n "$desc" ]]; then
-    echo "$desc"
-else             # Fallback: seconda riga (solitamente descrizione)
+            echo "$desc"
+        else
+            # Fallback: seconda riga (solitamente descrizione)
             desc=$(sed -n '2p' "$full_path" | sed 's/^# //')
             echo "${desc:-Nessuna descrizione disponibile}"
         fi
-else         echo "Script non trovato localmente"
+    else
+        echo "Script non trovato localmente"
     fi
 }
 
@@ -104,7 +107,7 @@ get_total_runs() {
     for count in "${STATS[@]}"; do
         total=$((total + count))
     done
-echo "$total"
+    echo "$total"
 }
 
 # Scansiona repository locale per trovare tutti gli script remoti
@@ -116,11 +119,12 @@ scan_remote_scripts() {
     # Trova tutti gli script nelle directory remote/
     while IFS= read -r -d '' script; do
         # Ottieni path relativo
-        local rel_path="${script#$SCRIPT_DIR/}"
+        local rel_path="${script#"$SCRIPT_DIR"/}"
         local category
-        category=$(echo "$rel_path" | cut -d'/' -f1)
+        category="${rel_path%%/*}"
         local script_name
-        script_name=$(basename "$script" .sh)
+        script_name="${script##*/}"
+        script_name="${script_name%.sh}"
         
         # Rimuovi prefisso 'r' se presente
         local display_name="${script_name#r}"
@@ -147,16 +151,16 @@ search_scripts() {
     done
     
     if [ ${#results[@]} -eq 0 ]; then
-    echo -e "${RED}✗ Nessun risultato trovato per: '$query'${NC}\n"
+        echo -e "${RED}✗ Nessun risultato trovato per: '$query'${NC}\n"
         return 1
     fi
-echo -e "${GREEN}🔍 Risultati ricerca '$query':${NC}\n"
+    echo -e "${GREEN}🔍 Risultati ricerca '$query':${NC}\n"
     for idx in "${results[@]}"; do
         local star=""
         [[ -n "${FAVORITES[$idx]:-}" ]] && star="${YELLOW}⭐${NC} "
-        printf "  ${BLUE}%3d)${NC} ${star}%s\n" "$idx" "$(echo "${SCRIPTS[$idx]}" | sed 's/\[.*\] //')"
+        printf "  ${BLUE}%3d)${NC} ${star}%s\n" "$idx" "${SCRIPTS[$idx]#*] }"
     done
-echo ""
+    echo ""
 }
 
 # Mostra dettagli script
@@ -164,11 +168,10 @@ show_script_details() {
     local idx="$1"
     
     if [ "$idx" -lt 1 ] || [ "$idx" -gt "${#SCRIPTS[@]}" ]; then
-    echo -e "${RED}✗ Script non vali
-do!${NC}\n"
+        echo -e "${RED}✗ Script non valido!${NC}\n"
         return 1
     fi
-echo -e "${CYAN}╔═══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}╔═══════════════════════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║${NC}  📋 ${GREEN}Dettagli Script${NC}                                    ${CYAN}║${NC}"
     echo -e "${CYAN}╠═══════════════════════════════════════════════════════════╣${NC}"
     echo -e "${CYAN}║${NC}  ${YELLOW}Nome:${NC} ${SCRIPTS[$idx]}"
@@ -183,14 +186,14 @@ echo -e "${CYAN}╔════════════════════�
 # Mostra solo preferiti
 show_favorites() {
     if [ ${#FAVORITES[@]} -eq 0 ]; then
-    echo -e "${YELLOW}⭐ Nessun preferito salvato${NC}\n"
+        echo -e "${YELLOW}⭐ Nessun preferito salvato${NC}\n"
         return
     fi
-echo -e "${YELLOW}⭐ Script preferiti:${NC}\n"
+    echo -e "${YELLOW}⭐ Script preferiti:${NC}\n"
     for idx in "${!FAVORITES[@]}"; do
-        printf "  ${BLUE}%3d)${NC} %s\n" "$idx" "$(echo "${SCRIPTS[$idx]}" | sed 's/\[.*\] //')"
+        printf "  ${BLUE}%3d)${NC} %s\n" "$idx" "${SCRIPTS[$idx]#*] }"
     done
-echo ""
+    echo ""
 }
 
 # Toggle preferito
@@ -198,9 +201,10 @@ toggle_favorite() {
     local idx="$1"
     
     if [[ -n "${FAVORITES[$idx]:-}" ]]; then
-        unset 'FAVORITES[$idx]'
+        unset "FAVORITES[$idx]"
         echo -e "${GREEN}✓ Rimosso dai preferiti${NC}"
-else         FAVORITES[$idx]=1
+    else
+        FAVORITES[$idx]=1
         echo -e "${GREEN}✓ Aggiunto ai preferiti ⭐${NC}"
     fi
     save_favorites
@@ -230,13 +234,14 @@ show_statistics() {
             local uses="${entry%%:*}"
             local idx="${entry##*:}"
             local name
-            name=$(echo "${SCRIPTS[$idx]}" | sed 's/\[.*\] //')
+            name="${SCRIPTS[$idx]#*] }"
             echo -e "${MAGENTA}║${NC}    ${BLUE}$((count+1)).${NC} $name ${CYAN}($uses)${NC}"
             ((count++))
         done
-else         echo -e "${MAGENTA}║${NC}    ${YELLOW}Nessuna statistica disponibile${NC}"
+    else
+        echo -e "${MAGENTA}║${NC}    ${YELLOW}Nessuna statistica disponibile${NC}"
     fi
-echo -e "${MAGENTA}╚═══════════════════════════════════════════════════════════╝${NC}\n"
+    echo -e "${MAGENTA}╚═══════════════════════════════════════════════════════════╝${NC}\n"
 }
 
 # Mostra menu con tutti gli script disponibili
@@ -249,11 +254,13 @@ show_menu() {
     for i in "${!SCRIPTS[@]}"; do
         # Estrai categoria
         local category
-        category=$(echo "${SCRIPTS[$i]}" | grep -oP '\[\K[^\]]+')
+        category="${SCRIPTS[$i]}"
+        category="${category#\[}"
+        category="${category%%]*}"
         
         # Stampa intestazione categoria se cambia
         if [ "$category" != "$current_category" ]; then
-    echo -e "\n${YELLOW}▶ $category${NC}"
+            echo -e "\n${YELLOW}▶ $category${NC}"
             current_category="$category"
         fi
         
@@ -266,9 +273,9 @@ show_menu() {
         [[ -n "${STATS[$i]:-}" ]] && uses=" ${CYAN}(${STATS[$i]})${NC}"
         
         # Stampa script con numerazione
-        printf "  ${BLUE}%3d)${NC} ${star}%s${uses}\n" "$i" "$(echo "${SCRIPTS[$i]}" | sed 's/\[.*\] //')"
+        printf "  ${BLUE}%3d)${NC} ${star}%s${uses}\n" "$i" "${SCRIPTS[$i]#*] }"
     done
-echo -e "\n${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "\n${BLUE}═══════════════════════════════════════════════════════════${NC}"
     echo -e "  ${RED}0)${NC} Esci  ${YELLOW}s)${NC}Cerca  ${YELLOW}f)${NC}Preferiti  ${YELLOW}i)${NC}Info  ${YELLOW}t)${NC}Stats"
     echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}\n"
 }
@@ -278,12 +285,12 @@ execute_script() {
     local selection=$1
     
     if [ "$selection" -eq 0 ]; then
-    echo -e "${GREEN}Arrivederci! 👋${NC}"
-    exit 0
+        echo -e "${GREEN}Arrivederci! 👋${NC}"
+        exit 0
     fi
     
     if [ "$selection" -lt 1 ] || [ "$selection" -gt "${#SCRIPTS[@]}" ]; then
-    echo -e "${RED}✗ Selezione non valida!${NC}\n"
+        echo -e "${RED}✗ Selezione non valida!${NC}\n"
         return 1
     fi
     
@@ -298,8 +305,9 @@ execute_script() {
     echo -e "${BLUE}   URL:${NC} $remote_url\n"
     
     # Chiedi parametri aggiuntivi
+    local -a params_array=()
     echo -e "${YELLOW}Parametri aggiuntivi (invio per nessuno):${NC}"
-    read -r params
+    read -r -a params_array
     
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 
@@ -309,20 +317,24 @@ execute_script() {
     curl -fsSL "$remote_url" -o "$TEMP_SCRIPT"
     chmod +x "$TEMP_SCRIPT" 2>/dev/null || true
 
-    if [ -n "$params" ]; then
-        bash "$TEMP_SCRIPT" $params
+    local exit_code=0
+    if ((${#params_array[@]})); then
+        if ! bash "$TEMP_SCRIPT" "${params_array[@]}"; then
+            exit_code=$?
+        fi
     else
-        bash "$TEMP_SCRIPT"
+        if ! bash "$TEMP_SCRIPT"; then
+            exit_code=$?
+        fi
     fi
-
-    local exit_code=$?
     rm -f "$TEMP_SCRIPT"
     
     echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
     if [ $exit_code -eq 0 ]; then
-    echo -e "${GREEN}✓ Script completato con successo${NC}\n"
-else         echo -e "${RED}✗ Script terminato con errore (exit code: $exit_code)${NC}\n"
+        echo -e "${GREEN}✓ Script completato con successo${NC}\n"
+    else
+        echo -e "${RED}✗ Script terminato con errore (exit code: $exit_code)${NC}\n"
     fi
     
     # Pausa prima di tornare al menu
@@ -342,15 +354,14 @@ main() {
         print_header
         show_menu
         
-        echo -e "${YELLOW}Seleziona uno script o coman
-do:${NC} "
+        echo -e "${YELLOW}Seleziona uno script o comando:${NC} "
         read -r selection
         
         # Comandi speciali
         case "$selection" in
             0)
                 echo -e "${GREEN}Arrivederci! 👋${NC}"
-    exit 0
+                exit 0
                 ;;
             s|S)
                 echo -e "${CYAN}🔍 Cerca script:${NC} "
@@ -369,10 +380,10 @@ do:${NC} "
                 read -r idx
                 if [[ "$idx" =~ ^[0-9]+$ ]]; then
                     show_script_details "$idx"
-else                     echo -e "${RED}✗ Numero non vali
-do${NC}"
+                else
+                    echo -e "${RED}✗ Numero non valido${NC}"
                 fi
-echo -e "${YELLOW}Premi INVIO per continuare...${NC}"
+                echo -e "${YELLOW}Premi INVIO per continuare...${NC}"
                 read -r
                 ;;
             t|T)
@@ -394,8 +405,8 @@ echo -e "${YELLOW}Premi INVIO per continuare...${NC}"
                 # Verifica input numerico
                 if [[ "$selection" =~ ^[0-9]+$ ]]; then
                     execute_script "$selection"
-else                     echo -e "${RED}✗ Coman
-do non riconosciuto!${NC}\n"
+                else
+                    echo -e "${RED}✗ Comando non riconosciuto!${NC}\n"
                     sleep 2
                 fi
                 ;;
