@@ -25,7 +25,7 @@ echo "Rilevato sistema operativo: $OS_TYPE"
 # ----------------------------
 # 2. Parametri richiesti
 # ----------------------------read -r -p "URL pacchetto FRP [default: $FRP_URL_DEFAULT]: " 
-FRP_URLFRP_URL=${FRP_URL:-$FRP_URL_DEFAULT}read -r -p "Nome host (es: rl94ns8): " HOSTNAMEread -r -p "Porta remota da usare: " REMOTE_PORT
+FRP_URL=${FRP_URL:-$FRP_URL_DEFAULT}read -r -p "Nome host (es: rl94ns8): " HOSTNAMEread -r -p "Porta remota da usare: " REMOTE_PORT
 # ----------------------------
 # 3. Simulazione installazione
 # ----------------------------echo
@@ -56,9 +56,9 @@ echo "--- Creerei un template e-smith in /etc/e-smith/templates-custom/etc/syste
 echo "Poi eseguirei:"    
 echo "   config set frpc service status enabled"    
 echo "   signal-event runlevel-adjust"    ;;  *)    
-echo "├ó┼í┬á├»┬©┬Å Sistema operativo non riconosciuto: nessuna azione eseguita"    ;;esac
+echo "oiaA Sistema operativo non riconosciuto: nessuna azione eseguita"    ;;esac
 # ----------------------------
 # 5. Conclusione
 # ----------------------------echo
 echo "=== DRY RUN completato ==="
-echo "Nessun file ├â┬¿ stato modificato."
+echo "Nessun file a stato modificato."

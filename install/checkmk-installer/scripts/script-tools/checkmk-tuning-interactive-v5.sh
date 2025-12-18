@@ -22,13 +22,13 @@ R='\033[1;31m';
 N='\033[0m'require() {  for b in "$@"; do command -v "$b" >/dev/null 2>&1 || { 
 echo -e "${R}Manca $b${N}"; exit 1; }; done}require mpstat bc awk sed grep sort head tailclear
 echo -e "${C}=== Checkmk Tuning Tool v5.1.1 (fail-safe) ===${N}"
-echo "Sito: $SITE | Modalit├á: $MODE"
+echo "Sito: $SITE | Modalita: $MODE"
 echo "Backup in: $BACKUP_DIR"mkdir -p "$BACKUP_DIR"cp -a "$NAGIOS_CFG" "$BACKUP_DIR/" 2>/dev/null || truecp -a "$GLOBAL_MK" "$BACKUP_DIR/" 2>/dev/null || trueecho
 # --- Stato sistema ---
 CORES=$(nproc)
 CPU_NOW=$(mpstat 3 3 | awk '/Average/ && $12 ~ /[0-9.]+/ {s+=100-$12;c++} END{if(c) printf("%.2f",s/c); else print 0}')
 LOAD_NOW=$(awk '{print $1}' /proc/loadavg)
-echo -e "${Y}ÔåÆ Stato sistema:${N} 
+echo -e "${Y}Oa Stato sistema:${N} 
 CPU=${CPU_NOW}% | Load=${LOAD_NOW} | Core=${CORES}"
 # --- Rilevazione Livestatus (timeout 3s) ---
 HAVE_LIVE=0
@@ -36,11 +36,12 @@ if [ -S "$LIVE" ]; then
   if timeout 3 bash -c "
 echo -e 'GET status\n' | unixcat '$LIVE' >/dev/null 2>&1"; then
     HAVE_LIVE=1    
-echo -e "${G}Ô£ô Livestatus attivo.${N}"
+echo -e "${G}Oo Livestatus attivo.${N}"
 else    
-echo -e "${Y}ÔÜá Livestatus non risponde entro 3s ÔåÆ uso fallback log.${N}"  fi
+echo -e "${Y}OUa Livestatus non risponde entro 3s Oa uso fallback log.${N}"  fi
 else  
-echo -e "${Y}ÔÜá Nessun socket Livestatus trovato ÔåÆ uso fallback log.${N}"fiecho
+echo -e "${Y}OUa Nessun socket Livestatus trovato Oa uso fallback log.${N}"fi
+echo
 # --- Metriche servizi (usa sempre fallback se 
 HAVE_LIVE=0) ---
 SRV_COUNT=0; 
@@ -67,14 +68,14 @@ echo 0)  if [ "$TOT" -gt 0 ]; then
     TIMEOUT_RATE=$(awk -v a="$TO" -v b="$TOT" 'BEGIN{printf("%.2f",(a*100)/b)}'); fi
 fi
 # --- Protezione ---if [ "$SRV_COUNT" -le 0 ]; then
-    echo -e "${Y}ÔÜá Nessun servizio rilevato, imposto 400 come valore di default per il tuning.${N}"  
+    echo -e "${Y}OUa Nessun servizio rilevato, imposto 400 come valore di default per il tuning.${N}"  
 SRV_COUNT=400
-fi echo -e "${Y}ÔåÆ Metriche servizi:${N} servizi_attivi=${SRV_COUNT} | interval_avg_s=${INTERVAL_SEC_AVG} | p95_exec=${P95_EXEC}s | timeout_rate=${TIMEOUT_RATE}%"echo
+fi echo -e "${Y}Oa Metriche servizi:${N} servizi_attivi=${SRV_COUNT} | interval_avg_s=${INTERVAL_SEC_AVG} | p95_exec=${P95_EXEC}s | timeout_rate=${TIMEOUT_RATE}%"echo
 # --- Decision engine avanzato ---
 TH_NEEDED=$(awk -v n="$SRV_COUNT" -v s="$INTERVAL_SEC_AVG" 'BEGIN{if(s==0)s=300;printf("%.3f",n/s)}')
 CONC_THEO=$(awk -v th="$TH_NEEDED" -v p95="$P95_EXEC" 'BEGIN{v=th*p95*1.3; printf("%.0f", v)}')
-echo -e "${C}ÔåÆ Calcolo concorrenza teorica:${N} 
-TH=${TH_NEEDED} checks/s, P95=${P95_EXEC}s ÔåÆ ${CONC_THEO}"
+echo -e "${C}Oa Calcolo concorrenza teorica:${N} 
+TH=${TH_NEEDED} checks/s, P95=${P95_EXEC}s Oa ${CONC_THEO}"
 HARD_CAP=$((CORES*12))
 if (( $(
 echo "$CPU_NOW > 80" | bc -l) )) || (( $(
@@ -92,17 +93,17 @@ NEW_SVC_TO=$(awk -v x="$P95_EXEC" 'BEGIN{v=int(x*2);if(v<45)v=45;if(v>120)v=120;
 NEW_HOST_TO="$NEW_SVC_TO"; 
 NEW_DELAY="s"
 echo -e "${C}=== Riepilogo tuning automatico ===${N}"cat <<EOF  max_concurrent_checks = $NEW_CONC  service_check_timeout = $NEW_SVC_TO  host_check_timeout    = $NEW_HOST_TO  sleep_time            = $NEW_SLEEP  service_inter_check_delay_method = $NEW_DELAYEOF
-echo -e "${Y}ÔåÆ Applicazione tra 5 secondi (CTRL+C per annullare)...${N}"for i in {5..1}; do 
-echo -ne "  ÔÅ│ ${i}s...\r"; sleep 1; done; echo
+echo -e "${Y}Oa Applicazione tra 5 secondi (CTRL+C per annullare)...${N}"for i in {5..1}; do 
+echo -ne "  OA ${i}s...\r"; sleep 1; done; echo
 # --- Scrittura config ---cat > "$NAGIOS_CFG" <<EOF
 # Autotune generato automaticamente (v5.1.1 fail-safe)max_concurrent_checks=$NEW_CONCservice_check_timeout=$NEW_SVC_TOhost_check_timeout=$NEW_HOST_TOsleep_time=$NEW_SLEEPservice_inter_check_delay_method=$NEW_DELAYEOFgrep -q "use_cache_for_checking" "$GLOBAL_MK" 2>/dev/null || 
 echo "use_cache_for_checking = True" >> "$GLOBAL_MK"
 # --- Riavvio + benchmark ---
-echo -e "${Y}ÔåÆ Riavvio del sito...${N}"omd restart "$SITE" >/dev/null
-echo -e "${Y}ÔåÆ Attesa 60s di quiete...${N}"sleep 60
+echo -e "${Y}Oa Riavvio del sito...${N}"omd restart "$SITE" >/dev/null
+echo -e "${Y}Oa Attesa 60s di quiete...${N}"sleep 60
 CPU_AFTER=$(mpstat 3 3 | awk '/Average/ && $12 ~ /[0-9.]+/ {s+=100-$12;c++} END{if(c)printf("%.2f",s/c);else print 0}')
 LOAD_AFTER=$(awk '{print $1}' /proc/loadavg)
 CHECKS_AFTER=$(ps -eo comm | grep check_ | wc -l)clear
 echo -e "${C}=== Benchmark prima e dopo ===${N}"printf "%-28s %-12s %-12s\n" "Parametro" "Prima" "Dopo"printf "%-28s %-12s %-12s\n" "CPU Utilization (%)" "$CPU_NOW" "$CPU_AFTER"printf "%-28s %-12s %-12s\n" "Load Average (1m)"  "$LOAD_NOW" "$LOAD_AFTER"printf "%-28s %-12s %-12s\n" "Processi check_*"   "?" "$CHECKS_AFTER"
 echo -e "${G}Backup:${N} $BACKUP_DIR"
-echo -e "${G}Ô£à Fine (fail-safe mode).${N}"
+echo -e "${G}Oa Fine (fail-safe mode).${N}"

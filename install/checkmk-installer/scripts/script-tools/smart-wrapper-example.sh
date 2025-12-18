@@ -1,7 +1,6 @@
 #!/bin/bash
 # Smart CheckMK Script Wrapper - ESEMPIO DIDATTICO
 # Questo file mostra come funziona la logica del wrapper ibri
-do
 # NON usare direttamente - usa smart-deploy-hybrid.sh per l'installazione
 #
 # Logica: Prova a scaricare la versione fresca, usa cache locale come fallback
@@ -54,7 +53,7 @@ else        rm -f "$temp_file" 2>/dev/null        return 1    fi}
 # LOGICA PRINCIPALE
 # =====================================================
 # Verifica environment CheckMKlog_info() {    
-# Log solo se DEBUG ├¿ abilitato    [ "${DEBUG:-0}" = "1" ] && 
+# Log solo se DEBUG e abilitato    [ "${DEBUG:-0}" = "1" ] && 
 echo "
 # CheckMK Wrapper [$SCRIPT_NAME]: $1" >&2}log_info "Environment: $([ -d "/omd/sites" ] && 
 echo "OMD Server" || 
