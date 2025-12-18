@@ -40,7 +40,8 @@ echo -e "  $0 --uninstall          ${RED}
 echo -e "  $0 --help               ${CYAN}
 # Mostra questo messaggio${NC}"    
 echo ""
-    exit 0}
+    exit 0
+}
 # =====================================================
 # Funzione: Disinstalla FRPC
 # =====================================================uninstall_frpc() {    
