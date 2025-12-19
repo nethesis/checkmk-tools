@@ -119,32 +119,31 @@ echo "[$timestamp] [$level] [PID:$$] $message" >> "$YDEA_LOG_FILE" 2>/dev/null |
 }
 
 log_debug() { 
-  [[ "${YDEA_DEBUG}" == "1" ]] && 
-echo "┬¡ãÆ├Â├¼ $*" >&2 || true
+  [[ "${YDEA_DEBUG}" == "1" ]] && echo "[DEBUG] $*" >&2 || true
   log_write "DEBUG" "$*"
 }
 
 log_info() { 
-  
-echo "├ö├ñÔòú┬┤┬®├à  $*" >&2
+
+echo "[INFO] $*" >&2
   log_write "INFO" "$*"
 }
 
 log_success() { 
-  
-echo "├ö┬ú├á $*" >&2
+
+echo "[OK] $*" >&2
   log_write "INFO" "SUCCESS: $*"
 }
 
 log_warn() {
-  
-echo "├ö├£├í┬┤┬®├à  $*" >&2
+
+echo "[WARN] $*" >&2
   log_write "WARN" "$*"
 }
 
 log_error() { 
-  
-echo "├ö├ÿ├« $*" >&2
+
+echo "[ERROR] $*" >&2
   log_write "ERROR" "$*"
 }
 
@@ -152,7 +151,7 @@ log_api_call() {
   local method="$1"
   local url="$2"
   local status="${3:-}"
-  log_write "API" "$method $url ├ö├Ñ├å HTTP $status"
+  log_write "API" "$method $url -> HTTP $status"
 }
 
 
@@ -233,7 +232,7 @@ YDEA_API_KEY='tua_chiave'" >&2
     -d "$body" \
     "$url" 2>&1)"; then
     log_error "Login fallito: curl error $?"
-    log_write "API" "POST $url ├ö├Ñ├å CURL_ERROR"
+    log_write "API" "POST $url -> CURL_ERROR"
     echo "$resp" >&2
     exit 1
   fi
@@ -331,7 +330,7 @@ ydea_api() {
   log_api_call "$method" "$url" "$http_code"
   
   
-# Mostra errore se non Ôö£┬┐ 2xx
+# Mostra errore se non e' 2xx
   if [[ ! "$http_code" =~ ^2[0-9][0-9]$ ]]; then
     log_error "HTTP $http_code: $(
 echo "$http_body" | jq -r '.message // .error // empty' 2>/dev/null || 
@@ -356,7 +355,7 @@ echo "$http_body" | head -c 200)"
   
 # Log response (primi 500 caratteri)
   if [[ "${YDEA_DEBUG}" == "1" ]]; then
-    log_write "RESPONSE" "$method $url ├ö├Ñ├å $http_code | Body: ${http_body:0:500}..."
+    log_write "RESPONSE" "$method $url -> $http_code | Body: ${http_body:0:500}..."
   fi
   
   printf '%s' "$http_body"
@@ -786,20 +785,19 @@ show_tracking_stats() {
   resolved=$(jq '[.tickets[] | select(.resolved_at != null)] | length' "$YDEA_TRACKING_FILE")
   
   
-echo "┬¡ãÆ├┤├¿ Statistiche Ticket Tracking"
-  
-echo "├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝"
+echo "== Statistiche Ticket Tracking =="
+echo "--------------------------------"
   
 echo "Totale ticket tracciati: $total"
   
-echo "  ├ö├Â┬ú├ö├Â├ç Aperti: $open"
+echo "  - Aperti: $open"
   
-echo "  ├ö├Â├Â├ö├Â├ç Risolti: $resolved"
+echo "  - Risolti: $resolved"
   
 echo ""
   
   if [[ $open -gt 0 ]]; then
-    echo "┬¡ãÆ├ÂÔöñ Ticket Aperti:"
+    echo "Ticket aperti:"
     jq -r '.tickets[] | select(.resolved_at == null) | "  [
 #\(.ticket_id)] \(.codice) - \(.host)/\(.service) - Stato: \(.stato) - Creato: \(.created_at)"' "$YDEA_TRACKING_FILE"
     
@@ -807,7 +805,7 @@ echo ""
   fi
   
   if [[ $resolved -gt 0 ]]; then
-    echo "├ö┬ú├á Ultimi 5 Ticket Risolti:"
+    echo "Ultimi 5 ticket risolti:"
     jq -r '.tickets[] | select(.resolved_at != null) | "\(.resolved_at) | 
 #\(.ticket_id) | \(.codice) | \(.host)/\(.service)"' "$YDEA_TRACKING_FILE" | sort -r | head -5 | while 
 IFS='|' read -r date tid code host; do
@@ -826,7 +824,7 @@ echo ""
 echo "0")
   
   if [[ "$avg_resolution" != "0" ]]; then
-    echo "├ö├àÔûÆ┬┤┬®├à  Tempo medio risoluzione: ~$avg_resolution ore"
+    echo "Tempo medio risoluzione: ~$avg_resolution ore"
   fi
 }
 
@@ -845,7 +843,7 @@ interactive_config() {
   local env_file="$SCRIPT_DIR/.env"
   
   
-echo "┬¡ãÆ├Â┬║ Configurazione Interattiva Ydea Toolkit"
+echo "== Configurazione Interattiva Ydea Toolkit =="
   
 echo "=========================================="
   
@@ -867,9 +865,9 @@ echo ""
     current_ticket_id="${YDEA_USER_ID_CREATE_TICKET:-4675}"
     current_note_id="${YDEA_USER_ID_CREATE_NOTE:-4675}"
   fi
-echo "┬¡ãÆ├┤├» CREDENZIALI API (obbligatorie)"
+echo "CREDENZIALI API (obbligatorie)"
   
-echo "   Ottienile da: https://my.ydea.cloud ├ö├Ñ├å Impostazioni ├ö├Ñ├å La mia azienda ├ö├Ñ├å API"
+echo "   Ottienile da: https://my.ydea.cloud -> Impostazioni -> La mia azienda -> API"
   
 echo ""
   
@@ -881,7 +879,7 @@ echo ""
 else     read -r -p "YDEA_ID: " new_id
     while [[ -z "$new_id" ]]; do
       
-echo "├ö├ÿ├« YDEA_ID Ôö£┬┐ obbligatorio!"
+echo "[ERROR] YDEA_ID e' obbligatorio!"
       read -r -p "YDEA_ID: " new_id
     done
   fi
@@ -894,13 +892,13 @@ echo "├ö├ÿ├« YDEA_ID Ôö£┬┐ obbligatorio!"
 else     read -r -p "YDEA_API_KEY: " new_key
     while [[ -z "$new_key" ]]; do
       
-echo "├ö├ÿ├« YDEA_API_KEY Ôö£┬┐ obbligatoria!"
+echo "[ERROR] YDEA_API_KEY e' obbligatoria!"
       read -r -p "YDEA_API_KEY: " new_key
     done
   fi
 echo ""
   
-echo "┬¡ãÆ├ª├▒ ID UTENTE PER OPERAZIONI (opzionali)"
+echo "ID UTENTE PER OPERAZIONI (opzionali)"
   
 echo "   Usa gli ID degli utenti Ydea per attribuire creazioni"
   
@@ -919,7 +917,7 @@ echo ""
   
 echo ""
   
-echo "┬¡ãÆ├┤├ÿ GESTIONE LOG E TRACKING (opzionali)"
+echo "GESTIONE LOG E TRACKING (opzionali)"
   
 echo "   Configurazione avanzata per logging e monitoraggio"
   
@@ -961,7 +959,7 @@ echo "$new_log_level" | tr '[:lower:]' '[:upper:]')
   
 echo ""
   
-echo "┬¡ãÆ├å┬Ñ Salvataggio configurazione in: $env_file"
+echo "Salvataggio configurazione in: $env_file"
   
   
 # Crea backup se esiste
@@ -981,30 +979,21 @@ echo "   (backup creato: ${env_file}.backup.$(date +%Y%m%d_%H%M%S))"
 
 
 # Credenziali API (OBBLIGATORIE)
-export 
-YDEA_ID="$new_id"
-export 
-YDEA_API_KEY="$new_key"
+export YDEA_ID="$new_id"
+export YDEA_API_KEY="$new_key"
 
 
 # ID Utente per operazioni (opzionali)
-export 
-YDEA_USER_ID_CREATE_TICKET=$new_ticket_id
-export 
-YDEA_USER_ID_CREATE_NOTE=$new_note_id
+export YDEA_USER_ID_CREATE_TICKET=$new_ticket_id
+export YDEA_USER_ID_CREATE_NOTE=$new_note_id
 
 
 # ===== GESTIONE LOG E TRACKING =====
-export 
-YDEA_LOG_FILE="$new_log_file"
-export 
-YDEA_LOG_MAX_SIZE=$new_log_size
-export 
-YDEA_LOG_LEVEL="$new_log_level"
-export 
-YDEA_TRACKING_FILE="$new_tracking_file"
-export 
-YDEA_TRACKING_RETENTION_DAYS=$new_retention
+export YDEA_LOG_FILE="$new_log_file"
+export YDEA_LOG_MAX_SIZE=$new_log_size
+export YDEA_LOG_LEVEL="$new_log_level"
+export YDEA_TRACKING_FILE="$new_tracking_file"
+export YDEA_TRACKING_RETENTION_DAYS=$new_retention
 
 
 # ===== CONFIGURAZIONI AVANZATE =====
@@ -1012,14 +1001,11 @@ YDEA_TRACKING_RETENTION_DAYS=$new_retention
 # Decommentare e modificare se necessario
 
 
-# export 
-YDEA_BASE_URL="https://my.ydea.cloud/app_api_v2"
+# export YDEA_BASE_URL="https://my.ydea.cloud/app_api_v2"
 
-# export 
-YDEA_TOKEN_FILE="\${HOME}/.ydea_token.json"
+# export YDEA_TOKEN_FILE="\${HOME}/.ydea_token.json"
 
-# export 
-YDEA_DEBUG=0
+# export YDEA_DEBUG=0
 EOF
   
   chmod 600 "$env_file"
@@ -1027,11 +1013,11 @@ EOF
   
 echo ""
   
-echo "├ö┬ú├á Configurazione salvata con successo!"
+echo "[OK] Configurazione salvata con successo!"
   
 echo ""
   
-echo "┬¡ãÆ├┤├ÿ Riepilogo:"
+echo "Riepilogo:"
   
 echo "   YDEA_ID: $new_id"
   
@@ -1043,7 +1029,7 @@ echo "   ID creazione note: $new_note_id"
   
 echo ""
   
-echo "┬¡ãÆ├┤├¿ Configurazione Log & Tracking:"
+echo "Configurazione Log & Tracking:"
   
 echo "   File log: $new_log_file"
   
@@ -1057,7 +1043,7 @@ echo "   Retention giorni: $new_retention"
   
 echo ""
   
-echo "┬¡ãÆ┬║┬¼ Test configurazione:"
+echo "Test configurazione:"
   
 echo "   source $env_file"
   
@@ -1070,29 +1056,23 @@ echo ""
 # ===== CLI =====
 show_usage() {
   cat >&2 <<'USAGE'
-┬¡ãÆ├©├í┬┤┬®├à  Ydea Toolkit - Gestione API v2
+Ydea Toolkit - Gestione API v2
 
 SETUP:
-  export 
-YDEA_ID="tuo_id"              
-# Da: Impostazioni ├ö├Ñ├å La mia azienda ├ö├Ñ├å API
-  export 
-YDEA_API_KEY="tua_chiave_api"
+  export YDEA_ID="tuo_id"
+  # Da: Impostazioni -> La mia azienda -> API
+  export YDEA_API_KEY="tua_chiave_api"
   
   
 # ID Utente per operazioni (opzionali)
-  export 
-YDEA_USER_ID_CREATE_TICKET=4675    
+  export YDEA_USER_ID_CREATE_TICKET=4675
 # ID per creazione ticket
-  export 
-YDEA_USER_ID_CREATE_NOTE=4675      
+  export YDEA_USER_ID_CREATE_NOTE=4675
 # ID per creazione note/commenti
   
-  export 
-YDEA_DEBUG=1                  
+  export YDEA_DEBUG=1
 # (opzionale) per debug verboso
-  export 
-YDEA_LOG_FILE=/path/log.log   
+  export YDEA_LOG_FILE=/path/log.log
 # (default: /var/log/ydea-toolkit.log)
 
 COMANDI:
