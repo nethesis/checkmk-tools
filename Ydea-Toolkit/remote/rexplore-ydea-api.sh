@@ -1,5 +1,1 @@
-#!/bin/bash
-# Launcher per explore-ydea-api.sh (usa script locale aggiornato da auto-git-sync)
-LOCAL_SCRIPT="/opt/checkmk-tools/Ydea-Toolkit/full/explore-ydea-api.sh"
-# Esegue lo script locale
-exec "$LOCAL_SCRIPT" "$@"
+#!/bin/bash# Launcher per explore-ydea-api.sh (usa script locale aggiornato da auto-git-sync)LOCAL_SCRIPT="/opt/checkmk-tools/Ydea-Toolkit/full/explore-ydea-api.sh"# Esegue lo script localeexec "$LOCAL_SCRIPT" "$@"
