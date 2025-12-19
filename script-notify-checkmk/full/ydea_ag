@@ -954,9 +954,23 @@ main() {
           # Priorità sempre Bassa per monitoraggio Premium_Mon
           PRIORITY="low"
           
-          # Prepara titolo e descrizione (con marcatore per riuso)
-          TITLE="[${STATE}] ${HOSTNAME} - ${SERVICE} $(build_cmk_marker \"$HOSTNAME\" \"$REAL_IP\")"
-          DESCRIPTION="Host: ${HOSTNAME}\nServizio: ${SERVICE}\nStato: ${STATE}\nOutput: ${OUTPUT_SHORT}\n\nTicket precedente #${TICKET_ID} chiuso da operatore.\n\nMarcatore: $(build_cmk_marker \"$HOSTNAME\" \"$REAL_IP\")"
+          # SMART DETECTION: Rileva tipo alert e genera descrizione intelligente
+          ALERT_TYPE=$(detect_alert_type "$OUTPUT" "UP" "$STATE")
+          log "🔍 Alert Type Detected: $ALERT_TYPE"
+          
+          # Titolo con diagnosi leggibile
+          ALERT_LABEL=$(get_alert_label "$ALERT_TYPE" "SERVICE" "$SERVICE")
+          TITLE="[${STATE} - ${ALERT_LABEL}] ${HOSTNAME} - ${SERVICE}"
+          
+          # Descrizione SMART basata sul tipo di problema
+          DESCRIPTION=$(generate_smart_description "$ALERT_TYPE" "$HOSTNAME" "$REAL_IP" "$OUTPUT_SHORT" "$SERVICE" "$STATE" "$LAST_STATE")
+          
+          # Aggiungi nota sul ticket precedente chiuso
+          DESCRIPTION="${DESCRIPTION}
+
+Ticket precedente #${TICKET_ID} chiuso da operatore.
+
+Marcatore: $(build_cmk_marker \"$HOSTNAME\" \"$REAL_IP\")"
           
           # Crea nuovo ticket usando la funzione esistente
           NEW_TICKET_ID=$(create_ydea_ticket "$TITLE" "$DESCRIPTION" "$PRIORITY" "$YDEA_CATEGORY_ID" "$HOSTNAME" "$SERVICE" "$OUTPUT")
