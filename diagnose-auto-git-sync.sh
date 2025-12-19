@@ -1,66 +1,83 @@
 #!/bin/bash
-# Script di diagnostica per verificare stato auto-git-sync
-echo "========================================="
-echo "  Diagnostica Auto Git Sync"
-echo "========================================="
-echo ""
-# Verifica se il servizio esiste
-if systemctl list-unit-files | grep -q auto-git-sync.service; then
-    echo "Ô£à Servizio auto-git-sync.service trovato"    
-echo ""        
-echo "--- STATUS SERVIZIO ---"    systemctl status auto-git-sync.service --no-pager    
-echo ""        
-echo "--- ULTIMI LOG ---"    journalctl -u auto-git-sync.service -n 50 --no-pager    
-echo ""else    
-echo "ÔØî Servizio auto-git-sync.service NON trovato"    
-echo ""fi
-# Verifica repository locale
-REPO_DIR="/opt/checkmk-tools"
-if [ -d "$REPO_DIR" ]; then
-    echo "--- STATO REPOSITORY LOCALE ---"    cd "$REPO_DIR"    
-echo "­ƒôü Directory: $REPO_DIR"    
-echo ""        
-echo "Branch corrente:"    git branch --show-current    
-echo ""        
-echo "Ultimo commit locale:"    git log -1 --oneline    
-echo ""        
-echo "Ultimo commit remoto (origin/main):"    git fetch origin 2>/dev/null    git log origin/main -1 --oneline    
-echo ""        
-echo "Stato git:"    git status    
-echo ""        
-echo "Verifica struttura cartelle:"    
-echo ""        
-echo "script-tools:"    ls -ld script-tools/remote script-tools/full 2>/dev/null || 
-echo "  ÔØî Cartelle remote/full NON trovate"    
-echo ""        
-echo "Ydea-Toolkit:"    ls -ld Ydea-Toolkit/remote Ydea-Toolkit/full 2>/dev/null || 
-echo "  ÔØî Cartelle remote/full NON trovate"    
-echo ""        
-echo "Fix:"    ls -ld Fix/remote Fix/full 2>/dev/null || 
-echo "  ÔØî Cartelle remote/full NON trovate"    
-echo ""        
-echo "script-notify-checkmk:"    ls -ld script-notify-checkmk/remote script-notify-checkmk/full 2>/dev/null || 
-echo "  ÔØî Cartelle remote/full NON trovate"    
-echo ""        
-echo "script-check-ns7:"    ls -ld script-check-ns7/polling script-check-ns7/nopolling 2>/dev/null || 
-echo "  ÔØî Cartelle polling/nopolling NON trovate"    
-echo ""        
-echo "script-check-ns8:"    ls -ld script-check-ns8/polling script-check-ns8/nopolling 2>/dev/null || 
-echo "  ÔØî Cartelle polling/nopolling NON trovate"    
-echo ""        
-echo "script-check-ubuntu:"    [ -d "script-check-ubuntu/polling" ] && ls -ld script-check-ubuntu/polling 2>/dev/null    [ -d "script-check-ubuntu/nopolling" ] && ls -ld script-check-ubuntu/nopolling 2>/dev/null    [ ! -d "script-check-ubuntu/polling" ] && [ ! -d "script-check-ubuntu/nopolling" ] && 
-echo "  ÔØî Cartelle polling/nopolling NON trovate"    
-echo ""        
-echo "script-check-windows:"    [ -d "script-check-windows/polling" ] && ls -ld script-check-windows/polling 2>/dev/null    [ -d "script-check-windows/nopolling" ] && ls -ld script-check-windows/nopolling 2>/dev/null    [ ! -d "script-check-windows/polling" ] && [ ! -d "script-check-windows/nopolling" ] && 
-echo "  ÔØî Cartelle polling/nopolling NON trovate"    
-echo ""        
-echo "Proxmox:"    [ -d "Proxmox/polling" ] && ls -ld Proxmox/polling 2>/dev/null || 
-echo "  ÔÜá´©Å  polling/ vuota (normale)"    [ -d "Proxmox/nopolling" ] && ls -ld Proxmox/nopolling 2>/dev/null    [ ! -d "Proxmox/nopolling" ] && 
-echo "  ÔØî nopolling/ NON trovata"    
-echo ""else    
-echo "ÔØî Repository NON trovato in: $REPO_DIR"
+# diagnose-auto-git-sync.sh - Diagnostica servizio auto-git-sync
+# Verifica stato servizio, logs, e configurazione
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+RESET='\033[0m'
+
+print_header() {
+  echo -e "\n${CYAN}=== $1 ===${RESET}\n"
+}
+
+print_ok() {
+  echo -e "${GREEN}✓${RESET} $1"
+}
+
+print_error() {
+  echo -e "${RED}✗${RESET} $1"
+}
+
+print_warning() {
+  echo -e "${YELLOW}⚠${RESET} $1"
+}
+
+print_header "AUTO-GIT-SYNC DIAGNOSTICS"
+
+# Check if service exists
+if systemctl list-unit-files | grep -q "auto-git-sync.service"; then
+  print_ok "Service file exists"
+else
+  print_error "Service file NOT found"
+  exit 1
 fi
-echo ""
-echo "========================================="
-echo "  Fine Diagnostica"
-echo "========================================="
+
+# Check service status
+print_header "SERVICE STATUS"
+if systemctl is-active --quiet auto-git-sync.service; then
+  print_ok "Service is ACTIVE"
+else
+  print_error "Service is NOT ACTIVE"
+  echo ""
+  systemctl status auto-git-sync.service --no-pager
+fi
+
+# Check if enabled
+if systemctl is-enabled --quiet auto-git-sync.service; then
+  print_ok "Service is ENABLED (auto-start)"
+else
+  print_warning "Service is NOT enabled"
+fi
+
+# Show service configuration
+print_header "SERVICE CONFIGURATION"
+systemctl cat auto-git-sync.service
+
+# Show recent logs
+print_header "RECENT LOGS (last 50 lines)"
+journalctl -u auto-git-sync.service -n 50 --no-pager
+
+# Check repository
+print_header "REPOSITORY STATUS"
+if [[ -d "/opt/checkmk-tools" ]]; then
+  print_ok "Repository directory exists"
+  cd /opt/checkmk-tools
+  
+  echo ""
+  git status --short
+  echo ""
+  
+  print_header "LAST 5 COMMITS"
+  git log --oneline -5
+  
+  print_header "LAST GIT PULL"
+  git log --grep="Merge" -1 --format="%ci %s" || echo "No recent pulls found"
+else
+  print_error "Repository directory NOT found"
+fi
+
+print_header "DIAGNOSTICS COMPLETE"

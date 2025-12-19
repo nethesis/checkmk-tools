@@ -1,15 +1,37 @@
 #!/bin/bash
-# Launcher base per eseguire qualsiasi script dal repo GitHub senza copia locale
-# Uso: bash launcher_remote_script.sh <URL_SCRIPT> [parametri]
+# launcher_remote_script.sh - Template per creare launcher remoti
+# Scarica ed esegue script dal repository GitHub passando eventuali parametri
 
-if [ -z "$1" ]; then
-    echo "Usage: $0 <URL_SCRIPT> [parametri]"
-    exit 1
+set -euo pipefail
+
+# Configurazione
+REPO_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
+SCRIPT_NAME="${1:-}"
+
+if [[ -z "$SCRIPT_NAME" ]]; then
+  echo "Uso: $0 <script_name> [args...]"
+  echo ""
+  echo "Esempi:"
+  echo "  $0 script-tools/full/auto-git-sync.sh 300"
+  echo "  $0 Ydea-Toolkit/full/ydea-toolkit.sh list-tickets"
+  exit 1
 fi
 
-SCRIPT_URL="$1"
 shift
 
-# Esegue lo script remoto passan
-do eventuali parametri
-bash <(curl -fsSL "$SCRIPT_URL") "$@"
+# Scarica ed esegue
+SCRIPT_URL="$REPO_URL/$SCRIPT_NAME"
+echo "📥 Downloading: $SCRIPT_URL"
+
+TEMP_SCRIPT=$(mktemp)
+trap "rm -f '$TEMP_SCRIPT'" EXIT
+
+if curl -fsSL "$SCRIPT_URL" -o "$TEMP_SCRIPT"; then
+  echo "✓ Downloaded successfully"
+  echo "▶ Executing: $SCRIPT_NAME $*"
+  echo ""
+  bash "$TEMP_SCRIPT" "$@"
+else
+  echo "❌ Failed to download script"
+  exit 1
+fi
