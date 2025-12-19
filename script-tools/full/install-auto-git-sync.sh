@@ -279,8 +279,7 @@ fi
 
 # Crea service file personalizzato che esegue direttamente da GitHub
 echo "i  Creazione service file personalizzato..."
-cat > /etc/systemd/system/auto-git-sync.service << '\1
-SERVICE'
+cat > /etc/systemd/system/auto-git-sync.service << 'EOF'
 [Unit]
 Description=Auto Git Sync Service
 Documentation=https://github.com/Coverup20/checkmk-tools
@@ -305,11 +304,9 @@ SyslogIdentifier=auto-git-sync
 PrivateTmp=yes
 NoNewPrivileges=yes
 
-
 [Install]
 WantedBy=multi-user.target
-\1
-SERVICE
+EOF
 
 # Sostituisci placeholder con valori reali
 sed -i "s|PLACEHOLDER_USER|$REPO_OWNER|g" /etc/systemd/system/auto-git-sync.service
