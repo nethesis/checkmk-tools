@@ -641,8 +641,13 @@ echo "{}")
 echo "$ticket_data" | jq --arg tid "$ticket_id" '[.objs[] | select(.id == ($tid|tonumber))] | .[0] // {}' 2>/dev/null)
     
     if [[ "$ticket_obj" == "{}" ]] || [[ "$ticket_obj" == "null" ]]; then
-      log_warn "Ticket 
-#$ticket_id non trovato, potrebbe essere stato eliminato"
+      log_warn "⚠️ Ticket 
+#$ticket_id non trovato, potrebbe essere stato eliminato - contrassegnato come risolto"
+      # Contrassegna il ticket come risolto per consentire la pulizia
+      jq --arg tid "$ticket_id" --arg now "$now" \
+        '.tickets |= map(if .ticket_id == ($tid|tonumber) then .stato = "Eliminato" | .resolved_at = $now | .last_update = $now else . end) | .last_update = $now' \
+        "$YDEA_TRACKING_FILE" > "${YDEA_TRACKING_FILE}.tmp" && mv "${YDEA_TRACKING_FILE}.tmp" "$YDEA_TRACKING_FILE"
+      resolved=$((resolved + 1))
       continue
     fi
     
