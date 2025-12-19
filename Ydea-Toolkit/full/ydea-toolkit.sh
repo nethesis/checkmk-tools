@@ -1,8 +1,6 @@
+#!/usr/bin/env bash
 
-#!/bin/bash
-/usr/bin/env bash
-
-# ydea-toolkit.sh ├ö├ç├Â Toolkit completo per Ydea API v2
+# ydea-toolkit.sh - Toolkit completo per Ydea API v2
 
 # Include login, gestione token e funzioni helper per ticket
 set -euo pipefail
@@ -10,7 +8,7 @@ set -euo pipefail
 
 # ===== Caricamento configurazione da .env =====
 
-# Carica .env solo se le variabili critiche non sono giÔö£├í impostate
+# Carica .env solo se le variabili critiche non sono già impostate
 if [[ -z "${YDEA_ID:-}" ]] || [[ -z "${YDEA_API_KEY:-}" ]]; then
   
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -95,7 +93,7 @@ echo "[$timestamp] [$level] [PID:$$] $message" >> "$YDEA_LOG_FILE" 2>/dev/null |
 
 log_debug() { 
   [[ "${YDEA_DEBUG}" == "1" ]] && 
-echo "┬¡ãÆ├Â├¼ $*" >&2 || true
+echo "🔧 $*" >&2 || true
   log_write "DEBUG" "$*"
 }
 
@@ -131,7 +129,7 @@ log_api_call() {
 }
 
 
-# Compatibility aliases (manteniamo retrocompatibilitÔö£├í)
+# Compatibility aliases (manteniamo retrocompatibilità)
 need() { command -v "$1" >/dev/null 2>&1 || { log_error "Manca '$1' nel PATH"; exit 127; }; }
 debug() { log_debug "$@"; }
 info() { log_info "$@"; }
@@ -296,7 +294,7 @@ ydea_api() {
   log_api_call "$method" "$url" "$http_code"
   
   
-# Mostra errore se non Ôö£┬┐ 2xx
+# Mostra errore se non è 2xx
   if [[ ! "$http_code" =~ ^2[0-9][0-9]$ ]]; then
     log_error "HTTP $http_code: $(
 echo "$http_body" | jq -r '.message // .error // empty' 2>/dev/null || 
@@ -367,9 +365,9 @@ create_ticket() {
   [[ -z "$title" ]] && { log_error "Specifica almeno il titolo"; return 1; }
   
   
-# Mappa prioritÔö£├í testuale a priority_id Ydea (30=bassa, 20=media, 10=alta)
+# Mappa priorità testuale a priority_id Ydea (30=bassa, 20=media, 10=alta)
   
-# Per monitoraggio: usa sempre prioritÔö£├í Bassa (30)
+# Per monitoraggio: usa sempre priorità Bassa (30)
   local priority_num=30
   case "${priority,,}" in
     low|bassa)        priority_num=30 ;;
@@ -429,7 +427,7 @@ echo "$body" | jq --arg tipo "$tipo" '. + {tipo: $tipo}')
 echo "$body" | jq --argjson uid "$creatoda" '. + {creatoda: $uid}')
   fi
   
-  log_info "Creazione ticket: $title (prioritÔö£├í: $priority${tipo:+, tipo: $tipo})"
+  log_info "Creazione ticket: $title (priorità: $priority${tipo:+, tipo: $tipo})"
   ydea_api POST "/ticket" "$body"
 }
 
@@ -606,14 +604,14 @@ echo "$ticket_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegn
     }')
   
   
-# Verifica se giÔö£├í tracciato
+# Verifica se già tracciato
   local exists
   exists=$(jq --arg tid "$ticket_id" '.tickets[] | select(.ticket_id == ($tid|tonumber)) | .ticket_id' "$YDEA_TRACKING_FILE" 2>/dev/null || 
 echo "")
   
   if [[ -n "$exists" ]]; then
     log_warn "Ticket 
-#$ticket_id giÔö£├í tracciato, aggiorno contatore"
+#$ticket_id già tracciato, aggiorno contatore"
     jq --arg tid "$ticket_id" --arg now "$now" \
       '.tickets |= map(if .ticket_id == ($tid|tonumber) then .checks_count += 1 | .last_update = $now else . end) | .last_update = $now' \
       "$YDEA_TRACKING_FILE" > "${YDEA_TRACKING_FILE}.tmp" && mv "${YDEA_TRACKING_FILE}.tmp" "$YDEA_TRACKING_FILE"
@@ -733,7 +731,7 @@ local cutoff_date
 local cutoff_date
 cutoff_date=$(date -u -d "@$cutoff_epoch" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u -r "$cutoff_epoch" +"%Y-%m-%dT%H:%M:%SZ")
   
-  log_info "Pulizia ticket risolti piÔö£Ôòú vecchi di $YDEA_TRACKING_RETENTION_DAYS giorni (prima di $cutoff_date)..."
+  log_info "Pulizia ticket risolti più vecchi di $YDEA_TRACKING_RETENTION_DAYS giorni (prima di $cutoff_date)..."
   
   local before_count
   before_count=$(jq '.tickets | length' "$YDEA_TRACKING_FILE")
@@ -764,9 +762,9 @@ show_tracking_stats() {
   resolved=$(jq '[.tickets[] | select(.resolved_at != null)] | length' "$YDEA_TRACKING_FILE")
   
   
-echo "┬¡ãÆ├┤├¿ Statistiche Ticket Tracking"
+echo "📊 Statistiche Ticket Tracking"
   
-echo "├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝├ö├Â├╝"
+echo "══════════════════════════════"
   
 echo "Totale ticket tracciati: $total"
   
@@ -866,7 +864,7 @@ echo ""
     read -r -p "YDEA_ID: " new_id
     while [[ -z "$new_id" ]]; do
       
-echo "├ö├ÿ├« YDEA_ID Ôö£┬┐ obbligatorio!"
+echo "├ö├ÿ├« YDEA_ID è obbligatorio!"
       read -r -p "YDEA_ID: " new_id
     done
   fi
@@ -880,7 +878,7 @@ echo "├ö├ÿ├« YDEA_ID Ôö£┬┐ obbligatorio!"
     read -r -p "YDEA_API_KEY: " new_key
     while [[ -z "$new_key" ]]; do
       
-echo "├ö├ÿ├« YDEA_API_KEY Ôö£┬┐ obbligatoria!"
+echo "├ö├ÿ├« YDEA_API_KEY è obbligatoria!"
       read -r -p "YDEA_API_KEY: " new_key
     done
   fi
@@ -1031,7 +1029,7 @@ echo "   ID creazione note: $new_note_id"
   
 echo ""
   
-echo "┬¡ãÆ├┤├¿ Configurazione Log & Tracking:"
+echo "📊 Configurazione Log & Tracking:"
   
 echo "   File log: $new_log_file"
   
@@ -1235,7 +1233,7 @@ clear_log() {
 
 # ===== Main Execution =====
 
-# Esegui solo se lo script Ôö£┬┐ chiamato direttamente (non con source)
+# Esegui solo se lo script è chiamato direttamente (non con source)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 
 case "${1:-}" in
