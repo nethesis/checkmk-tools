@@ -1,26 +1,28 @@
 #!/bin/bash
-# Script Checkmk local check per Proxmox VE (RAM + Stato)
-# Richiede: jq
-echo "<<<local>>>"vms=$(pvesh get /cluster/resources --type vm --output-format json | jq -c '.[] | select(.type=="qemu")')
-for vm in $vms; do    vmid=$(
-echo "$vm" | jq -r '.vmid')    name=$(
-echo "$vm" | jq -r '.name')    status=$(
-echo "$vm" | jq -r '.status')    maxmem=$(
-echo "$vm" | jq -r '.maxmem')    mem=$(
-echo "$vm" | jq -r '.mem')    
-# Stato    if [[ "$status" == "running" ]]; then
-    echo "0 vm_${vmid}_${name} Stato - VM ${vmid} (${name}) accesa"
-else        
-echo "0 vm_${vmid}_${name} Stato - VM ${vmid} (${name}) spenta"    fi    
-# RAM    if [[ "$status" == "running" && "$maxmem" -gt 0 ]]; then
-    used_percent=$(( mem * 100 / maxmem ))        
-echo "0 vm_${vmid}_${name} RAM used=${mem};;;0;${maxmem} RAM: ${used_percent}%"
-else        conf="/etc/pve/qemu-server/${vmid}.conf"        if [[ -f "$conf" ]]; then
-    conf_mem=$(grep -i '^memory:' "$conf" | awk '{print $2}')            if [[ -n "$conf_mem" ]]; then
-    maxmem_conf=$(( conf_mem * 1024 * 1024 ))                
-echo "0 vm_${vmid}_${name} RAM used=0;;;0;${maxmem_conf} RAM: 0% (VM spenta)"
-else                
-echo "0 vm_${vmid}_${name} RAM - RAM non configurata (VM spenta)"            fi
-else            
-echo "0 vm_${vmid}_${name} RAM - Config mancante (VM spenta)"        fi    fi
-done
+# Proxmox VM API Check
+# Verifica accessibilità API Proxmox
+
+set -euo pipefail
+
+API_URL="${PROXMOX_API_URL:-https://localhost:8006/api2/json}"
+TOKEN_ID="${PROXMOX_TOKEN_ID:-}"
+TOKEN_SECRET="${PROXMOX_TOKEN_SECRET:-}"
+
+echo "<<<proxmox_api>>>"
+
+if [[ -z "$TOKEN_ID" || -z "$TOKEN_SECRET" ]]; then
+    echo "2 Proxmox_API - No API credentials configured"
+    exit 0
+fi
+
+# Test API connectivity
+response=$(curl -s -k -m 5 \
+    -H "Authorization: PVEAPIToken=$TOKEN_ID=$TOKEN_SECRET" \
+    "$API_URL/version" 2>&1)
+
+if [[ $? -eq 0 ]]; then
+    version=$(echo "$response" | grep -oP '"version":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
+    echo "0 Proxmox_API - API Reachable (Version: $version)"
+else
+    echo "2 Proxmox_API - API Unreachable: $response"
+fi
