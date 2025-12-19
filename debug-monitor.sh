@@ -2,14 +2,15 @@
 TRACKING_FILE="/var/log/ydea-tickets-tracking.json"
 echo "=== DEBUG MONITOR ==="
 echo ""
-echo "1. Lettura PREVIOUS (prima di update-tracking):"jq -r '.tickets[] | select(.resolved_at == null) | "\(.ticket_id)|\(.stato)|\(.descrizione_ticket // "")|\(.priorita // "Normale")|\(.assegnatoA // "Non assegnato")"' "$TRACKING_FILE"
+echo "1. Lettura PREVIOUS (prima di update-tracking):"
+jq -r '.tickets[] | select(.resolved_at == null) | "\(.ticket_id)|\(.stato)|\(.descrizione_ticket // "")|\(.priorita // "Normale")|\(.assegnatoA // "Non assegnato")"' "$TRACKING_FILE"
 echo ""
-echo "2. Parsing con while loop (simula monitor):"while 
-IFS='|' read -r tid stato desc prio assegnato; do  
-echo "tid=$tid"  
-echo "stato=$stato"  
-echo "desc=$desc"  
-echo "prio=$prio"  
+echo "2. Parsing con while loop (simula monitor):"
+while IFS='|' read -r tid stato desc prio assegnato; do
+  echo "tid=$tid"
+  echo "stato=$stato"
+  echo "desc=$desc"
+  echo "prio=$prio"  
 echo "assegnato=$assegnato"
 done < <(jq -r '.tickets[] | select(.resolved_at == null) | "\(.ticket_id)|\(.stato)|\(.descrizione_ticket // "")|\(.priorita // "Normale")|\(.assegnatoA // "Non assegnato")"' "$TRACKING_FILE")
 echo ""

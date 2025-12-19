@@ -103,10 +103,14 @@ SITE="${1:-monitoring}"
 #
 #
 #
-echo -e "${Y}ÔåÆ Checking site '$SITE'...${N}"if ! omd sites | grep -q "^$SITE"; then
-    echo -e "${R}Ô£ù Site '$SITE' not found${N}"
+echo -e "${Y}🔧 Checking site '$SITE'...${N}"
+
+if ! omd sites | grep -q "^$SITE"; then
+    echo -e "${R}❌ Site '$SITE' not found${N}"
     exit 1
-fi echo -e "${G}Ô£ô Site found${N}"
+fi
+
+echo -e "${G}✓ Site found${N}"
 #
 #
 #
