@@ -1,3 +1,290 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ydea-toolkit.sh - Ydea Cloud API v2 helper (restored)
+# Dependencies: bash, curl, jq
+
+# ===== Config loading (.env) =====
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ -z "${YDEA_ID:-}" || -z "${YDEA_API_KEY:-}" ]]; then
+  if [[ -f "$SCRIPT_DIR/.env" ]]; then
+    # shellcheck disable=SC1090,SC1091
+    source "$SCRIPT_DIR/.env"
+  elif [[ -f "/opt/ydea-toolkit/.env" ]]; then
+    # shellcheck disable=SC1091
+    source "/opt/ydea-toolkit/.env"
+  fi
+fi
+
+: "${YDEA_BASE_URL:=https://my.ydea.cloud/app_api_v2}"
+: "${YDEA_LOGIN_PATH:=/login}"
+
+: "${YDEA_ID:=}"
+: "${YDEA_API_KEY:=}"
+
+: "${YDEA_USER_ID_CREATE_TICKET:=4675}"
+: "${YDEA_USER_ID_CREATE_NOTE:=4675}"
+
+: "${YDEA_TOKEN_FILE:=${HOME}/.ydea_token.json}"
+: "${YDEA_EXPIRY_SKEW:=60}"
+: "${YDEA_DEBUG:=0}"
+
+: "${YDEA_TRACKING_FILE:=/var/log/ydea-tickets-tracking.json}"
+: "${YDEA_TRACKING_RETENTION_DAYS:=365}"
+
+CURL_OPTS=(
+  --silent
+  --show-error
+  --fail-with-body
+  --connect-timeout 10
+  --max-time 30
+)
+
+# ===== Logging =====
+_ydea_ts() { date '+%Y-%m-%d %H:%M:%S'; }
+
+log_debug() {
+  if [[ "${YDEA_DEBUG}" == "1" ]]; then
+    printf '[%s] [DEBUG] %s\n' "$(_ydea_ts)" "$*" >&2
+  fi
+}
+
+log_info() { printf '[%s] [INFO] %s\n' "$(_ydea_ts)" "$*" >&2; }
+log_warn() { printf '[%s] [WARN] %s\n' "$(_ydea_ts)" "$*" >&2; }
+log_error() { printf '[%s] [ERROR] %s\n' "$(_ydea_ts)" "$*" >&2; }
+
+need() {
+  command -v "$1" >/dev/null 2>&1 || { log_error "Missing dependency: $1"; return 127; }
+}
+
+# ===== Token persistence =====
+_save_token_json() {
+  local token="$1"
+  local now exp
+  now="$(date -u +%s)"
+  exp="$(( now + 3600 ))"
+
+  umask 077
+  mkdir -p "$(dirname "$YDEA_TOKEN_FILE")" 2>/dev/null || true
+
+  jq -n --arg token "$token" --argjson now "$now" --argjson exp "$exp" \
+    '{token:$token, scheme:"Bearer", obtained_at:$now, expires_at:$exp}' \
+    >"$YDEA_TOKEN_FILE"
+}
+
+load_token() {
+  [[ -f "$YDEA_TOKEN_FILE" ]] || return 1
+  jq -r '.token // empty' "$YDEA_TOKEN_FILE" 2>/dev/null | head -n1
+}
+
+expires_at() {
+  [[ -f "$YDEA_TOKEN_FILE" ]] || { echo 0; return 0; }
+  jq -r '.expires_at // 0' "$YDEA_TOKEN_FILE" 2>/dev/null | head -n1
+}
+
+token_is_fresh() {
+  [[ -f "$YDEA_TOKEN_FILE" ]] || return 1
+  local now exp skew
+  now="$(date -u +%s)"
+  exp="$(expires_at)"
+  skew="${YDEA_EXPIRY_SKEW}"
+  [[ "$now" -lt $(( exp - skew )) ]]
+}
+
+# ===== Login =====
+ydea_login() {
+  need curl
+  need jq
+
+  if [[ -z "${YDEA_ID}" || -z "${YDEA_API_KEY}" ]]; then
+    log_error "YDEA_ID and YDEA_API_KEY are required"
+    return 2
+  fi
+
+  local url body resp token
+  url="${YDEA_BASE_URL%/}${YDEA_LOGIN_PATH}"
+  body="$(jq -n --arg i "$YDEA_ID" --arg k "$YDEA_API_KEY" '{id:$i, api_key:$k}')"
+
+  log_info "Login to Ydea..."
+  log_debug "POST $url"
+
+  resp="$(curl "${CURL_OPTS[@]}" -X POST \
+    -H 'Accept: application/json' \
+    -H 'Content-Type: application/json' \
+    -d "$body" \
+    "$url")" || {
+    log_error "Login failed"
+    return 1
+  }
+
+  token="$(printf '%s' "$resp" | jq -r '.token // .access_token // .jwt // .id_token // empty' 2>/dev/null || true)"
+  if [[ -z "$token" || "$token" == "null" ]]; then
+    log_error "Login response did not contain a token"
+    log_debug "Response: $resp"
+    return 1
+  fi
+
+  _save_token_json "$token"
+  log_info "Login OK; token saved to $YDEA_TOKEN_FILE"
+}
+
+ensure_token() {
+  if token_is_fresh; then
+    log_debug "Token is fresh"
+    return 0
+  fi
+  ydea_login
+}
+
+# ===== API wrapper =====
+# Usage: ydea_api METHOD /path [json_body]
+# Prints response body to stdout. Returns 0 on 2xx.
+ydea_api() {
+  need curl
+  need jq
+
+  local method="${1:-}"; shift || true
+  local path="${1:-}"; shift || true
+
+  if [[ -z "$method" || -z "$path" ]]; then
+    log_error "Usage: ydea_api <GET|POST|PUT|PATCH|DELETE> </path> [json_body]"
+    return 2
+  fi
+
+  ensure_token
+  local token url resp http_body http_code
+  token="$(load_token || true)"
+  if [[ -z "$token" ]]; then
+    log_error "Missing token (login failed?)"
+    return 1
+  fi
+
+  url="${YDEA_BASE_URL%/}/${path#/}"
+  log_debug "$method $url"
+
+  if [[ "$#" -gt 0 ]]; then
+    resp="$(curl "${CURL_OPTS[@]}" -w '\n%{http_code}' -X "$method" \
+      -H 'Accept: application/json' \
+      -H 'Content-Type: application/json' \
+      -H "Authorization: Bearer ${token}" \
+      -d "$1" \
+      "$url" 2>&1)" || true
+  else
+    resp="$(curl "${CURL_OPTS[@]}" -w '\n%{http_code}' -X "$method" \
+      -H 'Accept: application/json' \
+      -H "Authorization: Bearer ${token}" \
+      "$url" 2>&1)" || true
+  fi
+
+  http_body="$(printf '%s' "$resp" | sed '$d')"
+  http_code="$(printf '%s' "$resp" | tail -n1)"
+
+  if [[ "$http_code" == "401" ]]; then
+    log_warn "401 Unauthorized; refreshing token and retrying"
+    ydea_login
+    token="$(load_token || true)"
+
+    if [[ "$#" -gt 0 ]]; then
+      resp="$(curl "${CURL_OPTS[@]}" -w '\n%{http_code}' -X "$method" \
+        -H 'Accept: application/json' \
+        -H 'Content-Type: application/json' \
+        -H "Authorization: Bearer ${token}" \
+        -d "$1" \
+        "$url" 2>&1)" || true
+    else
+      resp="$(curl "${CURL_OPTS[@]}" -w '\n%{http_code}' -X "$method" \
+        -H 'Accept: application/json' \
+        -H "Authorization: Bearer ${token}" \
+        "$url" 2>&1)" || true
+    fi
+
+    http_body="$(printf '%s' "$resp" | sed '$d')"
+    http_code="$(printf '%s' "$resp" | tail -n1)"
+  fi
+
+  printf '%s' "$http_body"
+  [[ "$http_code" =~ ^2[0-9][0-9]$ ]]
+}
+
+# ===== Ticket tracking =====
+init_tracking_file() {
+  local dir
+  dir="$(dirname "$YDEA_TRACKING_FILE")"
+  mkdir -p "$dir" 2>/dev/null || true
+  if [[ ! -f "$YDEA_TRACKING_FILE" ]]; then
+    printf '{"tickets":[],"last_update":""}\n' >"$YDEA_TRACKING_FILE"
+  fi
+}
+
+track_ticket() {
+  need jq
+  local ticket_id="$1"
+  local codice="${2:-}"
+  local host="${3:-}"
+  local service="${4:-}"
+  local description="${5:-}"
+
+  [[ -n "$ticket_id" ]] || { log_error "track_ticket: ticket_id required"; return 2; }
+
+  init_tracking_file
+
+  local now
+  now="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+  local exists
+  exists="$(jq -r --arg tid "$ticket_id" '.tickets[] | select(.ticket_id == ($tid|tonumber)) | .ticket_id' "$YDEA_TRACKING_FILE" 2>/dev/null || true)"
+
+  if [[ -n "$exists" ]]; then
+    jq --arg tid "$ticket_id" --arg now "$now" \
+      '.tickets |= map(if .ticket_id == ($tid|tonumber) then .checks_count += 1 | .last_update = $now else . end) | .last_update = $now' \
+      "$YDEA_TRACKING_FILE" >"${YDEA_TRACKING_FILE}.tmp" && mv "${YDEA_TRACKING_FILE}.tmp" "$YDEA_TRACKING_FILE"
+    log_info "Ticket #$ticket_id already tracked; incremented counter"
+    return 0
+  fi
+
+  local entry
+  entry="$(jq -n \
+    --arg tid "$ticket_id" \
+    --arg code "$codice" \
+    --arg host "$host" \
+    --arg svc "$service" \
+    --arg desc "$description" \
+    --arg created "$now" \
+    '{ticket_id: ($tid|tonumber), codice:$code, host:$host, service:$svc, description:$desc, created_at:$created, last_update:$created, resolved_at:null, checks_count:1}')"
+
+  jq --argjson entry "$entry" --arg now "$now" \
+    '.tickets += [$entry] | .last_update = $now' \
+    "$YDEA_TRACKING_FILE" >"${YDEA_TRACKING_FILE}.tmp" && mv "${YDEA_TRACKING_FILE}.tmp" "$YDEA_TRACKING_FILE"
+
+  log_info "Tracked ticket #$ticket_id ($codice)"
+}
+
+show_usage() {
+  cat >&2 <<'USAGE'
+Ydea Toolkit
+
+Env:
+  export YDEA_ID=...
+  export YDEA_API_KEY=...
+
+Commands:
+  login
+  api <METHOD> </path> [json_body]
+
+USAGE
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  case "${1:-}" in
+    login) ydea_login ;;
+    api) shift; ydea_api "$@" ;;
+    -h|--help|help|"") show_usage; exit 0 ;;
+    *) show_usage; exit 1 ;;
+  esac
+fi
+
+: <<'CORRUPTED_99fb1a6440ef4bc6b6c0b10eee326217'
 #!/bin/bash
 /usr/bin/env bash
 
@@ -160,7 +447,8 @@ token_is_fresh() {
   exp="$(expires_at)"
   skew="${YDEA_EXPIRY_SKEW}"
   if [[ "$now" -lt $(( exp - skew )) ]]; then
-    log_debug "Token valido (scade tra $(( exp - now )) secondi)"
+    log_debug "Token vali
+do (scade tra $(( exp - now )) secondi)"
     return 0
   else
     log_debug "Token scaduto o in scadenza"
@@ -220,14 +508,15 @@ echo "$resp"
   fi
   
   save_token "$token"
-  log_success "Login effettuato (token valido ~1h)"
+  log_success "Login effettuato (token vali
+do ~1h)"
 }
 
 ensure_token() {
   if token_is_fresh; then
-    log_debug "Token ancora valido"
-  else
-    log_info "Token scaduto o mancante, effettuo il login..."
+    log_debug "Token ancora vali
+do"
+else     log_info "Token scaduto o mancante, effettuo il login..."
     ydea_login
   fi
 }
@@ -538,23 +827,38 @@ track_ticket() {
   local description="${5:-}"
   
   init_tracking_file
-  local now
-  now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-  # Recupera dettagli ticket da API usando /tickets?limit=100 (endpoint /tickets/{id} non accessibile)
+  
+local now
+local now
+now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  
+  
+# Recupera dettagli ticket da API usan
+do /tickets?limit=100 (endpoint /tickets/{id} non accessibile)
   local ticket_data
-  ticket_data=$(
-    ydea_api GET "/tickets?limit=100" 2>/dev/null \
-      | jq --arg tid "$ticket_id" '.objs[] | select(.id == ($tid|tonumber))' \
-      || echo "{}"
-  )
-
-  local stato titolo descrizione_ticket priorita assegnato_a
-  stato=$(echo "$ticket_data" | jq -r '.stato // "Sconosciuto"')
-  titolo=$(echo "$ticket_data" | jq -r '.titolo // ""')
-  descrizione_ticket=$(echo "$ticket_data" | jq -r '.descrizione // ""')
-  priorita=$(echo "$ticket_data" | jq -r '.priorita // "Normale"')
-  assegnato_a=$(echo "$ticket_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA
+  ticket_data=$(ydea_api GET "/tickets?limit=100" 2>/dev/null | jq --arg tid "$ticket_id" '.objs[] | select(.id == ($tid|tonumber))' || 
+echo "{}")
+  
+local stato
+local stato
+stato=$(
+echo "$ticket_data" | jq -r '.stato // "Sconosciuto"')
+local titolo
+local titolo
+titolo=$(
+echo "$ticket_data" | jq -r '.titolo // ""')
+local descrizione_ticket
+local descrizione_ticket
+descrizione_ticket=$(
+echo "$ticket_data" | jq -r '.descrizione // ""')
+local priorita
+local priorita
+priorita=$(
+echo "$ticket_data" | jq -r '.priorita // "Normale"')
+local assegnato_a
+local assegnato_a
+assegnato_a=$(
+echo "$ticket_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA
 else "Non assegnato" end')
   
   
@@ -1120,7 +1424,8 @@ ESEMPI:
 
   
 # Aggiungi commento
-  ./ydea-toolkit.sh comment 12345 "Problema risolto riavviando il servizio"
+  ./ydea-toolkit.sh comment 12345 "Problema risolto riavvian
+do il servizio"
 
   
 # Chiudi ticket
@@ -1252,3 +1557,6 @@ case "${1:-}" in
 esac
 fi  
 # Fine check esecuzione diretta
+
+CORRUPTED_99fb1a6440ef4bc6b6c0b10eee326217
+
