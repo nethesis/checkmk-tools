@@ -34,6 +34,26 @@ YDEA_CATEGORY_ID="${YDEA_CATEGORY_ID:-147}"
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >&2; }
 debug() { [[ "${DEBUG_YDEA:-0}" == "1" ]] && log "DEBUG: $*" || true; }
 
+# Timeout (secondi) per comandi del toolkit Ydea (search/list/create/comment/get)
+YDEA_TOOLKIT_TIMEOUT="${YDEA_TOOLKIT_TIMEOUT:-25}"
+
+toolkit_cmd() {
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$YDEA_TOOLKIT_TIMEOUT" "$YDEA_TOOLKIT" "$@"
+  else
+    "$YDEA_TOOLKIT" "$@"
+  fi
+}
+
+toolkit_cmd_t() {
+  local t="$1"; shift || true
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$t" "$YDEA_TOOLKIT" "$@"
+  else
+    "$YDEA_TOOLKIT" "$@"
+  fi
+}
+
 # Helper per logging eventi ticket nel formato usato dal monitor
 log_ticket_event() {
   local event_type="$1"
@@ -571,7 +591,7 @@ find_open_ticket_for_host() {
   for q in "${queries[@]}"; do
     # Esegui ricerca
     local result json_line arr filtered
-    result=$("$YDEA_TOOLKIT" search "$q" 50 2>&1) || continue
+    result=$(toolkit_cmd search "$q" 50 2>&1) || continue
     json_line=$(echo "$result" | grep -E '^\{.*\}$' | tail -n1)
     [[ -z "$json_line" ]] && continue
 
@@ -606,7 +626,7 @@ find_open_ticket_for_host() {
     debug "Fallback seconda fase: lista open tickets e filtro locale"
     local result json_line filtered
     local arr='[]'
-    result=$("$YDEA_TOOLKIT" list 100 open 2>&1) || true
+    result=$(toolkit_cmd list 100 open 2>&1) || true
     json_line=$(echo "$result" | grep -E '^\{.*\}$' | tail -n1)
     [[ -n "$json_line" ]] && arr=$(echo "$json_line" | jq -c '.objs // .data // []' 2>/dev/null)
     [[ -z "$arr" ]] && arr='[]'
@@ -659,7 +679,7 @@ find_ticket_by_marker() {
   debug "Ricerca per marcatore esatto: $marker"
 
   local result json_line arr filtered
-  result=$("$YDEA_TOOLKIT" list 100 open 2>&1) || return 1
+  result=$(toolkit_cmd list 100 open 2>&1) || return 1
   json_line=$(echo "$result" | grep -E '^\{.*\}$' | tail -n1)
   [[ -z "$json_line" ]] && return 1
   arr=$(echo "$json_line" | jq -c '.objs // .data // []' 2>/dev/null)
@@ -697,8 +717,13 @@ create_ydea_ticket() {
 
   debug "Creazione ticket: $title (category: $category_id, tipo: $tipo, creatoda: $creatoda)"
   local result
-  result=$("$YDEA_TOOLKIT" create "$title" "$description" "$priority" "$category_id" "$tipo" "$creatoda" 2>&1) || {
-    log "ERRORE creazione ticket: $result"
+  result=$(toolkit_cmd create "$title" "$description" "$priority" "$category_id" "$tipo" "$creatoda" 2>&1) || {
+    local exit_code=$?
+    if [[ $exit_code -eq 124 ]]; then
+      log "ERRORE creazione ticket: timeout dopo ${YDEA_TOOLKIT_TIMEOUT}s (toolkit create)"
+    else
+      log "ERRORE creazione ticket: $result"
+    fi
     return 1
   }
   
@@ -717,7 +742,7 @@ create_ydea_ticket() {
   # Aggiungi descrizione come commento pubblico (l'API non supporta testo in creazione)
   if [[ -n "$description" ]]; then
     debug "Aggiunta descrizione come commento pubblico al ticket #$ticket_id"
-    "$YDEA_TOOLKIT" comment "$ticket_id" "$description" true >&2 || {
+    toolkit_cmd comment "$ticket_id" "$description" true >&2 || {
       log "WARN: Impossibile aggiungere descrizione al ticket #$ticket_id"
     }
   fi
@@ -732,11 +757,15 @@ add_private_note() {
   
   debug "Aggiunta nota privata a ticket #$ticket_id"
   local result
-  result=$("$YDEA_TOOLKIT" comment "$ticket_id" "$note" 2>&1) || {
+  result=$(toolkit_cmd comment "$ticket_id" "$note" 2>&1) || {
+    local exit_code=$?
     # Verifica se è un errore 404 (ticket non trovato/chiuso) o API call fallita
     if echo "$result" | grep -qi "404\|not found\|Ticket non trovato\|API call fallita"; then
       log "WARN: Ticket #$ticket_id non trovato (404) - potrebbe essere stato cancellato"
       return 2  # Return code speciale per 404
+    elif [[ $exit_code -eq 124 ]]; then
+      log "ERRORE aggiunta nota a ticket #$ticket_id: timeout dopo ${YDEA_TOOLKIT_TIMEOUT}s (toolkit comment)"
+      return 1
     else
       log "ERRORE aggiunta nota a ticket #$ticket_id: $result"
       return 1
@@ -760,7 +789,7 @@ ticket_is_open_on_api() {
   
   # Usa ydea-toolkit per ottenere info ticket (con timeout 10 secondi)
   local result
-  result=$(timeout 10 "$YDEA_TOOLKIT" get "$ticket_id" 2>&1) || {
+  result=$(toolkit_cmd_t 10 get "$ticket_id" 2>&1) || {
     local exit_code=$?
     
     # Timeout (exit code 124)
