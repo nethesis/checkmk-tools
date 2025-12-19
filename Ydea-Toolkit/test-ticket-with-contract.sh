@@ -242,10 +242,12 @@ echo ""
 RESPONSE=$("${TOOLKIT}" api POST "/ticket" - <<< "$TICKET_PAYLOAD" 2>&1)
 if 
 echo "$RESPONSE" | grep -q "API call fallita"; then
-    echo -e "${RED}ÔØî Errore durante la creazione del ticket${NC}"    
+    echo -e "${RED}Øî Errore durante la creazione del ticket${NC}"    
 echo "$RESPONSE"
     exit 1
-fi # Estrai l'ID del ticket creato
+fi
+
+# Estrai l'ID del ticket creato
 TICKET_ID=$(
 echo "$RESPONSE" | jq -r '.ticket.id // empty')
 if [ -z "$TICKET_ID" ]; then

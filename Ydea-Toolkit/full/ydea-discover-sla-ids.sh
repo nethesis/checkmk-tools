@@ -6,10 +6,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 YDEA_TOOLKIT="${SCRIPT_DIR}/ydea-toolkit.sh"
 # Verifica che ydea-toolkit esista
 if [[ ! -f "$YDEA_TOOLKIT" ]]; then
-    echo "ÔØî Errore: ydea-toolkit.sh non trovato in $SCRIPT_DIR"
+    echo "Øî Errore: ydea-toolkit.sh non trovato in $SCRIPT_DIR"
     exit 1
-fi # Carica le funzioni da ydea-toolkit
-# shellcheck disable=SC1090source "$YDEA_TOOLKIT"
+fi
+
+# Carica le funzioni da ydea-toolkit
+# shellcheck disable=SC1090
+source "$YDEA_TOOLKIT"
 # ===== Configurazione =====
 OUTPUT_FILE="${SCRIPT_DIR}/sla-premium-mon-ids.json"
 # Categorie da cercare

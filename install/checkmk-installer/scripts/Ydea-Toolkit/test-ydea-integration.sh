@@ -38,19 +38,28 @@ if [[ -f "$HEALTH_SCRIPT" ]]; then  test_pass "Health monitor trovato: $HEALTH_S
 else  test_fail "Health monitor non trovato: $HEALTH_SCRIPT"fi
 if [[ -f "$YDEA_TOOLKIT" ]]; then  test_pass "Ydea toolkit trovato: $YDEA_TOOLKIT"
 else  test_fail "Ydea toolkit non trovato: $YDEA_TOOLKIT"
-fi # ===== TEST 2: Permessi =====test_start "Verifica permessi esecuzione"
+fi
+
+# ===== TEST 2: Permessi =====
+test_start "Verifica permessi esecuzione"
 if [[ -x "$NOTIFY_SCRIPT" ]]; then  test_pass "ydea_realip ├¿ eseguibile"
 else  test_fail "ydea_realip NON ├¿ eseguibile (usa: chmod +x)"fi
-if [[ -x "$HEALTH_SCRIPT" ]]; then  test_pass "ydea-health-monitor.sh ├¿ eseguibile"
-else  test_fail "ydea-health-monitor.sh NON ├¿ eseguibile"
-fi # ===== TEST 3: Configurazione =====test_start "Verifica configurazione .env"
+if [[ -x "$HEALTH_SCRIPT" ]]; then  test_pass "ydea-health-monitor.sh Ã¿ eseguibile"
+else  test_fail "ydea-health-monitor.sh NON Ã¿ eseguibile"
+fi
+
+# ===== TEST 3: Configurazione =====
+test_start "Verifica configurazione .env"
 ENV_FILE="/opt/ydea-toolkit/.env"
 if [[ -f "$ENV_FILE" ]]; then  source "$ENV_FILE"    if [[ -n "${YDEA_ID:-}" && "${YDEA_ID}" != "ID" ]]; then    test_pass "YDEA_ID configurato"
 else    test_fail "YDEA_ID non configurato o ancora placeholder"  fi    if [[ -n "${YDEA_API_KEY:-}" && "${YDEA_API_KEY}" != "TOKEN" ]]; then    test_pass "YDEA_API_KEY configurato"
 else    test_fail "YDEA_API_KEY non configurato o ancora placeholder"  fi    if [[ -n "${YDEA_ALERT_EMAIL:-}" ]]; then    test_pass "YDEA_ALERT_EMAIL configurato: ${YDEA_ALERT_EMAIL}"
 else    test_warn "YDEA_ALERT_EMAIL non configurato (opzionale)"  fi
 else  test_fail "File .env non trovato: $ENV_FILE"
-fi # ===== TEST 4: Connessione Ydea =====test_start "Test connessione Ydea API"
+fi
+
+# ===== TEST 4: Connessione Ydea =====
+test_start "Test connessione Ydea API"
 if [[ -f "$YDEA_TOOLKIT" && -f "$ENV_FILE" ]]; then  cd "$(dirname "$YDEA_TOOLKIT")"  if source "$ENV_FILE" && "$YDEA_TOOLKIT" login 2>&1 | grep -q "Login effettuato"; then    test_pass "Login Ydea riuscito"
 else    test_fail "Login Ydea fallito - verifica credenziali"  fi
 else  test_warn "Skip test login (file mancanti)"fi

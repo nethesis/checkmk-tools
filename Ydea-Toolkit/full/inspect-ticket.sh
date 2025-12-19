@@ -24,12 +24,14 @@ echo "$RESPONSE" | sed '$d')"
 HTTP_CODE="$(
 echo "$RESPONSE" | tail -n1)"
 echo "­ƒôè HTTP Status: $HTTP_CODE"
-echo ""if [[ "$HTTP_CODE" != "200" ]]; then
-    echo "ÔØî Errore nella chiamata API"  
+if [[ "$HTTP_CODE" != "200" ]]; then
+    echo "Øî Errore nella chiamata API"  
 echo "$HTTP_BODY" | jq . 2>/dev/null || 
 echo "$HTTP_BODY"
     exit 1
-fi # Filtra per il ticket specifico
+fi
+
+# Filtra per il ticket specifico
 TICKET_DATA=$(
 echo "$HTTP_BODY" | jq --arg tid "$TICKET_ID" '.objs[] | select(.id == ($tid|tonumber))')
 if [[ -z "$TICKET_DATA" || "$TICKET_DATA" == "null" ]]; then

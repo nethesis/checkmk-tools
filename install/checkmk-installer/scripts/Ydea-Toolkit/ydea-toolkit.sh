@@ -3,11 +3,17 @@
 # ydea-toolkit.sh ÔÇö Toolkit completo per Ydea API v2
 # Include login, gestione token e funzioni helper per ticketset -euo pipefail
 # ===== Caricamento configurazione da .env =====
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"if [[ -f "$SCRIPT_DIR/.env" ]]; then  
-# shellcheck disable=SC1090,SC1091  source "$SCRIPT_DIR/.env"
-elif [[ -f "/opt/ydea-toolkit/.env" ]]; then  
-# shellcheck disable=SC1091  source "/opt/ydea-toolkit/.env"
-fi # ===== Config =====: "${YDEA_BASE_URL:=https://my.ydea.cloud/app_api_v2}": "${YDEA_LOGIN_PATH:=/login}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/.env" ]]; then
+    # shellcheck disable=SC1090,SC1091
+    source "$SCRIPT_DIR/.env"
+elif [[ -f "/opt/ydea-toolkit/.env" ]]; then
+    # shellcheck disable=SC1091
+    source "/opt/ydea-toolkit/.env"
+fi
+
+# ===== Config =====
+: "${YDEA_BASE_URL:=https://my.ydea.cloud/app_api_v2}": "${YDEA_LOGIN_PATH:=/login}"
 # Credenziali Login API: "${YDEA_ID:=}": "${YDEA_API_KEY:=}"
 # ID Utente per operazioni: "${YDEA_USER_ID_CREATE_TICKET:=4675}"      
 # ID utente per creazione ticket: "${YDEA_USER_ID_CREATE_NOTE:=4675}"        
@@ -46,10 +52,8 @@ do"
 else    log_info "Token scaduto o mancante, effettuo il login..."    ydea_login  fi}
 # ===== Chiamate API Generiche =====ydea_api() {  need curl; need jq  local method="${1:-}"; shift || true  local path="${1:-}"; shift || true  [[ -n "$method" && -n "$path" ]] || {     log_error "Uso: ydea_api <GET|POST|PUT|PATCH|DELETE> </path> [json_body]"    return 2  }  ensure_token  local token url  token="$(load_token)"  url="${YDEA_BASE_URL%/}/${path
 #/}"  log_debug "$method $url"    
-# Log request body se presente  if [[ "$
-#" -gt 0 ]]; then    log_write "REQUEST" "$method $url | Body: ${1:0:200}..."  fi  local resp http_body http_code    
-# Funzione helper per fare la chiamata  make_request() {    if [[ "$
-#" -gt 0 ]]; then      curl "${CURL_OPTS[@]}" -w '\n%{http_code}' -X "$method" \        -H "Accept: application/json" \        -H "Content-Type: application/json" \        -H "Authorization: Bearer ${token}" \        -d "$1" \        "$url" 2>&1    else      curl "${CURL_OPTS[@]}" -w '\n%{http_code}' -X "$method" \        -H "Accept: application/json" \        -H "Authorization: Bearer ${token}" \        "$url" 2>&1    fi  }  
+# Log request body se presente  if [[ "$#" -gt 0 ]]; then    log_write "REQUEST" "$method $url | Body: ${1:0:200}..."  fi  local resp http_body http_code    
+# Funzione helper per fare la chiamata  make_request() {    if [[ "$#" -gt 0 ]]; then      curl "${CURL_OPTS[@]}" -w '\n%{http_code}' -X "$method" \        -H "Accept: application/json" \        -H "Content-Type: application/json" \        -H "Authorization: Bearer ${token}" \        -d "$1" \        "$url" 2>&1    else      curl "${CURL_OPTS[@]}" -w '\n%{http_code}' -X "$method" \        -H "Accept: application/json" \        -H "Authorization: Bearer ${token}" \        "$url" 2>&1    fi  }  
 # Prima richiesta  if ! resp="$(make_request "$@")"; then    log_error "API call fallita: $method $url"    log_api_call "$method" "$url" "ERROR"    return 1  fi  http_body="$(printf '%s' "$resp" | sed '$d')"  http_code="$(printf '%s' "$resp" | tail -n1)"    log_api_call "$method" "$url" "$http_code"  
 # Se 401, refresh token e retry  if [[ "$http_code" == "401" ]]; then    log_warn "Token scaduto (401), rinnovo e riprovo..."    ydea_login    token="$(load_token)"        resp="$(make_request "$@")"    http_body="$(printf '%s' "$resp" | sed '$d')"    http_code="$(printf '%s' "$resp" | tail -n1)"    log_api_call "$method" "$url" "$http_code (retry dopo refresh token)"  fi  log_debug "HTTP $http_code"    
 # Log response (primi 500 caratteri)  if [[ "${YDEA_DEBUG}" == "1" ]]; then    log_write "RESPONSE" "$method $url ÔåÆ $http_code | Body: ${http_body:0:500}..."  fi    printf '%s' "$http_body"  [[ "$http_code" =~ ^2[0-9][0-9]$ ]]}

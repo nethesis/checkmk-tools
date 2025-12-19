@@ -239,8 +239,7 @@ ydea_api() {
   
   
 # Log request body se presente
-  if [[ "$
-#" -gt 0 ]]; then
+  if [[ "$#" -gt 0 ]]; then
     log_write "REQUEST" "$method $url | Body: ${1:0:200}..."
   fi
 
@@ -249,8 +248,7 @@ ydea_api() {
   
 # Funzione helper per fare la chiamata
   make_request() {
-    if [[ "$
-#" -gt 0 ]]; then
+    if [[ "$#" -gt 0 ]]; then
       curl "${CURL_OPTS[@]}" -w '\n%{http_code}' -X "$method" \
         -H "Accept: application/json" \
         -H "Content-Type: application/json" \

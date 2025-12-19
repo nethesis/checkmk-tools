@@ -6,7 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"source "$SCRIPT_DIR/yd
 CONFIG_FILE="$SCRIPT_DIR/../config/premium-mon-config.json"
 if [[ ! -f "$CONFIG_FILE" ]]; then  log_error "File configurazione non trovato: $CONFIG_FILE"
     exit 1
-fi # Leggi parametri da Check
+fi
+
+# Leggi parametri da Check
 MKCMK_HOST="${1:-}"
 CMK_SERVICE="${2:-}"
 CMK_STATE="${3:-}"

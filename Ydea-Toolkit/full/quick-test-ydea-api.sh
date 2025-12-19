@@ -6,7 +6,8 @@ do connessione API Ydea
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 YDEA_TOOLKIT="${SCRIPT_DIR}/ydea-toolkit.sh"
 # Carica le funzioni da ydea-toolkit
-# shellcheck disable=SC1090source "$YDEA_TOOLKIT"
+# shellcheck disable=SC1090
+source "$YDEA_TOOLKIT"
 echo ""
 echo "­ƒöÉ Test Connessione Ydea API"
 echo "ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ"
@@ -47,8 +48,10 @@ echo "  - Problema di connessione o timeout"
 echo "  - Token scaduto o non vali
 do"
     exit 1
-fi # Verifica se la risposta ├¿ JSON valido
-if ! 
+fi
+
+# Verifica se la risposta Ã¿ JSON valido
+if !
 echo "$categories_data" | jq empty 2>/dev/null; then
     echo "ÔØî Risposta non ├¿ JSON vali
 do"  
