@@ -160,8 +160,7 @@ token_is_fresh() {
   exp="$(expires_at)"
   skew="${YDEA_EXPIRY_SKEW}"
   if [[ "$now" -lt $(( exp - skew )) ]]; then
-    log_debug "Token vali
-do (scade tra $(( exp - now )) secondi)"
+    log_debug "Token valido (scade tra $(( exp - now )) secondi)"
     return 0
   else
     log_debug "Token scaduto o in scadenza"
@@ -221,15 +220,14 @@ echo "$resp"
   fi
   
   save_token "$token"
-  log_success "Login effettuato (token vali
-do ~1h)"
+  log_success "Login effettuato (token valido ~1h)"
 }
 
 ensure_token() {
   if token_is_fresh; then
-    log_debug "Token ancora vali
-do"
-else     log_info "Token scaduto o mancante, effettuo il login..."
+    log_debug "Token ancora valido"
+  else
+    log_info "Token scaduto o mancante, effettuo il login..."
     ydea_login
   fi
 }
@@ -540,38 +538,23 @@ track_ticket() {
   local description="${5:-}"
   
   init_tracking_file
-  
-local now
-local now
-now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-  
-  
-# Recupera dettagli ticket da API usan
-do /tickets?limit=100 (endpoint /tickets/{id} non accessibile)
+  local now
+  now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+  # Recupera dettagli ticket da API usando /tickets?limit=100 (endpoint /tickets/{id} non accessibile)
   local ticket_data
-  ticket_data=$(ydea_api GET "/tickets?limit=100" 2>/dev/null | jq --arg tid "$ticket_id" '.objs[] | select(.id == ($tid|tonumber))' || 
-echo "{}")
-  
-local stato
-local stato
-stato=$(
-echo "$ticket_data" | jq -r '.stato // "Sconosciuto"')
-local titolo
-local titolo
-titolo=$(
-echo "$ticket_data" | jq -r '.titolo // ""')
-local descrizione_ticket
-local descrizione_ticket
-descrizione_ticket=$(
-echo "$ticket_data" | jq -r '.descrizione // ""')
-local priorita
-local priorita
-priorita=$(
-echo "$ticket_data" | jq -r '.priorita // "Normale"')
-local assegnato_a
-local assegnato_a
-assegnato_a=$(
-echo "$ticket_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA
+  ticket_data=$(
+    ydea_api GET "/tickets?limit=100" 2>/dev/null \
+      | jq --arg tid "$ticket_id" '.objs[] | select(.id == ($tid|tonumber))' \
+      || echo "{}"
+  )
+
+  local stato titolo descrizione_ticket priorita assegnato_a
+  stato=$(echo "$ticket_data" | jq -r '.stato // "Sconosciuto"')
+  titolo=$(echo "$ticket_data" | jq -r '.titolo // ""')
+  descrizione_ticket=$(echo "$ticket_data" | jq -r '.descrizione // ""')
+  priorita=$(echo "$ticket_data" | jq -r '.priorita // "Normale"')
+  assegnato_a=$(echo "$ticket_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA
 else "Non assegnato" end')
   
   
@@ -1137,8 +1120,7 @@ ESEMPI:
 
   
 # Aggiungi commento
-  ./ydea-toolkit.sh comment 12345 "Problema risolto riavvian
-do il servizio"
+  ./ydea-toolkit.sh comment 12345 "Problema risolto riavviando il servizio"
 
   
 # Chiudi ticket
