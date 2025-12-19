@@ -8,6 +8,8 @@ set -euo pipefail
 
 # ===== Caricamento configurazione da .env =====
 
+ENV_SOURCED_FROM=""
+
 # Carica .env solo se le variabili critiche non sono giÔö£├í impostate
 if [[ -z "${YDEA_ID:-}" ]] || [[ -z "${YDEA_API_KEY:-}" ]]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,12 +17,38 @@ if [[ -z "${YDEA_ID:-}" ]] || [[ -z "${YDEA_API_KEY:-}" ]]; then
     
 # shellcheck disable=SC1090,SC1091
     source "$SCRIPT_DIR/.env"
+    ENV_SOURCED_FROM="$SCRIPT_DIR/.env"
 elif [[ -f "/opt/ydea-toolkit/.env" ]]; then
     
 # shellcheck disable=SC1091
     source "/opt/ydea-toolkit/.env"
+    ENV_SOURCED_FROM="/opt/ydea-toolkit/.env"
   fi
 fi
+
+
+mask_secret() {
+  local v="${1:-}"
+  local n=${#v}
+  if [[ $n -le 8 ]]; then
+    printf 'len=%s' "$n"
+    return 0
+  fi
+  printf '%s...%s (len=%s)' "${v:0:3}" "${v:$((n-3)):3}" "$n"
+}
+
+debug_env_hints() {
+  [[ "${YDEA_DEBUG:-0}" == "1" ]] || return 0
+  {
+    echo "[DEBUG] ENV sourced from: ${ENV_SOURCED_FROM:-<none>}" >&2
+    echo "[DEBUG] YDEA_BASE_URL=${YDEA_BASE_URL:-<unset>}" >&2
+    echo "[DEBUG] YDEA_LOGIN_PATH=${YDEA_LOGIN_PATH:-<unset>}" >&2
+    echo "[DEBUG] YDEA_TOKEN_FILE=${YDEA_TOKEN_FILE:-<unset>}" >&2
+    echo "[DEBUG] YDEA_LOG_FILE=${YDEA_LOG_FILE:-<unset>}" >&2
+    echo "[DEBUG] YDEA_ID: $(mask_secret "${YDEA_ID:-}")" >&2
+    echo "[DEBUG] YDEA_API_KEY: $(mask_secret "${YDEA_API_KEY:-}")" >&2
+  } || true
+}
 
 
 # ===== Config =====
@@ -171,6 +199,7 @@ token_is_fresh() {
 # ===== Login =====
 ydea_login() {
   need curl; need jq
+  debug_env_hints
   log_info "Tentativo login a Ydea Cloud..."
   
   [[ -n "${YDEA_ID}" && -n "${YDEA_API_KEY}" ]] || {
