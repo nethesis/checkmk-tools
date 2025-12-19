@@ -1,5 +1,4 @@
-#!/bin/bash
-/usr/bin/env bash
+#!/usr/bin/env bash
 
 # ydea-toolkit.sh ├ö├ç├Â Toolkit completo per Ydea API v2
 
@@ -192,30 +191,42 @@ YDEA_API_KEY='tua_chiave'" >&2
   body="$(jq -n --arg i "$YDEA_ID" --arg k "$YDEA_API_KEY" '{id:$i, api_key:$k}')"
 
   log_debug "POST $url"
-  local resp
-  resp="$(curl "${CURL_OPTS[@]}" -X POST \
+  local resp http_body http_code
+  if ! resp="$(curl \
+    --show-error \
+    --silent \
+    --connect-timeout 10 \
+    --max-time 30 \
+    -w '\n%{http_code}' \
+    -X POST \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -d "$body" \
-    "$url" 2>&1)" || {
+    "$url" 2>&1)"; then
     log_error "Login fallito: curl error $?"
-    log_write "API" "POST $url ├ö├Ñ├å FAILED"
-    
-echo "$resp" | jq . 2>/dev/null || 
-echo "$resp"
+    log_write "API" "POST $url ├ö├Ñ├å CURL_ERROR"
+    echo "$resp" >&2
     exit 1
-  }
-  
-  log_api_call "POST" "$url" "200"
+  fi
+
+  http_body="$(printf '%s' "$resp" | sed '$d')"
+  http_code="$(printf '%s' "$resp" | tail -n1)"
+  log_api_call "POST" "$url" "$http_code"
+
+  if [[ ! "$http_code" =~ ^2[0-9][0-9]$ ]]; then
+    log_error "Login fallito: HTTP $http_code"
+    echo "$http_body" | jq . 2>/dev/null || echo "$http_body" >&2
+    exit 1
+  fi
 
   local token
-  token="$(printf '%s' "$resp" | jq -r '.token // .access_token // .jwt // .id_token // empty')"
+  token="$(printf '%s' "$http_body" | jq -r '.token // .data.token // .access_token // .data.access_token // .jwt // .data.jwt // .id_token // .data.id_token // empty')"
 
   if [[ -z "$token" || "$token" == "null" ]]; then
     log_error "Login fallito: risposta senza token"
     
-echo "$resp" | jq . 2>/dev/null || 
-echo "$resp"
+echo "$http_body" | jq . 2>/dev/null || 
+echo "$http_body"
     exit 1
   fi
   
@@ -246,15 +257,13 @@ ydea_api() {
   ensure_token
   local token url
   token="$(load_token)"
-  url="${YDEA_BASE_URL%/}/${path
-#/}"
+  url="${YDEA_BASE_URL%/}/${path#/}"
 
   log_debug "$method $url"
   
   
 # Log request body se presente
-  if [[ "$
-#" -gt 0 ]]; then
+  if [[ "$#" -gt 0 ]]; then
     log_write "REQUEST" "$method $url | Body: ${1:0:200}..."
   fi
 
@@ -263,8 +272,7 @@ ydea_api() {
   
 # Funzione helper per fare la chiamata
   make_request() {
-    if [[ "$
-#" -gt 0 ]]; then
+    if [[ "$#" -gt 0 ]]; then
       curl "${CURL_OPTS[@]}" -w '\n%{http_code}' -X "$method" \
         -H "Accept: application/json" \
         -H "Content-Type: application/json" \
