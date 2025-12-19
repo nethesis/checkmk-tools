@@ -309,25 +309,20 @@ determine_tipo() {
     debug "OS rilevato: Windows → Computer Client"
     echo "Computer Client"
     return 0
-  elif [[ "$os_platform" =~ nethvoice ]]; then
-    debug "OS rilevato: NethVoice → Centrale Telefonica Nethvoice"
+  elif [[ "$os_platform" =~ nethvoice ]] && echo "$hostname $service" | grep -qiE '(pbx|voip|asterisk|freepbx|nethvoice)'; then
+    # NethVoice SOLO se hostname/service contiene keyword VoIP
+    debug "OS rilevato: NethVoice + servizio VoIP → Centrale Telefonica Nethvoice"
     echo "Centrale Telefonica Nethvoice"
     return 0
   elif [[ "$os_platform" =~ nethsecurity ]]; then
     debug "OS rilevato: NethSecurity → Firewall UTM Nethsecurity"
     echo "Firewall UTM Nethsecurity"
     return 0
-  elif [[ "$os_platform" =~ nethserver ]] || [[ "$os_platform" =~ nethservice ]]; then
-    # NethServer generico, controlliamo hostname per capire se è server o altro
-    if echo "$hostname" | grep -qiE '^(srv|server|host|node)'; then
-      debug "OS rilevato: NethServer + hostname server-like → Server"
-      echo "Server"
-      return 0
-    else
-      debug "OS rilevato: NethServer → Collaboration Suite Nethservice"
-      echo "Collaboration Suite Nethservice"
-      return 0
-    fi
+  elif [[ "$os_platform" =~ nethserver ]] || [[ "$os_platform" =~ nethservice ]] || [[ "$os_platform" =~ nethvoice ]]; then
+    # NethServer/NethService/NethVoice senza servizi VoIP = Server
+    debug "OS rilevato: NethServer/NethService → Server"
+    echo "Server"
+    return 0
   elif [[ "$os_family" == "linux" ]] || [[ "$os_type" == "linux" ]]; then
     # Linux generico = Server (salvo casi specifici sotto)
     debug "OS rilevato: Linux generico → Server"
