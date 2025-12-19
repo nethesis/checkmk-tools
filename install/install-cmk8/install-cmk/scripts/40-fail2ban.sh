@@ -1,4 +1,28 @@
 #!/bin/bash
-/usr/bin/env bashset -euo pipefail
-if ! dpkg -s fail2ban >/dev/null 2>&1; then  apt-get update -y  apt-get install -y fail2banfimkdir -p /etc/fail2ban/jail.dcat > /etc/fail2ban/jail.d/sshd.local <<'EOF'[sshd]enabled = truemaxretry = 5bantime = 1hEOFsystemctl enable --now fail2bansystemctl restart fail2ban || true
-echo "Fail2Ban configurato."
+# 40-fail2ban.sh - Install and configure Fail2Ban
+
+set -euo pipefail
+
+echo "[40-FAIL2BAN] Installing Fail2Ban..."
+
+# Install
+apt-get install -y fail2ban
+
+# Create local config
+cat > /etc/fail2ban/jail.local <<EOF
+[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 5
+
+[sshd]
+enabled = true
+port = ssh
+logpath = /var/log/auth.log
+EOF
+
+# Enable and start
+systemctl enable fail2ban
+systemctl restart fail2ban
+
+echo "[40-FAIL2BAN] Fail2Ban configured successfully"

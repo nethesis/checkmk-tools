@@ -1,29 +1,133 @@
 #!/bin/bash
-/usr/bin/env bashset -euo pipefail
-echo "===== VERIFICA SISTEMA ====="
-echo -e "\n├░┼©ÔÇØÔÇÿ SSH:"if systemctl is-active --quiet ssh; then
-    echo "├ó┼ôÔÇØ├»┬©┬Å  SSH attivo"; else 
-echo "├ó┬Ø┼Æ SSH non attivo"; fi
-PORT="$(grep -h ^Port /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null | tail -n1 | awk '{print $2}')"[[ -z "$PORT" ]] && 
-PORT=22
-echo "Porta configurata: $PORT"ss -tln | grep -E ":$PORT\b" || 
-echo "Nota: porta $PORT non in LISTEN (controlla UFW e SSH)."
-echo -e "\n├░┼©ÔÇØ┬Ñ Firewall (UFW):"ufw status verbose || true
-echo -e "\n├░┼©ÔÇ║┬í├»┬©┬Å  Fail2Ban:"fail2ban-client status sshd || 
-echo "Fail2Ban non configurato o jail sshd non attiva"
-echo -e "\n├░┼©ÔÇ£┬ª Aggiornamenti automatici:"if systemctl is-active --quiet unattended-upgrades; then
-    echo "├ó┼ôÔÇØ├»┬©┬Å  unattended-upgrades attivo"; else 
-echo "├ó┬Ø┼Æ non attivo"; fi
-echo -e "\n├ó┬Å┬░ NTP / Ora di sistema:"timedatectl status || true
-echo "Server NTP in uso: $(timedatectl show-timesync --property=ServerName --value 2>/dev/null || 
-echo 'nd')"
-echo -e "\n├░┼©ÔÇØ┬Å Certbot:"if command -v certbot >/dev/null 2>&1; then  certbot --version  
-echo "Certificati presenti:"  certbot certificates || true
-else  
-echo "Certbot non installato"
+# check-verifica.sh - Verify CheckMK installation
+# Checks that all components are correctly installed and running
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+ERRORS=0
+
+check_pass() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+check_fail() {
+    echo -e "${RED}✗${NC} $1"
+    ((ERRORS++))
+}
+
+check_warn() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+
+echo "=== CheckMK Installation Verification ==="
+echo ""
+
+# Check OMD
+echo "1. Checking OMD..."
+if command -v omd &>/dev/null; then
+    check_pass "OMD installed"
+    
+    # Check sites
+    if omd sites | grep -q monitoring; then
+        check_pass "Site 'monitoring' exists"
+        
+        # Check site status
+        if omd status monitoring | grep -q "running"; then
+            check_pass "Site 'monitoring' is running"
+        else
+            check_fail "Site 'monitoring' is not running"
+        fi
+    else
+        check_fail "Site 'monitoring' not found"
+    fi
+else
+    check_fail "OMD not installed"
 fi
-echo -e "\n├░┼©ÔÇ£┼á Checkmk site:"if command -v omd >/dev/null 2>&1; then  omd status || true
-else  
-echo "Checkmk non installato"
+
+echo ""
+
+# Check Apache
+echo "2. Checking Apache..."
+if systemctl is-active --quiet apache2 || systemctl is-active --quiet httpd; then
+    check_pass "Apache is running"
+else
+    check_fail "Apache is not running"
 fi
-echo -e "\n===== VERIFICA COMPLETATA ====="
+
+echo ""
+
+# Check Firewall
+echo "3. Checking Firewall..."
+if command -v ufw &>/dev/null; then
+    if ufw status | grep -q "Status: active"; then
+        check_pass "UFW is active"
+        
+        if ufw status | grep -q "80/tcp"; then
+            check_pass "HTTP port 80 is open"
+        else
+            check_warn "HTTP port 80 may not be open"
+        fi
+        
+        if ufw status | grep -q "443/tcp"; then
+            check_pass "HTTPS port 443 is open"
+        else
+            check_warn "HTTPS port 443 may not be open"
+        fi
+    else
+        check_warn "UFW is inactive"
+    fi
+fi
+
+echo ""
+
+# Check Fail2Ban
+echo "4. Checking Fail2Ban..."
+if systemctl is-active --quiet fail2ban; then
+    check_pass "Fail2Ban is running"
+else
+    check_warn "Fail2Ban is not running"
+fi
+
+echo ""
+
+# Check SSL Certificate
+echo "5. Checking SSL..."
+if [[ -d /etc/letsencrypt/live ]]; then
+    check_pass "Let's Encrypt directory exists"
+else
+    check_warn "No Let's Encrypt certificates found"
+fi
+
+echo ""
+
+# Check web access
+echo "6. Checking Web Access..."
+HOSTNAME_IP=$(hostname -I | awk '{print $1}')
+
+if curl -s -o /dev/null -w "%{http_code}" "http://localhost/monitoring/" | grep -q "200\|301\|302"; then
+    check_pass "CheckMK web interface accessible locally"
+else
+    check_fail "CheckMK web interface not accessible"
+fi
+
+echo ""
+echo "==================================="
+
+if [[ $ERRORS -eq 0 ]]; then
+    echo -e "${GREEN}✓ All checks passed${NC}"
+    echo ""
+    echo "Access CheckMK at: http://${HOSTNAME_IP}/monitoring"
+    exit 0
+else
+    echo -e "${RED}✗ ${ERRORS} check(s) failed${NC}"
+    echo ""
+    echo "Review the errors above and fix any issues"
+    exit 1
+fi

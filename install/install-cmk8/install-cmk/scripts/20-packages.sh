@@ -1,4 +1,26 @@
 #!/bin/bash
-/usr/bin/env bashset -euo pipefailapt-get update -y
-DEBIAN_FRONTEND=noninteractive apt-get install -y   curl vim git htop net-tools unzip python3-venv unattended-upgrades ca-certificates   software-properties-commonsystemctl enable --now unattended-upgrades || true
-echo "Pacchetti base installati."
+# 20-packages.sh - Install required system packages
+
+set -euo pipefail
+
+echo "[20-PACKAGES] Installing required packages..."
+
+# Update package list
+apt-get update
+
+# Install essential packages
+apt-get install -y \
+    curl \
+    wget \
+    git \
+    vim \
+    htop \
+    net-tools \
+    dnsutils \
+    apt-transport-https \
+    ca-certificates \
+    gnupg \
+    lsb-release \
+    software-properties-common
+
+echo "[20-PACKAGES] Packages installed successfully"

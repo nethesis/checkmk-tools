@@ -1,796 +1,108 @@
 #!/bin/bash
-/usr/bin/env bash
-# make-bootstrap-iso.sh - Create minimal bootstrap ISO for CheckMK installer
-# This creates a lightweight ISO containing only the bootstrap scriptset -euo pipefail
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Configuration
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ISO_OUTPUT_DIR="${SCRIPT_DIR}/bootstrap-iso-output"
-ISO_NAME="checkmk-bootstrap.iso"
-WORK_DIR="/tmp/bootstrap-iso-build-$$"
+# make-bootstrap-iso.sh - Create bootable ISO with CheckMK installer
+# Creates a Debian-based ISO that auto-runs the CheckMK installer
+
+set -euo pipefail
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-CYAN='\033[0;36m'
 NC='\033[0m'
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Logging
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#log_info() {  
-echo -e "${BLUE}[INFO]${NC} $1"}log_success() {  
-echo -e "${GREEN}[SUCCESS]${NC} $1"}log_error() {  
-echo -e "${RED}[ERROR]${NC} $1"}log_warning() {  
-echo -e "${YELLOW}[WARNING]${NC} $1"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Cleanup on exit
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#cleanup() {  if [[ -d "$WORK_DIR" ]]; then    log_info "Cleaning up temporary files..."    rm -rf "$WORK_DIR"  fi}trap cleanup EXIT
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+
+# Configuration
+ISO_OUTPUT="${1:-checkmk-installer.iso}"
+DEBIAN_ISO="${DEBIAN_ISO:-debian-12.4.0-amd64-netinst.iso}"
+DEBIAN_URL="https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/${DEBIAN_ISO}"
+WORK_DIR="/tmp/checkmk-iso-build"
+
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
 # Check dependencies
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#check_dependencies() {  log_info "Checking dependencies..."    local missing=()    if ! command -v genisoimage &>/dev/null && ! command -v mkisofs &>/dev/null; then    missing+=("genisoimage or mkisofs")  fi    if [[ ${
-#missing[@]} -gt 0 ]]; then    log_error "Missing dependencies: ${missing[*]}"    log_info "Install with: su
-do apt-get install genisoimage"
-    exit 1  fi    log_success "All dependencies satisfied"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Create ISO structure
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#create_iso_structure() {  log_info "Creating ISO structure..."    
-# Create directories  mkdir -p "$WORK_DIR"    
-# Copy bootstrap script  if [[ ! -f "${SCRIPT_DIR}/bootstrap-installer.sh" ]]; then    log_error "bootstrap-installer.sh not found!"
-    exit 1  fi    cp "${SCRIPT_DIR}/bootstrap-installer.sh" "$WORK_DIR/"  chmod +x "$WORK_DIR/bootstrap-installer.sh"    
-# Create README  cat > "$WORK_DIR/README.txt" <<'EOF'ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòùÔòæ                                                              ÔòæÔòæ         CheckMK Installer Bootstrap ISO                     ÔòæÔòæ                                                              ÔòæÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØThis ISO contains the bootstrap script for CheckMK Installer.USAGE:------1. Mount this ISO on your Linux system:   su
-do mount -o loop checkmk-bootstrap.iso /mnt2. Run the bootstrap script:   su
-do bash /mnt/bootstrap-installer.shThe script will:- Clone/update the repository to /opt/checkmk-tools/- Make all .sh files executable- Launch the interactive installerREQUIREMENTS:-------------- Internet connection (to clone repository)- Git (will be installed if missing)- Root privilegesREPOSITORY:-----------https://github.com/Coverup20/checkmk-toolsEOF    
-# Create autorun script for convenience  cat > "$WORK_DIR/install.sh" <<'EOF'
-#!/bin/bash
-# Quick install script - symlink to bootstrap-installer.sh
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"exec bash "${SCRIPT_DIR}/bootstrap-installer.sh" "$@"EOF    chmod +x "$WORK_DIR/install.sh"    log_success "ISO structure created"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Build ISO
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#build_iso() {  log_info "Building ISO image..."    
-# Create output directory  mkdir -p "$ISO_OUTPUT_DIR"    local iso_path="${ISO_OUTPUT_DIR}/${ISO_NAME}"    
-# Choose tool  local iso_tool=""  if command -v genisoimage &>/dev/null; then
-    iso_tool="genisoimage"
-elif command -v mkisofs &>/dev/null; then
-    iso_tool="mkisofs"  fi    
-# Build ISO  $iso_tool \    -o "$iso_path" \    -V "CHECKMK_BOOTSTRAP" \    -J -R -v \    -input-charset utf-8 \    "$WORK_DIR" 2>&1 | grep -v "^$" || true    if [[ ! -f "$iso_path" ]]; then    log_error "Failed to create ISO"
-    exit 1  fi    
-# Get ISO size  local iso_size  iso_size=$(du -h "$iso_path" | cut -f1)    log_success "ISO created: $iso_path"  log_info "ISO size: $iso_size"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Display summary
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#show_summary() {  local iso_path="${ISO_OUTPUT_DIR}/${ISO_NAME}"    
-echo ""  
-echo -e "${CYAN}ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù${NC}"  
-echo -e "${CYAN}Ôòæ${NC}              Bootstrap ISO Build Complete!                   ${CYAN}Ôòæ${NC}"  
-echo -e "${CYAN}ÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ${NC}"  
-echo ""  
-echo -e "${GREEN}ISO Location:${NC} $iso_path"  
-echo -e "${GREEN}ISO Size:${NC} $(du -h "$iso_path" | cut -f1)"  
-echo ""  
-echo -e "${YELLOW}Usage:${NC}"  
-echo "  1. Copy ISO to target system"  
-echo "  2. Mount: su
-do mount -o loop $ISO_NAME /mnt"  
-echo "  3. Run: su
-do bash /mnt/bootstrap-installer.sh"  
-echo ""  
-echo -e "${YELLOW}Or use the convenience script:${NC}"  
-echo "  su
-do bash /mnt/install.sh"  
-echo ""}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Main execution
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#main() {  
-echo -e "${CYAN}"  
-echo "ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù"  
-echo "Ôòæ                                                              Ôòæ"  
-echo "Ôòæ         CheckMK Bootstrap ISO Builder                       Ôòæ"  
-echo "Ôòæ                                                              Ôòæ"  
-echo "ÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ"  
-echo -e "${NC}"  
-echo ""    check_dependencies  create_iso_structure  build_iso  show_summary    log_success "Bootstrap ISO build completed!"}
-# Run mainmain "$@"
+DEPS=("genisoimage" "wget" "xorriso")
+for dep in "${DEPS[@]}"; do
+    if ! command -v "$dep" &>/dev/null; then
+        log_error "Missing dependency: $dep"
+        log_info "Install with: apt-get install genisoimage wget xorriso"
+        exit 1
+    fi
+done
+
+# Check root
+if [[ $EUID -ne 0 ]]; then
+    log_error "This script must be run as root"
+    exit 1
+fi
+
+# Clean work directory
+log_info "Preparing work directory..."
+rm -rf "$WORK_DIR"
+mkdir -p "$WORK_DIR"/{iso,custom}
+
+# Download Debian if needed
+if [[ ! -f "$DEBIAN_ISO" ]]; then
+    log_info "Downloading Debian netinst ISO..."
+    wget -O "$DEBIAN_ISO" "$DEBIAN_URL"
+fi
+
+# Extract ISO
+log_info "Extracting ISO..."
+mount -o loop "$DEBIAN_ISO" "$WORK_DIR/iso"
+rsync -a "$WORK_DIR/iso/" "$WORK_DIR/custom/"
+umount "$WORK_DIR/iso"
+
+# Add bootstrap script
+log_info "Adding bootstrap installer..."
+mkdir -p "$WORK_DIR/custom/scripts"
+cp "$(dirname "$0")/bootstrap-installer.sh" "$WORK_DIR/custom/scripts/"
+
+# Create preseed for auto-install
+cat > "$WORK_DIR/custom/preseed.cfg" <<'EOF'
+d-i debian-installer/locale string en_US
+d-i keyboard-configuration/xkb-keymap select us
+d-i netcfg/choose_interface select auto
+d-i netcfg/get_hostname string checkmk-installer
+d-i mirror/country string manual
+d-i mirror/http/hostname string deb.debian.org
+d-i mirror/http/directory string /debian
+d-i passwd/root-password password installer
+d-i passwd/root-password-again password installer
+d-i clock-setup/utc boolean true
+d-i time/zone string UTC
+d-i partman-auto/method string regular
+d-i partman-auto/choose_recipe select atomic
+d-i partman/confirm boolean true
+d-i partman/confirm_nooverwrite boolean true
+tasksel tasksel/first multiselect standard
+d-i pkgsel/include string openssh-server git curl wget
+d-i finish-install/reboot_in_progress note
+d-i preseed/late_command string in-target /scripts/bootstrap-installer.sh
+EOF
+
+# Rebuild ISO
+log_info "Creating new ISO..."
+genisoimage -r -J -b isolinux/isolinux.bin -c isolinux/boot.cat \
+    -no-emul-boot -boot-load-size 4 -boot-info-table \
+    -o "$ISO_OUTPUT" "$WORK_DIR/custom"
+
+# Make bootable
+log_info "Making ISO bootable..."
+isohybrid "$ISO_OUTPUT" 2>/dev/null || true
+
+# Cleanup
+rm -rf "$WORK_DIR"
+
+log_success "ISO created: $ISO_OUTPUT"
+log_info "Default root password: installer"
+log_info "System will auto-run CheckMK installer after first boot"

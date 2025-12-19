@@ -1,13 +1,85 @@
 #!/bin/bash
-/usr/bin/env bashset -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"cd "$SCRIPT_DIR"
-if [[ -f .env ]]; then  set -a  source .env  set +a
-else  
-echo "├ó┼í┬á├»┬©┬Å  .env non trovato. Copia .env.example in .env e personalizza."
+# bootstrap.sh - Main CheckMK installation bootstrap
+# Orchestrates the modular installation scripts
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS_PATH="${SCRIPT_DIR}/scripts"
+
+# Installation modules (in order)
+MODULES=(
+    "10-ssh"
+    "15-ntp"
+    "20-packages"
+    "25-postfix"
+    "30-firewall"
+    "40-fail2ban"
+    "50-certbot"
+    "60-checkmk"
+    "80-timeshift"
+)
+
+log_header() {
+    echo ""
+    echo -e "${CYAN}========================================${NC}"
+    echo -e "${CYAN}  $1${NC}"
+    echo -e "${CYAN}========================================${NC}"
+    echo ""
+}
+
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check root
+if [[ $EUID -ne 0 ]]; then
+    log_error "This script must be run as root"
     exit 1
-fi if [[ $EUID -ne 0 ]]; then
-    echo "Devi eseguire come root o con su
-do."
-    exit 1fiexport TIMEZONE SSH_PORT PERMIT_ROOT_LOGIN CLIENT_ALIVE_INTERVAL CLIENT_ALIVE_COUNTMAX LOGIN_GRACE_TIME ROOT_PASSWORD OPEN_HTTP_HTTPS LETSENCRYPT_EMAIL LETSENCRYPT_DOMAINS WEBSERVER NTP_SERVERS CHECKMK_ADMIN_PASSWORD CHECKMK_DEB_URLrun(){ 
-echo -e "\n===== ESECUZIONE: $1 ====="; bash "$SCRIPT_DIR/scripts/$1"; }run 10-ssh.shrun 15-ntp.shrun 20-packages.shrun 25-postfix.shrun 30-firewall.shrun 40-fail2ban.shrun 50-certbot.shrun 60-checkmk.shrun 80-timeshift.sh
-echo -e "\n├ó┼ôÔÇª Bootstrap completato."
+fi
+
+# Main
+log_header "CheckMK Installation Bootstrap"
+
+log_info "Starting modular installation..."
+echo ""
+
+for module in "${MODULES[@]}"; do
+    script_file="${SCRIPTS_PATH}/${module}.sh"
+    
+    if [[ -f "$script_file" ]]; then
+        log_header "Running module: ${module}"
+        
+        if bash "$script_file"; then
+            log_success "Module ${module} completed"
+        else
+            log_error "Module ${module} failed"
+            exit 1
+        fi
+    else
+        log_info "Skipping ${module} (not found)"
+    fi
+done
+
+log_header "Installation Complete"
+log_success "CheckMK installation finished successfully"
+echo ""
+log_info "Access CheckMK at: http://$(hostname -I | awk '{print $1}')/monitoring"
+log_info "Default credentials: cmkadmin / check_mk"

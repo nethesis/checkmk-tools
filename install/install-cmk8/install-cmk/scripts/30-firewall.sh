@@ -1,6 +1,28 @@
 #!/bin/bash
-/usr/bin/env bashset -euo pipefail
-if ! dpkg -s ufw >/dev/null 2>&1; then  apt-get update -y  apt-get install -y ufwfiufw --force reset || trueufw default deny incomingufw default allow outgoing
-SSH_P="${SSH_PORT:-22}"ufw allow "${SSH_P}/tcp"
-if [[ "${OPEN_HTTP_HTTPS:-false}" == "true" ]]; then  ufw allow 80/tcp  ufw allow 443/tcpfiufw --force enable
-echo "UFW configurato."
+# 30-firewall.sh - Configure UFW firewall
+
+set -euo pipefail
+
+echo "[30-FIREWALL] Configuring UFW..."
+
+# Install UFW
+apt-get install -y ufw
+
+# Default policies
+ufw default deny incoming
+ufw default allow outgoing
+
+# Allow SSH
+ufw allow 22/tcp
+
+# Allow HTTP/HTTPS
+ufw allow 80/tcp
+ufw allow 443/tcp
+
+# Allow CheckMK agent
+ufw allow 6556/tcp
+
+# Enable firewall
+echo "y" | ufw enable
+
+echo "[30-FIREWALL] Firewall configured successfully"

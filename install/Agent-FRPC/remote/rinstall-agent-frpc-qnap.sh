@@ -1,5 +1,13 @@
 #!/bin/bash
-# Launcher per install-agent-frpc-qnap.sh (usa script locale aggiornato da auto-git-sync)
-LOCAL_SCRIPT="/opt/checkmk-tools/install/Agent-FRPC/full/install-agent-frpc-qnap.sh"
-# Esegue lo script locale
-exec "$LOCAL_SCRIPT" "$@"
+# rinstall-agent-frpc-qnap.sh - Remote launcher for QNAP agent+FRPC installer
+
+REPO_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
+SCRIPT_PATH="install/Agent-FRPC/full/install-agent-frpc-qnap.sh"
+
+TEMP_SCRIPT=$(mktemp)
+trap "rm -f $TEMP_SCRIPT" EXIT
+
+curl -fsSL "${REPO_URL}/${SCRIPT_PATH}" -o "$TEMP_SCRIPT"
+chmod +x "$TEMP_SCRIPT"
+
+exec "$TEMP_SCRIPT" "$@"

@@ -1,38 +1,20 @@
 #!/bin/bash
-/usr/bin/env bash
-# Wrapper per eseguire il flusso interattivo di certificazione + vhost
-# - Escalation a root automatica
-# - Preserva eventuali variabili d'ambiente utili
-# - Pre-check DNS e porte (opzionale)set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AUTO_SCRIPT="$SCRIPT_DIR/50-certbot-auto.sh"
-if [[ ! -x "$AUTO_SCRIPT" ]]; then
-    echo "ERROR: script non trovato: $AUTO_SCRIPT" >&2  exit 1
-fi # Pre-check opzionale (solo se richiesto con --check o 
-CHECK_PREREQS=true)
-CHECK_PREREQS=${CHECK_PREREQS:-false}for arg in "$@"; do  if [[ "$arg" == "--check" ]]; then
-    CHECK_PREREQS=true  fidone
-if [[ "${CHECK_PREREQS,,}" == "true" ]]; then
-    echo ">>> Pre-verifica prerequisiti..."    
-# Verifica DNS (se LETSENCRYPT_DOMAINS ├¿ gi├á settato)  if [[ -n "${LETSENCRYPT_DOMAINS:-}" ]]; then
-    IFS=',' read -r -a domains <<< "$LETSENCRYPT_DOMAINS"    for domain in "${domains[@]}"; do      domain=$(
-echo "$domain" | xargs) 
-# trim spaces      
-echo -n "  - DNS $domain: "      if host "$domain" >/dev/null 2>&1; then
-    echo "OK"
-else        
-echo "WARNING: risoluzione fallita"      fi    done  fi    
-# Verifica porte 80 e 443  
-echo -n "  - Porta 80: "  if ss -tulpn | grep -q ':80 '; then
-    echo "OK (in ascolto)"
-else    
-echo "WARNING: nessun processo in ascolto"  fi
-echo -n "  - Porta 443: "  if ss -tulpn | grep -q ':443 '; then
-    echo "OK (in ascolto)"
-else    
-echo "WARNING: nessun processo in ascolto"  fi
-echo ""fi
-if [[ "$EUID" -ne 0 ]]; then  exec su
-do --preserve-env=WS,LETSENCRYPT_EMAIL,LETSENCRYPT_DOMAINS,REDIRECT_TO_SITE,DEFAULT_SITE,CHECK_PREREQS \    bash "$AUTO_SCRIPT" --interactive
-else  exec bash "$AUTO_SCRIPT" --interactive
+# 50-certbot-run.sh - Obtain SSL certificate with Certbot
+
+set -euo pipefail
+
+echo "[50-CERTBOT-RUN] Obtaining SSL certificate..."
+
+# Check if domain is provided
+DOMAIN="${1:-}"
+
+if [[ -z "$DOMAIN" ]]; then
+    echo "Usage: $0 <domain>"
+    echo "Example: $0 checkmk.example.com"
+    exit 1
 fi
+
+# Obtain certificate
+certbot --apache -d "$DOMAIN" --non-interactive --agree-tos --email "admin@${DOMAIN}"
+
+echo "[50-CERTBOT-RUN] SSL certificate obtained for ${DOMAIN}"
