@@ -66,8 +66,7 @@ CURL_OPTS=(
 log_rotate() {
   if [[ -f "$YDEA_LOG_FILE" ]]; then
     local size
-    size=$(stat -f%z "$YDEA_LOG_FILE" 2>/dev/null || stat -c%s "$YDEA_LOG_FILE" 2>/dev/null || 
-echo 0)
+    size=$(stat -f%z "$YDEA_LOG_FILE" 2>/dev/null || stat -c%s "$YDEA_LOG_FILE" 2>/dev/null || echo 0)
     if [[ "$size" -gt "$YDEA_LOG_MAX_SIZE" ]]; then
       mv "$YDEA_LOG_FILE" "${YDEA_LOG_FILE}.1" 2>/dev/null || true
       [[ -f "${YDEA_LOG_FILE}.1" ]] && gzip "${YDEA_LOG_FILE}.1" 2>/dev/null || true
@@ -87,8 +86,7 @@ log_write() {
   
   
 # Write to log file
-  
-echo "[$timestamp] [$level] [PID:$$] $message" >> "$YDEA_LOG_FILE" 2>/dev/null || true
+  echo "[$timestamp] [$level] [PID:$$] $message" >> "$YDEA_LOG_FILE" 2>/dev/null || true
 }
 
 log_debug() { 
@@ -98,26 +96,22 @@ echo "🔧 $*" >&2 || true
 }
 
 log_info() { 
-  
-echo "├ö├ñÔòú┬┤┬®├à  $*" >&2
+  echo "ℹ️  $*" >&2
   log_write "INFO" "$*"
 }
 
 log_success() { 
-  
-echo "├ö┬ú├á $*" >&2
+  echo "✅ $*" >&2
   log_write "INFO" "SUCCESS: $*"
 }
 
 log_warn() {
-  
-echo "├ö├£├í┬┤┬®├à  $*" >&2
+  echo "⚠️  $*" >&2
   log_write "WARN" "$*"
 }
 
 log_error() { 
-  
-echo "├ö├ÿ├« $*" >&2
+  echo "❌ $*" >&2
   log_write "ERROR" "$*"
 }
 
@@ -176,14 +170,9 @@ ydea_login() {
   
   [[ -n "${YDEA_ID}" && -n "${YDEA_API_KEY}" ]] || {
     log_error "YDEA_ID e YDEA_API_KEY non impostati"
-    
-echo "Esempio:" >&2
-    
-echo "  export 
-YDEA_ID='tuo_id'" >&2
-    
-echo "  export 
-YDEA_API_KEY='tua_chiave'" >&2
+    echo "Esempio:" >&2
+    echo "  export YDEA_ID='tuo_id'" >&2
+    echo "  export YDEA_API_KEY='tua_chiave'" >&2
     exit 2
   }
   
@@ -213,9 +202,7 @@ echo "$resp"
 
   if [[ -z "$token" || "$token" == "null" ]]; then
     log_error "Login fallito: risposta senza token"
-    
-echo "$resp" | jq . 2>/dev/null || 
-echo "$resp"
+    echo "$resp" | jq . 2>/dev/null || echo "$resp"
     exit 1
   fi
   
@@ -246,8 +233,7 @@ ydea_api() {
   ensure_token
   local token url
   token="$(load_token)"
-  url="${YDEA_BASE_URL%/}/${path
-#/}"
+  url="${YDEA_BASE_URL%/}/${path#/}"
 
   log_debug "$method $url"
   
@@ -296,9 +282,7 @@ ydea_api() {
   
 # Mostra errore se non è 2xx
   if [[ ! "$http_code" =~ ^2[0-9][0-9]$ ]]; then
-    log_error "HTTP $http_code: $(
-echo "$http_body" | jq -r '.message // .error // empty' 2>/dev/null || 
-echo "$http_body" | head -c 200)"
+    log_error "HTTP $http_code: $(echo "$http_body" | jq -r '.message // .error // empty' 2>/dev/null || echo "$http_body" | head -c 200)"
   fi
 
   
@@ -409,22 +393,19 @@ create_ticket() {
   
 # Aggiungi sla_id se fornito (campo opzionale)
   if [[ -n "$sla_id" ]]; then
-    body=$(
-echo "$body" | jq --argjson sid "$sla_id" '. + {sla_id: $sid}')
+    body=$(echo "$body" | jq --argjson sid "$sla_id" '. + {sla_id: $sid}')
   fi
   
   
 # Aggiungi tipo se fornito (campo opzionale)
   if [[ -n "$tipo" ]]; then
-    body=$(
-echo "$body" | jq --arg tipo "$tipo" '. + {tipo: $tipo}')
+    body=$(echo "$body" | jq --arg tipo "$tipo" '. + {tipo: $tipo}')
   fi
   
   
 # Aggiungi creatoda se fornito (campo opzionale per forzare il creatore)
   if [[ -n "$creatoda" ]]; then
-    body=$(
-echo "$body" | jq --argjson uid "$creatoda" '. + {creatoda: $uid}')
+    body=$(echo "$body" | jq --argjson uid "$creatoda" '. + {creatoda: $uid}')
   fi
   
   log_info "Creazione ticket: $title (priorità: $priority${tipo:+, tipo: $tipo})"
@@ -523,8 +504,7 @@ list_users() {
 # Inizializza il file di tracking se non esiste
 init_tracking_file() {
   if [[ ! -f "$YDEA_TRACKING_FILE" ]]; then
-    
-echo '{"tickets":[],"last_update":""}' > "$YDEA_TRACKING_FILE"
+    echo '{"tickets":[],"last_update":""}' > "$YDEA_TRACKING_FILE"
     log_debug "File tracking inizializzato: $YDEA_TRACKING_FILE"
   fi
 }
@@ -550,26 +530,16 @@ now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   ticket_data=$(ydea_api GET "/tickets?limit=100" 2>/dev/null | jq --arg tid "$ticket_id" '.objs[] | select(.id == ($tid|tonumber))' || 
 echo "{}")
   
-local stato
-local stato
-stato=$(
-echo "$ticket_data" | jq -r '.stato // "Sconosciuto"')
-local titolo
-local titolo
-titolo=$(
-echo "$ticket_data" | jq -r '.titolo // ""')
-local descrizione_ticket
-local descrizione_ticket
-descrizione_ticket=$(
-echo "$ticket_data" | jq -r '.descrizione // ""')
-local priorita
-local priorita
-priorita=$(
-echo "$ticket_data" | jq -r '.priorita // "Normale"')
-local assegnato_a
-local assegnato_a
-assegnato_a=$(
-echo "$ticket_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA else "Non assegnato" end')
+  local stato
+  stato=$(echo "$ticket_data" | jq -r '.stato // "Sconosciuto"')
+  local titolo
+  titolo=$(echo "$ticket_data" | jq -r '.titolo // ""')
+  local descrizione_ticket
+  descrizione_ticket=$(echo "$ticket_data" | jq -r '.descrizione // ""')
+  local priorita
+  priorita=$(echo "$ticket_data" | jq -r '.priorita // "Normale"')
+  local assegnato_a
+  assegnato_a=$(echo "$ticket_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA else "Non assegnato" end')
   
   
 # Aggiungi al tracking
