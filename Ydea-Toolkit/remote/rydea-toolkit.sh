@@ -1,21 +1,26 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Launcher remoto per ydea-toolkit.sh - scarica ed esegue da GitHub
+# Launcher remoto per ydea-toolkit.sh - scarica ed esegue da GitHub.
 
+set -euo pipefail
 
-# Cache buster per forzare download nuova versione
+timestamp="$(date +%s)"
+github_raw_url="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/Ydea-Toolkit/full/ydea-toolkit.sh?v=${timestamp}"
 
-TIMESTAMP=$(date +%s)
+temp_script="$(mktemp)"
+cleanup() { rm -f "$temp_script"; }
+trap cleanup EXIT
 
-GITHUB_RAW_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/Ydea-Toolkit/full/ydea-toolkit.sh?v=${TIMESTAMP}"
+if command -v curl >/dev/null 2>&1; then
+	curl -fsSL "$github_raw_url" -o "$temp_script"
+elif command -v wget >/dev/null 2>&1; then
+	wget -qO "$temp_script" "$github_raw_url"
+else
+	echo "ERROR: curl o wget non disponibile" >&2
+	exit 127
+fi
 
+# Preflight: se lo script scaricato è corrotto, fallisce qui con messaggio chiaro.
+bash -n "$temp_script"
 
-# Scarica in file temporaneo ed esegui (le variabili ambiente vengono ereditate automaticamente)
-
-TEMP_SCRIPT=$(mktemp)
-curl -fsSL "$GITHUB_RAW_URL" -o "$TEMP_SCRIPT"
-bash "$TEMP_SCRIPT" "$@"
-
-EXIT_CODE=$?
-rm -f "$TEMP_SCRIPT"
-exit $EXIT_CODE
+bash "$temp_script" "$@"
