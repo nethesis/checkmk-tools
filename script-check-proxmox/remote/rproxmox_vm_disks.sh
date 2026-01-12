@@ -1,5 +1,4 @@
 #!/bin/bash
-# Launcher per check-proxmox_vm_disks.sh (usa script locale aggiornato da auto-git-sync)
-LOCAL_SCRIPT="/opt/checkmk-tools/script-check-proxmox/full/check-proxmox_vm_disks.sh"
-# Esegue lo script locale
-exec "$LOCAL_SCRIPT" "$@"
+# Launcher per check-proxmox_vm_disks.sh (scarica da GitHub)
+GITHUB_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-check-proxmox/full/check-proxmox_vm_disks.sh"
+curl -sSL "$GITHUB_URL" | bash -s -- "$@"
