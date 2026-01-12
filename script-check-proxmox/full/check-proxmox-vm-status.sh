@@ -64,3 +64,5 @@ check_lxc_status() {
 echo "<<<local:sep(0)>>>"
 check_vm_status
 check_lxc_status
+
+exit 0

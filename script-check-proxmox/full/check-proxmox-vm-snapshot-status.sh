@@ -67,3 +67,5 @@ check_lxc_snapshots() {
 echo "<<<local:sep(0)>>>"
 check_vm_snapshots
 check_lxc_snapshots
+
+exit 0

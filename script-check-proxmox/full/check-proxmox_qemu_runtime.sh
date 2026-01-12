@@ -119,3 +119,5 @@ echo "$vm_list" | jq -c '.[]' 2>/dev/null | while IFS= read -r vm_basic; do
 done
 
 echo "0 PVE_QEMU_Runtime_Summary - OK - ${running}/${total} running on ${NODE} | running=${running};;;; total=${total};;;;"
+
+exit 0

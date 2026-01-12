@@ -109,3 +109,5 @@ fi
 
 # Output single local check with perfdata
 echo "0 PVE_Top_Consumers - OK - ${msg} - ${details:-no running guests} | qemu_running=${qemu_running};;;; lxc_running=${lxc_running};;;;"
+
+exit 0

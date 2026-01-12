@@ -83,3 +83,5 @@ if command -v pct >/dev/null 2>&1; then
     echo "0 ${svc_base}_Count count=${snap_count} OK - ${snap_count} snapshots"
   done
 fi
+
+exit 0

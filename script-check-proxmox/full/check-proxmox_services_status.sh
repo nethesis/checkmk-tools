@@ -39,3 +39,5 @@ for s in "${services[@]}"; do
     echo "1 ${svc} enabled=${enabled} WARN - ${active}"
   fi
 done
+
+exit 0

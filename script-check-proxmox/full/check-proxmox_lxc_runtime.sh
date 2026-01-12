@@ -113,3 +113,5 @@ for ctid in $ctids; do
 done
 
 echo "0 PVE_LXC_Runtime_Summary - OK - ${running}/${total} running on ${NODE} | running=${running};;;; total=${total};;;;"
+
+exit 0

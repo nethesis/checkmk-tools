@@ -74,3 +74,5 @@ timeout "${PVE_TIMEOUT}" pct list 2>/dev/null | awk 'NR>1 {print $1, $2, $3}' | 
         echo "1 LXC_${ctid}_${lxc_safe_name} - $status"
     fi
 done
+
+exit 0

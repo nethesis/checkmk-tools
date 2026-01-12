@@ -34,3 +34,5 @@ timeout "${PVE_TIMEOUT}" qm list 2>/dev/null | awk 'NR>1{print $1}' | while read
   fi
 
 done
+
+exit 0

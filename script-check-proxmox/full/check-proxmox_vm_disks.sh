@@ -59,3 +59,5 @@ timeout "${PVE_TIMEOUT}" pct list 2>/dev/null | awk 'NR>1 {print $1, $2}' | whil
     
     echo "0 $lxc_name_upper - RootFS: ${size_gb}GB | size_gb=$size_gb"
 done
+
+exit 0

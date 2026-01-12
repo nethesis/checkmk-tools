@@ -83,3 +83,5 @@ done
 # Summary service with perfdata
 # Note: qga_skipped counts non-running VMs.
 echo "0 PVE_QGA_Summary - OK - total=${total}, running=${running}, ok=${qga_ok}, missing/disabled=${qga_missing}, error=${qga_error}, skipped=${qga_skipped} | total=${total};;;; running=${running};;;; ok=${qga_ok};;;; missing=${qga_missing};;;; error=${qga_error};;;; skipped=${qga_skipped};;;;"
+
+exit 0

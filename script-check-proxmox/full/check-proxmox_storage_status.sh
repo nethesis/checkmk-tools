@@ -32,3 +32,5 @@ timeout "${PVE_TIMEOUT}" pvesm status 2>/dev/null | awk 'NR>1' | while read -r n
 
   echo "${state} PVE_Storage_${name} used=${p_int}%;${WARN};${CRIT} OK - used ${p_int}%"
 done
+
+exit 0

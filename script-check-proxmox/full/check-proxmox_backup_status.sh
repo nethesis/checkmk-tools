@@ -89,3 +89,5 @@ msg="UPID=${upid_full} node=${node} vmid=${task_id} user=${task_user}"
 
 echo "${res_state} PVE_Backup_Last_Result - ${res_label} - ${msg}"
 echo "${age_state} PVE_Backup_Last_Age age_hours=${age_hours};${WARN_HOURS};${CRIT_HOURS} - last vzdump ${age_hours}h ago"
+
+exit 0

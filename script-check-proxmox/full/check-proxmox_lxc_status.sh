@@ -29,3 +29,5 @@ timeout "${PVE_TIMEOUT}" pct list 2>/dev/null | awk 'NR>1{print $1}' | while rea
     echo "2 ${svc} - CRIT - status ${status:-unknown}"
   fi
 done
+
+exit 0

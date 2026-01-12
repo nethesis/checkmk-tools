@@ -26,3 +26,5 @@ if [[ $? -eq 0 ]]; then
 else
     echo "2 Proxmox_API - API Unreachable: $response"
 fi
+
+exit 0
