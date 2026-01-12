@@ -27,34 +27,17 @@ if [[ -f "$MRPE_CONFIG" ]]; then
     echo "   ✓ Backup di mrpe.cfg creato"
 fi
 
-# 2. Disable full/ local checks by moving them
+# 2. Ensure scripts in full/ are executable
 echo
-echo "🔧 Disabilitazione local checks in full/..."
-cd "$SCRIPT_DIR"
-
-if [[ ! -d "full-disabled" ]]; then
-    mkdir -p full-disabled
-    echo "   ✓ Creata cartella full-disabled/"
-fi
-
-# Move scripts to disabled folder
-moved_count=0
-if [[ -d "full" ]]; then
-    for script in full/check-*.sh; do
-        if [[ -f "$script" ]]; then
-            mv "$script" full-disabled/
-            ((moved_count++)) || true
-        fi
-    done
-    echo "   ✓ Spostati $moved_count script in full-disabled/"
-fi
+echo "🔐 Configurazione permessi script..."
+cd "$SCRIPT_DIR/full"
+chmod +x *.sh
+echo "   ✓ Permessi esecuzione configurati per script in full/"
 
 # 3. Ensure remote scripts are executable
-echo
-echo "🔐 Configurazione permessi script remote..."
 cd "$SCRIPT_DIR/remote"
 chmod +x *.sh
-echo "   ✓ Permessi esecuzione configurati"
+echo "   ✓ Permessi esecuzione configurati per launcher in remote/"
 
 # 4. Add MRPE configuration
 echo
@@ -74,35 +57,35 @@ else
 # Auto-configured by setup-mrpe.sh
 
 # Backup Status
-Proxmox_Backup_Status /opt/checkmk-tools/script-check-proxmox/remote/rcheck-proxmox_backup_status.sh
+Proxmox_Backup_Status /opt/checkmk-tools/script-check-proxmox/full/check-proxmox_backup_status.sh
 
 # LXC Container Checks
-Proxmox_LXC_Runtime /opt/checkmk-tools/script-check-proxmox/remote/rcheck-proxmox_lxc_runtime.sh
-Proxmox_LXC_Status /opt/checkmk-tools/script-check-proxmox/remote/rcheck-proxmox_lxc_status.sh
+Proxmox_LXC_Runtime /opt/checkmk-tools/script-check-proxmox/full/check-proxmox_lxc_runtime.sh
+Proxmox_LXC_Status /opt/checkmk-tools/script-check-proxmox/full/check-proxmox_lxc_status.sh
 
 # QEMU VM Checks
-Proxmox_QEMU_Guest_Agent /opt/checkmk-tools/script-check-proxmox/remote/rcheck-proxmox_qemu_guest_agent_status.sh
-Proxmox_QEMU_Runtime /opt/checkmk-tools/script-check-proxmox/remote/rcheck-proxmox_qemu_runtime.sh
-Proxmox_QEMU_Status /opt/checkmk-tools/script-check-proxmox/remote/rcheck-proxmox_qemu_status.sh
+Proxmox_QEMU_Guest_Agent /opt/checkmk-tools/script-check-proxmox/full/check-proxmox_qemu_guest_agent_status.sh
+Proxmox_QEMU_Runtime /opt/checkmk-tools/script-check-proxmox/full/check-proxmox_qemu_runtime.sh
+Proxmox_QEMU_Status /opt/checkmk-tools/script-check-proxmox/full/check-proxmox_qemu_status.sh
 
 # Services Status
-Proxmox_Services /opt/checkmk-tools/script-check-proxmox/remote/rcheck-proxmox_services_status.sh
+Proxmox_Services /opt/checkmk-tools/script-check-proxmox/full/check-proxmox_services_status.sh
 
 # Snapshots
-Proxmox_Snapshots /opt/checkmk-tools/script-check-proxmox/remote/rcheck-proxmox_snapshots_status.sh
-Proxmox_VM_Snapshots /opt/checkmk-tools/script-check-proxmox/remote/rcheck-proxmox-vm-snapshot-status.sh
+Proxmox_Snapshots /opt/checkmk-tools/script-check-proxmox/full/check-proxmox_snapshots_status.sh
+Proxmox_VM_Snapshots /opt/checkmk-tools/script-check-proxmox/full/check-proxmox-vm-snapshot-status.sh
 
 # Storage
-Proxmox_Storage /opt/checkmk-tools/script-check-proxmox/remote/rcheck-proxmox_storage_status.sh
+Proxmox_Storage /opt/checkmk-tools/script-check-proxmox/full/check-proxmox_storage_status.sh
 
 # Resource Consumers
-Proxmox_Top_Consumers /opt/checkmk-tools/script-check-proxmox/remote/rcheck-proxmox_top_consumers.sh
+Proxmox_Top_Consumers /opt/checkmk-tools/script-check-proxmox/full/check-proxmox_top_consumers.sh
 
 # VM API & Monitoring
-Proxmox_VM_API /opt/checkmk-tools/script-check-proxmox/remote/rproxmox_vm_api.sh
-Proxmox_VM_Disks /opt/checkmk-tools/script-check-proxmox/remote/rproxmox_vm_disks.sh
-Proxmox_VM_Monitor /opt/checkmk-tools/script-check-proxmox/remote/rproxmox_vm_monitor.sh
-Proxmox_VM_Status /opt/checkmk-tools/script-check-proxmox/remote/rcheck-proxmox-vm-status.sh
+Proxmox_VM_API /opt/checkmk-tools/script-check-proxmox/full/check-proxmox_vm_api.sh
+Proxmox_VM_Disks /opt/checkmk-tools/script-check-proxmox/full/check-proxmox_vm_disks.sh
+Proxmox_VM_Monitor /opt/checkmk-tools/script-check-proxmox/full/check-proxmox_vm_monitor.sh
+Proxmox_VM_Status /opt/checkmk-tools/script-check-proxmox/full/check-proxmox-vm-status.sh
 
 EOF
     echo "   ✓ Configurazione MRPE aggiunta a $MRPE_CONFIG"
