@@ -234,43 +234,77 @@ echo "   Appartiene invece all'anagrafica ${CONTRATTO_AZIENDA_ID}"
 fi echo -e "${GREEN}Ô£à Contratto associato all'anagrafica corretta${NC}"
 echo ""
 # Step 3: Crea il ticket di test con il contratto
-echo -e "${YELLOW}­ƒÄ½ Step 2: Creazione ticket di test con contratto...${NC}"
-TICKET_PAYLOAD=$(cat <<EOF{  "ticket": {    "titolo": "TEST Ticket con Contratto - $(date '+%Y-%m-%d %H:%M:%S')",    "descrizione": "Ticket di test per verificare l'associazione automatica dello SLA tramite contratto.\n\nDettagli test:\n- Contratto ID: ${CONTRATTO_ID}\n- Contratto: ${CONTRATTO_NOME}\n- Anagrafica ID: ${ANAGRAFICA_ID}\n- Data test: $(date '+%Y-%m-%d %H:%M:%S')\n\nQuesto ticket dovrebbe avere automaticamente lo SLA 'Premium_Mon' applicato.",    "anagrafica_id": ${ANAGRAFICA_ID},    "contrattoId": ${CONTRATTO_ID},    "priorita_id": 30,    "fonte_id": 91,    "tipo_id": 32,    "categoria_id": 100  }}EOF)
+echo -e "${YELLOW}🎫 Step 2: Creazione ticket di test con contratto...${NC}"
+
+# Ottieni il token JWT
+TOKEN=$(jq -r '.token' ~/.ydea_token.json 2>/dev/null)
+if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+    echo -e "${RED}❌ Errore: Token non trovato. Esegui prima il login.${NC}"
+    exit 1
+fi
+
+# Prepara il payload JSON (senza wrapper "ticket")
+TICKET_PAYLOAD=$(cat <<EOF
+{
+  "titolo": "TEST Ticket con Contratto - $(date '+%Y-%m-%d %H:%M:%S')",
+  "descrizione": "Ticket di test per verificare l'associazione automatica dello SLA tramite contratto. Dettagli test: Contratto ID ${CONTRATTO_ID}, Contratto ${CONTRATTO_NOME}, Anagrafica ID ${ANAGRAFICA_ID}, Data test $(date '+%Y-%m-%d %H:%M:%S'). Questo ticket dovrebbe avere automaticamente lo SLA Premium_Mon applicato.",
+  "anagrafica_id": ${ANAGRAFICA_ID},
+  "contrattoId": ${CONTRATTO_ID},
+  "priorita_id": 30,
+  "fonte": "Partner portal",
+  "tipo": "Server"
+}
+EOF
+)
+
 echo "Payload JSON:"
 echo "$TICKET_PAYLOAD" | jq '.'
 echo ""
-RESPONSE=$("${TOOLKIT}" api POST "/ticket" - <<< "$TICKET_PAYLOAD" 2>&1)
-if 
-echo "$RESPONSE" | grep -q "API call fallita"; then
-    echo -e "${RED}Øî Errore durante la creazione del ticket${NC}"    
-echo "$RESPONSE"
+
+# Usa curl diretto invece del toolkit (che ha un bug)
+RESPONSE=$(curl -s -X POST "https://my.ydea.cloud/app_api_v2/ticket" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$TICKET_PAYLOAD" 2>&1)
+
+# Verifica se la risposta contiene un errore
+if echo "$RESPONSE" | jq -e '.message' >/dev/null 2>&1; then
+    echo -e "${RED}❌ Errore durante la creazione del ticket${NC}"
+    echo "$RESPONSE" | jq '.'
     exit 1
 fi
 
 # Estrai l'ID del ticket creato
-TICKET_ID=$(
-echo "$RESPONSE" | jq -r '.ticket.id // empty')
+TICKET_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
 if [ -z "$TICKET_ID" ]; then
-    echo -e "${RED}ÔØî Errore: Impossibile estrarre l'ID del ticket dalla risposta${NC}"    
-echo "Risposta API:"    
-echo "$RESPONSE" | jq '.'    exit 1
-fi echo -e "${GREEN}Ô£à Ticket creato con successo!${NC}"
+    echo -e "${RED}❌ Errore: Impossibile estrarre l'ID del ticket dalla risposta${NC}"
+    echo "Risposta API:"
+    echo "$RESPONSE" | jq '.'
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Ticket creato con successo!${NC}"
 echo "   - Ticket ID: ${TICKET_ID}"
+TICKET_CODICE=$(echo "$RESPONSE" | jq -r '.codice // "N/A"')
+echo "   - Ticket Codice: ${TICKET_CODICE}"
 echo ""
 # Step 4: Verifica il ticket creato
-echo -e "${YELLOW}­ƒöì Step 3: Verifica dettagli ticket creato...${NC}"sleep 2  
-# Pausa per permettere a Ydea di processare
-TICKET_DETAILS=$("${TOOLKIT}" api GET "/ticket/${TICKET_ID}")
-TICKET_TITOLO=$(
-echo "$TICKET_DETAILS" | jq -r '.ticket.titolo')
-TICKET_CONTRATTO_ID=$(
-echo "$TICKET_DETAILS" | jq -r '.ticket.contrattoId')
-TICKET_CONTRATTO_CODICE=$(
-echo "$TICKET_DETAILS" | jq -r '.ticket.contrattoCodice')
-TICKET_ANAGRAFICA=$(
-echo "$TICKET_DETAILS" | jq -r '.ticket.anagrafica')
-echo -e "${BLUE}­ƒôï Dettagli Ticket:${NC}"
+echo -e "${YELLOW}🔍 Step 3: Verifica dettagli ticket creato...${NC}"
+sleep 2  # Pausa per permettere a Ydea di processare
+
+# Usa curl diretto anche per il GET
+TICKET_DETAILS=$(curl -s -X GET "https://my.ydea.cloud/app_api_v2/ticket/${TICKET_ID}" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" 2>&1)
+
+TICKET_TITOLO=$(echo "$TICKET_DETAILS" | jq -r '.ticket.titolo // "N/A"')
+TICKET_CONTRATTO_ID=$(echo "$TICKET_DETAILS" | jq -r '.ticket.contrattoId // "0"')
+TICKET_CONTRATTO_CODICE=$(echo "$TICKET_DETAILS" | jq -r '.ticket.contrattoCodice // "N/A"')
+TICKET_ANAGRAFICA=$(echo "$TICKET_DETAILS" | jq -r '.ticket.anagrafica // "N/A"')
+
+echo -e "${BLUE}📋 Dettagli Ticket:${NC}"
 echo "   - ID: ${TICKET_ID}"
+echo "   - Codice: ${TICKET_CODICE}"
 echo "   - Titolo: ${TICKET_TITOLO}"
 echo "   - Anagrafica: ${TICKET_ANAGRAFICA}"
 echo "   - Contratto ID: ${TICKET_CONTRATTO_ID}"
