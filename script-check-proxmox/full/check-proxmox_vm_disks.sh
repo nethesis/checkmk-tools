@@ -4,11 +4,13 @@
 
 set -euo pipefail
 
+PVE_TIMEOUT=15
+
 echo "<<<proxmox_vm_disks>>>"
 
 # Check VM disks
-qm list 2>/dev/null | awk 'NR>1 {print $1, $2}' | while IFS=' ' read -r vmid name; do
-    disk_info=$(qm config "$vmid" 2>/dev/null | grep -E '^(scsi|ide|sata|virtio)[0-9]:' || true)
+timeout "${PVE_TIMEOUT}" qm list 2>/dev/null | awk 'NR>1 {print $1, $2}' | while IFS=' ' read -r vmid name; do
+    disk_info=$(timeout "${PVE_TIMEOUT}" qm config "$vmid" 2>/dev/null | grep -E '^(scsi|ide|sata|virtio)[0-9]:' || true)
     
     if [[ -z "$disk_info" ]]; then
         continue
@@ -36,8 +38,8 @@ qm list 2>/dev/null | awk 'NR>1 {print $1, $2}' | while IFS=' ' read -r vmid nam
 done
 
 # Check LXC disks
-pct list 2>/dev/null | awk 'NR>1 {print $1, $2}' | while IFS=' ' read -r ctid name; do
-    rootfs=$(pct config "$ctid" 2>/dev/null | grep '^rootfs:' || true)
+timeout "${PVE_TIMEOUT}" pct list 2>/dev/null | awk 'NR>1 {print $1, $2}' | while IFS=' ' read -r ctid name; do
+    rootfs=$(timeout "${PVE_TIMEOUT}" pct config "$ctid" 2>/dev/null | grep '^rootfs:' || true)
     
     if [[ -z "$rootfs" ]]; then
         continue

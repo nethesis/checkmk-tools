@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-PVE_TIMEOUT=5
+PVE_TIMEOUT=15
 
 # Formatta uptime leggibile
 format_uptime() {

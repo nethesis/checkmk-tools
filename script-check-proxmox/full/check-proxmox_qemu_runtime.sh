@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PVE_TIMEOUT=5
+PVE_TIMEOUT=15
 
 echo "<<<local>>>"
 

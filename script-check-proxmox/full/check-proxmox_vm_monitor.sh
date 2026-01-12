@@ -4,15 +4,17 @@
 
 set -euo pipefail
 
+PVE_TIMEOUT=15
+
 echo "<<<proxmox_vm_monitor>>>"
 
 # Summary totals
-total_vms=$(qm list 2>/dev/null | awk 'NR>1' | wc -l || echo 0)
-running_vms=$(qm list 2>/dev/null | awk 'NR>1 && $3=="running"' | wc -l || echo 0)
+total_vms=$(timeout "${PVE_TIMEOUT}" qm list 2>/dev/null | awk 'NR>1' | wc -l || echo 0)
+running_vms=$(timeout "${PVE_TIMEOUT}" qm list 2>/dev/null | awk 'NR>1 && $3=="running"' | wc -l || echo 0)
 stopped_vms=$((total_vms - running_vms))
 
-total_lxc=$(pct list 2>/dev/null | awk 'NR>1' | wc -l || echo 0)
-running_lxc=$(pct list 2>/dev/null | awk 'NR>1 && $3=="running"' | wc -l || echo 0)
+total_lxc=$(timeout "${PVE_TIMEOUT}" pct list 2>/dev/null | awk 'NR>1' | wc -l || echo 0)
+running_lxc=$(timeout "${PVE_TIMEOUT}" pct list 2>/dev/null | awk 'NR>1 && $3=="running"' | wc -l || echo 0)
 stopped_lxc=$((total_lxc - running_lxc))
 
 # Determine status
@@ -28,12 +30,12 @@ echo "<<<local:sep(0)>>>"
 echo "$status Proxmox_VM_Summary - VMs: $running_vms/$total_vms running, LXC: $running_lxc/$total_lxc running - $status_text | total_vms=$total_vms running_vms=$running_vms stopped_vms=$stopped_vms total_lxc=$total_lxc running_lxc=$running_lxc stopped_lxc=$stopped_lxc"
 
 # Check individual VMs
-qm list 2>/dev/null | awk 'NR>1 {print $1, $2, $3}' | while IFS=' ' read -r vmid name status; do
+timeout "${PVE_TIMEOUT}" qm list 2>/dev/null | awk 'NR>1 {print $1, $2, $3}' | while IFS=' ' read -r vmid name status; do
     vm_safe_name=$(echo "$name" | tr -cd '[:alnum:]_-')
     
     if [[ "$status" == "running" ]]; then
         # Get CPU and memory usage
-        vm_status=$(qm status "$vmid" 2>/dev/null || true)
+        vm_status=$(timeout "${PVE_TIMEOUT}" qm status "$vmid" 2>/dev/null || true)
         cpu_pct=$(echo "$vm_status" | grep -oP 'cpu \K[0-9.]+' || echo 0)
         mem_used=$(echo "$vm_status" | grep -oP 'mem \K[0-9]+' || echo 0)
         mem_max=$(echo "$vm_status" | grep -oP 'maxmem \K[0-9]+' || echo 1)
@@ -52,11 +54,11 @@ qm list 2>/dev/null | awk 'NR>1 {print $1, $2, $3}' | while IFS=' ' read -r vmid
 done
 
 # Check individual LXC containers
-pct list 2>/dev/null | awk 'NR>1 {print $1, $2, $3}' | while IFS=' ' read -r ctid name status; do
+timeout "${PVE_TIMEOUT}" pct list 2>/dev/null | awk 'NR>1 {print $1, $2, $3}' | while IFS=' ' read -r ctid name status; do
     lxc_safe_name=$(echo "$name" | tr -cd '[:alnum:]_-')
     
     if [[ "$status" == "running" ]]; then
-        ct_status=$(pct status "$ctid" 2>/dev/null || true)
+        ct_status=$(timeout "${PVE_TIMEOUT}" pct status "$ctid" 2>/dev/null || true)
         cpu_pct=$(echo "$ct_status" | grep -oP 'cpu \K[0-9.]+' || echo 0)
         mem_used=$(echo "$ct_status" | grep -oP 'mem \K[0-9]+' || echo 0)
         mem_max=$(echo "$ct_status" | grep -oP 'maxmem \K[0-9]+' || echo 1)
