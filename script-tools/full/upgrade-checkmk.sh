@@ -5,7 +5,7 @@ set -euo pipefail
 # Upgrade Checkmk RAW (CRE) su Debian/Ubuntu.
 # Output semplice (ASCII-only).
 
-SITE_NAME="monitoring"
+SITE_NAME=""
 DOWNLOAD_DIR="/tmp/checkmk-upgrade"
 BACKUP_DIR="/opt/omd/backups"
 
@@ -62,6 +62,35 @@ detect_deb_codename() {
     esac
 }
 
+detect_site() {
+    local sites site_count site_list
+    
+    # Ottieni lista dei siti attivi
+    sites=$(omd sites 2>/dev/null | awk '{print $1}' | grep -v '^SITE$' || true)
+    site_count=$(echo "$sites" | grep -v '^$' | wc -l)
+    
+    if [[ $site_count -eq 0 ]]; then
+        die "Nessun sito Checkmk trovato. Installare prima un sito con 'omd create <nome>'"
+    fi
+    
+    if [[ $site_count -eq 1 ]]; then
+        SITE_NAME=$(echo "$sites" | grep -v '^$')
+        log "Rilevato automaticamente sito: $SITE_NAME"
+    else
+        log "Siti Checkmk disponibili:"
+        echo "$sites" | nl
+        echo
+        read -r -p "Seleziona il numero del sito da aggiornare: " site_num
+        SITE_NAME=$(echo "$sites" | sed -n "${site_num}p")
+        
+        if [[ -z "$SITE_NAME" ]]; then
+            die "Selezione non valida"
+        fi
+        
+        log "Sito selezionato: $SITE_NAME"
+    fi
+}
+
 main() {
     require_root
     need_cmd omd
@@ -71,9 +100,8 @@ main() {
     need_cmd wget
     need_cmd dpkg
 
-    if ! omd sites | awk '{print $1}' | grep -qx "$SITE_NAME"; then
-        die "sito Checkmk non trovato: $SITE_NAME"
-    fi
+    # Rileva automaticamente il sito o chiedi all'utente
+    detect_site
 
     log "Sito: $SITE_NAME"
     current="$(get_current_version)"
@@ -118,8 +146,10 @@ main() {
     log "Stop sito: $SITE_NAME"
     omd stop "$SITE_NAME"
 
-    log "Upgrade sito (omd update)"
-    omd update "$SITE_NAME"
+    log "Upgrade sito (omd update) - modalità automatica"
+    # Usa --conflict=install per accettare automaticamente i nuovi file di configurazione
+    # Usa -f per forzare l'update senza interazione
+    omd -f update --conflict=install "$SITE_NAME"
 
     log "Start sito: $SITE_NAME"
     omd start "$SITE_NAME"
