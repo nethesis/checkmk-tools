@@ -4,6 +4,8 @@
 
 set -euo pipefail
 
+PVE_TIMEOUT=5
+
 # Funzione per convertire in Title Case
 to_title_case() {
     echo "$1" | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2))}1'
@@ -11,8 +13,8 @@ to_title_case() {
 
 # Check VM snapshots
 check_vm_snapshots() {
-    qm list 2>/dev/null | awk 'NR>1 {print $1, $2}' | while IFS=' ' read -r vmid name; do
-        output=$(qm listsnapshot "$vmid" 2>/dev/null || true)
+    timeout "${PVE_TIMEOUT}" qm list 2>/dev/null | awk 'NR>1 {print $1, $2}' | while IFS=' ' read -r vmid name; do
+        output=$(timeout "${PVE_TIMEOUT}" qm listsnapshot "$vmid" 2>/dev/null || true)
         
         if [[ -z "$output" ]]; then
             continue
@@ -37,8 +39,8 @@ check_vm_snapshots() {
 
 # Check LXC snapshots
 check_lxc_snapshots() {
-    pct list 2>/dev/null | awk 'NR>1 {print $1, $2}' | while IFS=' ' read -r ctid name; do
-        output=$(pct listsnapshot "$ctid" 2>/dev/null || true)
+    timeout "${PVE_TIMEOUT}" pct list 2>/dev/null | awk 'NR>1 {print $1, $2}' | while IFS=' ' read -r ctid name; do
+        output=$(timeout "${PVE_TIMEOUT}" pct listsnapshot "$ctid" 2>/dev/null || true)
         
         if [[ -z "$output" ]]; then
             continue

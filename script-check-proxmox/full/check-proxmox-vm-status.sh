@@ -4,6 +4,8 @@
 
 set -euo pipefail
 
+PVE_TIMEOUT=5
+
 # Formatta uptime leggibile
 format_uptime() {
     local seconds="$1"
@@ -24,11 +26,11 @@ format_uptime() {
 
 # Check VM status
 check_vm_status() {
-    qm list 2>/dev/null | awk 'NR>1 {print $1, $2, $3}' | while IFS=' ' read -r vmid name status; do
+    timeout "${PVE_TIMEOUT}" qm list 2>/dev/null | awk 'NR>1 {print $1, $2, $3}' | while IFS=' ' read -r vmid name status; do
         vm_name_upper="STATUS_VM_${vmid}_$(echo "$name" | tr '[:lower:]' '[:upper:]')"
         
         if [[ "$status" == "running" ]]; then
-            uptime_seconds=$(qm status "$vmid" 2>/dev/null | grep -oP 'uptime \K[0-9]+' || echo 0)
+            uptime_seconds=$(timeout "${PVE_TIMEOUT}" qm status "$vmid" 2>/dev/null | grep -oP 'uptime \K[0-9]+' || echo 0)
             uptime_formatted=$(format_uptime "$uptime_seconds")
             
             echo "0 $vm_name_upper - Running (Uptime: $uptime_formatted)"
@@ -42,11 +44,11 @@ check_vm_status() {
 
 # Check LXC status
 check_lxc_status() {
-    pct list 2>/dev/null | awk 'NR>1 {print $1, $2, $3}' | while IFS=' ' read -r ctid name status; do
+    timeout "${PVE_TIMEOUT}" pct list 2>/dev/null | awk 'NR>1 {print $1, $2, $3}' | while IFS=' ' read -r ctid name status; do
         lxc_name_upper="STATUS_CT_${ctid}_$(echo "$name" | tr '[:lower:]' '[:upper:]')"
         
         if [[ "$status" == "running" ]]; then
-            uptime_seconds=$(pct status "$ctid" 2>/dev/null | grep -oP 'uptime \K[0-9]+' || echo 0)
+            uptime_seconds=$(timeout "${PVE_TIMEOUT}" pct status "$ctid" 2>/dev/null | grep -oP 'uptime \K[0-9]+' || echo 0)
             uptime_formatted=$(format_uptime "$uptime_seconds")
             
             echo "0 $lxc_name_upper - Running (Uptime: $uptime_formatted)"
