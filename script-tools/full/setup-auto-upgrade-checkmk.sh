@@ -46,13 +46,29 @@ if ! command -v omd &> /dev/null; then
 fi
 
 # Determina la directory dello script upgrade-checkmk.sh
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-UPGRADE_SCRIPT="${SCRIPT_DIR}/upgrade-checkmk.sh"
-
-# Verifica esistenza dello script di upgrade
-if [ ! -f "$UPGRADE_SCRIPT" ]; then
-    print_error "Script di upgrade non trovato: $UPGRADE_SCRIPT"
-    exit 1
+# Se lo script è eseguito tramite curl (da /dev/fd/), scarica upgrade-checkmk.sh
+if [[ "${BASH_SOURCE[0]}" =~ ^/dev/fd/ ]]; then
+    # Eseguito da remoto, scarica lo script di upgrade
+    UPGRADE_SCRIPT="/tmp/upgrade-checkmk-$$.sh"
+    UPGRADE_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/upgrade-checkmk.sh"
+    
+    print_info "Download script di upgrade da GitHub..."
+    if ! curl -fsSL "$UPGRADE_URL" -o "$UPGRADE_SCRIPT"; then
+        print_error "Impossibile scaricare lo script di upgrade da: $UPGRADE_URL"
+        exit 1
+    fi
+    chmod +x "$UPGRADE_SCRIPT"
+    print_success "Script di upgrade scaricato: $UPGRADE_SCRIPT"
+else
+    # Eseguito localmente, usa il percorso relativo
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    UPGRADE_SCRIPT="${SCRIPT_DIR}/upgrade-checkmk.sh"
+    
+    # Verifica esistenza dello script di upgrade
+    if [ ! -f "$UPGRADE_SCRIPT" ]; then
+        print_error "Script di upgrade non trovato: $UPGRADE_SCRIPT"
+        exit 1
+    fi
 fi
 
 # Banner
