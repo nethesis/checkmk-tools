@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PVE_TIMEOUT=15
+PVE_TIMEOUT=30
 
 echo "<<<local>>>"
 
@@ -20,8 +20,9 @@ sanitize() {
   echo "$1" | tr ' /' '__' | tr -cd 'A-Za-z0-9_.:-'
 }
 
-vmids="$(timeout "${PVE_TIMEOUT}" pvesh get "/nodes/${NODE}/qemu" --output-format json 2>/dev/null | jq -r '.[].vmid' || true)"
-if [[ -z "${vmids:-}" ]]; then
+# Get all VMs with status in one call (includes vmid, name, status)
+vm_list="$(timeout "${PVE_TIMEOUT}" pvesh get "/nodes/${NODE}/qemu" --output-format json 2>/dev/null || true)"
+if [[ -z "${vm_list:-}" || "$vm_list" == "[]" ]]; then
   echo "1 PVE_QGA_Summary - WARN - no VMs found on ${NODE}"
   exit 0
 fi
@@ -33,22 +34,19 @@ qga_missing=0
 qga_error=0
 qga_skipped=0
 
-for vmid in $vmids; do
+# Process each VM
+echo "$vm_list" | jq -c '.[]' 2>/dev/null | while IFS= read -r vm; do
+  vmid="$(echo "$vm" | jq -r '.vmid // empty')"
+  [[ -z "$vmid" ]] && continue
+  
   total=$((total+1))
-
-  st="$(timeout "${PVE_TIMEOUT}" pvesh get "/nodes/${NODE}/qemu/${vmid}/status/current" --output-format json 2>/dev/null || true)"
-  if [[ -z "${st:-}" ]]; then
-    echo "2 PVE_QGA_${vmid} - CRIT - cannot read status/current"
-    qga_error=$((qga_error+1))
-    continue
-  fi
-
-  name="$(echo "$st" | jq -r '.name // empty')"
+  
+  name="$(echo "$vm" | jq -r '.name // empty')"
   [[ -z "${name:-}" || "$name" == "null" ]] && name="vm${vmid}"
   safe_name="$(sanitize "$name")"
   svc="PVE_QGA_${vmid}_${safe_name}"
 
-  status="$(echo "$st" | jq -r '.status // "unknown"')"
+  status="$(echo "$vm" | jq -r '.status // "unknown"')"
   if [[ "$status" != "running" ]]; then
     # Stopped VM: we do not enforce QGA
     echo "0 ${svc} - OK - VM status=${status} (QGA check skipped)"

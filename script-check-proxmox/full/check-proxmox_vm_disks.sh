@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-PVE_TIMEOUT=15
+PVE_TIMEOUT=30
 
 echo "<<<proxmox_vm_disks>>>"
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PVE_TIMEOUT=15
+PVE_TIMEOUT=30
 
 echo "<<<local>>>"
 
@@ -24,9 +24,13 @@ fi
 
 NODE="$(hostname -s)"
 
-# VMIDs on this node
-vmids="$(timeout "${PVE_TIMEOUT}" pvesh get "/nodes/${NODE}/qemu" --output-format json 2>/dev/null | jq -r '.[].vmid' || true)"
-if [[ -z "${vmids:-}" ]]; then
+sanitize() {
+  echo "$1" | tr ' /' '__' | tr -cd 'A-Za-z0-9_.:-'
+}
+
+# Get all VMs at once
+vm_list="$(timeout "${PVE_TIMEOUT}" pvesh get "/nodes/${NODE}/qemu" --output-format json 2>/dev/null || true)"
+if [[ -z "${vm_list:-}" || "$vm_list" == "[]" ]]; then
   echo "1 PVE_QEMU_Runtime_Summary - WARN - no VMs found via pvesh on node ${NODE}"
   exit 0
 fi
@@ -34,13 +38,26 @@ fi
 running=0
 total=0
 
-sanitize() {
-  echo "$1" | tr ' /' '__' | tr -cd 'A-Za-z0-9_.:-'
-}
-
-for vmid in $vmids; do
+# Process each VM from the list
+echo "$vm_list" | jq -c '.[]' 2>/dev/null | while IFS= read -r vm_basic; do
+  vmid="$(echo "$vm_basic" | jq -r '.vmid // empty')"
+  [[ -z "$vmid" ]] && continue
+  
   total=$((total+1))
-
+  
+  name="$(echo "$vm_basic" | jq -r '.name // empty')"
+  status="$(echo "$vm_basic" | jq -r '.status // "unknown"')"  
+  
+  # Skip if not running
+  if [[ "$status" != "running" ]]; then
+    [[ -z "${name:-}" || "$name" == "null" ]] && name="vm${vmid}"
+    safe_name="$(sanitize "$name")"
+    echo "0 PVE_QEMU_${vmid}_${safe_name}_Runtime - OK - status=${status}"
+    continue
+  fi
+  running=$((running+1))
+  
+  # Get detailed status only for running VMs
   json="$(timeout "${PVE_TIMEOUT}" pvesh get "/nodes/${NODE}/qemu/${vmid}/status/current" --output-format json 2>/dev/null || true)"
   if [[ -z "${json:-}" ]]; then
     echo "2 PVE_QEMU_${vmid}_Runtime - CRIT - cannot read status/current"
