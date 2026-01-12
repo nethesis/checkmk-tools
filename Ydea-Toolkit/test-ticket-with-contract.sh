@@ -206,38 +206,52 @@ echo -e "${BLUE}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔò
 echo -e "${BLUE}  Test Creazione Ticket con Contratto Associato${NC}"
 echo -e "${BLUE}ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ${NC}"
 echo ""
-# Step 1: Verifica che il contratto esista
-echo -e "${YELLOW}­ƒôï Step 1: Verifica esistenza contratto ID ${CONTRATTO_ID}...${NC}"
-CONTRATTO_JSON=$("${TOOLKIT}" api GET "/contratto/${CONTRATTO_ID}" 2>/dev/null || 
-echo "")
-if [ -z "$CONTRATTO_JSON" ] || 
-echo "$CONTRATTO_JSON" | grep -q "404"; then
-    echo -e "${RED}ÔØî Errore: Contratto ${CONTRATTO_ID} non trovato!${NC}"    
-echo ""    
-echo "Verifica l'ID del contratto con:"    
-echo "  ./rydea-toolkit.sh api GET '/contratti' | jq '.objs[] | {id, nome, azienda_id}'"
+
+# Ottieni il token JWT prima di tutto
+TOKEN=$(jq -r '.token' ~/.ydea_token.json 2>/dev/null)
+if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+    echo -e "${RED}❌ Errore: Token non trovato. Esegui prima il login.${NC}"
+    echo "Esegui: cd /opt/ydea-toolkit && ./ydea-toolkit.sh login"
     exit 1
-fi CONTRATTO_NOME=$(
-echo "$CONTRATTO_JSON" | jq -r '.nome // "N/A"')
-CONTRATTO_AZIENDA_ID=$(
-echo "$CONTRATTO_JSON" | jq -r '.azienda_id // 0')
-echo -e "${GREEN}Ô£à Contratto trovato:${NC}"
+fi
+
+# Step 1: Verifica che il contratto esista
+echo -e "${YELLOW}📋 Step 1: Verifica esistenza contratto ID ${CONTRATTO_ID}...${NC}"
+
+# Usa curl diretto invece del toolkit
+CONTRATTO_JSON=$(curl -s -X GET "https://my.ydea.cloud/app_api_v2/contratto/${CONTRATTO_ID}" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" 2>/dev/null)
+
+if [ -z "$CONTRATTO_JSON" ] || echo "$CONTRATTO_JSON" | grep -q '"message"'; then
+    echo -e "${RED}❌ Errore: Contratto ${CONTRATTO_ID} non trovato!${NC}"
+    echo ""
+    echo "Verifica l'ID del contratto con:"
+    echo "  curl -s -X GET 'https://my.ydea.cloud/app_api_v2/contratti?page=1' -H \"Authorization: Bearer \$TOKEN\" | jq '.objs[] | {id, nome, azienda_id}'"
+    exit 1
+fi
+
+CONTRATTO_NOME=$(echo "$CONTRATTO_JSON" | jq -r '.nome // "N/A"')
+CONTRATTO_AZIENDA_ID=$(echo "$CONTRATTO_JSON" | jq -r '.azienda_id // 0')
+
+echo -e "${GREEN}✅ Contratto trovato:${NC}"
 echo "   - ID: ${CONTRATTO_ID}"
 echo "   - Nome: ${CONTRATTO_NOME}"
 echo "   - Azienda ID: ${CONTRATTO_AZIENDA_ID}"
 echo ""
+
 # Step 2: Verifica che il contratto appartenga all'anagrafica corretta
 if [ "$CONTRATTO_AZIENDA_ID" != "$ANAGRAFICA_ID" ]; then
-    echo -e "${RED}ÔØî Errore: Il contratto ${CONTRATTO_ID} non appartiene all'anagrafica ${ANAGRAFICA_ID}!${NC}"    
-echo "   Appartiene invece all'anagrafica ${CONTRATTO_AZIENDA_ID}"
+    echo -e "${RED}❌ Errore: Il contratto ${CONTRATTO_ID} non appartiene all'anagrafica ${ANAGRAFICA_ID}!${NC}"
+    echo "   Appartiene invece all'anagrafica ${CONTRATTO_AZIENDA_ID}"
     exit 1
-fi echo -e "${GREEN}Ô£à Contratto associato all'anagrafica corretta${NC}"
+fi
+
+echo -e "${GREEN}✅ Contratto associato all'anagrafica corretta${NC}"
 echo ""
+
 # Step 3: Crea il ticket di test con il contratto
 echo -e "${YELLOW}🎫 Step 2: Creazione ticket di test con contratto...${NC}"
-
-# Ottieni il token JWT
-TOKEN=$(jq -r '.token' ~/.ydea_token.json 2>/dev/null)
 if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
     echo -e "${RED}❌ Errore: Token non trovato. Esegui prima il login.${NC}"
     exit 1
