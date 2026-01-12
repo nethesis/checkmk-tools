@@ -1,5 +1,14 @@
 #!/bin/bash
-# Launcher per check_podman_events.sh (usa script locale aggiornato da auto-git-sync)
-LOCAL_SCRIPT="/opt/checkmk-tools/script-check-ns8/full/check_podman_events.sh"
-# Esegue lo script locale
-exec "$LOCAL_SCRIPT" "$@"
+# Launcher remoto per check_podman_events.sh - scarica ed esegue da GitHub
+
+# Cache buster per forzare download nuova versione
+TIMESTAMP=$(date +%s)
+GITHUB_RAW_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/=${TIMESTAMP}"
+
+# Scarica in file temporaneo ed esegui
+TEMP_SCRIPT=$(mktemp)
+curl -fsSL "$GITHUB_RAW_URL" -o "$TEMP_SCRIPT"
+bash "$TEMP_SCRIPT" "$@"
+EXIT_CODE=$?
+rm -f "$TEMP_SCRIPT"
+exit $EXIT_CODE

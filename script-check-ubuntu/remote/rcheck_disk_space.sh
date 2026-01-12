@@ -1,8 +1,14 @@
 #!/bin/bash
-# shellcheck disable=SC1017
-# Launcher per check_disk_space.sh (usa script locale aggiornato da auto-git-sync)
+# Launcher remoto per check_disk_space.sh - scarica ed esegue da GitHub
 
-LOCAL_SCRIPT="/opt/checkmk-tools/script-check-ubuntu/full/check_disk_space.sh"
+# Cache buster per forzare download nuova versione
+TIMESTAMP=$(date +%s)
+GITHUB_RAW_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/=${TIMESTAMP}"
 
-# Esegue lo script locale
-exec "$LOCAL_SCRIPT" "$@"
+# Scarica in file temporaneo ed esegui
+TEMP_SCRIPT=$(mktemp)
+curl -fsSL "$GITHUB_RAW_URL" -o "$TEMP_SCRIPT"
+bash "$TEMP_SCRIPT" "$@"
+EXIT_CODE=$?
+rm -f "$TEMP_SCRIPT"
+exit $EXIT_CODE
