@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PVE_TIMEOUT=30
+PVE_TIMEOUT=10
 
 echo "<<<local>>>"
 
@@ -18,7 +18,7 @@ stopped=$(( total - running ))
 echo "0 PVE_QEMU_Stopped_Count stopped=${stopped} OK - ${stopped} stopped"
 
 # Per-VM status
-while read -r vmid; do
+timeout "${PVE_TIMEOUT}" qm list 2>/dev/null | awk 'NR>1{print $1}' | while read -r vmid; do
   name="$(timeout "${PVE_TIMEOUT}" qm config "$vmid" 2>/dev/null | awk -F': ' '/^name: /{print $2; exit}')"
   [[ -z "${name:-}" ]] && name="vm${vmid}"
   status="$(timeout "${PVE_TIMEOUT}" qm status "$vmid" 2>/dev/null | awk '{print $2}')"
@@ -32,7 +32,6 @@ while read -r vmid; do
   else
     echo "2 ${svc} - CRIT - status ${status:-unknown}"
   fi
-
-done < <(timeout "${PVE_TIMEOUT}" qm list 2>/dev/null | awk 'NR>1{print $1}')
+done
 
 exit 0
