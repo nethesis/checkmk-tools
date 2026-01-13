@@ -5,10 +5,10 @@
 TIMESTAMP=$(date +%s)
 GITHUB_RAW_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-check-proxmox/full/check-proxmox_qemu_status.sh?v=${TIMESTAMP}"
 
-# Scarica in file temporaneo ed esegui
+# Scarica in file temporaneo ed esegui (timeout 60s per 18 VM)
 TEMP_SCRIPT=$(mktemp)
 curl -fsSL "$GITHUB_RAW_URL" -o "$TEMP_SCRIPT"
-bash "$TEMP_SCRIPT" "$@"
+timeout 60s bash "$TEMP_SCRIPT" "$@"
 EXIT_CODE=$?
 rm -f "$TEMP_SCRIPT"
 exit $EXIT_CODE
