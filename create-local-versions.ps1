@@ -52,6 +52,10 @@ exit `$EXIT_CODE
     # Salva launcher con line ending Unix
     $utf8NoBom = New-Object System.Text.UTF8Encoding $false
     [System.IO.File]::WriteAllText($launcherPath, ($launcherContent -replace "`r`n", "`n"), $utf8NoBom)
+    
+    # Rendi eseguibile lo script tramite WSL
+    wsl bash -c "chmod +x '$($launcherPath -replace '\\','/' -replace 'C:/','c:/' -replace 'c:/','c:/' -replace '^c:','/mnt/c')'" | Out-Null
+    
     Write-Host "  Creato launcher: $launcherName" -ForegroundColor Green
 }
 
