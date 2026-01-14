@@ -33,11 +33,13 @@ if command -v qm >/dev/null 2>&1; then
     [[ -z "${snap_count:-}" ]] && snap_count=0
 
     if [[ "$snap_count" -eq 0 ]]; then
-      echo "0 ${svc_base}_Count count=0 OK - 0 snapshots"
+      echo "2 ${svc_base}_Count count=0 CRIT - 0 snapshots"
       continue
+    elif [[ "$snap_count" -eq 1 ]]; then
+      echo "1 ${svc_base}_Count count=1 WARN - 1 snapshot"
+    else
+      echo "0 ${svc_base}_Count count=${snap_count} OK - ${snap_count} snapshots"
     fi
-
-    echo "0 ${svc_base}_Count count=${snap_count} OK - ${snap_count} snapshots"
 
     conf="/etc/pve/qemu-server/${vmid}.conf"
     if [[ -r "$conf" ]]; then
@@ -74,7 +76,13 @@ if command -v pct >/dev/null 2>&1; then
     svc_base="PVE_LXC_Snapshots_${ctid}_$(sanitize "$name")"
 
     snap_count="$(timeout "${PVE_TIMEOUT}" pct listsnapshot "$ctid" 2>/dev/null | awk 'NR>1 && NF>0{c++} END{print c+0}')"
-    echo "0 ${svc_base}_Count count=${snap_count} OK - ${snap_count} snapshots"
+    if [[ "$snap_count" -eq 0 ]]; then
+      echo "2 ${svc_base}_Count count=0 CRIT - 0 snapshots"
+    elif [[ "$snap_count" -eq 1 ]]; then
+      echo "1 ${svc_base}_Count count=1 WARN - 1 snapshot"
+    else
+      echo "0 ${svc_base}_Count count=${snap_count} OK - ${snap_count} snapshots"
+    fi
   done
 fi
 
