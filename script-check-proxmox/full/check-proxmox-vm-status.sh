@@ -35,7 +35,7 @@ check_vm_status() {
             
             echo "0 $vm_name_upper - Running (Uptime: $uptime_formatted)"
         elif [[ "$status" == "stopped" ]]; then
-            echo "1 $vm_name_upper - Stopped"
+            echo "0 $vm_name_upper - Stopped"
         else
             echo "2 $vm_name_upper - Status: $status"
         fi
@@ -53,7 +53,7 @@ check_lxc_status() {
             
             echo "0 $lxc_name_upper - Running (Uptime: $uptime_formatted)"
         elif [[ "$status" == "stopped" ]]; then
-            echo "1 $lxc_name_upper - Stopped"
+            echo "0 $lxc_name_upper - Stopped"
         else
             echo "2 $lxc_name_upper - Status: $status"
         fi
