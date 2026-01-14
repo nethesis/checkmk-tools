@@ -3,8 +3,6 @@ set -euo pipefail
 
 PVE_TIMEOUT=30
 
-echo "<<<local>>>"
-
 if ! command -v pvesh >/dev/null 2>&1; then
   echo "3 PVE_Top_Consumers - pvesh not found"
   exit 0

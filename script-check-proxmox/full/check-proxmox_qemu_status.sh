@@ -3,8 +3,6 @@ set -u
 
 PVE_TIMEOUT=8
 
-echo "<<<local>>>"
-
 if ! command -v qm >/dev/null 2>&1; then
   echo "3 PVE_QEMU - qm command not found"
   exit 0

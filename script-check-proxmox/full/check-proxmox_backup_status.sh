@@ -3,8 +3,6 @@ set -euo pipefail
 
 PVE_TIMEOUT=5
 
-echo "<<<local>>>"
-
 INDEX="/var/log/pve/tasks/index"
 INDEX1="/var/log/pve/tasks/index.1"
 

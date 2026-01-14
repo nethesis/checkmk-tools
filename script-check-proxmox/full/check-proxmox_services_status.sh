@@ -3,8 +3,6 @@ set -euo pipefail
 
 PVE_TIMEOUT=5
 
-echo "<<<local>>>"
-
 if ! command -v systemctl >/dev/null 2>&1; then
   echo "3 PVE_Services - systemctl not found"
   exit 0

@@ -3,8 +3,6 @@ set -euo pipefail
 
 PVE_TIMEOUT=5
 
-echo "<<<local>>>"
-
 if ! command -v pvesm >/dev/null 2>&1; then
   echo "3 PVE_Storage - pvesm command not found"
   exit 0

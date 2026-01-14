@@ -3,8 +3,6 @@ set -euo pipefail
 
 PVE_TIMEOUT=5
 
-echo "<<<local>>>"
-
 # Thresholds (percent)
 CPU_WARN=85
 CPU_CRIT=95
