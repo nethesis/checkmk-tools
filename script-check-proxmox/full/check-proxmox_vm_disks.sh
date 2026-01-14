@@ -6,8 +6,6 @@ set -euo pipefail
 
 PVE_TIMEOUT=30
 
-echo "<<<proxmox_vm_disks>>>"
-
 # Check VM disks
 timeout "${PVE_TIMEOUT}" qm list 2>/dev/null | awk 'NR>1 {print $1, $2}' | while IFS=' ' read -r vmid name; do
     disk_info=$(timeout "${PVE_TIMEOUT}" qm config "$vmid" 2>/dev/null | grep -E '^(scsi|ide|sata|virtio)[0-9]:' || true)
