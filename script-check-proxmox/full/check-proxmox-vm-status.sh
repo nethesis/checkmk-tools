@@ -30,7 +30,8 @@ check_vm_status() {
         vm_name_upper="STATUS_VM_${vmid}_$(echo "$name" | tr '[:lower:]' '[:upper:]')"
         
         if [[ "$status" == "running" ]]; then
-            uptime_seconds=$(timeout "${PVE_TIMEOUT}" qm status "$vmid" 2>/dev/null | grep -oP 'uptime \K[0-9]+' || echo 0)
+            uptime_seconds=$(timeout "${PVE_TIMEOUT}" qm status "$vmid" --verbose 2>/dev/null | awk '/^uptime:/ {print $2}')
+            [[ -z "$uptime_seconds" ]] && uptime_seconds=0
             uptime_formatted=$(format_uptime "$uptime_seconds")
             
             echo "0 $vm_name_upper - Running (Uptime: $uptime_formatted)"
@@ -48,7 +49,8 @@ check_lxc_status() {
         lxc_name_upper="STATUS_CT_${ctid}_$(echo "$name" | tr '[:lower:]' '[:upper:]')"
         
         if [[ "$status" == "running" ]]; then
-            uptime_seconds=$(timeout "${PVE_TIMEOUT}" pct status "$ctid" 2>/dev/null | grep -oP 'uptime \K[0-9]+' || echo 0)
+            uptime_seconds=$(timeout "${PVE_TIMEOUT}" pct status "$ctid" --verbose 2>/dev/null | awk '/^uptime:/ {print $2}')
+            [[ -z "$uptime_seconds" ]] && uptime_seconds=0
             uptime_formatted=$(format_uptime "$uptime_seconds")
             
             echo "0 $lxc_name_upper - Running (Uptime: $uptime_formatted)"
