@@ -3,8 +3,6 @@ set -euo pipefail
 
 PVE_TIMEOUT=30
 
-echo '<<<local>>>'
-
 WARN_DAYS=14
 CRIT_DAYS=30
 
