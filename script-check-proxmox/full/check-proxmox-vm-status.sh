@@ -35,7 +35,7 @@ check_vm_status() {
             
             echo "0 $vm_name_upper - Running (Uptime: $uptime_formatted)"
         elif [[ "$status" == "stopped" ]]; then
-            echo "1 $vm_name_upper - Stopped"
+            echo "2 $vm_name_upper - Stopped"
         else
             echo "2 $vm_name_upper - Status: $status"
         fi
@@ -44,7 +44,7 @@ check_vm_status() {
 
 # Check LXC status
 check_lxc_status() {
-    timeout "${PVE_TIMEOUT}" pct list 2>/dev/null | awk 'NR>1 {print $1, $2, $3}' | while IFS=' ' read -r ctid name status; do
+    timeout "${PVE_TIMEOUT}" pct list 2>/dev/null | awk 'NR>1 {print $1, $3, $2}' | while IFS=' ' read -r ctid name status; do
         lxc_name_upper="STATUS_CT_${ctid}_$(echo "$name" | tr '[:lower:]' '[:upper:]')"
         
         if [[ "$status" == "running" ]]; then
@@ -53,7 +53,7 @@ check_lxc_status() {
             
             echo "0 $lxc_name_upper - Running (Uptime: $uptime_formatted)"
         elif [[ "$status" == "stopped" ]]; then
-            echo "1 $lxc_name_upper - Stopped"
+            echo "2 $lxc_name_upper - Stopped"
         else
             echo "2 $lxc_name_upper - Status: $status"
         fi
