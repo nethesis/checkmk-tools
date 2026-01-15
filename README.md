@@ -63,43 +63,101 @@ checkmk-tools/
 │   └── polling/
 │
 ├── script-check-ns7/              # Script check per NethServer 7
-│   ├── nopolling/                 # Check senza polling (eventi, sessioni)
-│   └── polling/                   # Check con polling (metriche)
+│   ├── doc/                       # Documentazione
+│   ├── full/                      # Script completi standalone
+│   └── remote/                    # Remote wrapper con auto-update
 │
 ├── script-check-ns8/              # Script check per NethServer 8
-│   ├── nopolling/                 # Podman events, SOS monitor
-│   └── polling/
+│   ├── doc/                       # Documentazione
+│   ├── full/                      # Script completi (Podman, Webtop, Tomcat)
+│   └── remote/                    # Remote wrapper
+│
+├── script-check-nsec8/            # Script check per NethSecurity 8
+│   ├── doc/                       # Documentazione
+│   ├── full/                      # Script completi
+│   └── remote/                    # Remote wrapper
 │
 ├── script-check-ubuntu/           # Script check per Ubuntu/Linux
-│   ├── nopolling/
-│   └── polling/
+│   ├── doc/                       # Documentazione
+│   ├── full/                      # Script completi (SSH, Fail2ban, Disk)
+│   ├── remote/                    # Remote wrapper
+│   └── deploy-ssh-checks.sh       # Deploy automatico check SSH
 │
-├── Proxmox/                       # Script check per Proxmox VE
-│   ├── nopolling/                 # VM status, snapshot status, disks
-│   └── polling/
+├── script-check-proxmox/          # Script check per Proxmox VE
+│   ├── doc/                       # Documentazione
+│   ├── full/                      # Script completi API Proxmox
+│   └── remote/                    # Remote wrapper
 │
 ├── script-notify-checkmk/         # Script notifica personalizzati
-│   ├── mail_realip*               # Email con IP reale + grafici
-│   ├── telegram_realip            # Telegram con detection FRP
-│   ├── backup_and_deploy.sh       # Deploy automatico con backup
-│   └── TESTING_GUIDE.md
+│   ├── doc/                       # Documentazione
+│   ├── full/                      # Script notifica completi
+│   │   ├── mail_realip*           # Email con IP reale + grafici
+│   │   ├── telegram_*             # Notifiche Telegram
+│   │   ├── ydea_*                 # Integrazione Ydea ticketing
+│   │   └── dump_env               # Utility debug environment
+│   └── remote/                    # Remote wrapper
 │
 ├── script-tools/                  # Tool deployment e utility
-│   ├── smart-deploy-hybrid.sh     # Deploy intelligente multi-host
-│   ├── deploy-plain-agent*.sh     # Deploy agent CheckMK
-│   ├── install-frpc*.sh           # Installazione FRP client
-│   └── scan-nmap*.sh              # Scanner rete interattivo
+│   ├── doc/                       # Documentazione
+│   ├── full/                      # Tool completi
+│   │   ├── smart-deploy-hybrid.sh     # Deploy intelligente multi-host
+│   │   ├── deploy-monitoring-scripts.sh  # ⭐ Deploy interattivo OS-aware
+│   │   ├── deploy-plain-agent*.sh     # Deploy agent CheckMK
+│   │   ├── install-frpc*.sh           # Installazione FRP client
+│   │   ├── install-agent-interactive.sh  # Installazione agent interattiva
+│   │   ├── checkmk-tuning-interactive*.sh  # Tuning CheckMK
+│   │   ├── checkmk-optimize.sh        # Ottimizzazione CheckMK
+│   │   ├── scan-nmap*.sh              # Scanner rete interattivo
+│   │   ├── auto-git-sync.sh           # Sync automatico repository
+│   │   ├── increase-swap.sh           # Gestione swap
+│   │   └── upgrade-checkmk.sh         # Upgrade CheckMK
+│   ├── remote/                    # Remote wrapper
+│   ├── auto-git-sync.service      # Systemd service per sync
+│   └── install-auto-git-sync.sh   # Installazione sync automatico
 │
-├── Install/                       # Guide installazione CheckMK
-│   └── install-cmk8/
+├── install/                       # Installazione e bootstrap
+│   ├── bootstrap-installer.sh     # Bootstrap installer CheckMK
+│   ├── make-bootstrap-iso.sh      # Creazione ISO bootstrap
+│   ├── install-cmk8/              # Guide installazione CheckMK 8
+│   ├── checkmk-installer/         # Installer CheckMK personalizzato
+│   └── Agent-FRPC/                # Installer Agent + FRPC combinato
 │
-├── deploy script/                 # Script deployment legacy
+├── fix/                           # Script fix e correzioni
+│   ├── full/                      # Script fix completi
+│   └── remote/                    # Remote wrapper
+│
+├── Ydea-Toolkit/                  # 🎫 Integrazione Ydea Ticketing
+│   ├── doc/                       # Documentazione completa
+│   ├── full/                      # Script completi integrazione
+│   │   ├── ydea-toolkit.sh        # ⭐ Toolkit principale
+│   │   ├── ydea-monitoring-integration.sh  # Integrazione CheckMK
+│   │   ├── create-monitoring-ticket.sh     # Creazione ticket
+│   │   ├── ydea-discover-sla-ids.sh        # Discovery SLA
+│   │   ├── install-ydea-checkmk-integration.sh  # Installazione
+│   │   └── test-*.sh              # Script test
+│   ├── remote/                    # Remote wrapper
+│   ├── config/                    # File configurazione
+│   ├── README.md                  # Guida principale
+│   └── README-*.md                # Guide specifiche
+│
+├── tools/                         # Utility Python
+│   ├── fix_bash_syntax_corruption.py  # Fix corruzione sintassi
+│   └── fix_mojibake_cp437.py          # Fix encoding CP437
+│
 ├── test script/                   # Script test e verifica
 │
-└── *.ps1                          # Script automazione PowerShell
-    ├── backup-*.ps1               # Sistema backup automatico
-    ├── setup-*.ps1                # Setup automazione e configurazione
-    └── quick-*.ps1                # Utility quick-access
+├── *.ps1                          # Script automazione PowerShell
+│   ├── backup-*.ps1               # Sistema backup automatico
+│   ├── setup-*.ps1                # Setup automazione e configurazione
+│   └── quick-*.ps1                # Utility quick-access
+│
+└── Root Scripts/                  # Script bash root directory
+    ├── launcher.sh                # Launcher principale
+    ├── deploy-from-repo.sh        # Deploy da repository
+    ├── diagnose-auto-git-sync.sh  # Diagnostica sync automatico
+    ├── debug-monitor.sh           # Debug monitoring
+    ├── update-deployed-launchers.sh  # Aggiorna launcher deployati
+    └── distributed-monitoring-setup.sh  # Setup monitoring distribuito
 ```
 
 ---
@@ -145,9 +203,14 @@ notepad C:\ProgramData\checkmk\agent\local\ransomware_config.json
 
 ### NethServer 7
 
-**Directory**: `script-check-ns7/nopolling/`
+**Directory**: `script-check-ns7/`
 
 Monitoraggio completo per NethServer 7 (CentOS 7 based).
+
+**Struttura**:
+- `full/` - Script completi standalone
+- `remote/` - Remote wrapper con auto-update da GitHub
+- `doc/` - Documentazione specifica
 
 #### Script Disponibili
 
@@ -170,25 +233,38 @@ Monitoraggio completo per NethServer 7 (CentOS 7 based).
 | `check-sos-ns7.sh` | Report sosreport NS7 | Report generation |
 | `check-sosid-ns7.sh` | ID caso sosreport | Case tracking |
 | `check-pkg-install.sh` | Pacchetti installati | Package count |
+| `check_ransomware_ns7.sh` | Rilevamento ransomware NS7 | File sospetti |
+| `check_fail2ban_status.sh` | Stato Fail2ban | Service status |
+| `check_ssh_all_sessions.sh` | Tutte sessioni SSH | Session count |
 
 **Pattern**: Ogni script ha il suo remote wrapper `rcheck_*.sh` con auto-update da GitHub.
+
+**Nota**: Gli script in `full/` sono standalone, quelli in `remote/` sono wrapper che scaricano automaticamente la versione latest da GitHub.
 
 ---
 
 ### NethServer 8
 
-**Directory**: `script-check-ns8/nopolling/`
+**Directory**: `script-check-ns8/`
 
 Monitoraggio per NethServer 8 (Podman/Container based).
+
+**Struttura**:
+- `full/` - Script completi per monitoraggio container e servizi
+- `remote/` - Remote wrapper con auto-update
+- `doc/` - Documentazione
 
 #### Script Disponibili
 
 | Script | Descrizione | Funzionalità |
-|--------|-------------|--------------|
+|--------|-------------|-------------|
 | `monitor_podman_events.sh` | Monitor eventi Podman real-time | Container start/stop/die |
+| `check_podman_events.sh` | Check eventi Podman | Event detection |
+| `check_ns8_containers.sh` | Stato container NS8 | Container health |
+| `check_ns8_services.sh` | Stato servizi NS8 | Service monitoring |
+| `check_ns8_webtop.sh` | Monitoraggio Webtop NS8 | Webtop status |
+| `check_ns8_tomcat8.sh` | Monitoraggio Tomcat8 NS8 | Tomcat status |
 | `check-sos.sh` | Generazione report SOS NS8 | Diagnostic report |
-| `rmonitor_podman_events.sh` | Remote wrapper eventi Podman | Auto-update |
-| `rcheck-sos.sh` | Remote wrapper SOS | Auto-update |
 
 **Note**: NethServer 8 usa architettura container-based, gli script sono ottimizzati per Podman.
 
@@ -200,13 +276,49 @@ Monitoraggio per NethServer 8 (Podman/Container based).
 
 Script check generici per distribuzioni Ubuntu/Debian.
 
-**Note**: Directory pronta per nuovi script di monitoraggio Linux generico.
+**Struttura**:
+- `full/` - Script completi per Ubuntu/Debian
+- `remote/` - Remote wrapper
+- `doc/` - Documentazione
+- `deploy-ssh-checks.sh` - Deploy automatico check SSH
+
+#### Script Disponibili
+
+| Script | Descrizione | Metriche |
+|--------|-------------|----------|
+| `check_ssh_root_logins.sh` | Login root SSH | Failed attempts |
+| `check_ssh_root_sessions.sh` | Sessioni root attive | Active sessions |
+| `check_ssh_all_sessions.sh` | Tutte le sessioni SSH | Total sessions |
+| `check_fail2ban_status.sh` | Stato Fail2ban | Ban count, status |
+| `check_disk_space.sh` | Spazio disco | Disk usage |
+| `mk_logwatch` | Monitoraggio log | Log parsing |
+
+**Deploy Quick Start**:
+```bash
+# Deploy automatico check SSH
+./deploy-ssh-checks.sh
+```
+
+---
+
+### NethSecurity 8
+
+**Directory**: `script-check-nsec8/`
+
+Monitoraggio per NethSecurity 8 (Firewall NethServer 8 based).
+
+**Struttura**:
+- `full/` - Script completi per NethSecurity
+- `remote/` - Remote wrapper con auto-update
+- `doc/` - Documentazione specifica
+
+**Note**: NethSecurity 8 è la distribuzione firewall basata su NethServer 8, include monitoraggio specifico per servizi firewall.
 
 ---
 
 ### Proxmox
 
-**Directory**: `Proxmox/nopolling/`
+**Directory**: `script-check-proxmox/`
 
 Monitoraggio Proxmox Virtual Environment tramite API.
 
@@ -233,7 +345,12 @@ Monitoraggio Proxmox Virtual Environment tramite API.
 
 **Directory**: `script-notify-checkmk/`
 
-Sistema avanzato di notifiche CheckMK con supporto FRP (Fast Reverse Proxy).
+Sistema avanzato di notifiche CheckMK con supporto FRP (Fast Reverse Proxy) e integrazione Ydea ticketing.
+
+**Struttura**:
+- `full/` - Script notifica completi
+- `remote/` - Remote wrapper
+- `doc/` - Documentazione e guide test
 
 ### Features Principali
 
@@ -267,7 +384,11 @@ Email HTML con grafici performance inclusi automaticamente:
 | `mail_realip` | Email base Real IP | Minimal |
 | `mail_realip_html` | Email HTML Real IP | No graphs |
 | `telegram_realip` | Telegram Real IP | Bot integration |
-| `backup_and_deploy.sh` | Deploy automatico con backup | 🔧 Tool |
+| `telegram_selfmon` | Telegram self-monitoring | Self-check |
+| `ydea_ag` | Integrazione Ydea AG | Ticketing AG |
+| `ydea_la` | Integrazione Ydea LA | Ticketing LA |
+| `mail_ydea_down` | Email notifica host down Ydea | Host down |
+| `dump_env` | Dump environment variables | 🔧 Debug |
 
 ### Deployment
 
@@ -294,9 +415,16 @@ ls -la local/share/check_mk/notifications/
 
 **Directory**: `script-tools/`
 
-Utility per deployment automatizzato CheckMK Agent e script.
+Utility per deployment automatizzato CheckMK Agent, script e gestione infrastruttura.
 
-### 🎯 Deploy Monitoring Scripts (NUOVO)
+**Struttura**:
+- `full/` - Tool completi per deployment e gestione
+- `remote/` - Remote wrapper
+- `doc/` - Documentazione tool
+- `auto-git-sync.service` - Systemd service per sync automatico
+- `install-auto-git-sync.sh` - Installazione sync automatico repository
+
+### 🎯 Deploy Monitoring Scripts
 
 Script interattivo per deployment selettivo di monitoring scripts su host remoti.
 
@@ -383,12 +511,216 @@ Installazione e configurazione CheckMK Agent.
 | `install-frpc2.sh` | Installazione FRP v2 |
 | `install-frpc-dryrun.sh` | Test senza modifiche |
 
+### Ottimizzazione e Tuning CheckMK
+
+| Script | Descrizione |
+|--------|-------------|
+| `checkmk-tuning-interactive-v5.sh` | Tuning interattivo CheckMK (latest) |
+| `checkmk-tuning-interactive*.sh` | Versioni precedenti tuning |
+| `checkmk-optimize.sh` | Ottimizzazione automatica CheckMK |
+| `install-checkmk-log-optimizer.sh` | Ottimizzatore log CheckMK |
+| `upgrade-checkmk.sh` | Upgrade CheckMK automatizzato |
+
+### Gestione Agent
+
+| Script | Descrizione |
+|--------|-------------|
+| `install-agent-interactive.sh` | Installazione agent interattiva |
+| `update-all-scripts.sh` | Aggiornamento script da repository |
+| `update-scripts-from-repo.sh` | Update specifici script |
+
+### Automazione Repository
+
+| Script | Descrizione |
+|--------|-------------|
+| `auto-git-sync.sh` | Sync automatico repository |
+| `install-auto-git-sync.sh` | Installazione sync come servizio |
+
 ### Network Scanner
 
 | Script | Descrizione |
 |--------|-------------|
 | `scan-nmap-interattivo-verbose.sh` | Scanner Nmap interattivo |
 | `scan-nmap-interattivo-verbose-multi-options.sh` | Scanner con opzioni avanzate |
+
+### Sistema e Utility
+
+| Script | Descrizione |
+|--------|-------------|
+| `increase-swap.sh` | Gestione e aumento swap |
+| `setup-auto-updates.sh` | Setup aggiornamenti automatici |
+| `setup-auto-upgrade-checkmk.sh` | Setup upgrade automatico CheckMK |
+| `smart-wrapper-template.sh` | Template per wrapper intelligenti |
+| `smart-wrapper-example.sh` | Esempio wrapper con cache |
+
+---
+
+## 🎫 Ydea Toolkit - Integrazione Ticketing
+
+**Directory**: `Ydea-Toolkit/`
+
+Integrazione completa tra CheckMK e sistema di ticketing Ydea per creazione automatica ticket di monitoraggio.
+
+**Struttura**:
+- `full/` - Script completi integrazione
+- `remote/` - Remote wrapper
+- `config/` - File configurazione
+- `doc/` - Documentazione dettagliata
+
+### Features Principali
+
+#### 🎯 Funzionalità Core
+- 🎫 **Creazione ticket automatica** da eventi CheckMK
+- 🔍 **Discovery SLA** automatico da contratti
+- 📊 **Monitoring ticket** aperti e in corso
+- 🏥 **Health monitor** stato integrazione
+- 🔧 **Toolkit completo** per gestione API Ydea
+
+### Script Disponibili
+
+#### Integrazione CheckMK
+| Script | Descrizione |
+|--------|-------------|
+| `ydea-monitoring-integration.sh` | ⭐ Integrazione completa CheckMK-Ydea |
+| `install-ydea-checkmk-integration.sh` | Installazione automatica integrazione |
+| `ydea-health-monitor.sh` | Monitor stato integrazione |
+| `ydea-ticket-monitor.sh` | Monitor ticket aperti |
+
+#### Gestione Ticket
+| Script | Descrizione |
+|--------|-------------|
+| `create-monitoring-ticket.sh` | Creazione ticket da eventi |
+| `create-ticket-ita.sh` | Creazione ticket in italiano |
+| `get-ticket-by-id.sh` | Recupera ticket per ID |
+| `get-full-ticket.sh` | Dettagli completi ticket |
+| `search-ticket-by-code.sh` | Ricerca ticket per codice |
+
+#### Discovery e Analisi
+| Script | Descrizione |
+|--------|-------------|
+| `ydea-discover-sla-ids.sh` | Discovery automatico SLA da contratti |
+| `search-sla-in-contracts.sh` | Ricerca SLA nei contratti |
+| `analyze-custom-attributes.sh` | Analisi attributi custom |
+| `analyze-ticket-data.sh` | Analisi dati ticket |
+
+#### API e Testing
+| Script | Descrizione |
+|--------|-------------|
+| `ydea-toolkit.sh` | ⭐ Toolkit principale API Ydea |
+| `explore-ydea-api.sh` | Esplora API Ydea |
+| `explore-anagrafica.sh` | Esplora anagrafica clienti |
+| `quick-test-ydea-api.sh` | Test rapido API |
+| `test-ydea-integration.sh` | Test integrazione completa |
+| `test-ticket-with-contract.sh` | Test ticket con contratto |
+
+### Quick Start
+
+```bash
+# 1. Installazione integrazione
+cd Ydea-Toolkit/full
+./install-ydea-checkmk-integration.sh
+
+# 2. Configurazione (modifica con le tue credenziali)
+cp .env.example .env
+vim .env
+
+# 3. Discovery SLA automatico
+./ydea-discover-sla-ids.sh
+
+# 4. Test creazione ticket
+./create-monitoring-ticket.sh \
+    --host "server01" \
+    --service "CPU Load" \
+    --state "CRITICAL" \
+    --output "CPU al 95%"
+
+# 5. Monitor health integrazione
+./ydea-health-monitor.sh
+```
+
+### Documentazione
+
+- 📖 **[README.md](Ydea-Toolkit/README.md)** - Guida principale
+- 📖 **[README-FULL.md](Ydea-Toolkit/README-FULL.md)** - Documentazione completa
+- 📖 **[README-REMOTE.md](Ydea-Toolkit/README-REMOTE.md)** - Remote wrapper
+- 📖 **[README-CHECKMK-INTEGRATION.md](Ydea-Toolkit/README-CHECKMK-INTEGRATION.md)** - Guida integrazione
+- 📖 **[README-MONITORING-TICKETS.md](Ydea-Toolkit/README-MONITORING-TICKETS.md)** - Gestione ticket monitoraggio
+- 📖 **[README-SLA-DISCOVERY.md](Ydea-Toolkit/README-SLA-DISCOVERY.md)** - Discovery SLA
+- 📖 **[RICERCA-SLA-API.md](Ydea-Toolkit/RICERCA-SLA-API.md)** - Ricerca SLA via API
+
+### Configurazione
+
+**File richiesti**:
+- `.env` - Credenziali API Ydea
+- `sla-premium-mon-ids.example.json` - Template mapping SLA-ID
+
+**Variabili ambiente**:
+```bash
+YDEA_API_URL="https://api.ydea.it"
+YDEA_API_KEY="your-api-key"
+YDEA_API_SECRET="your-secret"
+```
+
+---
+
+## 🔧 Directory Utility
+
+### Install - Installazione e Bootstrap
+
+**Directory**: `install/`
+
+Script per installazione e bootstrap CheckMK e componenti.
+
+| Script/Directory | Descrizione |
+|------------------|-------------|
+| `bootstrap-installer.sh` | Bootstrap installer CheckMK |
+| `make-bootstrap-iso.sh` | Creazione ISO bootstrap |
+| `install-cmk8/` | Guide installazione CheckMK 8 |
+| `checkmk-installer/` | Installer personalizzato CheckMK |
+| `Agent-FRPC/` | Installer combinato Agent + FRPC |
+
+### Fix - Correzioni e Riparazioni
+
+**Directory**: `fix/`
+
+Script per correzione problemi comuni.
+
+**Struttura**:
+- `full/` - Script fix completi
+- `remote/` - Remote wrapper
+
+### Tools - Utility Python
+
+**Directory**: `tools/`
+
+Utility Python per fix avanzati.
+
+| Script | Descrizione |
+|--------|-------------|
+| `fix_bash_syntax_corruption.py` | Fix corruzione sintassi bash |
+| `fix_mojibake_cp437.py` | Fix encoding CP437 (mojibake) |
+
+### Root Scripts
+
+**Directory root**
+
+Script bash utility nella root del repository.
+
+| Script | Descrizione |
+|--------|-------------|
+| `launcher.sh` | Launcher principale script |
+| `launcher_remote_script.sh` | Launcher per script remoti |
+| `deploy-from-repo.sh` | Deploy da repository |
+| `rdeploy-from-repo.sh` | Remote deploy |
+| `diagnose-auto-git-sync.sh` | Diagnostica sync automatico |
+| `rdiagnose-auto-git-sync.sh` | Remote diagnostica |
+| `debug-monitor.sh` | Debug monitoring |
+| `update-deployed-launchers.sh` | Aggiorna launcher deployati |
+| `update-remote-urls.ps1` | Aggiorna URL remoti |
+| `distributed-monitoring-setup.sh` | Setup monitoring distribuito |
+| `check-distributed-monitoring-prerequisites.sh` | Verifica prerequisiti |
+| `update-crontab-frequency.sh` | Aggiorna frequenza crontab |
+| `test-log-events.sh` | Test eventi log |
 
 ---
 
@@ -646,26 +978,42 @@ exec(open('mail_realip_hybrid').read())
 
 ### Script Count
 
-| Categoria | Check Scripts | Remote Wrappers | Total |
-|-----------|---------------|-----------------|-------|
-| Windows | 1 | 1 | 2 |
-| NethServer 7 | 17 | 17 | 34 |
-| NethServer 8 | 2 | 2 | 4 |
-| Proxmox | 5 | 5 | 10 |
-| **Totale Check** | **25** | **25** | **50** |
+| Categoria | Script Full | Remote Wrappers | Total |
+|-----------|-------------|-----------------|-------|
+| Windows | 2+ | 2+ | 4+ |
+| NethServer 7 | 20 | 20+ | 40+ |
+| NethServer 8 | 7 | 7+ | 14+ |
+| NethSecurity 8 | 3+ | 3+ | 6+ |
+| Ubuntu/Linux | 6 | 6+ | 12+ |
+| Proxmox | 5 | 5+ | 10+ |
+| **Totale Check** | **43+** | **43+** | **86+** |
 
 | Categoria | Scripts | Descrizione |
 |-----------|---------|-------------|
-| Notifiche | 8 | Email + Telegram |
-| Deploy Tools | 10+ | Smart deploy, agent install |
-| Automazione | 15+ | Backup, setup, utility |
-| Test | 5+ | Test suite e validazione |
+| Notifiche | 11+ | Email + Telegram + Ydea |
+| Deploy Tools | 28+ | Smart deploy, agent install, tuning |
+| Ydea Toolkit | 30+ | Integrazione ticketing completa |
+| Install/Bootstrap | 5+ | Installer e bootstrap |
+| Fix/Tools | 3+ | Utility correzione |
+| Root Scripts | 12+ | Launcher, deploy, diagnostica |
+| Test | 10+ | Test suite e validazione |
 
 ### Lingue
 
-- 🔷 **PowerShell**: ~40% (Windows scripts, automazione)
-- 🟢 **Bash**: ~50% (Linux scripts, deploy)
-- 🐍 **Python**: ~10% (Notifiche CheckMK)
+- 🔷 **PowerShell**: ~25% (Windows scripts, automazione)
+- 🟢 **Bash**: ~65% (Linux scripts, deploy, tools)
+- 🐍 **Python**: ~10% (Notifiche CheckMK, utility)
+
+### Copertura Piattaforme
+
+- ✅ **Windows Server** (PowerShell scripts)
+- ✅ **NethServer 7** (CentOS 7 based)
+- ✅ **NethServer 8** (Container/Podman based)
+- ✅ **NethSecurity 8** (Firewall)
+- ✅ **Ubuntu/Debian** (Script generici Linux)
+- ✅ **Proxmox VE** (Virtualizzazione)
+- ✅ **CheckMK** (Notifiche, tuning, deploy)
+- ✅ **Ydea** (Sistema ticketing)
 
 ---
 
@@ -801,22 +1149,39 @@ Grazie a tutti i contributori che hanno aiutato a migliorare questa collezione!
 
 ## 🗺️ Roadmap
 
+### ✅ Completato (v2.0)
+
+- [x] **Ydea Toolkit**: Integrazione completa ticketing
+- [x] **NethSecurity 8**: Monitoraggio firewall
+- [x] **Ubuntu/Linux**: Script completi SSH, Fail2ban, Disk
+- [x] **NS8 Enhanced**: Monitoraggio container, Webtop, Tomcat
+- [x] **Deploy Tools**: Tuning interattivo, ottimizzazione
+- [x] **Automazione**: Git sync automatico
+
 ### In Sviluppo
 
 - [ ] **Script Windows**:
   - [ ] check_windows_updates.ps1
   - [ ] check_iis_sites.ps1
   - [ ] check_active_directory.ps1
+  - [ ] check_windows_services_extended.ps1
 
 - [ ] **Script Linux**:
-  - [ ] check_docker_containers.sh
+  - [ ] check_lvm_snapshots.sh
   - [ ] check_systemd_failed.sh
   - [ ] check_cert_expiry.sh
+  - [ ] check_docker_compose.sh
 
 - [ ] **Notifiche**:
   - [ ] Slack integration
   - [ ] Microsoft Teams webhook
   - [ ] Discord notifications
+  - [ ] PagerDuty integration
+
+- [ ] **Ydea Enhanced**:
+  - [ ] Auto-close ticket resolved
+  - [ ] SLA tracking automatico
+  - [ ] Report mensili automatici
 
 ### Pianificato
 
@@ -829,7 +1194,18 @@ Grazie a tutti i contributori che hanno aiutato a migliorare questa collezione!
 
 ## 📅 Changelog
 
-### v1.5.0 (Current)
+### v2.0.0 (Current - Gennaio 2026)
+- ✅ **Ydea Toolkit completo**: Integrazione ticketing con 30+ script
+- ✅ **NethSecurity 8**: Supporto completo firewall NS8
+- ✅ **Ubuntu/Linux enhanced**: 6 script monitoraggio (SSH, Fail2ban, Disk)
+- ✅ **NS8 monitoring esteso**: Container, Webtop, Tomcat, servizi
+- ✅ **Deploy tools avanzati**: 28+ tool deployment e ottimizzazione
+- ✅ **CheckMK tuning**: Script interattivi ottimizzazione v2-v5
+- ✅ **Git sync automatico**: Automazione repository con systemd
+- ✅ **Directory riorganizzate**: Struttura full/remote/doc standardizzata
+- ✅ **Documentazione completa**: 15+ README specifici
+
+### v1.5.0
 - ✅ Aggiunto ransomware detection per Windows
 - ✅ Ridotto cache timeout wrapper (60s)
 - ✅ Migliorato error handling script notifica
@@ -869,4 +1245,4 @@ Grazie a tutti i contributori che hanno aiutato a migliorare questa collezione!
 
 ---
 
-*Ultimo aggiornamento: Ottobre 2025*
+*Ultimo aggiornamento: Gennaio 2026*
