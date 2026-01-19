@@ -64,10 +64,17 @@ echo "0 $SERVICE - $NOW root logout from $ip"
 fi
 
 
-# se nessun evento, mostra numero sessioni attuali
+# se nessun evento, mostra numero sessioni attuali con soglie
 if [ -z "$NEW_LOGINS" ] && [ -z "$LOGOUTS" ]; then
-    COUNT=$(
-echo "$CURR_IPS" | wc -w)
+    COUNT=$(echo "$CURR_IPS" | wc -w)
     
-echo "0 $SERVICE - $COUNT root session(s) active"
+    if [ "$COUNT" -eq 0 ]; then
+        echo "0 $SERVICE - no root sessions"
+    elif [ "$COUNT" -le 5 ]; then
+        echo "1 $SERVICE - $COUNT root session(s) active"
+    elif [ "$COUNT" -le 14 ]; then
+        echo "2 $SERVICE - $COUNT root session(s) active"
+    else
+        echo "2 $SERVICE - $COUNT root session(s) active"
+    fi
 fi
