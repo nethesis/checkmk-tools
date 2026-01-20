@@ -298,21 +298,32 @@ fi
 # Cleanup old remote backups
 if [[ "$RETENTION_DAYS_REMOTE" -gt 0 ]]; then
   log "Cleaning up remote backups older than ${RETENTION_DAYS_REMOTE} days..."
+  now=$(date +%s)
+  
   # List all items in remote site path
   rclone lsf "$REMOTE_SITE_PATH" --format "tp" --separator $'\t' "${COMMON_OPTS[@]}" 2>/dev/null | while IFS=$'\t' read -r timestamp path; do
-    # Calculate age in seconds
-    now=$(date +%s)
-    file_time=$(date -d "$timestamp" +%s 2>/dev/null || echo "$now")
-    age_days=$(( (now - file_time) / 86400 ))
-    
-    if [[ $age_days -gt $RETENTION_DAYS_REMOTE ]]; then
-      log "Deleting remote backup (${age_days} days old): $path"
-      if [[ "$path" == */ ]]; then
-        # It's a directory
-        rclone purge "${REMOTE_SITE_PATH}/${path%/}" "${COMMON_OPTS[@]}" 2>/dev/null || true
-      else
-        # It's a file
-        rclone delete "${REMOTE_SITE_PATH}/${path}" "${COMMON_OPTS[@]}" 2>/dev/null || true
+    # Parse timestamp (rclone format: 2026-01-20 19:23:46)
+    # Convert to epoch for age calculation
+    if [[ -n "$timestamp" ]]; then
+      file_time=$(date -d "$timestamp" +%s 2>/dev/null || echo "0")
+      
+      # Skip if parsing failed
+      if [[ "$file_time" -eq 0 ]]; then
+        log "WARNING: Could not parse timestamp for $path: $timestamp"
+        continue
+      fi
+      
+      age_days=$(( (now - file_time) / 86400 ))
+      
+      if [[ $age_days -gt $RETENTION_DAYS_REMOTE ]]; then
+        log "Deleting remote backup (${age_days} days old): $path"
+        if [[ "$path" == */ ]]; then
+          # It's a directory
+          rclone purge "${REMOTE_SITE_PATH}/${path%/}" "${COMMON_OPTS[@]}" 2>/dev/null || true
+        else
+          # It's a file
+          rclone delete "${REMOTE_SITE_PATH}/${path}" "${COMMON_OPTS[@]}" 2>/dev/null || true
+        fi
       fi
     fi
   done || true
