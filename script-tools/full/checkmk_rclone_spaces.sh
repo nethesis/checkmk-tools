@@ -145,37 +145,40 @@ install_rclone_stable() {
 }
 
 ensure_fuse_allow_other() {
-  log "Ensuring /etc/fuse.conf enables user_allow_other (cleanly)..."
+  log "Ensuring /etc/fuse.conf enables user_allow_other..."
   
   if [[ ! -f /etc/fuse.conf ]]; then
     die "/etc/fuse.conf not found (install fuse3)."
   fi
-
-  log "Checking current fuse.conf content..."
   
-  # Backup original
-  cp /etc/fuse.conf /etc/fuse.conf.backup.$(date +%s) || true
+  log "fuse.conf found, checking content..."
 
-  # Remove any commented or malformed user_allow_other lines with flags
-  sed -i.bak1 's/^user_allow_other[[:space:]]\+-/# user_allow_other -/' /etc/fuse.conf || true
-
-  # Uncomment user_allow_other if it exists as a comment
-  if grep -qE '^[[:space:]]*#[[:space:]]*user_allow_other[[:space:]]*$' /etc/fuse.conf; then
-    log "Uncommenting existing user_allow_other line..."
-    sed -i.bak2 's/^[[:space:]]*#[[:space:]]*user_allow_other[[:space:]]*$/user_allow_other/' /etc/fuse.conf || true
-  elif ! grep -qE '^[[:space:]]*user_allow_other[[:space:]]*$' /etc/fuse.conf; then
-    log "Adding user_allow_other to fuse.conf..."
-    printf '\nuser_allow_other\n' >> /etc/fuse.conf
+  # Simple approach: check if user_allow_other is already enabled
+  if grep -q '^user_allow_other$' /etc/fuse.conf 2>/dev/null; then
+    log "user_allow_other already enabled in fuse.conf"
+    return 0
   fi
-
-  # Remove duplicates, keeping only first occurrence
-  if awk '$0=="user_allow_other" {c++; if (c>1) {$0="#user_allow_other"}} {print}' /etc/fuse.conf > /etc/fuse.conf.tmp; then
-    mv /etc/fuse.conf.tmp /etc/fuse.conf
+  
+  log "Enabling user_allow_other in fuse.conf..."
+  
+  # Backup
+  cp /etc/fuse.conf "/etc/fuse.conf.backup.$(date +%s)" 2>/dev/null || true
+  
+  # If commented, uncomment it
+  if grep -q '^#.*user_allow_other' /etc/fuse.conf 2>/dev/null; then
+    log "Uncommenting user_allow_other..."
+    sed -i 's/^#.*user_allow_other$/user_allow_other/' /etc/fuse.conf 2>/dev/null || true
+  else
+    log "Adding user_allow_other..."
+    echo "user_allow_other" >> /etc/fuse.conf
   fi
-
-  log "fuse.conf OK (first 20 lines):"
-  nl -ba /etc/fuse.conf | head -n 20 || true
-  log "fuse.conf configuration complete."
+  
+  # Verify
+  if grep -q '^user_allow_other$' /etc/fuse.conf 2>/dev/null; then
+    log "fuse.conf configured successfully."
+  else
+    warn "Could not verify user_allow_other in fuse.conf, but continuing..."
+  fi
 }
 
 # ---- EXTERNAL MOUNTPOINT NORMALIZATION / SAFETY ----
