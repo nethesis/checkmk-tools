@@ -376,6 +376,28 @@ while IFS= read -r -d '' backup; do
     continue
   fi
   
+  # Check if backup is stable (not modified in last 2 minutes)
+  LAST_MODIFIED=$(stat -c %Y "$backup" 2>/dev/null || echo "0")
+  CURRENT_TIME=$(date +%s)
+  AGE_SECONDS=$((CURRENT_TIME - LAST_MODIFIED))
+  
+  if [[ $AGE_SECONDS -lt 120 ]]; then
+    log "Backup too recent (${AGE_SECONDS}s old), skipping: $BACKUP_NAME"
+    continue
+  fi
+  
+  # Check backup size (must be > 100KB to be valid)
+  if [[ -d "$backup" ]]; then
+    BACKUP_SIZE=$(du -sb "$backup" 2>/dev/null | awk '{print $1}')
+  else
+    BACKUP_SIZE=$(stat -c %s "$backup" 2>/dev/null || echo "0")
+  fi
+  
+  if [[ $BACKUP_SIZE -lt 102400 ]]; then
+    log "Backup too small (${BACKUP_SIZE} bytes), skipping: $BACKUP_NAME"
+    continue
+  fi
+  
   # Check if backup already has timestamp pattern (YYYY-MM-DD-HHhMM)
   if [[ ! "$BACKUP_NAME" =~ -[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}h[0-9]{2}$ ]]; then
     # Get modification time and create timestamp
@@ -385,7 +407,7 @@ while IFS= read -r -d '' backup; do
       NEW_NAME="${BACKUP_NAME}-${TIMESTAMP}"
       NEW_PATH="${MOUNTPOINT}/${NEW_NAME}"
       
-      log "Renaming: $BACKUP_NAME -> $NEW_NAME"
+      log "Renaming: $BACKUP_NAME -> $NEW_NAME (age: ${AGE_SECONDS}s, size: ${BACKUP_SIZE} bytes)"
       if mv "$backup" "$NEW_PATH"; then
         RENAMED=$((RENAMED+1))
       else
@@ -448,13 +470,35 @@ while IFS= read -r -d '' backup; do
     continue
   fi
   
+  # Check if backup is stable (not modified in last 2 minutes)
+  LAST_MODIFIED=$(stat -c %Y "$backup" 2>/dev/null || echo "0")
+  CURRENT_TIME=$(date +%s)
+  AGE_SECONDS=$((CURRENT_TIME - LAST_MODIFIED))
+  
+  if [[ $AGE_SECONDS -lt 120 ]]; then
+    log "Backup too recent (${AGE_SECONDS}s old), waiting for stability: $BACKUP_NAME"
+    continue
+  fi
+  
+  # Check backup size (must be > 100KB to be valid)
+  if [[ -d "$backup" ]]; then
+    BACKUP_SIZE=$(du -sb "$backup" 2>/dev/null | awk '{print $1}')
+  else
+    BACKUP_SIZE=$(stat -c %s "$backup" 2>/dev/null || echo "0")
+  fi
+  
+  if [[ $BACKUP_SIZE -lt 102400 ]]; then
+    log "Backup too small (${BACKUP_SIZE} bytes), might be incomplete: $BACKUP_NAME"
+    continue
+  fi
+  
   # Check if backup already has timestamp pattern
   if [[ ! "$BACKUP_NAME" =~ -[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}h[0-9]{2}$ ]]; then
     TIMESTAMP=$(date '+%Y-%m-%d-%Hh%M')
     NEW_NAME="${BACKUP_NAME}-${TIMESTAMP}"
     NEW_PATH="${MOUNTPOINT}/${NEW_NAME}"
     
-    log "Renaming: $BACKUP_NAME -> $NEW_NAME"
+    log "Renaming: $BACKUP_NAME -> $NEW_NAME (age: ${AGE_SECONDS}s, size: ${BACKUP_SIZE} bytes)"
     if mv "$backup" "$NEW_PATH" 2>/dev/null; then
       RENAMED=$((RENAMED+1))
     else
