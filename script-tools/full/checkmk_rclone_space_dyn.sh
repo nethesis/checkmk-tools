@@ -214,6 +214,32 @@ if [[ "$NEWEST_FILE" =~ -incomplete ]]; then
   exit 0
 fi
 
+# Check if backup is stable (not modified in last 2 minutes)
+if [[ -d "$NEWEST_PATH" || -f "$NEWEST_PATH" ]]; then
+  LAST_MODIFIED=$(stat -c %Y "$NEWEST_PATH" 2>/dev/null || echo "0")
+  CURRENT_TIME=$(date +%s)
+  AGE_SECONDS=$((CURRENT_TIME - LAST_MODIFIED))
+  
+  if [[ $AGE_SECONDS -lt 120 ]]; then
+    log "Backup too recent (${AGE_SECONDS}s old), waiting for stability: $NEWEST_FILE"
+    exit 0
+  fi
+  
+  # Check backup size (must be > 100KB to be valid)
+  if [[ -d "$NEWEST_PATH" ]]; then
+    BACKUP_SIZE=$(du -sb "$NEWEST_PATH" 2>/dev/null | awk '{print $1}')
+  else
+    BACKUP_SIZE=$(stat -c %s "$NEWEST_PATH" 2>/dev/null || echo "0")
+  fi
+  
+  if [[ $BACKUP_SIZE -lt 102400 ]]; then
+    log "Backup too small (${BACKUP_SIZE} bytes), might be incomplete: $NEWEST_FILE"
+    exit 0
+  fi
+  
+  log "Backup stable and valid (age: ${AGE_SECONDS}s, size: ${BACKUP_SIZE} bytes)"
+fi
+
 # Rename backup with timestamp if it doesn't have one
 TIMESTAMP="$(date '+%Y-%m-%d-%Hh%M')"
 TIMESTAMPED_NAME="${NEWEST_FILE}-${TIMESTAMP}"
@@ -382,9 +408,9 @@ Description=Monitor backup directory for Checkmk site %i
 [Path]
 # Monitor the backup directory for modifications
 PathModified=/var/backups/checkmk
-# Wait 3 minutes after last change to ensure backup is complete
-TriggerLimitIntervalSec=3m
-TriggerLimitBurst=10
+# Wait 10 minutes after last change to ensure backup is complete and stable
+TriggerLimitIntervalSec=10m
+TriggerLimitBurst=5
 Unit=checkmk-cloud-backup-push@%i.service
 
 [Install]
