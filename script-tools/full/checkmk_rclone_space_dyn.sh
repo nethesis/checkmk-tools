@@ -175,7 +175,7 @@ EnvironmentFile=-/etc/default/checkmk-cloud-backup-push-%i
 # Sensible defaults
 Environment=REMOTE=do:testmonbck
 Environment=REMOTE_PREFIX=checkmk-backups
-Environment=BACKUP_DIR=/opt/omd/sites/%i/var/check_mk/backup
+Environment=BACKUP_DIR=/var/backups/checkmk
 Environment=RCLONE_CONF=/opt/omd/sites/%i/.config/rclone/rclone.conf
 Environment=RETRIES=3
 Environment=BWLIMIT=0
@@ -198,7 +198,7 @@ Description=Monitor backup directory for Checkmk site %i
 
 [Path]
 # Monitor the backup directory for new files
-PathChanged=/opt/omd/sites/%i/var/check_mk/backup
+PathChanged=/var/backups/checkmk
 # Wait 5 minutes after last change to ensure backup is complete and stable
 TriggerLimitIntervalSec=5m
 TriggerLimitBurst=1
@@ -237,14 +237,14 @@ write_defaults_file() {
 # Example:
 # REMOTE=do:testmonbck
 # REMOTE_PREFIX=checkmk-backups
-# BACKUP_DIR=/opt/omd/sites/${site}/var/check_mk/backup
+# BACKUP_DIR=/var/backups/checkmk
 # RCLONE_CONF=/opt/omd/sites/${site}/.config/rclone/rclone.conf
 # RETRIES=3
 # BWLIMIT=0
 
 REMOTE=do:testmonbck
 REMOTE_PREFIX=checkmk-backups
-BACKUP_DIR=/opt/omd/sites/${site}/var/check_mk/backup
+BACKUP_DIR=/var/backups/checkmk
 RCLONE_CONF=/opt/omd/sites/${site}/.config/rclone/rclone.conf
 RETRIES=3
 BWLIMIT=0
