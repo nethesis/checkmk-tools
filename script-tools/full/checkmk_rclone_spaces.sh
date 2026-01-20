@@ -362,6 +362,27 @@ setup_flow() {
     [[ -f "${rclone_config}" ]] || die "rclone config still not found: ${rclone_config}"
   fi
 
+  # Ensure proper permissions for rclone config
+  log "Checking permissions for rclone config: ${rclone_config}"
+  local config_dir
+  config_dir="$(dirname "${rclone_config}")"
+  
+  # Fix directory permissions
+  if [[ -d "${config_dir}" ]]; then
+    chown -R "${site_user}:${site_group}" "${config_dir}" || warn "Could not fix ownership of ${config_dir}"
+    chmod 755 "${config_dir}" || true
+    # Also fix parent .config directory
+    chown "${site_user}:${site_group}" "$(dirname "${config_dir}")" 2>/dev/null || true
+    chmod 755 "$(dirname "${config_dir}")" 2>/dev/null || true
+  fi
+  
+  # Fix config file permissions
+  if [[ -f "${rclone_config}" ]]; then
+    chown "${site_user}:${site_group}" "${rclone_config}" || warn "Could not fix ownership of ${rclone_config}"
+    chmod 600 "${rclone_config}" || true
+    log "Fixed permissions: $(ls -la "${rclone_config}")"
+  fi
+
   local remote mountpoint unit_name unit_path
   remote="$(prompt_default "Enter rclone remote (format name:bucket)" "${DEFAULT_REMOTE}")"
 
