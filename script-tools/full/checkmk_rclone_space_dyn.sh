@@ -88,14 +88,20 @@ fi
 [[ -d "$BACKUP_DIR" ]] || { err "Backup dir not found: $BACKUP_DIR"; exit 4; }
 [[ -r "$RCLONE_CONF" ]] || { err "rclone.conf not readable: $RCLONE_CONF"; exit 5; }
 
-# Pick newest backup file (most common formats)
-# You can extend patterns if your backups differ.
+# Pick newest backup (file or directory)
+# First try to find backup files
 mapfile -t candidates < <(find "$BACKUP_DIR" -maxdepth 1 -type f \
   \( -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar' -o -name '*.mkbackup' -o -name '*.zip' \) \
   -printf '%T@ %p\n' 2>/dev/null | sort -nr)
 
+# If no files found, look for backup directories (CheckMK uncompressed backups)
 if [[ "${#candidates[@]}" -eq 0 ]]; then
-  err "No backup archives found in $BACKUP_DIR"
+  mapfile -t candidates < <(find "$BACKUP_DIR" -maxdepth 1 -type d \
+    -name 'Check_MK-*' -printf '%T@ %p\n' 2>/dev/null | sort -nr)
+fi
+
+if [[ "${#candidates[@]}" -eq 0 ]]; then
+  err "No backup archives or directories found in $BACKUP_DIR"
   exit 6
 fi
 
@@ -127,27 +133,33 @@ if [[ "$BWLIMIT" != "0" ]]; then
   COMMON_OPTS+=("--bwlimit=$BWLIMIT")
 fi
 
-# Push only the selected file (atomic-ish: copy into a temp name then move, where supported)
-TMP_NAME=".${NEWEST_FILE}.partial"
+# Push backup (file or directory)
 REMOTE_SITE_PATH="${DEST}${SITE}"
-REMOTE_TMP="${REMOTE_SITE_PATH}/${TMP_NAME}"
-REMOTE_FINAL="${REMOTE_SITE_PATH}/${NEWEST_FILE}"
 
-# Ensure remote path exists (rclone mkdir works for many backends)
+# Ensure remote path exists
 log "Ensuring remote directory exists: $REMOTE_SITE_PATH"
 rclone mkdir "$REMOTE_SITE_PATH" "${COMMON_OPTS[@]}"
 
-# Copy to temp name
-log "Copying to remote temp: $REMOTE_TMP"
-rclone copyto "$NEWEST_PATH" "$REMOTE_TMP" "${COMMON_OPTS[@]}"
-
-# Move into final name (server-side move if possible)
-log "Moving temp to final: $REMOTE_FINAL"
-rclone moveto "$REMOTE_TMP" "$REMOTE_FINAL" "${COMMON_OPTS[@]}"
-
-# Optional: list remote file metadata for quick sanity check
-log "Remote file info:"
-rclone lsjson "$REMOTE_SITE_PATH" --files-only "${COMMON_OPTS[@]}" | tail -n 5 || true
+if [[ -d "$NEWEST_PATH" ]]; then
+  # It's a directory - copy entire directory
+  log "Copying directory to remote: ${REMOTE_SITE_PATH}/${NEWEST_FILE}/"
+  rclone copy "$NEWEST_PATH/" "${REMOTE_SITE_PATH}/${NEWEST_FILE}/" "${COMMON_OPTS[@]}"
+else
+  # It's a file - use atomic copy with temp name
+  TMP_NAME=".${NEWEST_FILE}.partial"
+  REMOTE_TMP="${REMOTE_SITE_PATH}/${TMP_NAME}"
+  REMOTE_FINAL="${REMOTE_SITE_PATH}/${NEWEST_FILE}"
+  
+  log "Copying file to remote temp: $REMOTE_TMP"
+  rclone copyto "$NEWEST_PATH" "$REMOTE_TMP" "${COMMON_OPTS[@]}"
+  
+  log "Moving to final name: $REMOTE_FINAL"
+  rclone moveto "$REMOTE_TMP" "$REMOTE_FINAL" "${COMMON_OPTS[@]}" || {
+    err "Move failed, cleaning up temp"
+    rclone delete "$REMOTE_TMP" "${COMMON_OPTS[@]}" 2>/dev/null || true
+    exit 7
+  }
+fi
 
 log "Push completed successfully."
 EOF
