@@ -267,7 +267,9 @@ write_unit() {
   local unit_path="$1" unit_name="$2" site="$3" site_user="$4" site_group="$5"
   local rclone_config="$6" rclone_bin="$7" remote="$8" mountpoint="$9"
 
-  log "Writing systemd unit: ${unit_name}"
+  log "Writing systemd unit: ${unit_name} to ${unit_path}"
+  log "Unit parameters: site=${site}, user=${site_user}, group=${site_group}, remote=${remote}, mountpoint=${mountpoint}"
+  
   cat > "${unit_path}" <<EOFU
 [Unit]
 Description=Rclone mount ${remote} for Checkmk site ${site} (external mountpoint)
@@ -287,6 +289,12 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOFU
+  
+  if [[ ! -f "${unit_path}" ]]; then
+    die "Failed to write unit file: ${unit_path}"
+  fi
+  
+  log "Unit file written successfully ($(wc -l < "${unit_path}") lines)"
 }
 
 stop_unmount_disable() {
@@ -365,6 +373,9 @@ setup_flow() {
 
   stop_unmount_disable "${unit_name}" "${mountpoint}"
   write_unit "${unit_path}" "${unit_name}" "${site}" "${site_user}" "${site_group}" "${rclone_config}" "${rclone_bin}" "${remote}" "${mountpoint}"
+  
+  [[ -f "${unit_path}" ]] || die "Failed to create unit file: ${unit_path}"
+  log "Unit file created successfully: ${unit_path}"
 
   systemctl daemon-reload
   systemctl enable --now "${unit_name}"
