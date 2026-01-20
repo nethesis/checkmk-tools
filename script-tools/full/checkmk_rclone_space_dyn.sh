@@ -369,11 +369,11 @@ EOF
 Description=Monitor backup directory for Checkmk site %i
 
 [Path]
-# Monitor the backup directory for new files
-PathChanged=/var/backups/checkmk
-# Wait 5 minutes after last change to ensure backup is complete and stable
-TriggerLimitIntervalSec=5m
-TriggerLimitBurst=1
+# Monitor the backup directory for modifications
+PathModified=/var/backups/checkmk
+# Wait 3 minutes after last change to ensure backup is complete
+TriggerLimitIntervalSec=3m
+TriggerLimitBurst=10
 Unit=checkmk-cloud-backup-push@%i.service
 
 [Install]
