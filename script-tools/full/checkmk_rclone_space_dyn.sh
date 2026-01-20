@@ -259,11 +259,20 @@ setup() {
   write_wrapper
   write_systemd_units
   systemctl daemon-reload
+  
+  # Create backup directory if it doesn't exist
+  if [[ ! -d "/var/backups/checkmk" ]]; then
+    log "Creating backup directory: /var/backups/checkmk"
+    mkdir -p /var/backups/checkmk
+    chmod 755 /var/backups/checkmk
+  fi
+  
   log "Installed:"
   log "  - $WRAPPER_PATH"
   log "  - ${SYSTEMD_DIR}/checkmk-cloud-backup-push@.service"
   log "  - ${SYSTEMD_DIR}/checkmk-cloud-backup-push@.path (auto-monitor)"
   log "  - ${SYSTEMD_DIR}/checkmk-cloud-backup-push@.timer (scheduled)"
+  log "  - /var/backups/checkmk (backup directory)"
   log ""
   
   # Auto-enable monitoring for all discovered sites
