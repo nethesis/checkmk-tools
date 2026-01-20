@@ -283,9 +283,17 @@ run_site() {
 
   log "Starting push service for site=${site}"
   systemctl start "checkmk-cloud-backup-push@${site}.service"
-  log "Done. Check logs:"
+  
+  log "Enabling auto-monitor (path unit) for site=${site}"
+  systemctl enable --now "checkmk-cloud-backup-push@${site}.path"
+  
+  log "Done. Auto-monitoring enabled for /var/backups/checkmk"
+  log "Check logs:"
   log "  journalctl -u checkmk-cloud-backup-push@${site}.service --no-pager -n 200"
   log "  /var/log/checkmk-cloud-backup/push-${site}.log"
+  log ""
+  log "Path monitoring status:"
+  systemctl status "checkmk-cloud-backup-push@${site}.path" --no-pager -l || true
 }
 
 remove_site() {
