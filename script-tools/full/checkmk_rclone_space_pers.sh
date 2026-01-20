@@ -364,11 +364,17 @@ if [[ ! -d "$MOUNTPOINT" ]]; then
   exit 1
 fi
 
-# First, rename backups without timestamp
+# First, rename backups without timestamp (only complete backups)
 log "Renaming backups without timestamp..."
 RENAMED=0
 while IFS= read -r -d '' backup; do
   BACKUP_NAME="$(basename "$backup")"
+  
+  # Skip incomplete backups
+  if [[ "$BACKUP_NAME" =~ -incomplete ]]; then
+    log "Skipping incomplete backup: $BACKUP_NAME"
+    continue
+  fi
   
   # Check if backup already has timestamp pattern (YYYY-MM-DD-HHhMM)
   if [[ ! "$BACKUP_NAME" =~ -[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}h[0-9]{2}$ ]]; then
@@ -432,10 +438,15 @@ if [[ ! -d "$MOUNTPOINT" ]]; then
   exit 1
 fi
 
-# Rename backups without timestamp
+# Rename backups without timestamp (only complete backups)
 RENAMED=0
 while IFS= read -r -d '' backup; do
   BACKUP_NAME="$(basename "$backup")"
+  
+  # Skip incomplete backups
+  if [[ "$BACKUP_NAME" =~ -incomplete ]]; then
+    continue
+  fi
   
   # Check if backup already has timestamp pattern
   if [[ ! "$BACKUP_NAME" =~ -[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}h[0-9]{2}$ ]]; then

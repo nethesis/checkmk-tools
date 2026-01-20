@@ -68,11 +68,18 @@ cleanup_backups() {
   total_before=$(find "$backup_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) 2>/dev/null | wc -l)
   log "Total backups before cleanup: $total_before"
   
-  # Find and delete old backups
+  # Find and delete old backups (skip incomplete backups)
   local deleted=0
   while IFS= read -r -d '' backup; do
     local backup_name
     backup_name="$(basename "$backup")"
+    
+    # Skip incomplete backups
+    if [[ "$backup_name" =~ -incomplete ]]; then
+      log "Skipping incomplete backup: $backup_name"
+      continue
+    fi
+    
     log "Deleting old backup: $backup_name"
     if rm -rf "$backup"; then
       deleted=$((deleted + 1))

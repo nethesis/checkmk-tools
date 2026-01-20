@@ -208,6 +208,12 @@ fi
 NEWEST_PATH="$(echo "${candidates[0]}" | cut -d' ' -f2-)"
 NEWEST_FILE="$(basename "$NEWEST_PATH")"
 
+# Skip incomplete backups
+if [[ "$NEWEST_FILE" =~ -incomplete ]]; then
+  log "Skipping incomplete backup: $NEWEST_FILE"
+  exit 0
+fi
+
 # Rename backup with timestamp if it doesn't have one
 TIMESTAMP="$(date '+%Y-%m-%d-%Hh%M')"
 TIMESTAMPED_NAME="${NEWEST_FILE}-${TIMESTAMP}"
