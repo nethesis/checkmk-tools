@@ -452,6 +452,8 @@ EOF
 write_defaults_file() {
   local site="$1"
   local remote="${2:-do:testmonbck}"
+  local retention_local="${3:-30}"
+  local retention_remote="${4:-90}"
   local defaults="/etc/default/checkmk-cloud-backup-push-${site}"
   if [[ -f "$defaults" ]]; then
     log "Defaults file already exists: $defaults (not overwriting)"
@@ -476,8 +478,8 @@ BACKUP_DIR=/var/backups/checkmk
 RCLONE_CONF=/opt/omd/sites/${site}/.config/rclone/rclone.conf
 RETRIES=3
 BWLIMIT=0
-RETENTION_DAYS_LOCAL=30
-RETENTION_DAYS_REMOTE=90
+RETENTION_DAYS_LOCAL=${retention_local}
+RETENTION_DAYS_REMOTE=${retention_remote}
 EOF
 
   chmod 0644 "$defaults"
@@ -575,6 +577,15 @@ setup() {
   log "  - /var/backups/checkmk (backup directory)"
   log ""
   
+  # Ask for retention settings
+  log "Backup retention settings:"
+  local retention_local retention_remote
+  retention_local="$(prompt_default "Local retention (days)" "30")"
+  retention_remote="$(prompt_default "Remote retention (days)" "90")"
+  log "Local retention: ${retention_local} days"
+  log "Remote retention: ${retention_remote} days"
+  log ""
+  
   # Auto-enable monitoring for all discovered sites
   local sites
   mapfile -t sites < <(list_sites || true)
@@ -582,7 +593,7 @@ setup() {
   if [[ "${#sites[@]}" -gt 0 ]]; then
     log "Auto-enabling backup monitoring for discovered sites:"
     for site in "${sites[@]}"; do
-      write_defaults_file "$site" "${CONFIGURED_REMOTE:-do:testmonbck}"
+      write_defaults_file "$site" "${CONFIGURED_REMOTE:-do:testmonbck}" "$retention_local" "$retention_remote"
       
       # Set correct ownership for the site user
       if id "$site" &>/dev/null; then
