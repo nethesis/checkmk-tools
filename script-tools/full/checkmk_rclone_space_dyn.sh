@@ -415,8 +415,10 @@ setup() {
     log "Config file: $rclone_config"
     
     # Ask for remote configuration (only once, use for all sites)
-    if [[ -z "${CONFIGURED_REMOTE:-}" ]]; then
-      CONFIGURED_REMOTE="$(prompt_default "Enter rclone remote (format name:bucket)" "do:testmonbck")"
+    if [[ -z "${CONFIGURED_REMOTE_NAME:-}" ]]; then
+      CONFIGURED_REMOTE_NAME="$(prompt_default "Enter rclone remote name" "do")"
+      CONFIGURED_BUCKET="$(prompt_default "Enter bucket name" "testmonbck")"
+      CONFIGURED_REMOTE="${CONFIGURED_REMOTE_NAME}:${CONFIGURED_BUCKET}"
     fi
     
     ensure_remote_configured "$rclone_config" "$CONFIGURED_REMOTE"
