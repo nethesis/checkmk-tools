@@ -439,7 +439,7 @@ write_cleanup_units() {
   local service_file="/etc/systemd/system/checkmk-backup-cleanup@${site}.service"
   local timer_file="/etc/systemd/system/checkmk-backup-cleanup@${site}.timer"
   local rename_service="/etc/systemd/system/checkmk-backup-rename@${site}.service"
-  local rename_path="/etc/systemd/system/checkmk-backup-rename@${site}.path"
+  local rename_timer="/etc/systemd/system/checkmk-backup-rename@${site}.timer"
   
   # Create cleanup script (with rename logic)
   write_cleanup_script "${cleanup_script}" "${mountpoint}" "${retention_days}"
@@ -538,7 +538,7 @@ Persistent=true
 WantedBy=timers.target
 EOFTMR
 
-  # Rename service (triggered by path)
+  # Rename service (triggered by timer)
   cat > "${rename_service}" <<EOFRENSVC
 [Unit]
 Description=Rename backup after creation for Checkmk site ${site}
@@ -548,20 +548,20 @@ Type=oneshot
 ExecStart=${rename_script} ${mountpoint}
 EOFRENSVC
 
-  # Path unit (monitors mountpoint for changes)
-  cat > "${rename_path}" <<EOFRENPATH
+  # Timer unit (checks every minute)
+  local rename_timer="/etc/systemd/system/checkmk-backup-rename@${site}.timer"
+  cat > "${rename_timer}" <<EOFRENTMR
 [Unit]
-Description=Monitor backup directory for Checkmk site ${site}
+Description=Timer for backup rename for Checkmk site ${site}
 
-[Path]
-PathChanged=${mountpoint}
-TriggerLimitIntervalSec=2m
-TriggerLimitBurst=1
+[Timer]
+OnCalendar=*:0/1
+Persistent=true
 Unit=checkmk-backup-rename@${site}.service
 
 [Install]
-WantedBy=multi-user.target
-EOFRENPATH
+WantedBy=timers.target
+EOFRENTMR
 
   log "Cleanup and rename units created for site ${site}"
 }
@@ -739,9 +739,9 @@ setup_flow() {
     write_cleanup_units "${site}" "${mountpoint}" "$retention_days"
     systemctl daemon-reload
     systemctl enable --now "checkmk-backup-cleanup@${site}.timer"
-    systemctl enable --now "checkmk-backup-rename@${site}.path"
+    systemctl enable --now "checkmk-backup-rename@${site}.timer"
     log "Cleanup timer enabled for site ${site}"
-    log "Backup rename monitoring enabled (triggers after each backup)"
+    log "Backup rename timer enabled (checks every minute)"
   fi
 
   log "SETUP COMPLETE (always-on mount)."
@@ -883,7 +883,7 @@ remove_flow() {
   local cleanup_timer="/etc/systemd/system/checkmk-backup-cleanup@${site}.timer"
   local cleanup_service="/etc/systemd/system/checkmk-backup-cleanup@${site}.service"
   local cleanup_script="/usr/local/sbin/checkmk_backup_cleanup_${site}.sh"
-  local rename_path="/etc/systemd/system/checkmk-backup-rename@${site}.path"
+  local rename_timer="/etc/systemd/system/checkmk-backup-rename@${site}.timer"
   local rename_service="/etc/systemd/system/checkmk-backup-rename@${site}.service"
   local rename_script="/usr/local/sbin/checkmk_backup_rename_${site}.sh"
   
@@ -894,11 +894,11 @@ remove_flow() {
     rm -f "${cleanup_timer}" "${cleanup_service}" "${cleanup_script}"
   fi
   
-  if [[ -f "${rename_path}" || -f "${rename_service}" ]]; then
-    log "Removing backup rename monitoring..."
-    systemctl stop "checkmk-backup-rename@${site}.path" 2>/dev/null || true
-    systemctl disable "checkmk-backup-rename@${site}.path" 2>/dev/null || true
-    rm -f "${rename_path}" "${rename_service}" "${rename_script}"
+  if [[ -f "${rename_timer}" || -f "${rename_service}" ]]; then
+    log "Removing backup rename timer..."
+    systemctl stop "checkmk-backup-rename@${site}.timer" 2>/dev/null || true
+    systemctl disable "checkmk-backup-rename@${site}.timer" 2>/dev/null || true
+    rm -f "${rename_timer}" "${rename_service}" "${rename_script}"
   fi
   
   systemctl daemon-reload
