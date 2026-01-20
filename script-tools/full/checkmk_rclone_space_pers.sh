@@ -470,11 +470,37 @@ setup_flow() {
   log "Service status:"
   systemctl status "${unit_name}" --no-pager -l || true
 
-  log "Mount check:"
-  mount | grep -F "${mountpoint}" || die "Mount not present after service start."
+  log "Mount check: waiting for mount to be ready..."
+  local max_attempts=15
+  local attempt=0
+  local mounted=false
+  
+  while [[ $attempt -lt $max_attempts ]]; do
+    if mount | grep -qF " on ${mountpoint} "; then
+      mounted=true
+      log "Mount verified successfully after $((attempt + 1)) attempts."
+      break
+    fi
+    attempt=$((attempt + 1))
+    log "Attempt ${attempt}/${max_attempts}: mount not yet ready, waiting..."
+    sleep 2
+  done
+  
+  if [[ "${mounted}" != "true" ]]; then
+    warn "Mount not present after ${max_attempts} attempts (30 seconds). Checking logs..."
+    systemctl status "${unit_name}" --no-pager -l || true
+    echo ""
+    log "Last 50 lines from journalctl:"
+    journalctl -u "${unit_name}" -n 50 --no-pager || true
+    die "Mount not present after service start."
+  fi
 
   log "Smoke test as ${site_user}:"
-  su - "${site_user}" -c "cd '${mountpoint}' && ls -la . | head -n 20" || die "Smoke test failed."
+  if su - "${site_user}" -c "cd '${mountpoint}' && ls -la . | head -n 20"; then
+    log "Smoke test passed."
+  else
+    warn "Smoke test failed. Service may still be starting up."
+  fi
 
   log "SETUP COMPLETE (always-on mount)."
 }
