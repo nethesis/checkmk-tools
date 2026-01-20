@@ -156,7 +156,7 @@ write_wrapper() {
 set -euo pipefail
 
 # Wrapper invoked by systemd service:
-#   checkmk_cloud_backup_push_run.sh <site> <remote> <remote_prefix> <backup_dir> <rclone_conf> <retries> <bwlimit>
+#   checkmk_cloud_backup_push_run.sh <site> <remote> <remote_prefix> <backup_dir> <rclone_conf> <retries> <bwlimit> <retention_days_local> <retention_days_remote>
 
 SITE="${1:?missing site}"
 REMOTE="${2:?missing remote (e.g. do:bucket)}"
@@ -165,6 +165,8 @@ BACKUP_DIR="${4:?missing backup dir}"
 RCLONE_CONF="${5:?missing rclone conf}"
 RETRIES="${6:-3}"
 BWLIMIT="${7:-0}"
+RETENTION_DAYS_LOCAL="${8:-30}"
+RETENTION_DAYS_REMOTE="${9:-90}"
 
 log() { echo "[$(date '+%F %T')] $*"; }
 err() { echo "[$(date '+%F %T')] ERROR: $*" >&2; }
@@ -260,6 +262,39 @@ else
 fi
 
 log "Push completed successfully."
+
+# Cleanup old local backups
+if [[ "$RETENTION_DAYS_LOCAL" -gt 0 ]]; then
+  log "Cleaning up local backups older than ${RETENTION_DAYS_LOCAL} days..."
+  find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) -mtime +${RETENTION_DAYS_LOCAL} -exec rm -rf {} \; 2>/dev/null || true
+  log "Local cleanup completed."
+fi
+
+# Cleanup old remote backups
+if [[ "$RETENTION_DAYS_REMOTE" -gt 0 ]]; then
+  log "Cleaning up remote backups older than ${RETENTION_DAYS_REMOTE} days..."
+  # List all items in remote site path
+  rclone lsf "$REMOTE_SITE_PATH" --format "tp" --separator $'\t' "${COMMON_OPTS[@]}" 2>/dev/null | while IFS=$'\t' read -r timestamp path; do
+    # Calculate age in seconds
+    now=$(date +%s)
+    file_time=$(date -d "$timestamp" +%s 2>/dev/null || echo "$now")
+    age_days=$(( (now - file_time) / 86400 ))
+    
+    if [[ $age_days -gt $RETENTION_DAYS_REMOTE ]]; then
+      log "Deleting remote backup (${age_days} days old): $path"
+      if [[ "$path" == */ ]]; then
+        # It's a directory
+        rclone purge "${REMOTE_SITE_PATH}/${path%/}" "${COMMON_OPTS[@]}" 2>/dev/null || true
+      else
+        # It's a file
+        rclone delete "${REMOTE_SITE_PATH}/${path}" "${COMMON_OPTS[@]}" 2>/dev/null || true
+      fi
+    fi
+  done || true
+  log "Remote cleanup completed."
+fi
+
+log "All operations completed."
 EOF
 
   chmod 0755 "$WRAPPER_PATH"
@@ -289,8 +324,10 @@ Environment=BACKUP_DIR=/var/backups/checkmk
 Environment=RCLONE_CONF=/opt/omd/sites/%i/.config/rclone/rclone.conf
 Environment=RETRIES=3
 Environment=BWLIMIT=0
+Environment=RETENTION_DAYS_LOCAL=30
+Environment=RETENTION_DAYS_REMOTE=90
 
-ExecStart=/usr/local/sbin/checkmk_cloud_backup_push_run.sh %i "${REMOTE}" "${REMOTE_PREFIX}" "${BACKUP_DIR}" "${RCLONE_CONF}" "${RETRIES}" "${BWLIMIT}"
+ExecStart=/usr/local/sbin/checkmk_cloud_backup_push_run.sh %i "${REMOTE}" "${REMOTE_PREFIX}" "${BACKUP_DIR}" "${RCLONE_CONF}" "${RETRIES}" "${BWLIMIT}" "${RETENTION_DAYS_LOCAL}" "${RETENTION_DAYS_REMOTE}"
 
 TimeoutStartSec=0
 Nice=10
@@ -352,6 +389,8 @@ write_defaults_file() {
 # RCLONE_CONF=/opt/omd/sites/${site}/.config/rclone/rclone.conf
 # RETRIES=3
 # BWLIMIT=0
+# RETENTION_DAYS_LOCAL=30
+# RETENTION_DAYS_REMOTE=90
 
 REMOTE=${remote}
 REMOTE_PREFIX=checkmk-backups
@@ -359,10 +398,13 @@ BACKUP_DIR=/var/backups/checkmk
 RCLONE_CONF=/opt/omd/sites/${site}/.config/rclone/rclone.conf
 RETRIES=3
 BWLIMIT=0
+RETENTION_DAYS_LOCAL=30
+RETENTION_DAYS_REMOTE=90
 EOF
 
   chmod 0644 "$defaults"
   log "Created defaults file: $defaults"
+}
 }
 
 setup() {
