@@ -329,7 +329,6 @@ if [[ "$RETENTION_DAYS_REMOTE" -gt 0 ]]; then
   # List all items in remote site path
   rclone lsf "$REMOTE_SITE_PATH" --format "tp" --separator $'\t' "${COMMON_OPTS[@]}" 2>/dev/null | while IFS=$'\t' read -r timestamp path; do
     # Parse timestamp (rclone format: 2026-01-20 19:23:46)
-    # Convert to epoch for age calculation
     if [[ -n "$timestamp" ]]; then
       file_time=$(date -d "$timestamp" +%s 2>/dev/null || echo "0")
       
@@ -337,6 +336,23 @@ if [[ "$RETENTION_DAYS_REMOTE" -gt 0 ]]; then
       if [[ "$file_time" -eq 0 ]]; then
         log "WARNING: Could not parse timestamp for $path: $timestamp"
         continue
+      fi
+      
+      # Skip directories with S3 default timestamp (2000-01-01)
+      # These don't have real timestamps, extract from filename instead
+      if [[ "$timestamp" =~ ^2000-01-01 ]] && [[ "$path" == */ ]]; then
+        # Extract timestamp from filename pattern: *-YYYY-MM-DD-HHhMM/
+        if [[ "$path" =~ -([0-9]{4})-([0-9]{2})-([0-9]{2})-([0-9]{2})h([0-9]{2})/$ ]]; then
+          backup_date="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}:${BASH_REMATCH[5]}:00"
+          file_time=$(date -d "$backup_date" +%s 2>/dev/null || echo "0")
+          if [[ "$file_time" -eq 0 ]]; then
+            log "WARNING: Could not parse backup date from filename: $path"
+            continue
+          fi
+        else
+          log "WARNING: Directory without timestamp in name, skipping: $path"
+          continue
+        fi
       fi
       
       age_days=$(( (now - file_time) / 86400 ))
