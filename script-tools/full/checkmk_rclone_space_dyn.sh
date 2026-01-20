@@ -424,8 +424,8 @@ Description=Monitor backup directory for Checkmk site %i
 [Path]
 # Monitor the backup directory for modifications
 PathModified=/var/backups/checkmk
-# Wait 10 minutes after last change to ensure backup is complete and stable
-TriggerLimitIntervalSec=10m
+# Check every minute after a change is detected
+TriggerLimitIntervalSec=1m
 TriggerLimitBurst=5
 Unit=checkmk-cloud-backup-push@%i.service
 
@@ -433,14 +433,14 @@ Unit=checkmk-cloud-backup-push@%i.service
 WantedBy=multi-user.target
 EOF
 
-  # Optional timer template (for scheduled backups if needed)
+  # Optional timer template (active polling every minute)
   cat > "${SYSTEMD_DIR}/checkmk-cloud-backup-push@.timer" <<'EOF'
 [Unit]
 Description=Timer for Checkmk Cloud Backup Push (rclone) for site %i
 
 [Timer]
-# Default schedule: daily at 02:30
-OnCalendar=*-*-* 02:30:00
+# Check every minute for new backups
+OnCalendar=*:0/1
 Persistent=true
 Unit=checkmk-cloud-backup-push@%i.service
 
@@ -589,15 +589,15 @@ setup() {
         chown -R "${site}:${site}" /var/backups/checkmk 2>/dev/null || true
       fi
       
-      systemctl enable --now "checkmk-cloud-backup-push@${site}.path" 2>/dev/null || true
-      log "  ✓ ${site} - monitoring /var/backups/checkmk"
+      systemctl enable --now "checkmk-cloud-backup-push@${site}.timer" 2>/dev/null || true
+      log "  ✓ ${site} - monitoring /var/backups/checkmk (checking every minute)"
     done
     log ""
-    log "Backup monitoring is now active. When a backup is saved to /var/backups/checkmk,"
-    log "it will be automatically pushed to cloud after 5 minutes."
+    log "Backup monitoring is now active. Script checks every minute for new backups."
+    log "When a complete backup is found, it will be pushed after 2-minute stability check."
   else
     log "No OMD sites found. You can manually enable monitoring later with:"
-    log "  systemctl enable --now checkmk-cloud-backup-push@<site>.path"
+    log "  systemctl enable --now checkmk-cloud-backup-push@<site>.timer"
   fi
   
   log ""
@@ -622,10 +622,10 @@ run_site() {
   log "Starting push service for site=${site}"
   systemctl start "checkmk-cloud-backup-push@${site}.service"
   
-  log "Enabling auto-monitor (path unit) for site=${site}"
-  systemctl enable --now "checkmk-cloud-backup-push@${site}.path"
+  log "Enabling active monitoring (timer every minute) for site=${site}"
+  systemctl enable --now "checkmk-cloud-backup-push@${site}.timer"
   
-  log "Done. Auto-monitoring enabled for /var/backups/checkmk"
+  log "Done. Active monitoring enabled - checking every minute for new backups"
   log "Check logs:"
   log "  journalctl -u checkmk-cloud-backup-push@${site}.service --no-pager -n 200"
   log "  /var/log/checkmk-cloud-backup/push-${site}.log"
