@@ -364,6 +364,33 @@ if [[ ! -d "$MOUNTPOINT" ]]; then
   exit 1
 fi
 
+# First, rename backups without timestamp
+log "Renaming backups without timestamp..."
+RENAMED=0
+while IFS= read -r -d '' backup; do
+  BACKUP_NAME="$(basename "$backup")"
+  
+  # Check if backup already has timestamp pattern (YYYY-MM-DD-HHhMM)
+  if [[ ! "$BACKUP_NAME" =~ -[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}h[0-9]{2}$ ]]; then
+    # Get modification time and create timestamp
+    MTIME=$(stat -c %Y "$backup" 2>/dev/null || echo "0")
+    if [[ "$MTIME" != "0" ]]; then
+      TIMESTAMP=$(date -d "@${MTIME}" '+%Y-%m-%d-%Hh%M' 2>/dev/null || date '+%Y-%m-%d-%Hh%M')
+      NEW_NAME="${BACKUP_NAME}-${TIMESTAMP}"
+      NEW_PATH="${MOUNTPOINT}/${NEW_NAME}"
+      
+      log "Renaming: $BACKUP_NAME -> $NEW_NAME"
+      if mv "$backup" "$NEW_PATH"; then
+        RENAMED=$((RENAMED+1))
+      else
+        log "WARNING: Failed to rename $backup"
+      fi
+    fi
+  fi
+done < <(find "$MOUNTPOINT" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) -name 'Check_MK-*' -print0 2>/dev/null)
+
+log "Renamed $RENAMED backup(s)"
+
 # Find and delete backups older than retention period
 DELETED=0
 while IFS= read -r -d '' backup; do
