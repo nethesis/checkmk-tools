@@ -283,6 +283,12 @@ setup() {
     log "Auto-enabling backup monitoring for discovered sites:"
     for site in "${sites[@]}"; do
       write_defaults_file "$site"
+      
+      # Set correct ownership for the site user
+      if id "$site" &>/dev/null; then
+        chown -R "${site}:${site}" /var/backups/checkmk 2>/dev/null || true
+      fi
+      
       systemctl enable --now "checkmk-cloud-backup-push@${site}.path" 2>/dev/null || true
       log "  ✓ ${site} - monitoring /var/backups/checkmk"
     done
@@ -307,6 +313,11 @@ run_site() {
   [[ -d "${SITES_BASE}/${site}" ]] || die "Site not found: ${site}"
 
   write_defaults_file "$site"
+  
+  # Set correct ownership for the site user
+  if id "$site" &>/dev/null; then
+    chown -R "${site}:${site}" /var/backups/checkmk 2>/dev/null || true
+  fi
 
   log "Starting push service for site=${site}"
   systemctl start "checkmk-cloud-backup-push@${site}.service"
