@@ -394,8 +394,11 @@ setup_flow() {
     chmod 600 "${rclone_config}" || true
   fi
 
-  local remote mountpoint unit_name unit_path
-  remote="$(prompt_default "Enter rclone remote (format name:bucket)" "${DEFAULT_REMOTE}")"
+  local remote_name bucket_name remote
+  remote_name="$(prompt_default "Enter rclone remote name" "do")"
+  bucket_name="$(prompt_default "Enter bucket name" "testmonbck")"
+  remote="${remote_name}:${bucket_name}"
+  
   ensure_remote_configured "${rclone_config}" "${remote}"
 
   local mp_default
