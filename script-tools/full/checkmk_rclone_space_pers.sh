@@ -342,6 +342,76 @@ EOFU
   [[ -f "${unit_path}" ]] || die "Failed to write unit file: ${unit_path}"
 }
 
+write_cleanup_script() {
+  local cleanup_script="$1" mountpoint="$2" retention_days="${3:-90}"
+  
+  log "Creating cleanup script: ${cleanup_script}"
+  cat > "${cleanup_script}" <<'EOFCLEANUP'
+#!/usr/bin/env bash
+set -euo pipefail
+
+MOUNTPOINT="${1:?missing mountpoint}"
+RETENTION_DAYS="${2:-90}"
+LOGFILE="/var/log/checkmk-backup-cleanup.log"
+
+log() { echo "[$(date '+%F %T')] $*" | tee -a "$LOGFILE"; }
+
+log "Starting backup cleanup for: $MOUNTPOINT"
+log "Retention: ${RETENTION_DAYS} days"
+
+if [[ ! -d "$MOUNTPOINT" ]]; then
+  log "ERROR: Mountpoint not found: $MOUNTPOINT"
+  exit 1
+fi
+
+# Find and delete backups older than retention period
+DELETED=0
+while IFS= read -r -d '' backup; do
+  log "Deleting old backup: $backup"
+  rm -rf "$backup" && DELETED=$((DELETED+1))
+done < <(find "$MOUNTPOINT" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) -mtime +${RETENTION_DAYS} -print0 2>/dev/null)
+
+log "Cleanup completed. Deleted $DELETED backup(s)."
+EOFCLEANUP
+
+  chmod 0755 "${cleanup_script}"
+}
+
+write_cleanup_units() {
+  local site="$1" mountpoint="$2" retention_days="${3:-90}"
+  local cleanup_script="/usr/local/sbin/checkmk_backup_cleanup_${site}.sh"
+  local service_file="/etc/systemd/system/checkmk-backup-cleanup@${site}.service"
+  local timer_file="/etc/systemd/system/checkmk-backup-cleanup@${site}.timer"
+  
+  write_cleanup_script "${cleanup_script}" "${mountpoint}" "${retention_days}"
+  
+  log "Creating cleanup systemd service and timer for site: ${site}"
+  
+  cat > "${service_file}" <<EOFSVC
+[Unit]
+Description=Cleanup old backups for Checkmk site ${site}
+
+[Service]
+Type=oneshot
+ExecStart=${cleanup_script} ${mountpoint} ${retention_days}
+EOFSVC
+
+  cat > "${timer_file}" <<EOFTMR
+[Unit]
+Description=Daily cleanup timer for Checkmk site ${site} backups
+
+[Timer]
+OnCalendar=daily
+OnBootSec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOFTMR
+
+  log "Cleanup units created for site ${site}"
+}
+
 stop_unmount_disable() {
   local unit_name="$1" mountpoint="$2"
   systemctl stop "${unit_name}" >/dev/null 2>&1 || true
@@ -505,6 +575,16 @@ setup_flow() {
     warn "Smoke test failed. Service may still be starting up."
   fi
 
+  # Setup cleanup timer
+  log ""
+  local setup_cleanup
+  if confirm_default_no "Setup automatic backup cleanup (retention: 90 days)?"; then
+    write_cleanup_units "${site}" "${mountpoint}" "90"
+    systemctl daemon-reload
+    systemctl enable --now "checkmk-backup-cleanup@${site}.timer"
+    log "Cleanup timer enabled for site ${site}"
+  fi
+
   log "SETUP COMPLETE (always-on mount)."
 }
 
@@ -638,6 +718,19 @@ remove_flow() {
 
   if confirm_default_no "Also remove mountpoint directory ${mountpoint}?"; then
     rm -rf "${mountpoint}" || warn "Failed to remove mountpoint directory."
+  fi
+  
+  # Remove cleanup units if they exist
+  local cleanup_timer="/etc/systemd/system/checkmk-backup-cleanup@${site}.timer"
+  local cleanup_service="/etc/systemd/system/checkmk-backup-cleanup@${site}.service"
+  local cleanup_script="/usr/local/sbin/checkmk_backup_cleanup_${site}.sh"
+  
+  if [[ -f "${cleanup_timer}" || -f "${cleanup_service}" ]]; then
+    log "Removing cleanup timer and service..."
+    systemctl stop "checkmk-backup-cleanup@${site}.timer" 2>/dev/null || true
+    systemctl disable "checkmk-backup-cleanup@${site}.timer" 2>/dev/null || true
+    rm -f "${cleanup_timer}" "${cleanup_service}" "${cleanup_script}"
+    systemctl daemon-reload
   fi
 
   log "REMOVE COMPLETE."
