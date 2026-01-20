@@ -405,7 +405,6 @@ EOF
   chmod 0644 "$defaults"
   log "Created defaults file: $defaults"
 }
-}
 
 setup() {
   need_root
