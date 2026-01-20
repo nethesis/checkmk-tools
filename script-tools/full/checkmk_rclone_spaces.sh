@@ -146,23 +146,35 @@ install_rclone_stable() {
 
 ensure_fuse_allow_other() {
   log "Ensuring /etc/fuse.conf enables user_allow_other (cleanly)..."
-  [[ -f /etc/fuse.conf ]] || die "/etc/fuse.conf not found (install fuse3)."
+  
+  if [[ ! -f /etc/fuse.conf ]]; then
+    die "/etc/fuse.conf not found (install fuse3)."
+  fi
 
-  sed -i 's/^user_allow_other[[:space:]]\+-/# user_allow_other -/' /etc/fuse.conf
+  log "Checking current fuse.conf content..."
+  
+  # Backup original
+  cp /etc/fuse.conf /etc/fuse.conf.backup.$(date +%s) || true
 
-  if grep -qE '^[[:space:]]*#?[[:space:]]*user_allow_other([[:space:]]*)$' /etc/fuse.conf; then
-    sed -i 's/^[[:space:]]*#[[:space:]]*user_allow_other[[:space:]]*$/user_allow_other/' /etc/fuse.conf
-  else
+  # Remove any commented or malformed user_allow_other lines with flags
+  sed -i.bak1 's/^user_allow_other[[:space:]]\+-/# user_allow_other -/' /etc/fuse.conf || true
+
+  # Uncomment user_allow_other if it exists as a comment
+  if grep -qE '^[[:space:]]*#[[:space:]]*user_allow_other[[:space:]]*$' /etc/fuse.conf; then
+    log "Uncommenting existing user_allow_other line..."
+    sed -i.bak2 's/^[[:space:]]*#[[:space:]]*user_allow_other[[:space:]]*$/user_allow_other/' /etc/fuse.conf || true
+  elif ! grep -qE '^[[:space:]]*user_allow_other[[:space:]]*$' /etc/fuse.conf; then
+    log "Adding user_allow_other to fuse.conf..."
     printf '\nuser_allow_other\n' >> /etc/fuse.conf
   fi
 
-  awk '
-    $0=="user_allow_other" {c++; if (c>1) {$0="#user_allow_other"}}
-    {print}
-  ' /etc/fuse.conf > /etc/fuse.conf.tmp && mv /etc/fuse.conf.tmp /etc/fuse.conf
+  # Remove duplicates, keeping only first occurrence
+  if awk '$0=="user_allow_other" {c++; if (c>1) {$0="#user_allow_other"}} {print}' /etc/fuse.conf > /etc/fuse.conf.tmp; then
+    mv /etc/fuse.conf.tmp /etc/fuse.conf
+  fi
 
   log "fuse.conf OK (first 20 lines):"
-  nl -ba /etc/fuse.conf | sed -n '1,20p' || true
+  nl -ba /etc/fuse.conf | head -n 20 || true
   log "fuse.conf configuration complete."
 }
 
