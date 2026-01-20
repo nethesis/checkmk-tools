@@ -410,6 +410,9 @@ setup() {
       chmod 600 "$rclone_config" 2>/dev/null || true
     fi
     
+    # Also ensure parent directory has correct ownership
+    chown -R "${site}:${site}" "$config_dir" 2>/dev/null || true
+    
     log ""
     log "Configuring rclone remote for site: ${site}"
     log "Config file: $rclone_config"
@@ -422,6 +425,11 @@ setup() {
     fi
     
     ensure_remote_configured "$rclone_config" "$CONFIGURED_REMOTE"
+    
+    # Fix permissions again after rclone config create (which runs as root)
+    chown -R "${site}:${site}" "$config_dir" 2>/dev/null || true
+    chmod 700 "$config_dir" 2>/dev/null || true
+    chmod 600 "$rclone_config" 2>/dev/null || true
     
     log "✓ Rclone configured for site ${site}"
   done
