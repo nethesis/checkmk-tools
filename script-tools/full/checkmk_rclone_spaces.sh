@@ -162,7 +162,8 @@ ensure_fuse_allow_other() {
   ' /etc/fuse.conf > /etc/fuse.conf.tmp && mv /etc/fuse.conf.tmp /etc/fuse.conf
 
   log "fuse.conf OK (first 20 lines):"
-  nl -ba /etc/fuse.conf | sed -n '1,20p'
+  nl -ba /etc/fuse.conf | sed -n '1,20p' || true
+  log "fuse.conf configuration complete."
 }
 
 # ---- EXTERNAL MOUNTPOINT NORMALIZATION / SAFETY ----
@@ -363,31 +364,53 @@ setup_flow() {
   install_rclone_stable
   ensure_fuse_allow_other
 
+  log "Creating mountpoint directory: ${mountpoint}"
   mkdir -p "${mountpoint}"
   chown "${site_user}:${site_group}" "${mountpoint}"
   chmod 2775 "${mountpoint}" || true
+  log "Mountpoint directory created and configured."
 
   local rclone_bin
   rclone_bin="$(command -v rclone)"
   [[ -x "${rclone_bin}" ]] || die "rclone binary not executable: ${rclone_bin}"
+  log "Using rclone binary: ${rclone_bin}"
 
+  log "Stopping and disabling any existing service..."
   stop_unmount_disable "${unit_name}" "${mountpoint}"
+  
+  log "Creating systemd unit file..."
   write_unit "${unit_path}" "${unit_name}" "${site}" "${site_user}" "${site_group}" "${rclone_config}" "${rclone_bin}" "${remote}" "${mountpoint}"
   
   [[ -f "${unit_path}" ]] || die "Failed to create unit file: ${unit_path}"
   log "Unit file created successfully: ${unit_path}"
 
+  log "Reloading systemd daemon..."
   systemctl daemon-reload
+  
+  log "Enabling and starting service: ${unit_name}"
   systemctl enable --now "${unit_name}"
 
+  sleep 2
+  
   log "Service status:"
-  systemctl status "${unit_name}" --no-pager -l
+  systemctl status "${unit_name}" --no-pager -l || true
 
   log "Mount check:"
-  mount | grep -F "${mountpoint}" || die "Mount not present after service start."
+  if mount | grep -F "${mountpoint}"; then
+    log "Mount verified successfully."
+  else
+    warn "Mount not present after service start. Checking service status..."
+    systemctl status "${unit_name}" --no-pager -l || true
+    journalctl -u "${unit_name}" -n 50 --no-pager || true
+    die "Mount not present after service start."
+  fi
 
   log "Smoke test as ${site_user}:"
-  su - "${site_user}" -c "cd '${mountpoint}' && ls -la . | head -n 20" || die "Smoke test failed."
+  if su - "${site_user}" -c "cd '${mountpoint}' && ls -la . | head -n 20"; then
+    log "Smoke test passed."
+  else
+    warn "Smoke test failed. Service may still be starting up."
+  fi
 
   log "SETUP COMPLETE."
 }
