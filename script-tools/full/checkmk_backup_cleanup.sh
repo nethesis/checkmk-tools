@@ -68,7 +68,67 @@ cleanup_backups() {
   total_before=$(find "$backup_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) 2>/dev/null | wc -l)
   log "Total backups before cleanup: $total_before"
   
-  # Find and delete old backups (skip incomplete backups)
+  # Step 1: Rename backups without timestamp (only complete and stable backups)
+  log "Renaming backups without timestamp..."
+  local renamed=0
+  while IFS= read -r -d '' backup; do
+    local backup_name
+    backup_name="$(basename "$backup")"
+    
+    # Skip incomplete backups
+    if [[ "$backup_name" =~ -incomplete ]]; then
+      log "Skipping incomplete backup: $backup_name"
+      continue
+    fi
+    
+    # Check if backup is stable (not modified in last 2 minutes)
+    local last_modified current_time age_seconds
+    last_modified=$(stat -c %Y "$backup" 2>/dev/null || echo "0")
+    current_time=$(date +%s)
+    age_seconds=$((current_time - last_modified))
+    
+    if [[ $age_seconds -lt 120 ]]; then
+      log "Backup too recent (${age_seconds}s old), skipping: $backup_name"
+      continue
+    fi
+    
+    # Check backup size (must be > 100KB to be valid)
+    local backup_size
+    if [[ -d "$backup" ]]; then
+      backup_size=$(du -sb "$backup" 2>/dev/null | awk '{print $1}')
+    else
+      backup_size=$(stat -c %s "$backup" 2>/dev/null || echo "0")
+    fi
+    
+    if [[ $backup_size -lt 102400 ]]; then
+      log "Backup too small (${backup_size} bytes), skipping: $backup_name"
+      continue
+    fi
+    
+    # Check if backup already has timestamp pattern (YYYY-MM-DD-HHhMM)
+    if [[ ! "$backup_name" =~ -[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}h[0-9]{2}$ ]]; then
+      # Get modification time and create timestamp
+      local mtime timestamp new_name new_path
+      mtime=$(stat -c %Y "$backup" 2>/dev/null || echo "0")
+      if [[ "$mtime" != "0" ]]; then
+        timestamp=$(date -d "@${mtime}" '+%Y-%m-%d-%Hh%M' 2>/dev/null || date '+%Y-%m-%d-%Hh%M')
+        new_name="${backup_name}-${timestamp}"
+        new_path="${backup_dir}/${new_name}"
+        
+        log "Renaming: $backup_name -> $new_name (age: ${age_seconds}s, size: ${backup_size} bytes)"
+        if mv "$backup" "$new_path"; then
+          renamed=$((renamed + 1))
+        else
+          err "Failed to rename $backup"
+        fi
+      fi
+    fi
+  done < <(find "$backup_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) -name 'Check_MK-*' -print0 2>/dev/null)
+  
+  log "Renamed $renamed backup(s)"
+  
+  # Step 2: Delete old backups (skip incomplete backups)
+  log "Deleting backups older than ${retention_days} days..."
   local deleted=0
   while IFS= read -r -d '' backup; do
     local backup_name
@@ -92,7 +152,7 @@ cleanup_backups() {
   local total_after
   total_after=$(find "$backup_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) 2>/dev/null | wc -l)
   
-  log "Cleanup completed. Deleted: $deleted, Remaining: $total_after"
+  log "Cleanup completed. Renamed: $renamed, Deleted: $deleted, Remaining: $total_after"
   
   # Show disk usage
   if command -v du >/dev/null 2>&1; then
