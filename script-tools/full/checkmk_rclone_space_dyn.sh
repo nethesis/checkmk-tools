@@ -20,9 +20,107 @@ WRAPPER_PATH="/usr/local/sbin/checkmk_cloud_backup_push_run.sh"
 log() { echo "[$(date '+%F %T')] $*"; }
 err() { echo "[$(date '+%F %T')] ERROR: $*" >&2; }
 die() { err "$*"; exit 1; }
+warn() { echo "WARN: $*" >&2; }
 
 need_root() {
   [[ "${EUID:-$(id -u)}" -eq 0 ]] || die "Run as root."
+}
+
+# Prompt functions
+prompt_default() {
+  local prompt="$1" def="$2" out
+  if [[ -n "${def}" ]]; then
+    printf "%s [%s]: " "${prompt}" "${def}" >&2
+  else
+    printf "%s: " "${prompt}" >&2
+  fi
+  IFS= read -r out
+  [[ -z "${out}" ]] && out="${def}"
+  printf "%s" "${out}"
+}
+
+prompt_secret() {
+  local prompt="$1" out
+  printf "%s: " "${prompt}" >&2
+  stty -echo
+  IFS= read -r out
+  stty echo
+  printf "\n" >&2
+  printf "%s" "${out}"
+}
+
+confirm_default_no() {
+  local prompt="$1" ans
+  printf "%s [y/N]: " "${prompt}" >&2
+  IFS= read -r ans
+  [[ "${ans}" =~ ^[Yy]$ ]]
+}
+
+# Rclone remote management
+remote_exists() {
+  local rclone_config="$1" remote_name="$2"
+  RCLONE_CONFIG="${rclone_config}" rclone config show "${remote_name}" >/dev/null 2>&1
+}
+
+create_or_update_remote_s3() {
+  local rclone_config="$1" remote_name="$2"
+  local provider="$3" access_key="$4" secret_key="$5" region="$6" endpoint="$7"
+
+  log "Creating/updating rclone remote '${remote_name}' in ${rclone_config} ..."
+  RCLONE_CONFIG="${rclone_config}" rclone config create "${remote_name}" s3 \
+    provider="${provider}" \
+    env_auth="false" \
+    access_key_id="${access_key}" \
+    secret_access_key="${secret_key}" \
+    region="${region}" \
+    endpoint="${endpoint}" \
+    acl="private" \
+    --obscure
+}
+
+ensure_remote_configured() {
+  local rclone_config="$1" remote_full="$2"
+  local remote_name="${remote_full%%:*}"
+  [[ -n "${remote_name}" && "${remote_full}" == *:* ]] || die "Remote must be in form name:bucket (e.g. do:mybucket). Got: ${remote_full}"
+
+  if remote_exists "${rclone_config}" "${remote_name}"; then
+    if confirm_default_no "Remote '${remote_name}' already exists. Reconfigure it?"; then
+      log "Reconfiguring existing remote '${remote_name}'."
+    else
+      log "Remote '${remote_name}' already configured."
+      return 0
+    fi
+  else
+    log "Remote '${remote_name}' not found in ${rclone_config}. Will create it now."
+  fi
+
+  local mode
+  mode="$(prompt_default "Remote type (do/aws)" "do")"
+
+  local access_key secret_key region endpoint provider
+  access_key="$(prompt_default "S3 Access Key ID" "")"
+  [[ -n "${access_key}" ]] || die "Access Key ID cannot be empty."
+  secret_key="$(prompt_secret "S3 Secret Access Key")"
+  [[ -n "${secret_key}" ]] || die "Secret Access Key cannot be empty."
+
+  if [[ "${mode}" == "do" ]]; then
+    region="$(prompt_default "DO Spaces region (e.g. nyc3, fra1, ams3)" "ams3")"
+    endpoint="$(prompt_default "DO Spaces endpoint URL" "https://${region}.digitaloceanspaces.com")"
+    provider="DigitalOcean"
+  else
+    region="$(prompt_default "AWS region (e.g. eu-west-1)" "eu-west-1")"
+    endpoint="$(prompt_default "AWS S3 endpoint URL (leave default for AWS)" "https://s3.${region}.amazonaws.com")"
+    provider="AWS"
+  fi
+
+  create_or_update_remote_s3 "${rclone_config}" "${remote_name}" "${provider}" "${access_key}" "${secret_key}" "${region}" "${endpoint}"
+
+  log "Testing remote connectivity (may fail if bucket ACL/policy blocks list):"
+  if ! RCLONE_CONFIG="${rclone_config}" rclone lsd "${remote_name}:" >/dev/null 2>&1; then
+    warn "Remote test 'rclone lsd ${remote_name}:' failed. Credentials may still be valid, but list may be blocked. You can verify with: RCLONE_CONFIG=${rclone_config} rclone ls ${remote_full}"
+  else
+    log "Remote test OK."
+  fi
 }
 
 list_sites() {
@@ -238,6 +336,7 @@ EOF
 
 write_defaults_file() {
   local site="$1"
+  local remote="${2:-do:testmonbck}"
   local defaults="/etc/default/checkmk-cloud-backup-push-${site}"
   if [[ -f "$defaults" ]]; then
     log "Defaults file already exists: $defaults (not overwriting)"
@@ -254,7 +353,7 @@ write_defaults_file() {
 # RETRIES=3
 # BWLIMIT=0
 
-REMOTE=do:testmonbck
+REMOTE=${remote}
 REMOTE_PREFIX=checkmk-backups
 BACKUP_DIR=/var/backups/checkmk
 RCLONE_CONF=/opt/omd/sites/${site}/.config/rclone/rclone.conf
@@ -268,6 +367,66 @@ EOF
 
 setup() {
   need_root
+  
+  # Check if rclone is installed
+  if ! command -v rclone >/dev/null 2>&1; then
+    die "rclone not found. Please install rclone first."
+  fi
+  
+  # Get list of sites
+  local sites
+  mapfile -t sites < <(list_sites || true)
+  
+  if [[ "${#sites[@]}" -eq 0 ]]; then
+    die "No OMD sites found in $SITES_BASE"
+  fi
+  
+  log "Discovered sites: ${sites[*]}"
+  
+  # Configure rclone for each site
+  for site in "${sites[@]}"; do
+    local rclone_config="/opt/omd/sites/${site}/.config/rclone/rclone.conf"
+    local config_dir="$(dirname "$rclone_config")"
+    
+    # Create rclone config directory if missing
+    if [[ ! -d "$config_dir" ]]; then
+      log "Creating rclone config directory for site ${site}"
+      mkdir -p "$config_dir"
+      chown "${site}:${site}" "$config_dir"
+      chmod 700 "$config_dir"
+    fi
+    
+    # Create empty config if missing
+    if [[ ! -f "$rclone_config" ]]; then
+      log "Creating empty rclone config for site ${site}"
+      touch "$rclone_config"
+      chown "${site}:${site}" "$rclone_config"
+      chmod 600 "$rclone_config"
+    fi
+    
+    # Fix permissions if needed
+    if [[ -f "$rclone_config" ]]; then
+      chown "${site}:${site}" "$rclone_config" 2>/dev/null || true
+      chmod 600 "$rclone_config" 2>/dev/null || true
+    fi
+    
+    log ""
+    log "Configuring rclone remote for site: ${site}"
+    log "Config file: $rclone_config"
+    
+    # Ask for remote configuration (only once, use for all sites)
+    if [[ -z "${CONFIGURED_REMOTE:-}" ]]; then
+      CONFIGURED_REMOTE="$(prompt_default "Enter rclone remote (format name:bucket)" "do:testmonbck")"
+    fi
+    
+    ensure_remote_configured "$rclone_config" "$CONFIGURED_REMOTE"
+    
+    log "✓ Rclone configured for site ${site}"
+  done
+  
+  log ""
+  log "Installing systemd units and wrapper..."
+  
   write_wrapper
   write_systemd_units
   systemctl daemon-reload
@@ -294,7 +453,7 @@ setup() {
   if [[ "${#sites[@]}" -gt 0 ]]; then
     log "Auto-enabling backup monitoring for discovered sites:"
     for site in "${sites[@]}"; do
-      write_defaults_file "$site"
+      write_defaults_file "$site" "${CONFIGURED_REMOTE:-do:testmonbck}"
       
       # Set correct ownership for the site user
       if id "$site" &>/dev/null; then
