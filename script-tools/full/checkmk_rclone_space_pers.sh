@@ -407,13 +407,59 @@ EOFCLEANUP
 write_cleanup_units() {
   local site="$1" mountpoint="$2" retention_days="${3:-90}"
   local cleanup_script="/usr/local/sbin/checkmk_backup_cleanup_${site}.sh"
+  local rename_script="/usr/local/sbin/checkmk_backup_rename_${site}.sh"
   local service_file="/etc/systemd/system/checkmk-backup-cleanup@${site}.service"
   local timer_file="/etc/systemd/system/checkmk-backup-cleanup@${site}.timer"
+  local rename_service="/etc/systemd/system/checkmk-backup-rename@${site}.service"
+  local rename_path="/etc/systemd/system/checkmk-backup-rename@${site}.path"
   
+  # Create cleanup script (with rename logic)
   write_cleanup_script "${cleanup_script}" "${mountpoint}" "${retention_days}"
   
-  log "Creating cleanup systemd service and timer for site: ${site}"
+  # Create rename-only script for path monitoring
+  log "Creating rename script: ${rename_script}"
+  cat > "${rename_script}" <<'EOFRENAME'
+#!/usr/bin/env bash
+set -euo pipefail
+
+MOUNTPOINT="${1:?missing mountpoint}"
+LOGFILE="/var/log/checkmk-backup-rename.log"
+
+log() { echo "[$(date '+%F %T')] $*" | tee -a "$LOGFILE"; }
+
+if [[ ! -d "$MOUNTPOINT" ]]; then
+  log "ERROR: Mountpoint not found: $MOUNTPOINT"
+  exit 1
+fi
+
+# Rename backups without timestamp
+RENAMED=0
+while IFS= read -r -d '' backup; do
+  BACKUP_NAME="$(basename "$backup")"
   
+  # Check if backup already has timestamp pattern
+  if [[ ! "$BACKUP_NAME" =~ -[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}h[0-9]{2}$ ]]; then
+    TIMESTAMP=$(date '+%Y-%m-%d-%Hh%M')
+    NEW_NAME="${BACKUP_NAME}-${TIMESTAMP}"
+    NEW_PATH="${MOUNTPOINT}/${NEW_NAME}"
+    
+    log "Renaming: $BACKUP_NAME -> $NEW_NAME"
+    if mv "$backup" "$NEW_PATH" 2>/dev/null; then
+      RENAMED=$((RENAMED+1))
+    else
+      log "WARNING: Failed to rename or already renamed: $backup"
+    fi
+  fi
+done < <(find "$MOUNTPOINT" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) -name 'Check_MK-*' ! -name '*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*' -print0 2>/dev/null)
+
+[[ $RENAMED -gt 0 ]] && log "Renamed $RENAMED backup(s)" || log "No backups to rename"
+EOFRENAME
+  
+  chmod 0755 "${rename_script}"
+  
+  log "Creating cleanup and rename systemd units for site: ${site}"
+  
+  # Cleanup service (daily)
   cat > "${service_file}" <<EOFSVC
 [Unit]
 Description=Cleanup old backups for Checkmk site ${site}
@@ -423,6 +469,7 @@ Type=oneshot
 ExecStart=${cleanup_script} ${mountpoint} ${retention_days}
 EOFSVC
 
+  # Cleanup timer (daily)
   cat > "${timer_file}" <<EOFTMR
 [Unit]
 Description=Daily cleanup timer for Checkmk site ${site} backups
@@ -436,7 +483,32 @@ Persistent=true
 WantedBy=timers.target
 EOFTMR
 
-  log "Cleanup units created for site ${site}"
+  # Rename service (triggered by path)
+  cat > "${rename_service}" <<EOFRENSVC
+[Unit]
+Description=Rename backup after creation for Checkmk site ${site}
+
+[Service]
+Type=oneshot
+ExecStart=${rename_script} ${mountpoint}
+EOFRENSVC
+
+  # Path unit (monitors mountpoint for changes)
+  cat > "${rename_path}" <<EOFRENPATH
+[Unit]
+Description=Monitor backup directory for Checkmk site ${site}
+
+[Path]
+PathChanged=${mountpoint}
+TriggerLimitIntervalSec=2m
+TriggerLimitBurst=1
+Unit=checkmk-backup-rename@${site}.service
+
+[Install]
+WantedBy=multi-user.target
+EOFRENPATH
+
+  log "Cleanup and rename units created for site ${site}"
 }
 
 stop_unmount_disable() {
@@ -602,14 +674,16 @@ setup_flow() {
     warn "Smoke test failed. Service may still be starting up."
   fi
 
-  # Setup cleanup timer
+  # Setup cleanup and rename monitoring
   log ""
   local setup_cleanup
   if confirm_default_no "Setup automatic backup cleanup (retention: 90 days)?"; then
     write_cleanup_units "${site}" "${mountpoint}" "90"
     systemctl daemon-reload
     systemctl enable --now "checkmk-backup-cleanup@${site}.timer"
+    systemctl enable --now "checkmk-backup-rename@${site}.path"
     log "Cleanup timer enabled for site ${site}"
+    log "Backup rename monitoring enabled (triggers after each backup)"
   fi
 
   log "SETUP COMPLETE (always-on mount)."
@@ -751,14 +825,25 @@ remove_flow() {
   local cleanup_timer="/etc/systemd/system/checkmk-backup-cleanup@${site}.timer"
   local cleanup_service="/etc/systemd/system/checkmk-backup-cleanup@${site}.service"
   local cleanup_script="/usr/local/sbin/checkmk_backup_cleanup_${site}.sh"
+  local rename_path="/etc/systemd/system/checkmk-backup-rename@${site}.path"
+  local rename_service="/etc/systemd/system/checkmk-backup-rename@${site}.service"
+  local rename_script="/usr/local/sbin/checkmk_backup_rename_${site}.sh"
   
   if [[ -f "${cleanup_timer}" || -f "${cleanup_service}" ]]; then
     log "Removing cleanup timer and service..."
     systemctl stop "checkmk-backup-cleanup@${site}.timer" 2>/dev/null || true
     systemctl disable "checkmk-backup-cleanup@${site}.timer" 2>/dev/null || true
     rm -f "${cleanup_timer}" "${cleanup_service}" "${cleanup_script}"
-    systemctl daemon-reload
   fi
+  
+  if [[ -f "${rename_path}" || -f "${rename_service}" ]]; then
+    log "Removing backup rename monitoring..."
+    systemctl stop "checkmk-backup-rename@${site}.path" 2>/dev/null || true
+    systemctl disable "checkmk-backup-rename@${site}.path" 2>/dev/null || true
+    rm -f "${rename_path}" "${rename_service}" "${rename_script}"
+  fi
+  
+  systemctl daemon-reload
 
   log "REMOVE COMPLETE."
 }
