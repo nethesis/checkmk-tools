@@ -2,7 +2,10 @@
 set -euo pipefail
 
 DEFAULT_REMOTE="do:testmonbck"
-DEFAULT_MOUNT_SUBPATH="var/spaces"
+
+# NEW: external mount base (outside /opt/omd/sites/<SITE>/)
+DEFAULT_EXTERNAL_MOUNT_BASE="/mnt/checkmk-spaces"
+
 DEFAULT_SITES_BASES=("/opt/omd/sites" "/omd/sites")
 
 log() { printf '%s\n' "[$(date '+%F %T')] $*"; }
@@ -162,6 +165,34 @@ ensure_fuse_allow_other() {
   nl -ba /etc/fuse.conf | sed -n '1,20p'
 }
 
+# ---- EXTERNAL MOUNTPOINT NORMALIZATION / SAFETY ----
+
+normalize_abs_mountpoint() {
+  local mp="$1"
+  # trim spaces
+  mp="${mp#"${mp%%[![:space:]]*}"}"
+  mp="${mp%"${mp##*[![:space:]]}"}"
+  [[ -n "${mp}" ]] || die "Mountpoint cannot be empty."
+  [[ "${mp}" == /* ]] || die "Mountpoint must be an ABSOLUTE path (start with '/')."
+  [[ "${mp}" != *".."* ]] || die "Mountpoint cannot contain '..'."
+  mp="${mp%/}"
+  [[ -n "${mp}" && "${mp}" != "/" ]] || die "Refusing mountpoint '${mp}'."
+  printf "%s" "${mp}"
+}
+
+assert_mountpoint_outside_site() {
+  local site_home="$1" mp="$2"
+  # Ensure mp is NOT inside site_home
+  case "${mp}" in
+    "${site_home}"| "${site_home}/"*) die "Mountpoint must be EXTERNAL to the site. Refusing: ${mp} (site_home=${site_home})" ;;
+  esac
+}
+
+default_external_mountpoint_for_site() {
+  local site="$1"
+  printf "%s/%s" "${DEFAULT_EXTERNAL_MOUNT_BASE}" "${site}"
+}
+
 # ---- RCLONE REMOTE / CREDENTIALS MANAGEMENT ----
 
 remote_exists() {
@@ -173,8 +204,6 @@ create_or_update_remote_s3() {
   local rclone_config="$1" remote_name="$2"
   local provider="$3" access_key="$4" secret_key="$5" region="$6" endpoint="$7"
 
-  # For DigitalOcean Spaces we use provider=DigitalOcean; for AWS use provider=AWS.
-  # We explicitly set access_key_id/secret_access_key and (optionally) endpoint.
   log "Creating/updating rclone remote '${remote_name}' in ${rclone_config} ..."
   RCLONE_CONFIG="${rclone_config}" rclone config create "${remote_name}" s3 \
     provider="${provider}" \
@@ -241,7 +270,7 @@ write_unit() {
   log "Writing systemd unit: ${unit_name}"
   cat > "${unit_path}" <<EOFU
 [Unit]
-Description=Rclone mount ${remote} for Checkmk site ${site}
+Description=Rclone mount ${remote} for Checkmk site ${site} (external mountpoint)
 After=network-online.target
 Wants=network-online.target
 
@@ -301,10 +330,15 @@ setup_flow() {
   local remote mountpoint unit_name unit_path
   remote="$(prompt_default "Enter rclone remote (format name:bucket)" "${DEFAULT_REMOTE}")"
 
-  # Ensure credentials / remote config exist (create if missing)
   ensure_remote_configured "${rclone_config}" "${remote}"
 
-  mountpoint="$(prompt_default "Enter mountpoint path" "${site_home}/${DEFAULT_MOUNT_SUBPATH}")"
+  # NEW: external mountpoint default is /mnt/checkmk-spaces/<site>
+  local mp_default
+  mp_default="$(default_external_mountpoint_for_site "${site}")"
+  mountpoint="$(prompt_default "Enter EXTERNAL mountpoint path (absolute)" "${mp_default}")"
+  mountpoint="$(normalize_abs_mountpoint "${mountpoint}")"
+  assert_mountpoint_outside_site "${site_home}" "${mountpoint}"
+
   unit_name="$(prompt_default "Enter systemd unit name" "rclone-${site}-spaces.service")"
   unit_path="/etc/systemd/system/${unit_name}"
 
@@ -323,6 +357,7 @@ setup_flow() {
 
   mkdir -p "${mountpoint}"
   chown "${site_user}:${site_group}" "${mountpoint}"
+  chmod 2775 "${mountpoint}" || true
 
   local rclone_bin
   rclone_bin="$(command -v rclone)"
@@ -399,11 +434,12 @@ remove_flow() {
 
     if [[ -z "${mp}" ]]; then
       warn "Could not parse mountpoint from unit ExecStart. Asking manually."
-      mountpoint="$(prompt_default "Enter mountpoint path to unmount" "/opt/omd/sites/monitoring/${DEFAULT_MOUNT_SUBPATH}")"
+      mountpoint="$(prompt_default "Enter mountpoint path to unmount" "/mnt/checkmk-spaces/monitoring")"
     else
       mountpoint="${mp}"
     fi
 
+    mountpoint="$(normalize_abs_mountpoint "${mountpoint}")"
     unit_path="/etc/systemd/system/${unit_name}"
 
     log "Removing unit: ${unit_name}"
@@ -424,7 +460,13 @@ remove_flow() {
 
   site="$(pick_site_interactive_or_manual)"
   site_home="$(resolve_site_home "${site}")"
-  mountpoint="$(prompt_default "Enter mountpoint path to unmount" "${site_home}/${DEFAULT_MOUNT_SUBPATH}")"
+
+  local mp_default
+  mp_default="$(default_external_mountpoint_for_site "${site}")"
+  mountpoint="$(prompt_default "Enter EXTERNAL mountpoint path to unmount (absolute)" "${mp_default}")"
+  mountpoint="$(normalize_abs_mountpoint "${mountpoint}")"
+  assert_mountpoint_outside_site "${site_home}" "${mountpoint}"
+
   unit_name="$(prompt_default "Enter systemd unit name to remove" "rclone-${site}-spaces.service")"
   unit_path="/etc/systemd/system/${unit_name}"
 
