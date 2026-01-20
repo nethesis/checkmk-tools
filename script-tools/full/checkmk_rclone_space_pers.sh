@@ -731,9 +731,12 @@ setup_flow() {
 
   # Setup cleanup and rename monitoring
   log ""
-  local setup_cleanup
-  if confirm_default_no "Setup automatic backup cleanup (retention: 90 days)?"; then
-    write_cleanup_units "${site}" "${mountpoint}" "90"
+  local setup_cleanup retention_days
+  if confirm_default_no "Setup automatic backup cleanup?"; then
+    retention_days="$(prompt_default "Retention days" "90")"
+    log "Retention: ${retention_days} days"
+    
+    write_cleanup_units "${site}" "${mountpoint}" "$retention_days"
     systemctl daemon-reload
     systemctl enable --now "checkmk-backup-cleanup@${site}.timer"
     systemctl enable --now "checkmk-backup-rename@${site}.path"
