@@ -191,7 +191,24 @@ IOSchedulingPriority=7
 WantedBy=multi-user.target
 EOF
 
-  # Optional timer template
+  # Path unit for monitoring backup directory
+  cat > "${SYSTEMD_DIR}/checkmk-cloud-backup-push@.path" <<'EOF'
+[Unit]
+Description=Monitor backup directory for Checkmk site %i
+
+[Path]
+# Monitor the backup directory for new files
+PathChanged=/opt/omd/sites/%i/var/check_mk/backup
+# Wait 5 minutes after last change to ensure backup is complete and stable
+TriggerLimitIntervalSec=5m
+TriggerLimitBurst=1
+Unit=checkmk-cloud-backup-push@%i.service
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  # Optional timer template (for scheduled backups if needed)
   cat > "${SYSTEMD_DIR}/checkmk-cloud-backup-push@.timer" <<'EOF'
 [Unit]
 Description=Timer for Checkmk Cloud Backup Push (rclone) for site %i
@@ -245,11 +262,15 @@ setup() {
   log "Installed:"
   log "  - $WRAPPER_PATH"
   log "  - ${SYSTEMD_DIR}/checkmk-cloud-backup-push@.service"
-  log "  - ${SYSTEMD_DIR}/checkmk-cloud-backup-push@.timer"
+  log "  - ${SYSTEMD_DIR}/checkmk-cloud-backup-push@.path (auto-monitor)"
+  log "  - ${SYSTEMD_DIR}/checkmk-cloud-backup-push@.timer (scheduled)"
   log ""
-  log "Next:"
-  log "  1) Run:   $SCRIPT_NAME run <site>"
-  log "  2) Enable timer (optional): systemctl enable --now checkmk-cloud-backup-push@<site>.timer"
+  log "Next steps:"
+  log "  1) Manual run:    $SCRIPT_NAME run <site>"
+  log "  2) Auto-monitor:  systemctl enable --now checkmk-cloud-backup-push@<site>.path"
+  log "     (watches backup dir, triggers push 5min after backup completes)"
+  log "  3) Scheduled:     systemctl enable --now checkmk-cloud-backup-push@<site>.timer"
+  log "     (daily at 02:30)"
 }
 
 run_site() {
@@ -272,7 +293,8 @@ remove_site() {
   local site="${1:-}"
   [[ -n "$site" ]] || site="$(pick_site_interactive)"
 
-  # Stop/disable timer if present
+  # Stop/disable path and timer if present
+  systemctl disable --now "checkmk-cloud-backup-push@${site}.path" >/dev/null 2>&1 || true
   systemctl disable --now "checkmk-cloud-backup-push@${site}.timer" >/dev/null 2>&1 || true
   systemctl stop "checkmk-cloud-backup-push@${site}.service" >/dev/null 2>&1 || true
 
@@ -281,6 +303,7 @@ remove_site() {
 
   log "Units remain installed (shared templates). If you want full uninstall, remove:"
   log "  ${SYSTEMD_DIR}/checkmk-cloud-backup-push@.service"
+  log "  ${SYSTEMD_DIR}/checkmk-cloud-backup-push@.path"
   log "  ${SYSTEMD_DIR}/checkmk-cloud-backup-push@.timer"
   log "  ${WRAPPER_PATH}"
   log "then: systemctl daemon-reload"
@@ -294,11 +317,19 @@ Usage:
   $SCRIPT_NAME remove <site>
 
 Examples:
+  # Initial setup (install templates)
   $SCRIPT_NAME setup
+
+  # Manual push of newest backup
   $SCRIPT_NAME run monitoring
+
+  # Auto-monitor mode: push when new backup detected (5min after completion)
+  systemctl enable --now checkmk-cloud-backup-push@monitoring.path
+
+  # Scheduled mode: push daily at 02:30
   systemctl enable --now checkmk-cloud-backup-push@monitoring.timer
 
-Defaults override file:
+Configuration:
   /etc/default/checkmk-cloud-backup-push-<site>
 EOF
 }
