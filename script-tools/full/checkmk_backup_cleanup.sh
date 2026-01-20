@@ -54,30 +54,32 @@ cleanup_backups() {
   local backup_dir="${1:-$DEFAULT_BACKUP_DIR}"
   local retention_days="${2:-$DEFAULT_RETENTION_DAYS}"
   
-  log "Starting backup cleanup"
+  log "Starting backup rename (local backup - no deletion)"
   log "Backup directory: $backup_dir"
-  log "Retention: ${retention_days} days"
   
   if [[ ! -d "$backup_dir" ]]; then
     err "Backup directory not found: $backup_dir"
     return 1
   fi
   
-  # Count backups before cleanup
+  # Count backups before processing
   local total_before
   total_before=$(find "$backup_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) 2>/dev/null | wc -l)
-  log "Total backups before cleanup: $total_before"
+  log "Total backups: $total_before"
   
-  # Step 1: Rename backups without timestamp (only complete and stable backups)
-  log "Renaming backups without timestamp..."
+  # Rename only complete backups without timestamp
+  log "Looking for completed backups to rename..."
   local renamed=0
   while IFS= read -r -d '' backup; do
     local backup_name
     backup_name="$(basename "$backup")"
     
-    # Skip incomplete backups
-    if [[ "$backup_name" =~ -incomplete ]]; then
-      log "Skipping incomplete backup: $backup_name"
+    # Process only backups ending with -complete
+    if [[ ! "$backup_name" =~ -complete$ ]]; then
+      continue
+    fi
+    
+    log "Found complete backup: $backup_name"
       continue
     fi
     
@@ -123,36 +125,13 @@ cleanup_backups() {
         fi
       fi
     fi
-  done < <(find "$backup_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) -name 'Check_MK-*' -print0 2>/dev/null)
+  done < <(find "$backup_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) -name 'Check_MK-*-complete' -print0 2>/dev/null)
   
-  log "Renamed $renamed backup(s)"
-  
-  # Step 2: Delete old backups (skip incomplete backups)
-  log "Deleting backups older than ${retention_days} days..."
-  local deleted=0
-  while IFS= read -r -d '' backup; do
-    local backup_name
-    backup_name="$(basename "$backup")"
-    
-    # Skip incomplete backups
-    if [[ "$backup_name" =~ -incomplete ]]; then
-      log "Skipping incomplete backup: $backup_name"
-      continue
-    fi
-    
-    log "Deleting old backup: $backup_name"
-    if rm -rf "$backup"; then
-      deleted=$((deleted + 1))
-    else
-      err "Failed to delete: $backup"
-    fi
-  done < <(find "$backup_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) -mtime +${retention_days} -print0 2>/dev/null)
-  
-  # Count backups after cleanup
+  # Count backups after processing
   local total_after
   total_after=$(find "$backup_dir" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) 2>/dev/null | wc -l)
   
-  log "Cleanup completed. Renamed: $renamed, Deleted: $deleted, Remaining: $total_after"
+  log "Rename completed. Renamed: $renamed, Total backups: $total_after"
   
   # Show disk usage
   if command -v du >/dev/null 2>&1; then
@@ -165,13 +144,12 @@ cleanup_backups() {
 setup() {
   need_root
   
-  log "Setting up automatic backup cleanup"
+  log "Setting up automatic backup rename (local backups)"
   
-  local backup_dir retention_days
-  backup_dir="$(prompt_default "Backup directory to clean" "$DEFAULT_BACKUP_DIR")"
-  retention_days="$(prompt_default "Retention period (days)" "$DEFAULT_RETENTION_DAYS")"
+  local backup_dir
+  backup_dir="$(prompt_default "Backup directory" "$DEFAULT_BACKUP_DIR")"
   
-  # Validate inputs
+  # Validate input
   if [[ ! -d "$backup_dir" ]]; then
     if confirm_default_yes "Directory $backup_dir does not exist. Create it?"; then
       mkdir -p "$backup_dir"
@@ -181,22 +159,18 @@ setup() {
     fi
   fi
   
-  if ! [[ "$retention_days" =~ ^[0-9]+$ ]] || [[ "$retention_days" -lt 1 ]]; then
-    die "Invalid retention days: $retention_days"
-  fi
-  
   # Create systemd service
   local service_file="/etc/systemd/system/checkmk-backup-cleanup.service"
   log "Creating systemd service: $service_file"
   
   cat > "$service_file" <<EOF
 [Unit]
-Description=CheckMK Backup Cleanup Service
+Description=CheckMK Backup Rename Service
 After=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash $(realpath "$0") run-internal "$backup_dir" "$retention_days"
+ExecStart=/bin/bash $(realpath "$0") run-internal "$backup_dir"
 Nice=19
 IOSchedulingClass=idle
 
@@ -210,11 +184,10 @@ EOF
   
   cat > "$timer_file" <<EOF
 [Unit]
-Description=Daily CheckMK Backup Cleanup Timer
+Description=CheckMK Backup Rename Timer (Every Minute)
 
 [Timer]
-OnCalendar=daily
-OnBootSec=1h
+OnCalendar=*:0/1
 Persistent=true
 
 [Install]
@@ -230,14 +203,14 @@ EOF
   log "Setup completed!"
   log "Configuration:"
   log "  - Backup directory: $backup_dir"
-  log "  - Retention: $retention_days days"
-  log "  - Schedule: Daily (configured in timer)"
+  log "  - Mode: Rename complete backups only (no deletion)"
+  log "  - Schedule: Every minute (checks for -complete suffix)"
   log ""
   log "Timer status:"
   systemctl status checkmk-backup-cleanup.timer --no-pager || true
   log ""
   log "Manual commands:"
-  log "  Run cleanup now:        $SCRIPT_NAME run"
+  log "  Run rename now:         $SCRIPT_NAME run"
   log "  Check timer status:     systemctl status checkmk-backup-cleanup.timer"
   log "  Check service logs:     journalctl -u checkmk-backup-cleanup.service"
   log "  Remove cleanup:         $SCRIPT_NAME remove"
@@ -248,7 +221,6 @@ run() {
   
   # Try to read config from systemd service if exists
   local backup_dir="$DEFAULT_BACKUP_DIR"
-  local retention_days="$DEFAULT_RETENTION_DAYS"
   
   local service_file="/etc/systemd/system/checkmk-backup-cleanup.service"
   if [[ -f "$service_file" ]]; then
@@ -256,24 +228,21 @@ run() {
     local exec_line
     exec_line=$(grep "^ExecStart=" "$service_file" || true)
     if [[ -n "$exec_line" ]]; then
-      # Parse: ExecStart=/bin/bash /path/script run-internal <dir> <days>
+      # Parse: ExecStart=/bin/bash /path/script run-internal <dir>
       backup_dir=$(echo "$exec_line" | awk '{print $4}' || echo "$DEFAULT_BACKUP_DIR")
-      retention_days=$(echo "$exec_line" | awk '{print $5}' || echo "$DEFAULT_RETENTION_DAYS")
     fi
   else
     log "No systemd service found. Using defaults or run 'setup' first."
-    backup_dir="$(prompt_default "Backup directory to clean" "$DEFAULT_BACKUP_DIR")"
-    retention_days="$(prompt_default "Retention period (days)" "$DEFAULT_RETENTION_DAYS")"
+    backup_dir="$(prompt_default "Backup directory" "$DEFAULT_BACKUP_DIR")"
   fi
   
-  cleanup_backups "$backup_dir" "$retention_days"
+  cleanup_backups "$backup_dir"
 }
 
 run_internal() {
   # Called by systemd service with parameters
   local backup_dir="${1:-$DEFAULT_BACKUP_DIR}"
-  local retention_days="${2:-$DEFAULT_RETENTION_DAYS}"
-  cleanup_backups "$backup_dir" "$retention_days"
+  cleanup_backups "$backup_dir"
 }
 
 remove() {
