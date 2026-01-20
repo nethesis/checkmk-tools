@@ -133,13 +133,24 @@ site_user_from_site() { echo "$1"; }
 
 install_rclone_stable() {
   need_cmd curl
-  log "Installing/updating rclone (stable) from rclone.org..."
+  
+  # Check if rclone is already installed and recent enough
   if command -v rclone >/dev/null 2>&1; then
-    local oldbin
-    oldbin="$(command -v rclone)"
-    cp -a "${oldbin}" "/root/rclone.backup.$(date +%F_%H%M%S)" || true
+    log "rclone is already installed: $(rclone version 2>/dev/null | head -n 1 || echo 'version unknown')"
+    log "Skipping installation. To force reinstall, remove rclone first."
+    return 0
   fi
-  curl -fsSL https://rclone.org/install.sh | bash
+  
+  log "Installing rclone (stable) from rclone.org..."
+  local install_script="/tmp/rclone-install-$$.sh"
+  
+  if curl -fsSL https://rclone.org/install.sh -o "${install_script}"; then
+    bash "${install_script}"
+    rm -f "${install_script}"
+  else
+    die "Failed to download rclone install script"
+  fi
+  
   need_cmd rclone
   log "Installed: $(rclone version | head -n 1)"
 }
