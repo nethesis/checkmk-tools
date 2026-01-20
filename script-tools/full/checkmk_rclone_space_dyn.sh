@@ -265,12 +265,30 @@ setup() {
   log "  - ${SYSTEMD_DIR}/checkmk-cloud-backup-push@.path (auto-monitor)"
   log "  - ${SYSTEMD_DIR}/checkmk-cloud-backup-push@.timer (scheduled)"
   log ""
-  log "Next steps:"
-  log "  1) Manual run:    $SCRIPT_NAME run <site>"
-  log "  2) Auto-monitor:  systemctl enable --now checkmk-cloud-backup-push@<site>.path"
-  log "     (watches backup dir, triggers push 5min after backup completes)"
-  log "  3) Scheduled:     systemctl enable --now checkmk-cloud-backup-push@<site>.timer"
-  log "     (daily at 02:30)"
+  
+  # Auto-enable monitoring for all discovered sites
+  local sites
+  mapfile -t sites < <(list_sites || true)
+  
+  if [[ "${#sites[@]}" -gt 0 ]]; then
+    log "Auto-enabling backup monitoring for discovered sites:"
+    for site in "${sites[@]}"; do
+      write_defaults_file "$site"
+      systemctl enable --now "checkmk-cloud-backup-push@${site}.path" 2>/dev/null || true
+      log "  ✓ ${site} - monitoring /var/backups/checkmk"
+    done
+    log ""
+    log "Backup monitoring is now active. When a backup is saved to /var/backups/checkmk,"
+    log "it will be automatically pushed to cloud after 5 minutes."
+  else
+    log "No OMD sites found. You can manually enable monitoring later with:"
+    log "  systemctl enable --now checkmk-cloud-backup-push@<site>.path"
+  fi
+  
+  log ""
+  log "Manual commands:"
+  log "  Push now:    $SCRIPT_NAME run <site>"
+  log "  Remove:      $SCRIPT_NAME remove <site>"
 }
 
 run_site() {
