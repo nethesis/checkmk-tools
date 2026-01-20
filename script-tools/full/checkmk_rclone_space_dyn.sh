@@ -208,10 +208,29 @@ fi
 NEWEST_PATH="$(echo "${candidates[0]}" | cut -d' ' -f2-)"
 NEWEST_FILE="$(basename "$NEWEST_PATH")"
 
+# Rename backup with timestamp if it doesn't have one
+TIMESTAMP="$(date '+%Y-%m-%d-%Hh%M')"
+TIMESTAMPED_NAME="${NEWEST_FILE}-${TIMESTAMP}"
+TIMESTAMPED_PATH="${BACKUP_DIR}/${TIMESTAMPED_NAME}"
+
+# Only rename if not already timestamped
+if [[ "$NEWEST_FILE" != *"-"[0-9][0-9][0-9][0-9]"-"[0-9][0-9]"-"[0-9][0-9]"-"* ]]; then
+  log "Renaming backup with timestamp: $NEWEST_FILE -> $TIMESTAMPED_NAME"
+  if mv "$NEWEST_PATH" "$TIMESTAMPED_PATH"; then
+    NEWEST_PATH="$TIMESTAMPED_PATH"
+    NEWEST_FILE="$TIMESTAMPED_NAME"
+    log "Backup renamed successfully"
+  else
+    err "Failed to rename backup, using original name"
+  fi
+else
+  log "Backup already has timestamp: $NEWEST_FILE"
+fi
+
 DEST="${REMOTE%/}/${REMOTE_PREFIX%/}/"
 [[ "$REMOTE_PREFIX" == "." || -z "$REMOTE_PREFIX" ]] && DEST="${REMOTE%/}/"
 
-log "Selected newest backup: $NEWEST_PATH"
+log "Selected backup: $NEWEST_PATH"
 log "Destination: ${DEST}${SITE}/"
 log "Using rclone config: $RCLONE_CONF"
 log "Retries: $RETRIES"
