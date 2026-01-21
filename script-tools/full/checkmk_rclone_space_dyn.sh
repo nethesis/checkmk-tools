@@ -486,12 +486,100 @@ EOF
   log "Created defaults file: $defaults"
 }
 
+check_dependencies() {
+  log "Checking system dependencies..."
+  
+  local missing=()
+  
+  # Check for systemd (required for service management)
+  if ! command -v systemctl >/dev/null 2>&1; then
+    missing+=("systemd")
+  fi
+  
+  # Check for curl (needed for rclone installation)
+  if ! command -v curl >/dev/null 2>&1; then
+    missing+=("curl")
+  fi
+  
+  # Check for coreutils (du, awk are part of base system)
+  if ! command -v du >/dev/null 2>&1; then
+    missing+=("coreutils")
+  fi
+  
+  if ! command -v awk >/dev/null 2>&1; then
+    missing+=("gawk")
+  fi
+  
+  # If critical dependencies are missing, try to install them
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    log "Missing dependencies: ${missing[*]}"
+    log "Attempting to install missing packages..."
+    
+    # Detect package manager and install
+    if command -v apt-get >/dev/null 2>&1; then
+      apt-get update -qq
+      for pkg in "${missing[@]}"; do
+        log "Installing $pkg via apt..."
+        apt-get install -y "$pkg" || warn "Failed to install $pkg"
+      done
+    elif command -v yum >/dev/null 2>&1; then
+      for pkg in "${missing[@]}"; do
+        log "Installing $pkg via yum..."
+        yum install -y "$pkg" || warn "Failed to install $pkg"
+      done
+    elif command -v dnf >/dev/null 2>&1; then
+      for pkg in "${missing[@]}"; do
+        log "Installing $pkg via dnf..."
+        dnf install -y "$pkg" || warn "Failed to install $pkg"
+      done
+    else
+      die "No supported package manager found (apt/yum/dnf). Please install manually: ${missing[*]}"
+    fi
+    
+    # Verify all critical dependencies are now available
+    local still_missing=()
+    for pkg in "${missing[@]}"; do
+      local cmd="$pkg"
+      [[ "$pkg" == "gawk" ]] && cmd="awk"
+      [[ "$pkg" == "coreutils" ]] && cmd="du"
+      if ! command -v "$cmd" >/dev/null 2>&1; then
+        still_missing+=("$pkg")
+      fi
+    done
+    
+    if [[ ${#still_missing[@]} -gt 0 ]]; then
+      die "Failed to install required dependencies: ${still_missing[*]}"
+    fi
+    
+    log "All dependencies installed successfully"
+  else
+    log "All system dependencies are present"
+  fi
+}
+
 setup() {
   need_root
   
-  # Check if rclone is installed
+  # Check and install system dependencies first
+  check_dependencies
+  
+  # Check if rclone is installed, if not install it
   if ! command -v rclone >/dev/null 2>&1; then
-    die "rclone not found. Please install rclone first."
+    log "rclone not found. Installing rclone..."
+    
+    # Try to install rclone using official script
+    if curl -fsSL https://rclone.org/install.sh | bash; then
+      log "rclone installed successfully"
+    else
+      die "Failed to install rclone automatically. Please install manually: curl https://rclone.org/install.sh | sudo bash"
+    fi
+    
+    # Verify installation
+    if ! command -v rclone >/dev/null 2>&1; then
+      die "rclone installation completed but command not found. Please check your PATH or reopen terminal."
+    fi
+  else
+    log "rclone is already installed ($(rclone version | head -1))"
   fi
   
   # Get list of sites
