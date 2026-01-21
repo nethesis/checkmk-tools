@@ -51,12 +51,12 @@ function Test-ScriptIntegrity {
         try {
             $errors = $null
             $tokens = $null
-            $ast = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$tokens, [ref]$errors)
+            $null = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$tokens, [ref]$errors)
             
             if ($errors.Count -gt 0) {
                 Write-Host "✗ Errori di sintassi in: $relativePath" -ForegroundColor Red
-                foreach ($error in $errors) {
-                    Write-Host "  └─ Linea $($error.Extent.StartLineNumber): $($error.Message)" -ForegroundColor Red
+                foreach ($parseError in $errors) {
+                    Write-Host "  └─ Linea $($parseError.Extent.StartLineNumber): $($parseError.Message)" -ForegroundColor Red
                 }
                 return $false
             }
