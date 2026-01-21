@@ -1,6 +1,10 @@
 # Script di Backup Completo Repository CheckMK-Tools
 # Backup locale + opzionale su \\192.168.10.132\usbshare
 
+param(
+    [switch]$Unattended  # Modalità automatica senza prompt
+)
+
 $ErrorActionPreference = "Stop"
 
 $REPO_PATH = "C:\Users\Marzio\Desktop\CheckMK\checkmk-tools"
@@ -256,9 +260,11 @@ Write-Host "  • File validi: $($checkedScripts - $corruptedScripts)" -Foregrou
 Write-Host "  • File corrotti: $corruptedScripts" -ForegroundColor $(if ($corruptedScripts -eq 0) { "Green" } else { "Red" })
 Write-Host "═══════════════════════════════════════════════════════`n" -ForegroundColor Cyan
 
-Write-Host "Premi un tasto per continuare con il backup..." -ForegroundColor Yellow
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-Write-Host ""
+if (-not $Unattended) {
+    Write-Host "Premi un tasto per continuare con il backup..." -ForegroundColor Yellow
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    Write-Host ""
+}
 
 # ═══════════════════════════════════════════════════════════════════
 # INIZIO BACKUP
@@ -347,8 +353,14 @@ Write-Host "╔═════════════════════�
 Write-Host "║          🌐 BACKUP SU RETE (OPZIONALE)               ║" -ForegroundColor White
 Write-Host "╚═══════════════════════════════════════════════════════╝`n" -ForegroundColor Yellow
 
-Write-Host "Vuoi eseguire il backup anche su $NETWORK_BACKUP_BASE?" -ForegroundColor Cyan
-$response = Read-Host "Conferma (S/N)"
+if ($Unattended) {
+    # In modalità automatica, salta il backup di rete per default
+    $response = 'n'
+    Write-Host "⊗ Backup su rete saltato (modalità automatica)" -ForegroundColor Yellow
+} else {
+    Write-Host "Vuoi eseguire il backup anche su $NETWORK_BACKUP_BASE?" -ForegroundColor Cyan
+    $response = Read-Host "Conferma (S/N)"
+}
 
 $networkCopied = 0
 if ($response -eq 's' -or $response -eq 'S') {
