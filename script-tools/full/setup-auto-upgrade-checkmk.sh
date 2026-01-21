@@ -45,31 +45,12 @@ if ! command -v omd &> /dev/null; then
     exit 1
 fi
 
-# Determina la directory dello script upgrade-checkmk.sh
-# Se lo script è eseguito tramite curl (da /dev/fd/), scarica upgrade-checkmk.sh
-if [[ "${BASH_SOURCE[0]}" =~ ^/dev/fd/ ]]; then
-    # Eseguito da remoto, scarica lo script di upgrade
-    UPGRADE_SCRIPT="/tmp/upgrade-checkmk-$$.sh"
-    UPGRADE_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/upgrade-checkmk.sh"
-    
-    print_info "Download script di upgrade da GitHub..."
-    if ! curl -fsSL "$UPGRADE_URL" -o "$UPGRADE_SCRIPT"; then
-        print_error "Impossibile scaricare lo script di upgrade da: $UPGRADE_URL"
-        exit 1
-    fi
-    chmod +x "$UPGRADE_SCRIPT"
-    print_success "Script di upgrade scaricato: $UPGRADE_SCRIPT"
-else
-    # Eseguito localmente, usa il percorso relativo
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    UPGRADE_SCRIPT="${SCRIPT_DIR}/upgrade-checkmk.sh"
-    
-    # Verifica esistenza dello script di upgrade
-    if [ ! -f "$UPGRADE_SCRIPT" ]; then
-        print_error "Script di upgrade non trovato: $UPGRADE_SCRIPT"
-        exit 1
-    fi
-fi
+# URL dello script full che esegue l'upgrade
+UPGRADE_SCRIPT_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/upgrade-checkmk.sh"
+
+print_info "Verrà utilizzato lo script remoto da GitHub"
+print_info "URL: $UPGRADE_SCRIPT_URL"
+print_success "Lo script scaricherà automaticamente l'ultima versione ad ogni esecuzione"
 
 # Banner
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
@@ -94,7 +75,6 @@ fi
 
 LOG_FILE="/var/log/auto-upgrade-checkmk.log"
 
-print_info "Script di upgrade utilizzato: $UPGRADE_SCRIPT"
 echo ""
 
 # Menu interattivo per la frequenza
@@ -195,9 +175,12 @@ if [[ $enable_email =~ ^[Ss]$ ]]; then
     fi
 fi
 
-# Crea il comando completo con logging e auto-yes
-UPGRADE_COMMAND="yes | bash $UPGRADE_SCRIPT"
+# Crea il comando completo con logging e auto-yes usando lo script remoto full
+# Usa metodo compatibile con tutti i sistemi (senza process substitution)
+UPGRADE_COMMAND="curl -fsSL $UPGRADE_SCRIPT_URL -o /tmp/upgrade-checkmk.sh && chmod +x /tmp/upgrade-checkmk.sh && yes | bash /tmp/upgrade-checkmk.sh"
 CRON_ENTRY="$CRON_SCHEDULE (echo \"[\$(date)] Starting CheckMK auto-upgrade\" && $UPGRADE_COMMAND && echo \"[\$(date)] CheckMK upgrade completed successfully\"$EMAIL_NOTIFY) >> $LOG_FILE 2>&1"
+
+print_info "Lo script scaricherà automaticamente l'ultima versione ad ogni esecuzione"
 
 echo ""
 print_info "Entry crontab che verrà aggiunta:"
@@ -220,13 +203,13 @@ crontab -l > "$BACKUP_FILE" 2>/dev/null || echo "# Nuovo crontab" > "$BACKUP_FIL
 print_success "Backup salvato in: $BACKUP_FILE"
 
 # Verifica se l'entry esiste già
-if crontab -l 2>/dev/null | grep -q "upgrade-checkmk.sh"; then
+if crontab -l 2>/dev/null | grep -q "upgrade-checkmk\|rupgrade-checkmk"; then
     print_warning "Trovata entry simile già presente nel crontab"
     read -p "Vuoi rimuovere le entry esistenti e aggiungerne una nuova? [s/N]: " remove_old
     
     if [[ $remove_old =~ ^[Ss]$ ]]; then
-        # Rimuovi le vecchie entry
-        crontab -l 2>/dev/null | grep -v "upgrade-checkmk.sh" | crontab -
+        # Rimuovi le vecchie entry (sia locali che remote)
+        crontab -l 2>/dev/null | grep -v "upgrade-checkmk\|rupgrade-checkmk" | crontab -
         print_success "Vecchie entry rimosse"
     else
         print_warning "Le vecchie entry sono state mantenute. L'upgrade potrebbe essere eseguito più volte."
@@ -242,9 +225,6 @@ print_success "Entry aggiunta con successo!"
 touch "$LOG_FILE"
 chmod 644 "$LOG_FILE"
 print_info "File di log creato: $LOG_FILE"
-
-# Rendi eseguibile lo script di upgrade
-chmod +x "$UPGRADE_SCRIPT"
 
 # Mostra il crontab corrente
 echo ""
@@ -262,7 +242,7 @@ echo ""
 print_success "Frequenza: $DESCRIPTION"
 print_success "Log file: $LOG_FILE"
 print_success "Backup crontab: $BACKUP_FILE"
-print_success "Script upgrade: $UPGRADE_SCRIPT"
+print_success "Script remoto: $UPGRADE_SCRIPT_URL"
 if [[ -n "$EMAIL_NOTIFY" ]]; then
     print_success "Notifiche email: $email_address"
 fi
@@ -272,6 +252,7 @@ echo "  1. Gli upgrade avverranno AUTOMATICAMENTE alla schedulazione impostata"
 echo "  2. Viene creato un backup prima di ogni upgrade"
 echo "  3. I backup sono salvati in: /opt/omd/backups/"
 echo "  4. Monitora regolarmente i log per verificare gli upgrade"
+echo "  5. Lo script scarica SEMPRE l'ultima versione da GitHub ad ogni esecuzione"
 echo ""
 print_info "Per monitorare gli upgrade eseguiti:"
 echo -e "  ${YELLOW}tail -f $LOG_FILE${NC}"
@@ -280,7 +261,7 @@ print_info "Per rimuovere gli upgrade automatici:"
 echo -e "  ${YELLOW}crontab -e${NC}  # e rimuovi la riga corrispondente"
 echo ""
 print_info "Per testare subito l'upgrade manualmente (senza aspettare la schedulazione):"
-echo -e "  ${YELLOW}bash $UPGRADE_SCRIPT${NC}"
+echo -e "  ${YELLOW}curl -fsSL $UPGRADE_SCRIPT_URL -o /tmp/upgrade-checkmk.sh && chmod +x /tmp/upgrade-checkmk.sh && bash /tmp/upgrade-checkmk.sh${NC}"
 echo ""
 print_warning "RACCOMANDAZIONE: Esegui prima un test manuale per verificare il funzionamento!"
 echo ""
