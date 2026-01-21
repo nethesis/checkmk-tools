@@ -286,9 +286,8 @@ fi
 # Push backup (file or directory)
 REMOTE_SITE_PATH="${DEST}${SITE}"
 
-# Ensure remote path exists
-log "Ensuring remote directory exists: $REMOTE_SITE_PATH"
-rclone mkdir "$REMOTE_SITE_PATH" "${COMMON_OPTS[@]}"
+# Note: S3/Spaces don't support empty directories, paths are created automatically when uploading files
+log "Remote destination: $REMOTE_SITE_PATH"
 
 if [[ -d "$NEWEST_PATH" ]]; then
   # It's a directory - copy entire directory
