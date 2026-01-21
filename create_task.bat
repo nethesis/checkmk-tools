@@ -1,2 +1,0 @@
-@echo off
-schtasks /create /tn "BackupSyncComplete" /tr "powershell.exe -ExecutionPolicy Bypass -File \"C:\Users\Marzio\Desktop\CheckMK\Script\backup-sync-complete.ps1\"" /sc minute /mo 90 /rl highest /f
