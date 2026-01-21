@@ -188,17 +188,16 @@ fi
 [[ -d "$BACKUP_DIR" ]] || { err "Backup dir not found: $BACKUP_DIR"; exit 4; }
 [[ -r "$RCLONE_CONF" ]] || { err "rclone.conf not readable: $RCLONE_CONF"; exit 5; }
 
-# Pick newest backup (file or directory)
-# First try to find backup files
-mapfile -t candidates < <(find "$BACKUP_DIR" -maxdepth 1 -type f \
-  \( -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar' -o -name '*.mkbackup' -o -name '*.zip' \) \
-  -printf '%T@ %p\n' 2>/dev/null | sort -nr)
-
-# If no files found, look for backup directories (CheckMK uncompressed backups)
-if [[ "${#candidates[@]}" -eq 0 ]]; then
-  mapfile -t candidates < <(find "$BACKUP_DIR" -maxdepth 1 -type d \
-    -name 'Check_MK-*' -printf '%T@ %p\n' 2>/dev/null | sort -nr)
-fi
+# Pick newest backup (file or directory) - search both and sort by timestamp
+mapfile -t candidates < <(
+  { 
+    find "$BACKUP_DIR" -maxdepth 1 -type f \
+      \( -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar' -o -name '*.mkbackup' -o -name '*.zip' \) \
+      -printf '%T@ %p\n' 2>/dev/null
+    find "$BACKUP_DIR" -maxdepth 1 -type d \
+      -name 'Check_MK-*' -printf '%T@ %p\n' 2>/dev/null
+  } | sort -nr
+)
 
 if [[ "${#candidates[@]}" -eq 0 ]]; then
   err "No backup archives or directories found in $BACKUP_DIR"
