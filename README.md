@@ -4,8 +4,11 @@
 [![CheckMK](https://img.shields.io/badge/CheckMK-Compatible-green.svg)](https://checkmk.com/)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-blue.svg)](https://github.com/PowerShell/PowerShell)
 [![Bash](https://img.shields.io/badge/Bash-4.0+-green.svg)](https://www.gnu.org/software/bash/)
+[![Language](https://img.shields.io/badge/Lingua-Italiano%20🇮🇹-green.svg)](#)
 
-Collezione completa di script per il monitoraggio e la gestione di infrastrutture con CheckMK. Include script di check per diverse piattaforme, sistemi di notifica personalizzati, e tool di deployment automatizzato.
+Collezione completa di script per il monitoraggio e la gestione di infrastrutture con CheckMK. Include script di check per diverse piattaforme, sistemi di notifica personalizzati, tool di deployment automatizzato, backup cloud, e automazione completa.
+
+> 🇮🇹 **Nota**: Questo repository è principalmente in italiano. Documentazione e commenti sono in lingua italiana.
 
 ---
 
@@ -45,6 +48,19 @@ Collezione completa di script per il monitoraggio e la gestione di infrastruttur
 - **Backup Automatico**: Snapshot pre-deployment con rollback
 - **Validazione**: Test sintassi e funzionalità pre-deployment
 - **Interactive Menu**: Deploy interattivo con selezione script per OS
+
+### ☁️ Backup Cloud Automatizzato
+- **rclone Integration**: Backup CheckMK su cloud storage (S3, DigitalOcean Spaces, ecc.)
+- **Retention Intelligente**: Gestione automatica retention locale e remota
+- **Rename Automatico**: Timestamp automatico per backup completati
+- **Monitoring Timer**: Check ogni minuto per nuovi backup
+- **Auto-Install Dipendenze**: Installazione automatica rclone e dipendenze
+
+### 🔄 Auto-Upgrade CheckMK
+- **Upgrade Automatico**: Setup wizard per upgrade CheckMK via crontab
+- **Always Latest**: Scarica sempre ultima versione script da GitHub
+- **Compatibilità Universale**: Supporto bash 3.2+ con metodo download-to-temp
+- **Configurazione Interattiva**: Wizard step-by-step per configurazione completa
 
 ### 📧 Notifiche Avanzate
 - **Email Real IP**: Notifiche con IP reale anche dietro proxy FRP
@@ -108,9 +124,11 @@ checkmk-tools/
 │   │   ├── checkmk-tuning-interactive*.sh  # Tuning CheckMK
 │   │   ├── checkmk-optimize.sh        # Ottimizzazione CheckMK
 │   │   ├── scan-nmap*.sh              # Scanner rete interattivo
-│   │   ├── auto-git-sync.sh           # Sync automatico repository
-│   │   ├── increase-swap.sh           # Gestione swap
-│   │   └── upgrade-checkmk.sh         # Upgrade CheckMK
+│   │   ├── auto-git-sync.sh           # ⭐ Sync automatico repository
+│   │   ├── checkmk_rclone_space_dyn.sh # ⭐ Backup cloud con rclone
+│   │   ├── setup-auto-upgrade-checkmk.sh # ⭐ Setup auto-upgrade CheckMK
+│   │   ├── upgrade-checkmk.sh         # Upgrade CheckMK
+│   │   └── increase-swap.sh           # Gestione swap
 │   ├── remote/                    # Remote wrapper
 │   ├── auto-git-sync.service      # Systemd service per sync
 │   └── install-auto-git-sync.sh   # Installazione sync automatico
@@ -157,8 +175,11 @@ checkmk-tools/
     ├── diagnose-auto-git-sync.sh  # Diagnostica sync automatico
     ├── debug-monitor.sh           # Debug monitoring
     ├── update-deployed-launchers.sh  # Aggiorna launcher deployati
-    └── distributed-monitoring-setup.sh  # Setup monitoring distribuito
+    ├── distributed-monitoring-setup.sh  # Setup monitoring distribuito
+    └── .copilot-context.md        # ⭐ Context file per AI (auto-sync, preferenze)
 ```
+
+> 📝 **Nota importante**: Il file `.copilot-context.md` contiene informazioni critiche sull'architettura del sistema auto-sync e preferenze per assistenti AI. Leggerlo prima di modificare file o eseguire comandi.
 
 ---
 
@@ -1103,7 +1124,132 @@ $env:API_TOKEN = "your-token"
 
 ---
 
-## 📞 Supporto
+## � Sistema Auto-Sync
+
+Il repository utilizza un sistema di **sincronizzazione automatica** sui server CheckMK:
+
+### Architettura
+
+```
+GitHub (Coverup20/checkmk-tools)
+    ↓ [auto-git-sync.service - ogni 5-15 minuti]
+/opt/checkmk-tools/ (sui server)
+    ↓ [esecuzione script]
+Produzione
+```
+
+### Workflow Modifiche
+
+1. **Modifica locale** (Windows/Workstation)
+2. **Commit + Push** a GitHub
+3. **Attendi auto-sync** (5-15 minuti) o forzalo: `sudo bash /opt/checkmk-tools/script-tools/full/auto-git-sync.sh`
+4. **Script aggiornati** in `/opt/checkmk-tools/`
+5. **Test in produzione**
+
+⚠️ **Importante**: Non modificare mai direttamente file in `/opt/checkmk-tools/` - verranno sovrascritti dal sync!
+
+### Verifica Sync
+
+```bash
+# Stato servizio
+sudo systemctl status auto-git-sync.service
+
+# Log recenti
+sudo journalctl -u auto-git-sync.service -n 50
+
+# Forzare sync manuale
+sudo bash /opt/checkmk-tools/script-tools/full/auto-git-sync.sh
+```
+
+**Documentazione completa**: [.copilot-context.md](.copilot-context.md)
+
+---
+
+## ☁️ Backup Cloud CheckMK
+
+Script completo per backup automatizzato CheckMK su cloud storage con rclone.
+
+### Features
+
+- ✅ **Multi-Cloud**: Supporto S3, DigitalOcean Spaces, Google Drive, Dropbox, ecc.
+- ✅ **Auto-Install**: Installazione automatica rclone e dipendenze
+- ✅ **Retention Automatica**: Gestione locale e remota con giorni configurabili
+- ✅ **Rename Intelligente**: Timestamp automatico per backup `-complete`
+- ✅ **Monitoring Timer**: Systemd timer (ogni 1 minuto) per check automatici
+- ✅ **S3-Compatible**: Ottimizzato per S3/Spaces (no mkdir, path auto-create)
+
+### Quick Start
+
+```bash
+# Setup interattivo
+cd /opt/checkmk-tools/script-tools/full
+./checkmk_rclone_space_dyn.sh setup
+
+# Configurazione:
+# - Site CheckMK: monitoring
+# - Remote rclone: do:testmonbck (esempio DigitalOcean)
+# - Retention locale: 30 giorni
+# - Retention remota: 90 giorni
+
+# Test manuale
+./checkmk_rclone_space_dyn.sh run monitoring
+
+# Check status
+systemctl status checkmk-cloud-backup-push@monitoring.timer
+journalctl -u checkmk-cloud-backup-push@monitoring.service -n 50
+```
+
+### Configurazione rclone
+
+Il script richiede rclone configurato. Esempio per DigitalOcean Spaces:
+
+```bash
+rclone config
+# Scegli: s3
+# Provider: DigitalOcean Spaces
+# Endpoint: ams3.digitaloceanspaces.com
+# Remote name: do
+```
+
+**File**: `script-tools/full/checkmk_rclone_space_dyn.sh` (794 righe)
+
+---
+
+## 🔄 Auto-Upgrade CheckMK
+
+Wizard interattivo per configurare upgrade automatico CheckMK via crontab.
+
+### Features
+
+- ✅ **Always Latest**: Scarica sempre ultima versione upgrade script da GitHub
+- ✅ **Compatibilità Universale**: Supporto bash 3.2+ (download-to-temp)
+- ✅ **Wizard Interattivo**: Configurazione step-by-step guidata
+- ✅ **Crontab Safe**: Validazione e backup crontab automatico
+- ✅ **Multi-Site**: Supporto upgrade singolo site o tutti
+
+### Quick Start
+
+```bash
+# Setup wizard
+cd /opt/checkmk-tools/script-tools/full
+./setup-auto-upgrade-checkmk.sh
+
+# Seguire wizard:
+# 1. Scegli site (o "tutti")
+# 2. Conferma versione CheckMK
+# 3. Imposta orario (es: 03:00)
+# 4. Scegli frequenza (giornaliero/settimanale/mensile)
+# 5. Conferma configurazione
+
+# Verifica crontab
+crontab -l
+```
+
+**File**: `script-tools/full/setup-auto-upgrade-checkmk.sh` (270 righe)
+
+---
+
+## �📞 Supporto
 
 ### Issue Reporting
 
@@ -1195,6 +1341,12 @@ Grazie a tutti i contributori che hanno aiutato a migliorare questa collezione!
 ## 📅 Changelog
 
 ### v2.0.0 (Current - Gennaio 2026)
+- ✅ **Backup Cloud**: Sistema completo backup CheckMK su cloud con rclone (S3/Spaces)
+- ✅ **Auto-Upgrade CheckMK**: Wizard setup upgrade automatico via crontab
+- ✅ **Auto-Sync Enhanced**: Sistema sincronizzazione automatica con .copilot-context.md
+- ✅ **S3/Spaces Compatibility**: Fix compatibilità per cloud storage senza mkdir
+- ✅ **Unified Search**: Backup selection unificata file/directory per timestamp
+- ✅ **Preferenze Lingua**: Repository configurato per italiano 🇮🇹
 - ✅ **Ydea Toolkit completo**: Integrazione ticketing con 30+ script
 - ✅ **NethSecurity 8**: Supporto completo firewall NS8
 - ✅ **Ubuntu/Linux enhanced**: 6 script monitoraggio (SSH, Fail2ban, Disk)
