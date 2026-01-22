@@ -68,6 +68,7 @@ $scriptFiles = Get-ChildItem -Path $REPO_PATH -Recurse -File -ErrorAction Silent
         $_.FullName -notmatch '\\\.git\\' -and
         $_.FullName -notmatch '\\BACKUP' -and
         $_.FullName -notmatch '\.BACKUP' -and
+        $_.FullName -notmatch 'BACKUP-CORRUPTED-' -and
         $_.Name -notmatch '^(LICENSE|README|CHANGELOG|AUTHORS|Dockerfile)$' -and
         $_.Name -notmatch '^\.' -and
         ($_.Extension -in @('.ps1', '.sh', '.bash', '.bat', '.cmd', '.py') -or $_.Extension -eq '') -and
