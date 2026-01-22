@@ -2,17 +2,24 @@
 /usr/bin/env bash
 # get-ticket-by-id.sh - Recupera un ticket specifico per ID numericoset -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Source del toolkit solo per funzioni helpersource "$SCRIPT_DIR/ydea-toolkit.sh"
-TICKET_ID="${1:-}"if [[ -z "$TICKET_ID" ]]; then
-    echo "ÔØî Uso: $0 <ticket_id>"  
-echo ""  
-echo "Esempio:"  
-echo "  $0 1486125"
+# Source del toolkit solo per funzioni helper
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+TICKET_ID="${1:-}"
+
+if [[ -z "$TICKET_ID" ]]; then
+    echo "📋 Uso: $0 <ticket_id>"
+    echo ""
+    echo "Esempio:"
+    echo "  $0 1486125"
     exit 1
-fi echo "­ƒöì Recuperan
-do ticket ID: $TICKET_ID..."
+fi
+
+echo "🔍 Recuperando ticket ID: $TICKET_ID..."
 echo ""
-# Assicurati di avere il tokenensure_token
+
+# Assicurati di avere il token
+ensure_token
 TOKEN="$(load_token)"
 # Prova prima con l'endpoint diretto /tickets/{id}
 echo "­ƒôí Tentativo 1: GET /tickets/$TICKET_ID"

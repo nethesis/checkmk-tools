@@ -2,17 +2,24 @@
 /usr/bin/env bash
 # search-ticket-by-code.sh - Cerca un ticket per codice (es: TK25/003209)set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Source del toolkit solo per funzioni helpersource "$SCRIPT_DIR/ydea-toolkit.sh"
-TICKET_CODE="${1:-}"if [[ -z "$TICKET_CODE" ]]; then
-    echo "ÔØî Uso: $0 <ticket_code>"  
-echo ""  
-echo "Esempio:"  
-echo "  $0 TK25/003209"
+# Source del toolkit solo per funzioni helper
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+TICKET_CODE="${1:-}"
+
+if [[ -z "$TICKET_CODE" ]]; then
+    echo "📋 Uso: $0 <ticket_code>"
+    echo ""
+    echo "Esempio:"
+    echo "  $0 TK25/003209"
     exit 1
-fi echo "­ƒöì Cercan
-do ticket con codice: $TICKET_CODE..."
+fi
+
+echo "🔍 Cercando ticket con codice: $TICKET_CODE..."
 echo ""
-# Assicurati di avere il tokenensure_token
+
+# Assicurati di avere il token
+ensure_token
 TOKEN="$(load_token)"
 # Prova con limite maggiore per trovare ticket pi├╣ vecchifor LIMIT in 100 200 500 1000; do  
 echo "­ƒôí Tentativo con limit=$LIMIT..."    

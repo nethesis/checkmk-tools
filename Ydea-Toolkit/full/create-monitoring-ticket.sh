@@ -8,16 +8,18 @@ if [[ ! -f "$CONFIG_FILE" ]]; then  log_error "File configurazione non trovato: 
     exit 1
 fi
 
-# Leggi parametri da Check
-MKCMK_HOST="${1:-}"
+# Leggi parametri da CheckMK
+CMK_HOST="${1:-}"
 CMK_SERVICE="${2:-}"
 CMK_STATE="${3:-}"
 CMK_OUTPUT="${4:-}"
-CMK_HOSTIP="${5:-}"if [[ -z "$CMK_HOST" ]]; then
-    echo "ÔØî Uso: $0 <HOST> <SERVICE> <STATE> <OUTPUT> [HOST_IP]"  
-echo ""  
-echo "Esempio:"  
-echo "  $0 'mail.example.com' 'HTTP' 'CRITICAL' 'Connection timeout' '1.2.3.4'"
+CMK_HOSTIP="${5:-}"
+
+if [[ -z "$CMK_HOST" ]]; then
+    echo "📋 Uso: $0 <HOST> <SERVICE> <STATE> <OUTPUT> [HOST_IP]"
+    echo ""
+    echo "Esempio:"
+    echo "  $0 'mail.example.com' 'HTTP' 'CRITICAL' 'Connection timeout' '1.2.3.4'"
     exit 1filog_info "=== Creazione ticket da CheckMK ==="log_info "Host: $CMK_HOST"log_info "Service: $CMK_SERVICE"log_info "State: $CMK_STATE"log_info "Output: $CMK_OUTPUT"log_info "IP: ${CMK_HOSTIP:-N/A}"
 # Carica configurazione
 ANAGRAFICA_ID=$(jq -r '.anagrafica_id' "$CONFIG_FILE")

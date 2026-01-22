@@ -2,16 +2,20 @@
 /usr/bin/env bash
 # inspect-ticket.sh - Ispeziona un singolo ticket per vedere la struttura completaset -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Source del toolkit solo per funzioni helpersource "$SCRIPT_DIR/ydea-toolkit.sh"
-TICKET_ID="${1:-}"if [[ -z "$TICKET_ID" ]]; then
-    echo "ÔØî Uso: $0 <ticket_id>"  
-echo ""  
-echo "Esempio:"  
-echo "  $0 1486125"
+# Source del toolkit solo per funzioni helper
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+TICKET_ID="${1:-}"
+
+if [[ -z "$TICKET_ID" ]]; then
+    echo "📋 Uso: $0 <ticket_id>"
+    echo ""
+    echo "Esempio:"
+    echo "  $0 1486125"
     exit 1
-fi echo "­ƒöì Ispezionan
-do ticket 
-#$TICKET_ID..."
+fi
+
+echo "🔍 Ispezionando ticket #$TICKET_ID..."
 echo ""
 # Assicurati di avere il tokenensure_token
 TOKEN="$(load_token)"

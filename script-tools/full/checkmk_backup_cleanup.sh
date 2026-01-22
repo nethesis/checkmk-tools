@@ -81,8 +81,6 @@ cleanup_backups() {
     fi
     
     log "Found complete backup: $backup_name"
-      continue
-    fi
     
     # Check if backup is stable (not modified in last 2 minutes)
     local last_modified current_time age_seconds
