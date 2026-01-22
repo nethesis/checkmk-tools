@@ -10,7 +10,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source utilities
 source "${SCRIPT_DIR}/utils/colors.sh"
 source "${SCRIPT_DIR}/utils/logger.sh"
-# source "${SCRIPT_DIR}/utils/menu.sh"  # Not needed for ISO building
 
 # Simple display_box function for ISO builder
 display_box() {
@@ -36,99 +35,13 @@ UBUNTU_ISO_URL="https://releases.ubuntu.com/noble/ubuntu-${UBUNTU_VERSION}-live-
 UBUNTU_ISO_NAME="ubuntu-${UBUNTU_VERSION}-live-server-amd64.iso"
 
 init_logging
-
 print_header "CheckMK Installer ISO Builder"
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Check dependencies
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#check_dependencies() {
+
+# ================================================================
+# Dependency Checking
+# ================================================================
+
+check_dependencies() {
   log_info "Checking dependencies..."
   
   local deps=("wget" "xorriso" "mksquashfs" "genisoimage" "7z")
@@ -154,1283 +67,501 @@ print_header "CheckMK Installer ISO Builder"
   log_success "All dependencies installed"
 }
 
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+# ================================================================
 # Download Ubuntu ISO
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#download_ubuntu_iso() {  local iso_cache="${SCRIPT_DIR}/${UBUNTU_ISO_NAME}"    if [[ -f "$iso_cache" ]]; then    log_info "Using cached Ubuntu ISO" >&2    
-echo "$iso_cache"    return 0  fi    log_info "Downloading Ubuntu ${UBUNTU_VERSION} ISO..." >&2  log_warning "This may take several minutes (~2.5GB download)" >&2    if ! wget --progress=bar:force -O "$iso_cache" "$UBUNTU_ISO_URL" 2>&1 |        stdbuf -o0 tr '\r' '\n' |        grep --line-buffered -oP '\d+%' |        while read -r percent; do         
-echo -ne "\r${CYAN}Progress: ${WHITE}${percent}${NC} " >&2       done; then
-    echo "" >&2    log_error "Failed to download Ubuntu ISO" >&2    return 1  fi
-echo "" >&2    log_success "Ubuntu ISO downloaded" >&2  
-echo "$iso_cache"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+# ================================================================
+
+download_ubuntu_iso() {
+  local iso_cache="${SCRIPT_DIR}/${UBUNTU_ISO_NAME}"
+  
+  if [[ -f "$iso_cache" ]]; then
+    log_info "Using cached Ubuntu ISO" >&2
+    echo "$iso_cache"
+    return 0
+  fi
+  
+  log_info "Downloading Ubuntu ${UBUNTU_VERSION} ISO..." >&2
+  log_warning "This may take several minutes (~2.5GB download)" >&2
+  
+  if ! wget --progress=bar:force -O "$iso_cache" "$UBUNTU_ISO_URL" 2>&1 | \
+       stdbuf -o0 tr '\r' '\n' | \
+       grep --line-buffered -oP '\d+%' | \
+       while read -r percent; do
+         echo -ne "\r${CYAN}Progress: ${WHITE}${percent}${NC} " >&2
+       done; then
+    echo "" >&2
+    log_error "Failed to download Ubuntu ISO" >&2
+    return 1
+  fi
+  
+  echo "" >&2
+  log_success "Ubuntu ISO downloaded" >&2
+  echo "$iso_cache"
+}
+
+# ================================================================
 # Extract Ubuntu ISO
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#extract_iso() {  local iso_file="$1"  local extract_dir="$2"    log_info "Extracting Ubuntu ISO..."    mkdir -p "$extract_dir"    
-# Extract using 7z (compatible with Kali Linux)  log_info "Extracting ISO contents with 7z..."  cd "$extract_dir"    
-# Show spinner during extraction  7z x -y "$iso_file" > "$LOG_FILE" 2>&1 &  local pid=$!    local spin='-\|/'  local i=0  while kill -0 $pid 2>/dev/null; do    i=$(( (i+1) %4 ))    
-echo -ne "\r${CYAN}Extracting... ${spin:$i:1}${NC} "    sleep 0.1  done  wait $pid  local exit_code=$?  
-echo -ne "\r${CYAN}Extracting... Done!${NC}\n"    cd - > /dev/null    if [ $exit_code -ne 0 ]; then    log_error "Failed to extract ISO"    return 1  fi    
-# Make files writable  chmod -R u+w "$extract_dir"    log_success "ISO extracted"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Add installer to ISO
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#add_installer_to_iso() {  local iso_root="$1"    log_info "Adding CheckMK installer to ISO..."    
-# Create installer directory  local installer_dir="${iso_root}/checkmk-installer"  mkdir -p "$installer_dir"    
-# Copy installer files  log_info "Copying installer files..."  rsync -a --exclude='iso-output' --exclude='.git' --exclude='*.iso' \    "${SCRIPT_DIR}/" "$installer_dir/"    
-# Copy monitoring scripts from repository root to installer/scripts/  local repo_root="$(dirname "$(dirname "${SCRIPT_DIR}")")"  local scripts_dest="${installer_dir}/scripts"  mkdir -p "$scripts_dest"    log_info "Copying monitoring scripts to installer/scripts/..."    for script_dir in script-notify-checkmk script-check-ubuntu script-check-windows \                    script-check-ns7 script-check-ns8 script-tools Fix Proxmox; do    if [[ -d "${repo_root}/${script_dir}" ]]; then      log_debug "Copying ${script_dir}..."      rsync -a "${repo_root}/${script_dir}/" "${scripts_dest}/${script_dir}/"    fi  done    
-# Make scripts executable  find "$installer_dir" -type f -name "*.sh" -exec chmod +x {} \;    log_success "Installer added to ISO"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Setup hybrid boot (isolinux for USB)
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#setup_hybrid_boot() {  local iso_root="$1"    log_info "Setting up hybrid boot support..."    
-# Create isolinux directory if doesn't exist  local isolinux_dir="${iso_root}/isolinux"  mkdir -p "$isolinux_dir"    
-# Copy isolinux files  if [[ -f "/usr/lib/ISOLINUX/isolinux.bin" ]]; then    cp /usr/lib/ISOLINUX/isolinux.bin "$isolinux_dir/"
-elif [[ -f "/usr/lib/syslinux/modules/bios/isolinux.bin" ]]; then    cp /usr/lib/syslinux/modules/bios/isolinux.bin "$isolinux_dir/"  fi    
-# Copy required syslinux modules  for module in ldlinux.c32 libcom32.c32 libutil.c32 vesamenu.c32; do    if [[ -f "/usr/lib/syslinux/modules/bios/$module" ]]; then      cp "/usr/lib/syslinux/modules/bios/$module" "$isolinux_dir/"    fi  done    
-# Create isolinux.cfg  cat > "${isolinux_dir}/isolinux.cfg" <<'EOF'DEFAULT vesamenu.c32TIMEOUT 300PROMPT 0MENU TITLE CheckMK Installer Boot MenuLABEL ubuntu  MENU LABEL Boot CheckMK Installer (Ubuntu Live)  KERNEL /casper/vmlinuz  APPEND initrd=/casper/initrd boot=casper quiet splash ---LABEL grub  MENU LABEL Boot using GRUB (UE
-FI)  COM32 chain.c32  APPEND grubLABEL local  MENU LABEL Boot from local disk  LOCALBOOT 0EOF    log_success "Hybrid boot configured"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Create autostart script
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#create_autostart() {  local iso_root="$1"    log_info "Creating autostart configuration..."    
-# Create autostart script  cat > "${iso_root}/autostart.sh" <<'EOF'
+# ================================================================
+
+extract_iso() {
+  local iso_file="$1"
+  local extract_dir="$2"
+  
+  log_info "Extracting Ubuntu ISO..."
+  
+  mkdir -p "$extract_dir"
+  
+  # Extract using 7z (compatible with Kali Linux)
+  log_info "Extracting ISO contents with 7z..."
+  cd "$extract_dir"
+  
+  # Show spinner during extraction
+  7z x -y "$iso_file" > "$LOG_FILE" 2>&1 &
+  local pid=$!
+  
+  local spin='-\|/'
+  local i=0
+  while kill -0 $pid 2>/dev/null; do
+    i=$(( (i+1) %4 ))
+    echo -ne "\r${CYAN}Extracting... ${spin:$i:1}${NC} "
+    sleep 0.1
+  done
+  wait $pid
+  local exit_code=$?
+  echo -ne "\r${CYAN}Extracting... Done!${NC}\n"
+  
+  cd - > /dev/null
+  
+  if [ $exit_code -ne 0 ]; then
+    log_error "Failed to extract ISO"
+    return 1
+  fi
+  
+  # Make files writable
+  chmod -R u+w "$extract_dir"
+  
+  log_success "ISO extracted"
+}
+
+# ================================================================
+# Add complete installer to ISO
+# ================================================================
+
+add_scripts_to_iso() {
+  local iso_root="$1"
+  
+  log_info "Adding CheckMK installer to ISO..."
+  
+  # Create checkmk-installer directory
+  local installer_dir="${iso_root}/checkmk-installer"
+  mkdir -p "$installer_dir"
+  
+  # Copy entire checkmk-installer directory structure
+  local source_dir="${SCRIPT_DIR}"
+  
+  log_info "Copying installer scripts..."
+  
+  # Copy all necessary directories and files
+  for dir in scripts utils modules; do
+    if [[ -d "${source_dir}/${dir}" ]]; then
+      cp -r "${source_dir}/${dir}" "$installer_dir/"
+      log_debug "Copied ${dir}/"
+    fi
+  done
+  
+  # Copy main installer files
+  for file in installer.sh README.md LICENSE; do
+    if [[ -f "${source_dir}/${file}" ]]; then
+      cp "${source_dir}/${file}" "$installer_dir/"
+      log_debug "Copied ${file}"
+    fi
+  done
+  
+  # Copy bootstrap script if available
+  local bootstrap_source="${SCRIPT_DIR}/../bootstrap-installer.sh"
+  if [[ -f "$bootstrap_source" ]]; then
+    cp "$bootstrap_source" "${installer_dir}/bootstrap-installer.sh"
+    chmod +x "${installer_dir}/bootstrap-installer.sh"
+    log_debug "Copied bootstrap-installer.sh"
+  fi
+  
+  # Make all .sh files executable
+  log_info "Setting execute permissions..."
+  find "$installer_dir" -type f -name "*.sh" -exec chmod +x {} \;
+  
+  # Create convenience launcher
+  cat > "${installer_dir}/install.sh" <<'EOF'
 #!/bin/bash
-# CheckMK Installer Autostartclear
+# Quick install launcher
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Try installer.sh first, fallback to bootstrap
+if [[ -f "${SCRIPT_DIR}/installer.sh" ]]; then
+  exec bash "${SCRIPT_DIR}/installer.sh" "$@"
+elif [[ -f "${SCRIPT_DIR}/bootstrap-installer.sh" ]]; then
+  exec bash "${SCRIPT_DIR}/bootstrap-installer.sh" "$@"
+else
+  echo "ERROR: No installer found!"
+  exit 1
+fi
+EOF
+  
+  chmod +x "${installer_dir}/install.sh"
+  
+  # Create README
+  cat > "${installer_dir}/README.txt" <<'EOF'
+╔══════════════════════════════════════════════════════════╗
+║                                                          ║
+║        CheckMK Installer - Complete Edition             ║
+║                                                          ║
+╚══════════════════════════════════════════════════════════╝
+
+This is a complete offline installer with all CheckMK
+installation tools pre-loaded.
+
+QUICK START:
+------------
+After booting from this ISO, open a terminal and run:
+
+  sudo bash /cdrom/checkmk-installer/install.sh
+
+Or the full installer:
+
+  sudo bash /cdrom/checkmk-installer/installer.sh
+
+WHAT IT DOES:
+-------------
+1. Interactive guided installation
+2. CheckMK server setup
+3. Agent deployment
+4. Monitoring configuration
+
+FEATURES:
+---------
+- Offline installation (no internet required)
+- All scripts included
+- Latest stable version
+- Production-ready configuration
+
+REQUIREMENTS:
+-------------
+- Root privileges
+- Supported OS: Ubuntu 22.04+, Debian 11+, NethServer 7/8
+
+REPOSITORY:
+-----------
+https://github.com/Coverup20/checkmk-tools
+
+ADVANTAGES:
+-----------
+- Complete offline installer
+- No dependencies to download
+- Faster installation
+- Fixed version (tested)
+
+DISADVANTAGES:
+--------------
+- Larger ISO size
+- May have outdated scripts
+
+For always-latest version with smaller size,
+use the online ISO instead.
+EOF
+  
+  log_success "Installer scripts added to ISO"
+}
+
+# ================================================================
+# Setup hybrid boot (isolinux for USB)
+# ================================================================
+
+setup_hybrid_boot() {
+  local iso_root="$1"
+  
+  log_info "Setting up hybrid boot support..."
+  
+  # Create isolinux directory if doesn't exist
+  local isolinux_dir="${iso_root}/isolinux"
+  mkdir -p "$isolinux_dir"
+  
+  # Copy isolinux files
+  if [[ -f "/usr/lib/ISOLINUX/isolinux.bin" ]]; then
+    cp /usr/lib/ISOLINUX/isolinux.bin "$isolinux_dir/"
+  elif [[ -f "/usr/lib/syslinux/modules/bios/isolinux.bin" ]]; then
+    cp /usr/lib/syslinux/modules/bios/isolinux.bin "$isolinux_dir/"
+  fi
+  
+  # Copy required syslinux modules
+  for module in ldlinux.c32 libcom32.c32 libutil.c32 vesamenu.c32; do
+    if [[ -f "/usr/lib/syslinux/modules/bios/$module" ]]; then
+      cp "/usr/lib/syslinux/modules/bios/$module" "$isolinux_dir/"
+    fi
+  done
+  
+  # Create isolinux.cfg
+  cat > "${isolinux_dir}/isolinux.cfg" <<'EOF'
+DEFAULT vesamenu.c32
+TIMEOUT 300
+PROMPT 0
+
+MENU TITLE CheckMK Installer Boot Menu
+
+LABEL ubuntu
+  MENU LABEL Boot CheckMK Installer (Ubuntu Live)
+  KERNEL /casper/vmlinuz
+  APPEND initrd=/casper/initrd boot=casper quiet splash ---
+
+LABEL grub
+  MENU LABEL Boot using GRUB (UEFI)
+  COM32 chain.c32
+  APPEND grub
+
+LABEL local
+  MENU LABEL Boot from local disk
+  LOCALBOOT 0
+EOF
+  
+  log_success "Hybrid boot configured"
+}
+
+# ================================================================
+# Create autostart script
+# ================================================================
+
+create_autostart() {
+  local iso_root="$1"
+  
+  log_info "Creating autostart configuration..."
+  
+  # Create autostart script
+  cat > "${iso_root}/autostart.sh" <<'EOF'
+#!/bin/bash
+# CheckMK Installer Autostart
+
+clear
 echo "=========================================="
 echo "  CheckMK Installer"
-echo "  Bootable Installation System"
 echo "=========================================="
 echo ""
-echo "The installer is located at:"
-echo "  /cdrom/checkmk-installer/"
+echo "This is a complete offline installer"
+echo "with all tools pre-loaded."
 echo ""
-echo "To start the installation, run:"
-echo "  cd /cdrom/checkmk-installer"
-echo "  su
-do ./installer.sh"
+echo "To install CheckMK, run:"
 echo ""
-echo "Or copy to local system:"
-echo "  cp -r /cdrom/checkmk-installer ~/"
-echo "  cd ~/checkmk-installer"
-echo "  su
-do ./installer.sh"
-echo ""EOF    chmod +x "${iso_root}/autostart.sh"    
-# Add to boot message  if [[ -f "${iso_root}/isolinux/txt.cfg" ]]; then    sed -i '1i default live\nlabel live\n  menu label ^Start Ubuntu with CheckMK Installer\n  kernel /casper/vmlinuz\n  append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd quiet splash ---\n' \      "${iso_root}/isolinux/txt.cfg"  fi    log_success "Autostart configured"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Create preseed for automation
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#create_preseed() {  local iso_root="$1"    log_info "Creating preseed configuration..."    mkdir -p "${iso_root}/preseed"    cat > "${iso_root}/preseed/checkmk-installer.seed" <<'EOF'
-# CheckMK Installer Preseed
-# Minimal automated installation
-# Localed-i debian-installer/locale string en_US.UTF-8d-i keyboard-configuration/xkb-keymap select us
-# Networkd-i netcfg/choose_interface select autod-i netcfg/get_hostname string checkmk-installer
-# Userd-i passwd/user-fullname string CheckMK Admind-i passwd/username string admind-i passwd/user-password password installerd-i passwd/user-password-again password installer
-# Partitioningd-i partman-auto/method string regulard-i partman-auto/choose_recipe select atomic
-# Package selectiontasksel tasksel/first multiselect standardd-i pkgsel/include string openssh-server
-# Boot loaderd-i grub-installer/only_debian boolean true
-# Finishd-i finish-install/reboot_in_progress note
-# Late command - copy installerd-i preseed/late_command string \  cp -r /cdrom/checkmk-installer /target/root/; \  in-target chown -R root:root /root/checkmk-installer; \  in-target chmod +x /root/checkmk-installer/*.sh; \  
-echo "CheckMK Installer copied to /root/checkmk-installer" > /target/root/INSTALLER_README.txtEOF    log_success "Preseed created"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Update boot menu
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#update_boot_menu() {  local iso_root="$1"    log_info "Updating boot menu..."    
-# Update grub.cfg for UE
-FI  if [[ -f "${iso_root}/boot/grub/grub.cfg" ]]; then    cat > "${iso_root}/boot/grub/grub.cfg" <<'EOF'set timeout=10set default=0menuentry "Install Ubuntu with CheckMK Installer" {    set gfxpayload=keep    linux   /casper/vmlinuz file=/cdrom/preseed/checkmk-installer.seed boot=casper automatic-ubiquity quiet splash ---    initrd  /casper/initrd}menuentry "Try Ubuntu (with installer available)" {    set gfxpayload=keep    linux   /casper/vmlinuz boot=casper quiet splash ---    initrd  /casper/initrd}menuentry "Boot from local disk" {    exit}EOF  fi    log_success "Boot menu updated"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Build ISO
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#build_iso() {  local iso_root="$1"  local output_iso="$2"    log_info "Building ISO image..."  log_info "This may take several minutes..."  
-echo -ne "${CYAN}Progress: ${WHITE}0%${NC} "    
-# Create output directory  mkdir -p "$(dirname "$output_iso")"    
-# Build ISO with xorriso (UE
-FI + Legacy BIOS via isolinux)  xorriso -as mkisofs \    -r -V "CheckMK_Installer" \    -o "$output_iso" \    -J -joliet-long \    -b isolinux/isolinux.bin \    -c isolinux/boot.cat \    -no-emul-boot \    -boot-load-size 4 \    -boot-info-table \    -eltorito-alt-boot \    -e E
-FI/boot/bootx64.e
-fi \    -no-emul-boot \    -isohybrid-gpt-basdat \    "$iso_root" 2>&1 | \    grep --line-buffered -oP '\d+\.\d+%' | \    while read -r percent; do      
-echo -ne "\r${CYAN}Progress: ${WHITE}${percent}${NC} "    done    local exit_code=${PIPESTATUS[0]}  
-echo ""    if [ $exit_code -ne 0 ]; then    log_error "Failed to build ISO"    return 1  fi    log_success "ISO built successfully"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Make ISO hybrid (USB bootable)
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#make_hybrid() {  local iso_file="$1"    log_info "Making ISO hybrid (USB bootable)..."    if command -v isohybrid &>/dev/null; then    isohybrid --ue
-fi "$iso_file" 2>&1 | tee -a "$LOG_FILE" || true    log_success "ISO is now hybrid (can boot from USB)"
-else    log_warning "isohybrid not found, ISO may not boot from USB"  fi}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Calculate checksums
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#calculate_checksums() {  local iso_file="$1"    log_info "Calculating checksums..."    local md5sum_file="${iso_file}.md5"  local sha256sum_file="${iso_file}.sha256"    md5sum "$iso_file" > "$md5sum_file"  sha256sum "$iso_file" > "$sha256sum_file"    log_success "Checksums calculated"  
-echo "  MD5: $(cat "$md5sum_file")"  
-echo "  SHA256: $(cat "$sha256sum_file")"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-# Display final information
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#display_final_info() {  local iso_file="$1"local iso_sizelocal iso_sizeiso_size=$(du -h "$iso_file" | cut -f1)    print_separator "="  
-echo ""  display_box "ISO Build Complete!" \    "" \    "ISO File: $iso_file" \    "Size: $iso_size" \    "" \    "Write to USB:" \    "  Linux: su
-do dd if=$iso_file of=/dev/sdX bs=4M status=progress" \    "  Windows: Use Rufus or Etcher" \    "  Mac: su
-do dd if=$iso_file of=/dev/diskX bs=4m" \    "" \    "Boot from USB and run:" \    "  cd /cdrom/checkmk-installer" \    "  su
-do ./installer.sh" \    "" \    "Or copy to installed system:" \    "  cp -r /cdrom/checkmk-installer ~/" \    "  cd ~/checkmk-installer && su
-do ./installer.sh"  
-echo ""  print_separator "="}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+echo "  sudo bash /cdrom/checkmk-installer/install.sh"
+echo ""
+echo "Requirements:"
+echo "  - Root privileges"
+echo "  - Supported OS (Ubuntu/Debian/NethServer)"
+echo ""
+echo "=========================================="
+echo ""
+EOF
+  
+  chmod +x "${iso_root}/autostart.sh"
+  
+  log_success "Autostart script created"
+}
+
+# ================================================================
+# Customize GRUB menu
+# ================================================================
+
+customize_grub() {
+  local iso_root="$1"
+  
+  log_info "Customizing GRUB menu..."
+  
+  local grub_cfg="${iso_root}/boot/grub/grub.cfg"
+  
+  if [[ ! -f "$grub_cfg" ]]; then
+    log_warning "GRUB config not found, skipping customization"
+    return 0
+  fi
+  
+  # Backup original
+  cp "$grub_cfg" "${grub_cfg}.bak"
+  
+  # Update menu title
+  sed -i 's/Ubuntu/CheckMK Installer/g' "$grub_cfg"
+  
+  log_success "GRUB menu customized"
+}
+
+# ================================================================
+# Build final ISO
+# ================================================================
+
+build_iso() {
+  local iso_root="$1"
+  local output_iso="${ISO_OUTPUT_DIR}/${ISO_NAME}"
+  
+  log_info "Building final ISO image..."
+  
+  mkdir -p "$ISO_OUTPUT_DIR"
+  
+  # Check if UEFI boot is available
+  local efi_boot_args=""
+  if [[ -f "${iso_root}/boot/grub/efi.img" ]]; then
+    log_debug "UEFI boot image found, enabling UEFI support"
+    efi_boot_args="-eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot -isohybrid-gpt-basdat"
+  else
+    log_warning "UEFI boot image not found, creating BIOS-only ISO"
+  fi
+  
+  # Build ISO with xorriso
+  if [[ -n "$efi_boot_args" ]]; then
+    # Build with UEFI support
+    xorriso -as mkisofs \
+      -iso-level 3 \
+      -full-iso9660-filenames \
+      -volid "CHECKMK_INSTALLER" \
+      -appid "CheckMK Complete Installer" \
+      -publisher "CheckMK Tools" \
+      -preparer "make-iso.sh" \
+      -eltorito-boot isolinux/isolinux.bin \
+      -eltorito-catalog isolinux/boot.cat \
+      -no-emul-boot \
+      -boot-load-size 4 \
+      -boot-info-table \
+      -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+      $efi_boot_args \
+      -output "$output_iso" \
+      "$iso_root" 2>&1 | grep -v "^$" || true
+  else
+    # Build BIOS-only
+    xorriso -as mkisofs \
+      -iso-level 3 \
+      -full-iso9660-filenames \
+      -volid "CHECKMK_INSTALLER" \
+      -appid "CheckMK Complete Installer" \
+      -publisher "CheckMK Tools" \
+      -preparer "make-iso.sh" \
+      -eltorito-boot isolinux/isolinux.bin \
+      -eltorito-catalog isolinux/boot.cat \
+      -no-emul-boot \
+      -boot-load-size 4 \
+      -boot-info-table \
+      -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+      -output "$output_iso" \
+      "$iso_root" 2>&1 | grep -v "^$" || true
+  fi
+  
+  if [[ ! -f "$output_iso" ]]; then
+    log_error "Failed to create ISO"
+    return 1
+  fi
+  
+  # Make ISO hybrid (bootable from USB)
+  if command -v isohybrid &>/dev/null; then
+    log_info "Making ISO hybrid bootable..."
+    if [[ -n "$efi_boot_args" ]]; then
+      isohybrid --uefi "$output_iso" 2>/dev/null || log_warning "Hybrid boot setup failed (non-critical)"
+    else
+      isohybrid "$output_iso" 2>/dev/null || log_warning "Hybrid boot setup failed (non-critical)"
+    fi
+  fi
+  
+  log_success "ISO created: $output_iso"
+}
+
+# ================================================================
 # Cleanup
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#cleanup() {  log_info "Cleaning up temporary files..."    if [[ -d "$WORK_DIR" ]]; then    rm -rf "$WORK_DIR"  fi    log_success "Cleanup complete"}
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
+# ================================================================
+
+cleanup() {
+  if [[ -d "$WORK_DIR" ]]; then
+    log_info "Cleaning up temporary files..."
+    rm -rf "$WORK_DIR"
+    log_success "Cleanup completed"
+  fi
+}
+
+# ================================================================
 # Main execution
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#main() {  log_module_start "ISO Builder"    
-# Check if running as root  if [[ $EUID -ne 0 ]]; then    log_error "This script must be run as root"    
-echo "Please run: su
-do $0"
-    exit 1  fi    
-# Check dependencies  if ! check_dependencies; then
-    exit 1  fi    
-# Confirm action  
-echo ""  log_warning "This will create a ~3GB bootable ISO file"  log_info "The process will take 10-20 minutes"  
-echo ""    read -p "Continue? (y/n) " -n 1 -r  
-echo ""  if [[ ! $REPLY =~ ^[Yy]$ ]]; then    log_info "Aborted by user"
-    exit 0  fi    
-# Create work directory  mkdir -p "$WORK_DIR"    
-# Download Ubuntu ISOlocal ubuntu_isolocal ubuntu_isoubuntu_iso=$(download_ubuntu_iso)    
-# Extract ISO  local iso_root="${WORK_DIR}/iso"  extract_iso "$ubuntu_iso" "$iso_root"    
-# Customize ISO  add_installer_to_iso "$iso_root"  setup_hybrid_boot "$iso_root"  create_autostart "$iso_root"  create_preseed "$iso_root"  update_boot_menu "$iso_root"    
-# Build final ISO  local output_iso="${ISO_OUTPUT_DIR}/${ISO_NAME}"  build_iso "$iso_root" "$output_iso"    
-# Make hybrid  make_hybrid "$output_iso"    
-# Calculate checksums  calculate_checksums "$output_iso"    
-# Cleanup  cleanup    
-# Display info  display_final_info "$output_iso"    log_module_end "ISO Builder" "success"}
-# Handle interruptstrap '
-echo ""; log_warning "Build interrupted"; cleanup; exit 130' INT TERM
-# Run mainmain "$@"
+# ================================================================
+
+main() {
+  log_info "Starting complete ISO build process..."
+  
+  # Check dependencies
+  if ! check_dependencies; then
+    exit 1
+  fi
+  
+  # Download Ubuntu ISO
+  local ubuntu_iso
+  ubuntu_iso=$(download_ubuntu_iso)
+  
+  if [[ ! -f "$ubuntu_iso" ]]; then
+    log_error "Ubuntu ISO not available"
+    exit 1
+  fi
+  
+  # Clean previous work directory
+  if [[ -d "$WORK_DIR" ]]; then
+    log_info "Removing previous work directory..."
+    rm -rf "$WORK_DIR"
+  fi
+  
+  # Extract ISO
+  local iso_root="${WORK_DIR}/iso"
+  if ! extract_iso "$ubuntu_iso" "$iso_root"; then
+    exit 1
+  fi
+  
+  # Add complete installer (full installation)
+  if ! add_scripts_to_iso "$iso_root"; then
+    exit 1
+  fi
+  
+  # Setup boot
+  setup_hybrid_boot "$iso_root"
+  
+  # Create autostart
+  create_autostart "$iso_root"
+  
+  # Customize GRUB
+  customize_grub "$iso_root"
+  
+  # Build ISO
+  if ! build_iso "$iso_root"; then
+    cleanup
+    exit 1
+  fi
+  
+  # Cleanup
+  cleanup
+  
+  # Show summary
+  local output_iso="${ISO_OUTPUT_DIR}/${ISO_NAME}"
+  local iso_size
+  iso_size=$(du -h "$output_iso" | cut -f1)
+  
+  echo ""
+  display_box "Complete ISO Build Complete!" \
+    "" \
+    "ISO Location: $output_iso" \
+    "ISO Size: $iso_size" \
+    "" \
+    "This is a COMPLETE offline installer that:" \
+    "  - Includes all scripts" \
+    "  - No internet required" \
+    "  - Production-ready" \
+    "" \
+    "Usage:" \
+    "  1. Boot from ISO/USB" \
+    "  2. Open terminal" \
+    "  3. Run: sudo bash /cdrom/checkmk-installer/install.sh" \
+    "" \
+    "To write to USB:" \
+    "  sudo dd if=$output_iso of=/dev/sdX bs=4M status=progress"
+  
+  log_success "Complete ISO build completed successfully!"
+}
+
+# Trap cleanup on exit
+trap cleanup EXIT
+
+# Run main
+main "$@"

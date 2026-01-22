@@ -10,13 +10,15 @@ set -euo pipefail
 
 # Carica .env solo se le variabili critiche non sono già impostate
 if [[ -z "${YDEA_ID:-}" ]] || [[ -z "${YDEA_API_KEY:-}" ]]; then
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   if [[ -f "$SCRIPT_DIR/.env" ]]; then
-    # shellcheck disable=SC1090,SC1091
+    
+# shellcheck disable=SC1090,SC1091
     source "$SCRIPT_DIR/.env"
   elif [[ -f "/opt/ydea-toolkit/.env" ]]; then
-    # shellcheck disable=SC1091
+    
+# shellcheck disable=SC1091
     source "/opt/ydea-toolkit/.env"
   fi
 fi
@@ -64,8 +66,7 @@ CURL_OPTS=(
 log_rotate() {
   if [[ -f "$YDEA_LOG_FILE" ]]; then
     local size
-    size=$(stat -f%z "$YDEA_LOG_FILE" 2>/dev/null || stat -c%s "$YDEA_LOG_FILE" 2>/dev/null || 
-echo 0)
+    size=$(stat -f%z "$YDEA_LOG_FILE" 2>/dev/null || stat -c%s "$YDEA_LOG_FILE" 2>/dev/null || echo 0)
     if [[ "$size" -gt "$YDEA_LOG_MAX_SIZE" ]]; then
       mv "$YDEA_LOG_FILE" "${YDEA_LOG_FILE}.1" 2>/dev/null || true
       [[ -f "${YDEA_LOG_FILE}.1" ]] && gzip "${YDEA_LOG_FILE}.1" 2>/dev/null || true
@@ -85,8 +86,7 @@ log_write() {
   
   
 # Write to log file
-  
-echo "[$timestamp] [$level] [PID:$$] $message" >> "$YDEA_LOG_FILE" 2>/dev/null || true
+  echo "[$timestamp] [$level] [PID:$$] $message" >> "$YDEA_LOG_FILE" 2>/dev/null || true
 }
 
 log_debug() { 
@@ -96,26 +96,22 @@ echo "🔧 $*" >&2 || true
 }
 
 log_info() { 
-  
-echo "ℹ️  $*" >&2
+  echo "ℹ️  $*" >&2
   log_write "INFO" "$*"
 }
 
 log_success() { 
-  
-echo "✅ $*" >&2
+  echo "✅ $*" >&2
   log_write "INFO" "SUCCESS: $*"
 }
 
 log_warn() {
-  
-echo "Ôö£├ÂÔö£┬úÔö£├¡Ôö¼ÔöñÔö¼┬«Ôö£├á  $*" >&2
+  echo "⚠️  $*" >&2
   log_write "WARN" "$*"
 }
 
 log_error() { 
-  
-echo "Ôö£├ÂÔö£├┐Ôö£┬½ $*" >&2
+  echo "❌ $*" >&2
   log_write "ERROR" "$*"
 }
 
@@ -123,7 +119,7 @@ log_api_call() {
   local method="$1"
   local url="$2"
   local status="${3:-}"
-  log_write "API" "$method $url Ôö£├ÂÔö£├æÔö£├Ñ HTTP $status"
+  log_write "API" "$method $url ├ö├Ñ├å HTTP $status"
 }
 
 
@@ -174,14 +170,9 @@ ydea_login() {
   
   [[ -n "${YDEA_ID}" && -n "${YDEA_API_KEY}" ]] || {
     log_error "YDEA_ID e YDEA_API_KEY non impostati"
-    
-echo "Esempio:" >&2
-    
-echo "  export 
-YDEA_ID='tuo_id'" >&2
-    
-echo "  export 
-YDEA_API_KEY='tua_chiave'" >&2
+    echo "Esempio:" >&2
+    echo "  export YDEA_ID='tuo_id'" >&2
+    echo "  export YDEA_API_KEY='tua_chiave'" >&2
     exit 2
   }
   
@@ -197,7 +188,7 @@ YDEA_API_KEY='tua_chiave'" >&2
     -d "$body" \
     "$url" 2>&1)" || {
     log_error "Login fallito: curl error $?"
-    log_write "API" "POST $url Ôö£├ÂÔö£├æÔö£├Ñ FAILED"
+    log_write "API" "POST $url ├ö├Ñ├å FAILED"
     
 echo "$resp" | jq . 2>/dev/null || 
 echo "$resp"
@@ -211,9 +202,7 @@ echo "$resp"
 
   if [[ -z "$token" || "$token" == "null" ]]; then
     log_error "Login fallito: risposta senza token"
-    
-echo "$resp" | jq . 2>/dev/null || 
-echo "$resp"
+    echo "$resp" | jq . 2>/dev/null || echo "$resp"
     exit 1
   fi
   
@@ -244,8 +233,7 @@ ydea_api() {
   ensure_token
   local token url
   token="$(load_token)"
-  url="${YDEA_BASE_URL%/}/${path
-#/}"
+  url="${YDEA_BASE_URL%/}/${path#/}"
 
   log_debug "$method $url"
   
@@ -290,11 +278,9 @@ ydea_api() {
   log_api_call "$method" "$url" "$http_code"
   
   
-# Mostra errore se non ├ö├Â┬úÔö¼ÔöÉ 2xx
+# Mostra errore se non è 2xx
   if [[ ! "$http_code" =~ ^2[0-9][0-9]$ ]]; then
-    log_error "HTTP $http_code: $(
-echo "$http_body" | jq -r '.message // .error // empty' 2>/dev/null || 
-echo "$http_body" | head -c 200)"
+    log_error "HTTP $http_code: $(echo "$http_body" | jq -r '.message // .error // empty' 2>/dev/null || echo "$http_body" | head -c 200)"
   fi
 
   
@@ -315,7 +301,7 @@ echo "$http_body" | head -c 200)"
   
 # Log response (primi 500 caratteri)
   if [[ "${YDEA_DEBUG}" == "1" ]]; then
-    log_write "RESPONSE" "$method $url Ôö£├ÂÔö£├æÔö£├Ñ $http_code | Body: ${http_body:0:500}..."
+    log_write "RESPONSE" "$method $url ├ö├Ñ├å $http_code | Body: ${http_body:0:500}..."
   fi
   
   printf '%s' "$http_body"
@@ -405,22 +391,19 @@ create_ticket() {
   
 # Aggiungi sla_id se fornito (campo opzionale)
   if [[ -n "$sla_id" ]]; then
-    body=$(
-echo "$body" | jq --argjson sid "$sla_id" '. + {sla_id: $sid}')
+    body=$(echo "$body" | jq --argjson sid "$sla_id" '. + {sla_id: $sid}')
   fi
   
   
 # Aggiungi tipo se fornito (campo opzionale)
   if [[ -n "$tipo" ]]; then
-    body=$(
-echo "$body" | jq --arg tipo "$tipo" '. + {tipo: $tipo}')
+    body=$(echo "$body" | jq --arg tipo "$tipo" '. + {tipo: $tipo}')
   fi
   
   
 # Aggiungi creatoda se fornito (campo opzionale per forzare il creatore)
   if [[ -n "$creatoda" ]]; then
-    body=$(
-echo "$body" | jq --argjson uid "$creatoda" '. + {creatoda: $uid}')
+    body=$(echo "$body" | jq --argjson uid "$creatoda" '. + {creatoda: $uid}')
   fi
   
   log_info "Creazione ticket: $title (priorità: $priority${tipo:+, tipo: $tipo})"
@@ -519,8 +502,7 @@ list_users() {
 # Inizializza il file di tracking se non esiste
 init_tracking_file() {
   if [[ ! -f "$YDEA_TRACKING_FILE" ]]; then
-    
-echo '{"tickets":[],"last_update":""}' > "$YDEA_TRACKING_FILE"
+    echo '{"tickets":[],"last_update":""}' > "$YDEA_TRACKING_FILE"
     log_debug "File tracking inizializzato: $YDEA_TRACKING_FILE"
   fi
 }
@@ -546,26 +528,16 @@ now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   ticket_data=$(ydea_api GET "/tickets?limit=100" 2>/dev/null | jq --arg tid "$ticket_id" '.objs[] | select(.id == ($tid|tonumber))' || 
 echo "{}")
   
-local stato
-local stato
-stato=$(
-echo "$ticket_data" | jq -r '.stato // "Sconosciuto"')
-local titolo
-local titolo
-titolo=$(
-echo "$ticket_data" | jq -r '.titolo // ""')
-local descrizione_ticket
-local descrizione_ticket
-descrizione_ticket=$(
-echo "$ticket_data" | jq -r '.descrizione // ""')
-local priorita
-local priorita
-priorita=$(
-echo "$ticket_data" | jq -r '.priorita // "Normale"')
-local assegnato_a
-local assegnato_a
-assegnato_a=$(
-echo "$ticket_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA else "Non assegnato" end')
+  local stato
+  stato=$(echo "$ticket_data" | jq -r '.stato // "Sconosciuto"')
+  local titolo
+  titolo=$(echo "$ticket_data" | jq -r '.titolo // ""')
+  local descrizione_ticket
+  descrizione_ticket=$(echo "$ticket_data" | jq -r '.descrizione // ""')
+  local priorita
+  priorita=$(echo "$ticket_data" | jq -r '.priorita // "Normale"')
+  local assegnato_a
+  assegnato_a=$(echo "$ticket_data" | jq -r 'if .assegnatoA | type == "object" then (if (.assegnatoA | length) > 0 then [.assegnatoA | to_entries[].value] | join(", ") else "Non assegnato" end) elif .assegnatoA then .assegnatoA else "Non assegnato" end')
   
   
 # Aggiungi al tracking
@@ -669,8 +641,13 @@ echo "{}")
 echo "$ticket_data" | jq --arg tid "$ticket_id" '[.objs[] | select(.id == ($tid|tonumber))] | .[0] // {}' 2>/dev/null)
     
     if [[ "$ticket_obj" == "{}" ]] || [[ "$ticket_obj" == "null" ]]; then
-      log_warn "Ticket 
-#$ticket_id non trovato, potrebbe essere stato eliminato"
+      log_warn "⚠️ Ticket 
+#$ticket_id non trovato, potrebbe essere stato eliminato - contrassegnato come risolto"
+      # Contrassegna il ticket come risolto per consentire la pulizia
+      jq --arg tid "$ticket_id" --arg now "$now" \
+        '.tickets |= map(if .ticket_id == ($tid|tonumber) then .stato = "Eliminato" | .resolved_at = $now | .last_update = $now else . end) | .last_update = $now' \
+        "$YDEA_TRACKING_FILE" > "${YDEA_TRACKING_FILE}.tmp" && mv "${YDEA_TRACKING_FILE}.tmp" "$YDEA_TRACKING_FILE"
+      resolved=$((resolved + 1))
       continue
     fi
     
@@ -694,7 +671,7 @@ echo "$ticket_obj" | jq -r 'if .assegnatoA | type == "object" then (if (.assegna
     
 # Controlla se risolto
     if [[ "$stato" =~ ^(Effettuato|Chiuso|Completato|Risolto)$ ]]; then
-      log_success "✅ Ticket 
+      log_success "├ö┬ú├á Ticket 
 #$ticket_id RISOLTO (stato: $stato)"
       jq --arg tid "$ticket_id" --arg stato "$stato" --arg desc "$descrizione_ticket" --arg prio "$priorita" --arg assegnato "$assegnato_a" --arg now "$now" \
         '.tickets |= map(if .ticket_id == ($tid|tonumber) then .stato = $stato | .descrizione_ticket = $desc | .priorita = $prio | .assegnatoA = $assegnato | .resolved_at = $now | .last_update = $now else . end) | .last_update = $now' \
@@ -727,7 +704,7 @@ local cutoff_date
 local cutoff_date
 cutoff_date=$(date -u -d "@$cutoff_epoch" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u -r "$cutoff_epoch" +"%Y-%m-%dT%H:%M:%SZ")
   
-  log_info "Pulizia ticket risolti pi├ö├Â┬ú├ö├▓├║ vecchi di $YDEA_TRACKING_RETENTION_DAYS giorni (prima di $cutoff_date)..."
+  log_info "Pulizia ticket risolti più vecchi di $YDEA_TRACKING_RETENTION_DAYS giorni (prima di $cutoff_date)..."
   
   local before_count
   before_count=$(jq '.tickets | length' "$YDEA_TRACKING_FILE")
@@ -758,21 +735,21 @@ show_tracking_stats() {
   resolved=$(jq '[.tickets[] | select(.resolved_at != null)] | length' "$YDEA_TRACKING_FILE")
   
   
-echo "Ôö¼┬í├ú├åÔö£ÔöñÔö£┬┐ Statistiche Ticket Tracking"
+echo "📊 Statistiche Ticket Tracking"
   
-echo "Ôö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØÔö£├ÂÔö£├éÔö£ÔòØ"
+echo "══════════════════════════════"
   
 echo "Totale ticket tracciati: $total"
   
-echo "  Ôö£├ÂÔö£├éÔö¼├║Ôö£├ÂÔö£├éÔö£├º Aperti: $open"
+echo "  ├ö├Â┬ú├ö├Â├ç Aperti: $open"
   
-echo "  Ôö£├ÂÔö£├éÔö£├éÔö£├ÂÔö£├éÔö£├º Risolti: $resolved"
+echo "  ├ö├Â├Â├ö├Â├ç Risolti: $resolved"
   
 echo ""
   
   if [[ $open -gt 0 ]]; then
     
-echo "Ôö¼┬í├ú├åÔö£├é├ö├Â├▒ Ticket Aperti:"
+echo "┬¡ãÆ├ÂÔöñ Ticket Aperti:"
     jq -r '.tickets[] | select(.resolved_at == null) | "  [
 #\(.ticket_id)] \(.codice) - \(.host)/\(.service) - Stato: \(.stato) - Creato: \(.created_at)"' "$YDEA_TRACKING_FILE"
     
@@ -781,7 +758,7 @@ echo ""
   
   if [[ $resolved -gt 0 ]]; then
     
-echo "✅ Ultimi 5 Ticket Risolti:"
+echo "├ö┬ú├á Ultimi 5 Ticket Risolti:"
     jq -r '.tickets[] | select(.resolved_at != null) | "\(.resolved_at) | 
 #\(.ticket_id) | \(.codice) | \(.host)/\(.service)"' "$YDEA_TRACKING_FILE" | sort -r | head -5 | while 
 IFS='|' read -r date tid code host; do
@@ -802,7 +779,7 @@ echo "0")
   
   if [[ "$avg_resolution" != "0" ]]; then
     
-echo "Ôö£├ÂÔö£├á├ö├╗├åÔö¼ÔöñÔö¼┬«Ôö£├á  Tempo medio risoluzione: ~$avg_resolution ore"
+echo "├ö├àÔûÆ┬┤┬®├à  Tempo medio risoluzione: ~$avg_resolution ore"
   fi
 }
 
@@ -821,7 +798,7 @@ interactive_config() {
   local env_file="$SCRIPT_DIR/.env"
   
   
-echo "Ôö¼┬í├ú├åÔö£├éÔö¼Ôòæ Configurazione Interattiva Ydea Toolkit"
+echo "┬¡ãÆ├Â┬║ Configurazione Interattiva Ydea Toolkit"
   
 echo "=========================================="
   
@@ -845,9 +822,9 @@ echo ""
   fi
   
   
-echo "Ôö¼┬í├ú├åÔö£ÔöñÔö£┬╗ CREDENZIALI API (obbligatorie)"
+echo "┬¡ãÆ├┤├» CREDENZIALI API (obbligatorie)"
   
-echo "   Ottienile da: https://my.ydea.cloud Ôö£├ÂÔö£├æÔö£├Ñ Impostazioni Ôö£├ÂÔö£├æÔö£├Ñ La mia azienda Ôö£├ÂÔö£├æÔö£├Ñ API"
+echo "   Ottienile da: https://my.ydea.cloud ├ö├Ñ├å Impostazioni ├ö├Ñ├å La mia azienda ├ö├Ñ├å API"
   
 echo ""
   
@@ -860,7 +837,7 @@ echo ""
     read -r -p "YDEA_ID: " new_id
     while [[ -z "$new_id" ]]; do
       
-echo "Ôö£├ÂÔö£├┐Ôö£┬½ YDEA_ID ├ö├Â┬úÔö¼ÔöÉ obbligatorio!"
+echo "├ö├ÿ├« YDEA_ID è obbligatorio!"
       read -r -p "YDEA_ID: " new_id
     done
   fi
@@ -874,7 +851,7 @@ echo "Ôö£├ÂÔö£├┐Ôö£┬½ YDEA_ID ├ö├Â┬úÔö¼ÔöÉ obb
     read -r -p "YDEA_API_KEY: " new_key
     while [[ -z "$new_key" ]]; do
       
-echo "Ôö£├ÂÔö£├┐Ôö£┬½ YDEA_API_KEY ├ö├Â┬úÔö¼ÔöÉ obbligatoria!"
+echo "├ö├ÿ├« YDEA_API_KEY è obbligatoria!"
       read -r -p "YDEA_API_KEY: " new_key
     done
   fi
@@ -882,7 +859,7 @@ echo "Ôö£├ÂÔö£├┐Ôö£┬½ YDEA_API_KEY ├ö├Â┬úÔö¼Ôö�
   
 echo ""
   
-echo "Ôö¼┬í├ú├åÔö£┬¬Ôö£ÔûÆ ID UTENTE PER OPERAZIONI (opzionali)"
+echo "┬¡ãÆ├ª├▒ ID UTENTE PER OPERAZIONI (opzionali)"
   
 echo "   Usa gli ID degli utenti Ydea per attribuire creazioni"
   
@@ -901,7 +878,7 @@ echo ""
   
 echo ""
   
-echo "Ôö¼┬í├ú├åÔö£ÔöñÔö£├┐ GESTIONE LOG E TRACKING (opzionali)"
+echo "┬¡ãÆ├┤├ÿ GESTIONE LOG E TRACKING (opzionali)"
   
 echo "   Configurazione avanzata per logging e monitoraggio"
   
@@ -943,7 +920,7 @@ echo "$new_log_level" | tr '[:lower:]' '[:upper:]')
   
 echo ""
   
-echo "Ôö¼┬í├ú├åÔö£├ÑÔö¼├æ Salvataggio configurazione in: $env_file"
+echo "┬¡ãÆ├å┬Ñ Salvataggio configurazione in: $env_file"
   
   
 # Crea backup se esiste
@@ -1009,11 +986,11 @@ EOF
   
 echo ""
   
-echo "✅ Configurazione salvata con successo!"
+echo "├ö┬ú├á Configurazione salvata con successo!"
   
 echo ""
   
-echo "Ôö¼┬í├ú├åÔö£ÔöñÔö£├┐ Riepilogo:"
+echo "┬¡ãÆ├┤├ÿ Riepilogo:"
   
 echo "   YDEA_ID: $new_id"
   
@@ -1025,7 +1002,7 @@ echo "   ID creazione note: $new_note_id"
   
 echo ""
   
-echo "Ôö¼┬í├ú├åÔö£ÔöñÔö£┬┐ Configurazione Log & Tracking:"
+echo "📊 Configurazione Log & Tracking:"
   
 echo "   File log: $new_log_file"
   
@@ -1039,7 +1016,7 @@ echo "   Retention giorni: $new_retention"
   
 echo ""
   
-echo "Ôö¼┬í├ú├åÔö¼ÔòæÔö¼┬╝ Test configurazione:"
+echo "┬¡ãÆ┬║┬¼ Test configurazione:"
   
 echo "   source $env_file"
   
@@ -1052,12 +1029,12 @@ echo ""
 # ===== CLI =====
 show_usage() {
   cat >&2 <<'USAGE'
-Ôö¼┬í├ú├åÔö£┬®Ôö£├¡Ôö¼ÔöñÔö¼┬«Ôö£├á  Ydea Toolkit - Gestione API v2
+┬¡ãÆ├©├í┬┤┬®├à  Ydea Toolkit - Gestione API v2
 
 SETUP:
   export 
 YDEA_ID="tuo_id"              
-# Da: Impostazioni Ôö£├ÂÔö£├æÔö£├Ñ La mia azienda Ôö£├ÂÔö£├æÔö£├Ñ API
+# Da: Impostazioni ├ö├Ñ├å La mia azienda ├ö├Ñ├å API
   export 
 YDEA_API_KEY="tua_chiave_api"
   
@@ -1229,7 +1206,7 @@ clear_log() {
 
 # ===== Main Execution =====
 
-# Esegui solo se lo script ├ö├Â┬úÔö¼ÔöÉ chiamato direttamente (non con source)
+# Esegui solo se lo script è chiamato direttamente (non con source)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 
 case "${1:-}" in
