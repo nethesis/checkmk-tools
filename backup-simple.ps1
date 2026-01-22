@@ -254,8 +254,15 @@ if ($corruptedScripts -gt 0) {
 Write-Host "[OK] Proseguo con il backup..." -ForegroundColor Green
 Write-Host ""
 
-# Conta tutti i file per il backup
-$allFiles = Get-ChildItem -Path $REPO_PATH -Recurse -File -ErrorAction SilentlyContinue
+# Conta tutti i file per il backup (con filtri di esclusione)
+$allFiles = Get-ChildItem -Path $REPO_PATH -Recurse -File -ErrorAction SilentlyContinue | 
+    Where-Object { 
+        $_.FullName -notmatch '\\\.git\\' -and
+        $_.FullName -notmatch '\\BACKUP' -and
+        $_.FullName -notmatch '\.BACKUP' -and
+        $_.FullName -notmatch 'BACKUP-CORRUPTED-' -and
+        $_.Name -notmatch '^\.' # Escludi file nascosti
+    }
 $totalFiles = $allFiles.Count
 
 if ($totalFiles -eq 0) {
