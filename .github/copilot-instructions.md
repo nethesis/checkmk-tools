@@ -76,6 +76,21 @@ DETTAGLIO PER TIPO:
 
 ## 🎯 Workflow Consigliato
 
+### ⚠️ REGOLA OBBLIGATORIA - Validazione Script
+**SEMPRE quando crei o modifichi uno script Bash/Shell:**
+1. ✅ Testa con `wsl bash -n <file_path>` 
+2. ✅ Verifica che `$LASTEXITCODE -eq 0`
+3. ✅ Se exit code ≠ 0, correggi gli errori e ritesta
+4. ✅ Ripeti finché non ottieni exit code 0
+5. ✅ Solo allora considera il file completato
+
+**Comando PowerShell da usare:**
+```powershell
+wsl bash -n "path/to/script.sh"; echo "EXIT CODE: $LASTEXITCODE"
+```
+
+**Non procedere mai senza exit code 0!**
+
 ### Prima di ogni commit importante:
 1. Eseguire `.\check-integrity.ps1` per verificare lo stato
 2. Se errori >15%, indagare prima di committare
