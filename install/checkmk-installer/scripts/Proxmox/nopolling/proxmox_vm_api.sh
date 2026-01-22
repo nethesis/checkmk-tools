@@ -7,12 +7,17 @@ echo "$vm" | jq -r '.vmid')    name=$(
 echo "$vm" | jq -r '.name')    status=$(
 echo "$vm" | jq -r '.status')    maxmem=$(
 echo "$vm" | jq -r '.maxmem')    mem=$(
-echo "$vm" | jq -r '.mem')    
-# Stato    if [[ "$status" == "running" ]]; then
+echo "$vm" | jq -r '.mem')
+  
+  # Stato
+  if [[ "$status" == "running" ]]; then
     echo "0 vm_${vmid}_${name} Stato - VM ${vmid} (${name}) accesa"
-else        
-echo "0 vm_${vmid}_${name} Stato - VM ${vmid} (${name}) spenta"    fi    
-# RAM    if [[ "$status" == "running" && "$maxmem" -gt 0 ]]; then
+  else
+    echo "0 vm_${vmid}_${name} Stato - VM ${vmid} (${name}) spenta"
+  fi
+  
+  # RAM
+  if [[ "$status" == "running" && "$maxmem" -gt 0 ]]; then
     used_percent=$(( mem * 100 / maxmem ))        
 echo "0 vm_${vmid}_${name} RAM used=${mem};;;0;${maxmem} RAM: ${used_percent}%"
 else        conf="/etc/pve/qemu-server/${vmid}.conf"        if [[ -f "$conf" ]]; then

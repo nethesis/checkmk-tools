@@ -104,10 +104,28 @@ FRP_LOG_DIR="/var/log"
 #
 #
 #
-#detect_architecture() {local archlocal archarch=$(uname -m)    case "$arch" in    x86_64)      
-echo "amd64"      ;;    aarch64|arm64)      
-echo "arm64"      ;;    armv7l)      
-echo "arm"      ;;    *)      log_error "Unsupported architecture: $arch"      return 1      ;;  esac}
+#
+detect_architecture() {
+  local arch
+  arch=$(uname -m)
+  
+  case "$arch" in
+    x86_64)      
+      echo "amd64"
+      ;;
+    aarch64|arm64)      
+      echo "arm64"
+      ;;
+    armv7l)      
+      echo "arm"
+      ;;
+    *)
+      log_error "Unsupported architecture: $arch"
+      return 1
+      ;;
+  esac
+}
+
 #
 #
 #

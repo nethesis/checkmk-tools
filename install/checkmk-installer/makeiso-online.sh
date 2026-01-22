@@ -8,10 +8,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo ""  
 echo "============================================================"  
 echo "  $title"  
-echo "============================================================"  for line in "$@"; do    
-echo "  $line"  done
+echo "============================================================"
+for line in "$@"; do    
+  echo "  $line"
+done
 echo "============================================================"  
-echo ""}
+echo ""
+}
+
 # Configuration
 ISO_NAME="checkmk-installer-online-v1.0-amd64.iso"
 ISO_OUTPUT_DIR="${SCRIPT_DIR}/iso-output"

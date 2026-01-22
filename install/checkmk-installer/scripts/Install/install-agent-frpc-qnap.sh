@@ -32,10 +32,20 @@ MODE="install"
 # =====================================================is_process_running() {    local pattern="$1"    if command -v pgrep >/dev/null 2>&1; then        pgrep -f "$pattern" >/dev/null 2>&1    else        ps aux 2>/dev/null | grep -v grep | grep -q "$pattern"    fi}
 # =====================================================
 # Funzione: Kill processo (compatibile senza pkill)
-# =====================================================kill_process() {    local pattern="$1"    if command -v pkill >/dev/null 2>&1; then        pkill -f "$pattern" 2>/dev/null
-else        
-# Usa ps + grep + cut per ottenere i PID        ps aux 2>/dev/null | grep -v grep | grep "$pattern" | while read -r line; do            pid=$(
-echo "$line" | tr -s ' ' | cut -d' ' -f2)            [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null        done    fi}
+# =====================================================
+kill_process() {
+  local pattern="$1"
+  if command -v pkill >/dev/null 2>&1; then
+    pkill -f "$pattern" 2>/dev/null
+  else
+    # Usa ps + grep + cut per ottenere i PID
+    ps aux 2>/dev/null | grep -v grep | grep "$pattern" | while read -r line; do
+      pid=$(echo "$line" | tr -s ' ' | cut -d' ' -f2)
+      [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null
+    done
+  fi
+}
+
 # =====================================================
 # Funzione: Banner
 # =====================================================show_banner() {    

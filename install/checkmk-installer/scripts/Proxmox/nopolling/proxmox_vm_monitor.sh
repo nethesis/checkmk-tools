@@ -9,13 +9,18 @@ CRIT_DISK=90
 NODE=$(hostname)
 # Loop sulle VM (estrai VMID e NAME dalla tabella di qm list)qm list | awk 'NR>1 {print $1, $2}' | while read -r vmid name; do    
 # -------------------------    
-# STATUS VM    
-# -------------------------    status=$(qm status $vmid | awk '{print $2}')    if [[ "$status" == "running" ]]; then
+  # STATUS VM
+  # -------------------------
+  status=$(qm status $vmid | awk '{print $2}')
+  
+  if [[ "$status" == "running" ]]; then
     echo "0 vm_${vmid}_${name} Status VM ${vmid} (${name}) accesa"
-else        
-echo "0 vm_${vmid}_${name} Status VM ${vmid} (${name}) spenta"    fi    
-# -------------------------    
-# RAM    
+  else
+    echo "0 vm_${vmid}_${name} Status VM ${vmid} (${name}) spenta"
+  fi
+  
+  # -------------------------
+  # RAM    
 # -------------------------    config=$(pvesh get /nodes/$NODE/qemu/$vmid/config --output-format json 2>/dev/null)    alloc=$(
 echo "$config" | jq -r '.memory // empty')    if [[ -n "$alloc" && "$alloc" != "null" ]]; then
     alloc_bytes=$((alloc * 1024 * 1024))        if [[ "$status" == "running" ]]; then

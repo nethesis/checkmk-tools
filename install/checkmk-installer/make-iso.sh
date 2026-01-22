@@ -1,26 +1,43 @@
 #!/bin/bash
-/usr/bin/env bash
+# /usr/bin/env bash
 # make-iso.sh - Create bootable ISO with CheckMK installer
-# Generates a custom Ubuntu 24.04 ISO with the installer pre-loadedset -euo pipefail
+# Generates a custom Ubuntu 24.04 ISO with the installer pre-loaded
+
+set -euo pipefail
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Source utilitiessource "${SCRIPT_DIR}/utils/colors.sh"source "${SCRIPT_DIR}/utils/logger.sh"
-# source "${SCRIPT_DIR}/utils/menu.sh"  
-# Not needed for ISO building
-# Simple display_box function for ISO builderdisplay_box() {  local title="$1"  shift  
-echo ""  
-echo "============================================================"  
-echo "  $title"  
-echo "============================================================"  for line in "$@"; do    
-echo "  $line"  done
-echo "============================================================"  
-echo ""}
+
+# Source utilities
+source "${SCRIPT_DIR}/utils/colors.sh"
+source "${SCRIPT_DIR}/utils/logger.sh"
+# source "${SCRIPT_DIR}/utils/menu.sh"  # Not needed for ISO building
+
+# Simple display_box function for ISO builder
+display_box() {
+  local title="$1"
+  shift
+  echo ""
+  echo "============================================================"
+  echo "  $title"
+  echo "============================================================"
+  for line in "$@"; do
+    echo "  $line"
+  done
+  echo "============================================================"
+  echo ""
+}
+
 # Configuration
 ISO_NAME="checkmk-installer-v1.0-amd64.iso"
 ISO_OUTPUT_DIR="${SCRIPT_DIR}/iso-output"
 WORK_DIR="/tmp/checkmk-iso-build"
 UBUNTU_VERSION="24.04.3"
 UBUNTU_ISO_URL="https://releases.ubuntu.com/noble/ubuntu-${UBUNTU_VERSION}-live-server-amd64.iso"
-UBUNTU_ISO_NAME="ubuntu-${UBUNTU_VERSION}-live-server-amd64.iso"init_loggingprint_header "CheckMK Installer ISO Builder"
+UBUNTU_ISO_NAME="ubuntu-${UBUNTU_VERSION}-live-server-amd64.iso"
+
+init_logging
+
+print_header "CheckMK Installer ISO Builder"
 #
 #
 #
@@ -111,10 +128,32 @@ UBUNTU_ISO_NAME="ubuntu-${UBUNTU_VERSION}-live-server-amd64.iso"init_loggingprin
 #
 #
 #
-#check_dependencies() {  log_info "Checking dependencies..."    local deps=("wget" "xorriso" "mksquashfs" "genisoimage" "7z")  local missing=()    for dep in "${deps[@]}"; do    if ! command -v "$dep" &>/dev/null; then      missing+=("$dep")    fi  done    
-# Check for isolinux files  if [[ ! -f "/usr/lib/ISOLINUX/isolinux.bin" ]] && [[ ! -f "/usr/lib/isolinux/isolinux.bin" ]]; then    missing+=("isolinux")  fi    if [[ ${
-#missing[@]} -gt 0 ]]; then    log_error "Missing dependencies: ${missing[*]}"    log_info "Install with: su
-do apt-get install xorriso isolinux squashfs-tools genisoimage wget"    return 1  fi    log_success "All dependencies installed"}
+#check_dependencies() {
+  log_info "Checking dependencies..."
+  
+  local deps=("wget" "xorriso" "mksquashfs" "genisoimage" "7z")
+  local missing=()
+  
+  for dep in "${deps[@]}"; do
+    if ! command -v "$dep" &>/dev/null; then
+      missing+=("$dep")
+    fi
+  done
+  
+  # Check for isolinux files
+  if [[ ! -f "/usr/lib/ISOLINUX/isolinux.bin" ]] && [[ ! -f "/usr/lib/isolinux/isolinux.bin" ]]; then
+    missing+=("isolinux")
+  fi
+  
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    log_error "Missing dependencies: ${missing[*]}"
+    log_info "Install with: sudo apt-get install xorriso isolinux squashfs-tools genisoimage wget"
+    return 1
+  fi
+  
+  log_success "All dependencies installed"
+}
+
 #
 #
 #

@@ -100,13 +100,26 @@ fi
 #
 #
 #
-#precheck_ssl_prereqs() {  local domain="$1"    log_info "Pre-verifica prerequisiti SSL..."    
-# DNS check  
-echo -n "  - DNS $domain: "  if host "$domain" >/dev/null 2>&1; then    local resolved_ip    resolved_ip=$(host "$domain" | grep 'has address' | awk '{print $NF}' | head -1)    
-echo "OK (risolve a $resolved_ip)"
-else    log_warning "Risoluzione DNS fallita per $domain"    return 1  fi    
-# Port 80 check  
-echo -n "  - Porta 80: "  if ss -tulpn | grep -q ':80 '; then
+#
+precheck_ssl_prereqs() {
+  local domain="$1"
+  
+  log_info "Pre-verifica prerequisiti SSL..."
+  
+  # DNS check  
+  echo -n "  - DNS $domain: "
+  if host "$domain" >/dev/null 2>&1; then
+    local resolved_ip
+    resolved_ip=$(host "$domain" | grep 'has address' | awk '{print $NF}' | head -1)
+    echo "OK (risolve a $resolved_ip)"
+  else
+    log_warning "Risoluzione DNS fallita per $domain"
+    return 1
+  fi
+  
+  # Port 80 check  
+  echo -n "  - Porta 80: "
+  if ss -tulpn | grep -q ':80 '; then
     echo "OK (in ascolto)"
 else    log_warning "Nessun processo in ascolto sulla porta 80"    return 1  fi    
 # Port 443 check  
