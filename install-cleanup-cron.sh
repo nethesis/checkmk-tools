@@ -4,6 +4,9 @@ set -euo pipefail
 # install-cleanup-cron.sh
 # Interactive installer for cleanup-checkmk-retention.sh cron job
 
+# Redirect stdin from /dev/tty for interactive input when piped
+exec < /dev/tty
+
 SCRIPT_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh"
 LOG_FILE="/var/log/cleanup-checkmk-retention.log"
 CRON_TIME="0 3 * * *"  # Default: 03:00 every day
@@ -61,8 +64,8 @@ if crontab -l 2>/dev/null | grep -q "$CRON_PATTERN"; then
   echo "─────────────────────────────────────────────────────────────"
   echo ""
   
-  read -p "Do you want to REPLACE it? [y/N]: " -r < /dev/tty
-  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+  read -p "Do you want to REPLACE it? [y/N]: " answer
+  if [[ ! "$answer" =~ ^[Yy]$ ]]; then
     log "Installation cancelled."
     exit 0
   fi
@@ -86,7 +89,7 @@ echo "  3) 04:00 AM daily"
 echo "  4) Custom time"
 echo ""
 
-read -p "Select schedule [1-4, default: 1]: " schedule_choice < /dev/tty
+read -p "Select schedule [1-4, default: 1]: " schedule_choice
 
 case "${schedule_choice:-1}" in
   1)
@@ -109,7 +112,7 @@ case "${schedule_choice:-1}" in
     echo "  30 2 * * *    = 02:30 every day"
     echo "  0 3 * * 0     = 03:00 every Sunday"
     echo ""
-    read -p "Custom schedule: " CRON_TIME < /dev/tty
+    read -p "Custom schedule: " CRON_TIME
     CRON_DESC="custom: $CRON_TIME"
     
     # Validate cron syntax (basic)
@@ -137,8 +140,8 @@ echo "Cron entry:  $CRON_CMD"
 echo "─────────────────────────────────────────────────────────────"
 echo ""
 
-read -p "Proceed with installation? [y/N]: " -r < /dev/tty
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+read -p "Proceed with installation? [y/N]: " answer
+if [[ ! "$answer" =~ ^[Yy]$ ]]; then
   log "Installation cancelled."
   exit 0
 fi
@@ -167,8 +170,8 @@ fi
 
 # Ask for test run
 echo ""
-read -p "Do you want to run the cleanup script now (test)? [y/N]: " -r < /dev/tty
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+read -p "Do you want to run the cleanup script now (test)? [y/N]: " answer
+if [[ "$answer" =~ ^[Yy]$ ]]; then
   log "Running cleanup script in dry-run mode..."
   echo ""
   echo "════════════════════════════════════════════════════════════"
@@ -176,8 +179,8 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   echo "════════════════════════════════════════════════════════════"
   echo ""
   
-  read -p "Run REAL cleanup now (not dry-run)? [y/N]: " -r < /dev/tty
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
+  read -p "Run REAL cleanup now (not dry-run)? [y/N]: " answer
+  if [[ "$answer" =~ ^[Yy]$ ]]; then
     log "Running REAL cleanup..."
     echo ""
     echo "════════════════════════════════════════════════════════════"
