@@ -68,7 +68,9 @@ $scriptFiles = Get-ChildItem -Path $REPO_PATH -Recurse -File -ErrorAction Silent
         $_.FullName -notmatch '\\\.git\\' -and
         $_.FullName -notmatch '\\BACKUP' -and
         $_.FullName -notmatch '\.BACKUP' -and
-        $_.Extension -in @('.ps1', '.sh', '.bash', '.bat', '.cmd', '.py') -and
+        $_.Name -notmatch '^(LICENSE|README|CHANGELOG|AUTHORS|Dockerfile)$' -and
+        $_.Name -notmatch '^\.' -and
+        ($_.Extension -in @('.ps1', '.sh', '.bash', '.bat', '.cmd', '.py') -or $_.Extension -eq '') -and
         $_.Name -notmatch '^(test-|debug-|backup-)' # Escludi script di test
     }
 $totalScripts = $scriptFiles.Count
@@ -108,7 +110,7 @@ foreach ($script in $scriptFiles) {
     }
     
     # Verifica sintassi bash/sh con WSL (bash -n)
-    if ($script.Extension -in @(".sh", ".bash") -and $wslAvailable) {
+    if ($scriptType -in @(".sh", ".bash") -and $wslAvailable) {
         try {
             # Converti path Windows in path WSL
             $wslPath = $script.FullName -replace '\\', '/' -replace '^([A-Z]):', { "/mnt/$($_.Groups[1].Value.ToLower())" }
@@ -137,7 +139,7 @@ foreach ($script in $scriptFiles) {
     }
     
     # Verifica sintassi Batch/CMD
-    if ($script.Extension -in @(".bat", ".cmd")) {
+    if ($scriptType -in @(".bat", ".cmd")) {
         try {
             # cmd /c verifica la sintassi senza eseguire
             $cmdCheck = cmd /c "echo off & call `"$($script.FullName)`" /?" 2>&1

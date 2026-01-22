@@ -57,7 +57,9 @@ $allScripts = Get-ChildItem -Path $REPO_PATH -Recurse -File -ErrorAction Silentl
         $_.FullName -notmatch '\\\.git\\' -and
         $_.FullName -notmatch '\\BACKUP' -and
         $_.FullName -notmatch '\.BACKUP' -and
-        $_.Extension -in @('.ps1', '.sh', '.bash', '.bat', '.cmd', '.py') -and
+        $_.Name -notmatch '^(LICENSE|README|CHANGELOG|AUTHORS|Dockerfile)$' -and
+        $_.Name -notmatch '^\.' -and
+        ($_.Extension -in @('.ps1', '.sh', '.bash', '.bat', '.cmd', '.py') -or $_.Extension -eq '') -and
         $_.Name -notmatch '^(test-|debug-|backup-)' # Escludi script di test
     }
 
@@ -107,7 +109,7 @@ foreach ($script in $allScripts) {
     }
     
     # Verifica PowerShell
-    if ($script.Extension -eq ".ps1") {
+    if ($scriptType -eq ".ps1") {
         try {
             $errors = $null
             $tokens = $null
@@ -129,7 +131,7 @@ foreach ($script in $allScripts) {
     }
     
     # Verifica Bash con WSL
-    if ($script.Extension -in @(".sh", ".bash") -and $wslAvailable) {
+    if ($scriptType -in @(".sh", ".bash") -and $wslAvailable) {
         try {
             # Converti path Windows in path WSL
             $wslPath = $script.FullName -replace '\\', '/' -replace '^([A-Z]):', { "/mnt/$($_.Groups[1].Value.ToLower())" }
@@ -160,7 +162,7 @@ foreach ($script in $allScripts) {
     }
     
     # Verifica Batch (controllo base)
-    if ($script.Extension -in @(".bat", ".cmd")) {
+    if ($scriptType -in @(".bat", ".cmd")) {
         try {
             $content = Get-Content $script.FullName -Raw -ErrorAction Stop
             if ([string]::IsNullOrWhiteSpace($content)) {
@@ -178,7 +180,7 @@ foreach ($script in $allScripts) {
     }
     
     # Verifica Python (controllo base sintassi)
-    if ($script.Extension -eq ".py") {
+    if ($scriptType -eq ".py") {
         try {
             $pythonCheck = python -m py_compile "$($script.FullName)" 2>&1
             if ($LASTEXITCODE -ne 0) {
