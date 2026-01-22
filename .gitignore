@@ -17,6 +17,8 @@ __pycache__/
 BACKUP_ORIGINALI_PROD*/
 *.BACKUP_*/
 *BACKUP*_202*/
+BACKUP-CORRUPTED-*/
+BACKUP-CORRUPTED-*
 
 # Temporary reports
 integrity-report*.txt
