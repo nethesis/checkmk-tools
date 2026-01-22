@@ -1,34 +1,97 @@
-#!/bin/bash
-# =====================================================
-# Deploy Checkmk Agent (plain TCP 6556) su pia host via SSH
-# Compatibile con Checkmk Raw Edition
-# =====================================================
-# Lista degli host (hostname o IP)
-HOSTS=("marziodemo" "proxmox01" "rocky01" "ns8demo")
-# Utente SSH (deve avere sudo/root)
-USER="root"
-# Flag 
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Deploy Checkmk Agent in modalita plain TCP 6556 su piu host via SSH.
+# Configura unita' systemd (socket+service) e disabilita il socket TLS standard.
+# Uso:
+#   sudo ./deploy-plain-agent-multi.sh [--force] [--user root] host1 host2 ...
+# Se non passi host come argomenti, usa la lista DEFAULT_HOSTS.
+
+DEFAULT_HOSTS=("marziodemo" "proxmox01" "rocky01" "ns8demo")
+SSH_USER="root"
 FORCE=0
-if [[ "$1" == "--force" ]]; then
-    FORCE=1    
-echo "oiaA Modalitaa FORCE attiva: eventuali file esistenti saranno sovrascritti."fi
-# Script remoto che saraa eseguito su ciascun hostread -r -d '' REMOTE_SCRIPT <<'EOF'set -e
+
+ARGS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --force)
+            FORCE=1
+            shift
+            ;;
+        --user)
+            SSH_USER="${2:-root}"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Uso: sudo $0 [--force] [--user root] host1 host2 ..."
+            exit 0
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+HOSTS=()
+if [[ ${#ARGS[@]} -gt 0 ]]; then
+    HOSTS=("${ARGS[@]}")
+else
+    HOSTS=("${DEFAULT_HOSTS[@]}")
+fi
+
+REMOTE_SCRIPT=$(cat <<'EOF'
+set -euo pipefail
+
 SOCKET_FILE="/etc/systemd/system/check-mk-agent-plain.socket"
 SERVICE_FILE="/etc/systemd/system/check-mk-agent-plain@.service"
-if [[ $FORCE -eq 0 ]] && ([[ -f "$SOCKET_FILE" || -f "$SERVICE_FILE" ]]); then
-    echo "oiaA  Unit plain giaa presente, skip..."
-    exit 0
-fi echo "OCyOC Disabilito agent controller TLS..."systemctl stop cmk-agent-ctl-daemon 2>/dev/null || truesystemctl disable cmk-agent-ctl-daemon 2>/dev/null || true
-echo "OCyOC Disabilito il socket systemd standard..."systemctl stop check-mk-agent.socket 2>/dev/null || truesystemctl disable check-mk-agent.socket 2>/dev/null || true
-echo "OCyOC Creo unit systemd per agent plain..."cat >"$SOCKET_FILE" <<EOT
-[Unit]Description=Checkmk Agent (TCP 6556 plain)Documentation=https://docs.checkmk.com/latest/en/agent_linux.html[Socket]ListenStream=6556Accept=yes[Install]WantedBy=sockets.targetEOTcat >"$SERVICE_FILE" <<EOT
-[Unit]Description=Checkmk Agent (TCP 6556 plain) connectionDocumentation=https://docs.checkmk.com/latest/en/agent_linux.html[Service]ExecStart=-/usr/bin/check_mk_agentStandardInput=socketEOT
-echo "OCyOC Ricarico systemd..."systemctl daemon-reload
-echo "OCyOC Abilito e avvio il nuovo socket..."systemctl enable --now check-mk-agent-plain.socket
-echo "ooOCa Host configurato. Test locale:"/usr/bin/check_mk_agent | head -n 5EOF
-# Loop sugli hostfor h in "${HOSTS[@]}"; do  
-echo "============================"  
-echo "oiA  Configuro $h"  
-echo "============================"  ssh -o BatchMode=yes -o ConnectTimeout=10 ${USER}@${h} \    "
-FORCE=${FORCE} bash -s" <<< "$REMOTE_SCRIPT"  
-echo ""done
+
+FORCE="${FORCE:-0}"
+if [[ "$FORCE" != "1" ]] && { [[ -f "$SOCKET_FILE" ]] || [[ -f "$SERVICE_FILE" ]]; }; then
+  echo "[INFO] Unita' plain gia' presenti, skip"
+  exit 0
+fi
+
+echo "[INFO] Disabilito agent TLS (cmk-agent-ctl-daemon) se presente"
+systemctl stop cmk-agent-ctl-daemon 2>/dev/null || true
+systemctl disable cmk-agent-ctl-daemon 2>/dev/null || true
+
+echo "[INFO] Disabilito socket standard Checkmk (check-mk-agent.socket) se presente"
+systemctl stop check-mk-agent.socket 2>/dev/null || true
+systemctl disable check-mk-agent.socket 2>/dev/null || true
+
+echo "[INFO] Scrivo unita' systemd per agent plain (porta 6556)"
+cat >"$SOCKET_FILE" <<'EOT'
+[Unit]
+Description=Checkmk Agent (TCP 6556 plain)
+Documentation=https://docs.checkmk.com/latest/en/agent_linux.html
+
+[Socket]
+ListenStream=6556
+Accept=yes
+
+[Install]
+WantedBy=sockets.target
+EOT
+
+cat >"$SERVICE_FILE" <<'EOT'
+[Unit]
+Description=Checkmk Agent (TCP 6556 plain) connection
+Documentation=https://docs.checkmk.com/latest/en/agent_linux.html
+
+[Service]
+ExecStart=-/usr/bin/check_mk_agent
+StandardInput=socket
+EOT
+
+systemctl daemon-reload
+systemctl enable --now check-mk-agent-plain.socket
+
+echo "[OK] Host configurato"
+EOF
+)
+
+for host in "${HOSTS[@]}"; do
+    echo "[INFO] Configuro $host"
+    ssh -o BatchMode=yes -o ConnectTimeout=10 "${SSH_USER}@${host}" "FORCE=${FORCE} bash -s" <<<"$REMOTE_SCRIPT"
+done

@@ -1,64 +1,60 @@
-#!/bin/bash
-# ==================================================
-# Installazione FRPC client (0.64.0) - DRY RUN
-# Non modifica nulla, stampa solo le azioni che
-# verrebbero eseguite
-# ==================================================
+#!/usr/bin/env bash
+set -euo pipefail
+
+# DRY RUN: mostra cosa farebbe install-frpc.sh, senza modifiche.
+
 FRP_VERSION="0.64.0"
 FRP_URL_DEFAULT="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/frp_${FRP_VERSION}_linux_amd64.tar.gz"
-echo "=== DRY RUN Installazione FRPC Client ==="
-# ----------------------------
-# 1. Rileva sistema operativo
-# ----------------------------if grep -qi "rocky" /etc/os-release; then
-    OS_TYPE="rockylinux"
-elif grep -qi "nethserver" /etc/os-release; then
-    OS_TYPE="nethserver"
-elif grep -qi "debian" /etc/os-release; then
-    if dpkg -l | grep -q pve-manager; then
-    OS_TYPE="proxmox"
-else        
-OS_TYPE="debian"    fi
-else    
+
 OS_TYPE="altro"
+if [[ -r /etc/os-release ]]; then
+    if grep -qi "rocky" /etc/os-release; then
+        OS_TYPE="rockylinux"
+    elif grep -qi "nethserver" /etc/os-release; then
+        OS_TYPE="nethserver"
+    elif grep -qi "debian" /etc/os-release; then
+        if command -v dpkg >/dev/null 2>&1 && dpkg -l 2>/dev/null | grep -q pve-manager; then
+            OS_TYPE="proxmox"
+        else
+            OS_TYPE="debian"
+        fi
+    fi
 fi
-echo "Rilevato sistema operativo: $OS_TYPE"
-# ----------------------------
-# 2. Parametri richiesti
-# ----------------------------read -r -p "URL pacchetto FRP [default: $FRP_URL_DEFAULT]: " 
-FRP_URL=${FRP_URL:-$FRP_URL_DEFAULT}read -r -p "Nome host (es: rl94ns8): " HOSTNAMEread -r -p "Porta remota da usare: " REMOTE_PORT
-# ----------------------------
-# 3. Simulazione installazione
-# ----------------------------echo
-echo "--- Azioni che verrebbero eseguite ---"
-echo "1. Scarico pacchetto da: $FRP_URL"
-echo "2. Estraggo e installo frpc in /usr/local/bin/"
-echo "3. Creo config TOML in /etc/frp/frpc.toml con:"
-echo "   - server_addr = monitor.nethlab.it"
-echo "   - hostname    = $HOSTNAME"
-echo "   - remote_port = $REMOTE_PORT"echo
-# ----------------------------
-# 4. Simulazione servizio
-# ----------------------------case "$OS_TYPE" in  rockylinux|debian|proxmox)    
-echo "--- Creerei un systemd unit file in /etc/systemd/system/frpc.service ---"    
-echo "[Unit]"    
-echo "Description=FRP Client Service ($OS_TYPE)"    
-echo "After=network.target"    
-echo    
-echo "[Service]"    
-echo "ExecStart=/usr/local/bin/frpc -c /etc/frp/frpc.toml"    
-echo "Restart=on-failure"    
-echo "RestartSec=5s"    
-echo "User=root"    
-echo    
-echo "[Install]"    
-echo "WantedBy=multi-user.target"    ;;  nethserver)    
-echo "--- Creerei un template e-smith in /etc/e-smith/templates-custom/etc/systemd/system/frpc.service/10base ---"    
-echo "Poi eseguirei:"    
-echo "   config set frpc service status enabled"    
-echo "   signal-event runlevel-adjust"    ;;  *)    
-echo "oiaA Sistema operativo non riconosciuto: nessuna azione eseguita"    ;;esac
-# ----------------------------
-# 5. Conclusione
-# ----------------------------echo
-echo "=== DRY RUN completato ==="
-echo "Nessun file a stato modificato."
+
+echo "[DRYRUN] OS rilevato: $OS_TYPE"
+
+read -r -p "URL pacchetto FRP [default: $FRP_URL_DEFAULT]: " FRP_URL
+FRP_URL="${FRP_URL:-$FRP_URL_DEFAULT}"
+read -r -p "Nome host (es: rl94ns8): " HOSTNAME
+read -r -p "Porta remota da usare: " REMOTE_PORT
+
+if [[ -z "$HOSTNAME" || -z "$REMOTE_PORT" ]]; then
+    echo "[DRYRUN][ERR] Parametri mancanti" >&2
+    exit 1
+fi
+
+echo "[DRYRUN] Download: $FRP_URL"
+echo "[DRYRUN] Estraggo in: /usr/local/src/frp_${FRP_VERSION}_linux_amd64"
+echo "[DRYRUN] Installo binario: /usr/local/bin/frpc"
+echo "[DRYRUN] Scrivo config: /etc/frp/frpc.toml"
+echo "[DRYRUN] Scrivo unita': /etc/systemd/system/frpc.service"
+echo "[DRYRUN] Avvio: systemctl enable --now frpc"
+
+cat <<EOF
+
+[DRYRUN] Esempio frpc.toml (token non incluso):
+[common]
+server_addr = "monitor.nethlab.it"
+server_port = 7000
+auth.method = "token"
+auth.token  = "<INSERIRE_TOKEN>"
+tls.enable  = true
+log.to      = "/var/log/frpc.log"
+log.level   = "info"
+
+[$HOSTNAME]
+type        = "tcp"
+local_ip    = "127.0.0.1"
+local_port  = 6556
+remote_port = $REMOTE_PORT
+EOF

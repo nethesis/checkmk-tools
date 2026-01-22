@@ -7,5 +7,6 @@ if [ "$HTTP_CODE" = "200" ]; then
     echo "0 $SERVICE - WebTop reachable"
 elif [ "$HTTP_CODE" = "000" ]; then
     echo "2 $SERVICE - WebTop not reachable"
-else    
-echo "2 $SERVICE - WebTop not reachable (code $HTTP_CODE)"fi
+else
+    echo "2 $SERVICE - WebTop not reachable (code $HTTP_CODE)"
+fi
