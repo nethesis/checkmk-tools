@@ -177,7 +177,8 @@ fi
 
 # Crea il comando completo con logging e auto-yes usando lo script remoto full
 # Usa metodo compatibile con tutti i sistemi (senza process substitution)
-UPGRADE_COMMAND="curl -fsSL $UPGRADE_SCRIPT_URL -o /tmp/upgrade-checkmk.sh && chmod +x /tmp/upgrade-checkmk.sh && yes | bash /tmp/upgrade-checkmk.sh"
+# Lo script viene eseguito con auto-conferma tramite echo y per la conferma iniziale
+UPGRADE_COMMAND="curl -fsSL $UPGRADE_SCRIPT_URL -o /tmp/upgrade-checkmk.sh && chmod +x /tmp/upgrade-checkmk.sh && echo 'y' | bash /tmp/upgrade-checkmk.sh"
 CRON_ENTRY="$CRON_SCHEDULE (echo \"[\$(date)] Starting CheckMK auto-upgrade\" && $UPGRADE_COMMAND && echo \"[\$(date)] CheckMK upgrade completed successfully\"$EMAIL_NOTIFY) >> $LOG_FILE 2>&1"
 
 print_info "Lo script scaricherà automaticamente l'ultima versione ad ogni esecuzione"
@@ -250,9 +251,10 @@ echo ""
 print_info "IMPORTANTE - Note sulla sicurezza:"
 echo "  1. Gli upgrade avverranno AUTOMATICAMENTE alla schedulazione impostata"
 echo "  2. Viene creato un backup prima di ogni upgrade"
-echo "  3. I backup sono salvati in: /opt/omd/backups/"
-echo "  4. Monitora regolarmente i log per verificare gli upgrade"
-echo "  5. Lo script scarica SEMPRE l'ultima versione da GitHub ad ogni esecuzione"
+echo "  3. I backup sono salvati in: /opt/omd/backups/ (mantiene ultimi 3)"
+echo "  4. Le versioni CheckMK obsolete vengono rimosse automaticamente"
+echo "  5. Monitora regolarmente i log per verificare gli upgrade"
+echo "  6. Lo script scarica SEMPRE l'ultima versione da GitHub ad ogni esecuzione"
 echo ""
 print_info "Per monitorare gli upgrade eseguiti:"
 echo -e "  ${YELLOW}tail -f $LOG_FILE${NC}"
