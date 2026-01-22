@@ -55,6 +55,8 @@ Write-Host "[INFO] Ricerca script nel repository..." -ForegroundColor Cyan
 $allScripts = Get-ChildItem -Path $REPO_PATH -Recurse -File -ErrorAction SilentlyContinue | 
     Where-Object { 
         $_.FullName -notmatch '\\\.git\\' -and
+        $_.FullName -notmatch '\\BACKUP' -and
+        $_.FullName -notmatch '\.BACKUP' -and
         $_.Extension -in @('.ps1', '.sh', '.bash', '.bat', '.cmd', '.py') -and
         $_.Name -notmatch '^(test-|debug-|backup-)' # Escludi script di test
     }
