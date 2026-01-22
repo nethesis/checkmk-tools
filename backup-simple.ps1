@@ -90,8 +90,31 @@ foreach ($script in $scriptFiles) {
         continue
     }
     
+    # Determina tipo tramite estensione o shebang
+    $scriptType = $script.Extension
+    
+    if ($script.Extension -eq '') {
+        # File senza estensione: controlla shebang
+        try {
+            $firstLine = Get-Content $script.FullName -First 1 -ErrorAction Stop
+            if ($firstLine -match '^#!/.*bash') {
+                $scriptType = '.sh'
+            } elseif ($firstLine -match '^#!/.*python') {
+                $scriptType = '.py'
+            } else {
+                # Shebang non riconosciuto, salta
+                $validScripts++
+                continue
+            }
+        } catch {
+            # Non può leggere il file, salta
+            $validScripts++
+            continue
+        }
+    }
+    
     # Verifica sintassi PowerShell con ParseFile
-    if ($script.Extension -eq ".ps1") {
+    if ($scriptType -eq ".ps1") {
         try {
             $errors = $null
             $tokens = $null
@@ -117,7 +140,8 @@ foreach ($script in $scriptFiles) {
             
             # Usa bash -n per syntax check (non esegue lo script)
             $bashCheck = wsl bash -n "$wslPath" 2>&1
-            if ($LASTEXITCODE -ne 0) {
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -ne 0) {
                 $corruptedScripts++
                 $errorMsg = if ($bashCheck) { ($bashCheck | Select-Object -First 2) -join "; " } else { "Syntax error" }
                 $corruptedList += "[SINTASSI BASH] $relativePath - $errorMsg"

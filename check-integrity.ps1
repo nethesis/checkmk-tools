@@ -95,13 +95,39 @@ $categoryStats = @{
 foreach ($script in $allScripts) {
     $relativePath = $script.FullName.Replace($REPO_PATH, "").TrimStart('\')
     
-    # Categorizza per tipo
-    $category = switch ($script.Extension) {
-        '.ps1' { 'PowerShell' }
-        { $_ -in @('.sh', '.bash') } { 'Bash/Shell' }
-        { $_ -in @('.bat', '.cmd') } { 'Batch' }
-        '.py' { 'Python' }
-        default { 'Unknown' }
+    # Determina tipo tramite estensione o shebang
+    $scriptType = $script.Extension
+    $category = 'Unknown'
+    
+    if ($script.Extension -eq '') {
+        # File senza estensione: controlla shebang
+        try {
+            $firstLine = Get-Content $script.FullName -First 1 -ErrorAction Stop
+            if ($firstLine -match '^#!/.*bash') {
+                $scriptType = '.sh'
+                $category = 'Bash/Shell'
+            } elseif ($firstLine -match '^#!/.*python') {
+                $scriptType = '.py'
+                $category = 'Python'
+            } else {
+                # Shebang non riconosciuto, salta
+                $validScripts++
+                continue
+            }
+        } catch {
+            # Non può leggere il file, salta
+            $validScripts++
+            continue
+        }
+    } else {
+        # Categorizza per estensione
+        $category = switch ($script.Extension) {
+            '.ps1' { 'PowerShell' }
+            { $_ -in @('.sh', '.bash') } { 'Bash/Shell' }
+            { $_ -in @('.bat', '.cmd') } { 'Batch' }
+            '.py' { 'Python' }
+            default { 'Unknown' }
+        }
     }
     
     if ($categoryStats.ContainsKey($category)) {
@@ -138,7 +164,8 @@ foreach ($script in $allScripts) {
             
             # Usa bash -n per syntax check
             $bashCheck = wsl bash -n "$wslPath" 2>&1
-            if ($LASTEXITCODE -ne 0) {
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -ne 0) {
                 $corruptedScripts++
                 $categoryStats[$category].Errors++
                 $errorMsg = if ($bashCheck) { ($bashCheck | Select-Object -First 2) -join "; " } else { "Syntax error" }
