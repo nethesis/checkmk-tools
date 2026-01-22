@@ -1,6 +1,4 @@
-
-#!/bin/bash
-/usr/bin/env bash
+#!/usr/bin/env bash
 
 # ydea-toolkit.sh - Toolkit completo per Ydea API v2
 

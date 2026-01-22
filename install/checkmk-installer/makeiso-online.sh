@@ -1,19 +1,28 @@
-#!/bin/bash
-/usr/bin/env bash
+#!/usr/bin/env bash
 # makeiso-online.sh - Create lightweight bootable ISO with online bootstrap
-# Generates a minimal ISO that downloads and runs the CheckMK installer onlineset -euo pipefail
+# Generates a minimal ISO that downloads and runs the CheckMK installer online
+
+set -euo pipefail
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Source utilitiessource "${SCRIPT_DIR}/utils/colors.sh"source "${SCRIPT_DIR}/utils/logger.sh"
-# Simple display_box function for ISO builderdisplay_box() {  local title="$1"  shift  
-echo ""  
-echo "============================================================"  
-echo "  $title"  
-echo "============================================================"
-for line in "$@"; do    
-  echo "  $line"
-done
-echo "============================================================"  
-echo ""
+
+# Source utilities
+source "${SCRIPT_DIR}/utils/colors.sh"
+source "${SCRIPT_DIR}/utils/logger.sh"
+# Simple display_box function for ISO builder
+display_box() {
+  local title="$1"
+  shift
+  
+  echo ""
+  echo "============================================================"
+  echo "  $title"
+  echo "============================================================"
+  for line in "$@"; do
+    echo "  $line"
+  done
+  echo "============================================================"
+  echo ""
 }
 
 # Configuration
@@ -22,7 +31,10 @@ ISO_OUTPUT_DIR="${SCRIPT_DIR}/iso-output"
 WORK_DIR="/tmp/checkmk-iso-online-build"
 UBUNTU_VERSION="24.04.3"
 UBUNTU_ISO_URL="https://releases.ubuntu.com/noble/ubuntu-${UBUNTU_VERSION}-live-server-amd64.iso"
-UBUNTU_ISO_NAME="ubuntu-${UBUNTU_VERSION}-live-server-amd64.iso"init_loggingprint_header "CheckMK Installer Online ISO Builder"
+UBUNTU_ISO_NAME="ubuntu-${UBUNTU_VERSION}-live-server-amd64.iso"
+
+init_logging
+print_header "CheckMK Installer Online ISO Builder"
 #
 #
 #
