@@ -92,42 +92,31 @@ wsl bash -n "path/to/script.sh"; echo "EXIT CODE: $LASTEXITCODE"
 **Non procedere mai senza exit code 0!**
 ### 📂 REGOLA DEPLOYMENT - Path Script dal Repository GitHub
 
-**Gli script devono SEMPRE essere eseguiti dal repository locale clonato da GitHub:**
+**Gli script devono SEMPRE essere eseguiti direttamente dal repository GitHub con curl:**
 - ❌ NON copiare script in `/usr/local/bin` o `/usr/bin`
-- ❌ NON creare copie in cartelle di sistema
-- ✅ Esegui direttamente dal clone git del repository GitHub
-- ✅ Path base repository: `/opt/checkmk-tools` (git clone da GitHub)
+- ❌ NON creare copie locali o git clone
+- ✅ Esegui direttamente da GitHub tramite curl/wget
 - ✅ Repository GitHub: `https://github.com/Coverup20/checkmk-tools.git`
-
-**Setup repository sul server:**
-```bash
-# Prima installazione sul server
-cd /opt
-git clone https://github.com/Coverup20/checkmk-tools.git
-
-# Aggiornamenti successivi
-cd /opt/checkmk-tools
-git pull
-```
+- ✅ Raw URL base: `https://raw.githubusercontent.com/Coverup20/checkmk-tools/main`
 
 **Esempi corretti per cron/systemd:**
 ```bash
-# Cron job - path assoluta dal repository locale (clone GitHub)
-0 3 * * * /opt/checkmk-tools/script-tools/full/cleanup-checkmk-retention.sh >> /var/log/script.log 2>&1
+# Cron job - esecuzione diretta da GitHub
+0 3 * * * curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh | bash >> /var/log/script.log 2>&1
 
-# Esecuzione manuale - path assoluta dal repository
-/opt/checkmk-tools/script-tools/full/script-name.sh
+# Esecuzione manuale - scarica ed esegui da GitHub
+curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/script-name.sh | bash
 
-# Systemd ExecStart - path assoluta dal repository
-ExecStart=/opt/checkmk-tools/script-tools/full/script-name.sh
+# Systemd ExecStart - esecuzione diretta da GitHub
+ExecStart=/bin/bash -c "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/script-name.sh | bash"
 ```
 
 **Vantaggi:**
-- ✅ Aggiornamenti automatici con `git pull` dal repository GitHub
-- ✅ Versioning e rollback tramite git
-- ✅ Single source of truth (repository GitHub)
-- ✅ Nessuna sincronizzazione manuale necessaria
-- ✅ Tutti i server usano stessa versione da GitHub
+- ✅ Sempre l'ultima versione da GitHub (no git pull necessario)
+- ✅ Nessun repository locale da mantenere
+- ✅ Single source of truth: repository GitHub
+- ✅ Tutti i server usano identica versione in tempo reale
+- ✅ Zero sincronizzazione manuale
 ### Prima di ogni commit importante:
 1. Eseguire `.\check-integrity.ps1` per verificare lo stato
 2. Se errori >15%, indagare prima di committare
