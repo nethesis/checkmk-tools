@@ -14,15 +14,14 @@ set -euo pipefail
 if [[ -z "${YDEA_ID:-}" ]] || [[ -z "${YDEA_API_KEY:-}" ]]; then
   
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  if [[ -f "$SCRIPT_DIR/.env" ]]; then
-    
-# shellcheck disable=SC1090,SC1091
-    source "$SCRIPT_DIR/.env"
-  elif [[ -f "/opt/ydea-toolkit/.env" ]]; then
-    
-# shellcheck disable=SC1091
-    source "/opt/ydea-toolkit/.env"
-  fi
+
+if [[ -f "$SCRIPT_DIR/.env" ]]; then
+  # shellcheck disable=SC1090,SC1091
+  source "$SCRIPT_DIR/.env"
+elif [[ -f "/opt/ydea-toolkit/.env" ]]; then
+  # shellcheck disable=SC1091
+  source "/opt/ydea-toolkit/.env"
+fi
 fi
 
 

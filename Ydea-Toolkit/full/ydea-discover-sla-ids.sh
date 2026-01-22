@@ -26,13 +26,30 @@ echo "  $1"
 echo "ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ"  
 echo ""}
 # ===== Discovery Categorie =====discover_categories() {  print_header "­ƒöì DISCOVERY CATEGORIE E SOTTOCATEGORIE"    log_info "Recupero lista categorie da Ydea API..."    
-# Chiama API per ottenere tutte le categorie  local categories_data  categories_data=$(ydea_api GET "/categories" 2>/dev/null || 
-echo '{"objs":[]}')    if [[ -z "$categories_data" || "$categories_data" == '{"objs":[]}' ]]; then    log_error "Nessuna categoria trovata o errore nella chiamata API"    return 1  fi    
-# Salva i dati completi per debug  
-echo "$categories_data" > "${SCRIPT_DIR}/categories-full-dump.json"  log_debug "Dump completo categorie salvato in categories-full-dump.json"    
-# Cerca la macro categoria Premium_Mon  local macro_cat_id  macro_cat_id=$(
-echo "$categories_data" | jq -r --arg name "$MACRO_CATEGORY" '    .objs[]? | select(.nome == $name) | .id  ' | head -1)    if [[ -z "$macro_cat_id" || "$macro_cat_id" == "null" ]]; then    log_warn "Macro categoria '$MACRO_CATEGORY' non trovata direttamente"    log_info "Elenco tutte le categorie disponibili:"    
-echo "$categories_data" | jq -r '.objs[]? | "\(.id) ÔåÆ \(.nome)"'    macro_cat_id=""
+# Chiama API per ottenere tutte le categorie
+  local categories_data
+  categories_data=$(ydea_api GET "/categories" 2>/dev/null || echo '{"objs":[]}')
+  
+  if [[ -z "$categories_data" || "$categories_data" == '{"objs":[]}' ]]; then
+    log_error "Nessuna categoria trovata o errore nella chiamata API"
+    return 1
+  fi
+  
+  # Salva i dati completi per debug
+  echo "$categories_data" > "${SCRIPT_DIR}/categories-full-dump.json"
+  log_debug "Dump completo categorie salvato in categories-full-dump.json"
+  
+  # Cerca la macro categoria Premium_Mon
+  local macro_cat_id
+  macro_cat_id=$(echo "$categories_data" | jq -r --arg name "$MACRO_CATEGORY" '
+    .objs[]? | select(.nome == $name) | .id
+  ' | head -1)
+  
+  if [[ -z "$macro_cat_id" || "$macro_cat_id" == "null" ]]; then
+    log_warn "Macro categoria '$MACRO_CATEGORY' non trovata direttamente"
+    log_info "Elenco tutte le categorie disponibili:"
+    echo "$categories_data" | jq -r '.objs[]? | "\(.id) → \(.nome)"'
+    macro_cat_id=""
 else    log_success "Macro categoria '$MACRO_CATEGORY' trovata ÔåÆ ID: $macro_cat_id"  fi    
 # Cerca le sottocategorie  declare -A subcategory_ids  local found_count=0    
 echo ""  log_info "Ricerca sottocategorie..."  
