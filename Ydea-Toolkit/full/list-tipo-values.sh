@@ -5,14 +5,28 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"source "$SCRIPT_DIR/yd
 PAGES="${1:-30}"
 echo "­ƒöì Raccolta valori del campo 'tipo' da $PAGES pagine..."
 echo ""ensure_token
-TOKEN="$(load_token)"declare -A TIPO_MAPfor PAGE in $(seq 1 $PAGES); do  
-echo -n "   Pagina $PAGE/$PAGES... "    
-RESPONSE=$(curl -s \    -H "Accept: application/json" \    -H "Authorization: Bearer ${TOKEN}" \    "${YDEA_BASE_URL}/tickets?limit=100&page=${PAGE}")  if ! 
-echo "$RESPONSE" | jq -e '.objs' >/dev/null 2>&1; then
-    echo "ÔØî Errore"    break  fi  
-COUNT=$(
-echo "$RESPONSE" | jq -r '.objs | length')  if [[ "$COUNT" -eq 0 ]]; then
-    echo "Fine"    break  fi
+TOKEN="$(load_token)"
+
+declare -A TIPO_MAP
+
+for PAGE in $(seq 1 $PAGES); do
+  echo -n "   Pagina $PAGE/$PAGES... "
+  
+  RESPONSE=$(curl -s \
+    -H "Accept: application/json" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    "${YDEA_BASE_URL}/tickets?limit=100&page=${PAGE}")
+  
+  if ! echo "$RESPONSE" | jq -e '.objs' >/dev/null 2>&1; then
+    echo "❌ Errore"
+    break
+  fi
+  
+  COUNT=$(echo "$RESPONSE" | jq -r '.objs | length')
+  if [[ "$COUNT" -eq 0 ]]; then
+    echo "Fine"
+    break
+  fi
 echo "$COUNT ticket"    
 # Estrai tutti i valori 'tipo'  while 
 IFS= read -r tipo; do    [[ -z "$tipo" || "$tipo" == "null" ]] && continue    TIPO_MAP["$tipo"]=1  done < <(

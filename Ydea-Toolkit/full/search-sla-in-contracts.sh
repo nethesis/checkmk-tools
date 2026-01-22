@@ -6,13 +6,22 @@ echo "­ƒöì Ricerca 'Premium_Mon' nei contratti..."
 echo ""ensure_token
 TOKEN="$(load_token)"
 # Recupera tutti i contratti (paginati)
-echo "­ƒôí Recupero contratti..."
+echo "📊 Recupero contratti..."
 ALL_CONTRACTS="/tmp/all-contracts.json"
-echo "[]" > "$ALL_CONTRACTS"for PAGE in $(seq 1 10); do  
-echo -n "   Pagina $PAGE... "    
-RESPONSE=$(curl -s \    -H "Accept: application/json" \    -H "Authorization: Bearer ${TOKEN}" \    "${YDEA_BASE_URL}/contratti?limit=100&page=${PAGE}")  if ! 
-echo "$RESPONSE" | jq -e '.objs' >/dev/null 2>&1; then
-    echo "Fine"    break  fi  
+echo "[]" > "$ALL_CONTRACTS"
+
+for PAGE in $(seq 1 10); do
+  echo -n "   Pagina $PAGE... "
+  
+  RESPONSE=$(curl -s \
+    -H "Accept: application/json" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    "${YDEA_BASE_URL}/contratti?limit=100&page=${PAGE}")
+  
+  if ! echo "$RESPONSE" | jq -e '.objs' >/dev/null 2>&1; then
+    echo "Fine"
+    break
+  fi  
 COUNT=$(
 echo "$RESPONSE" | jq -r '.objs | length')  if [[ "$COUNT" -eq 0 ]]; then
     echo "Fine"    break  fi

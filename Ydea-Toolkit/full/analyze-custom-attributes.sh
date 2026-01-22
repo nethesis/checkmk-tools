@@ -10,14 +10,24 @@ TOKEN="$(load_token)"
 # File temporaneo per raccogliere tutti i customAttributes
 TEMP_FILE="/tmp/all-custom-attributes.json"
 echo "[]" > "$TEMP_FILE"
-echo "­ƒôí Raccolta dati in corso..."for PAGE in $(seq 1 $PAGES); do  
-echo -n "   Pagina $PAGE/$PAGES... "    
-RESPONSE=$(curl -s -w '\n%{http_code}' \    -H "Accept: application/json" \    -H "Authorization: Bearer ${TOKEN}" \    "${YDEA_BASE_URL}/tickets?limit=100&page=${PAGE}")  
-HTTP_BODY="$(
-echo "$RESPONSE" | sed '$d')"  
-HTTP_CODE="$(
-echo "$RESPONSE" | tail -n1)"  if [[ "$HTTP_CODE" != "200" ]]; then
-    echo "ÔØî Errore HTTP $HTTP_CODE"    break  fi  
+
+echo "📊 Raccolta dati in corso..."
+
+for PAGE in $(seq 1 $PAGES); do
+  echo -n "   Pagina $PAGE/$PAGES... "
+  
+  RESPONSE=$(curl -s -w '\n%{http_code}' \
+    -H "Accept: application/json" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    "${YDEA_BASE_URL}/tickets?limit=100&page=${PAGE}")
+  
+  HTTP_BODY="$(echo "$RESPONSE" | sed '$d')"
+  HTTP_CODE="$(echo "$RESPONSE" | tail -n1)"
+  
+  if [[ "$HTTP_CODE" != "200" ]]; then
+    echo "❌ Errore HTTP $HTTP_CODE"
+    break
+  fi  
 COUNT=$(
 echo "$HTTP_BODY" | jq -r '.objs | length')  if [[ "$COUNT" -eq 0 ]]; then
     echo "Nessun ticket, fine"    break  fi

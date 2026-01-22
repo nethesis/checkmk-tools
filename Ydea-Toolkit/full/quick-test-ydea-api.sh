@@ -1,8 +1,10 @@
 #!/bin/bash
-/usr/bin/env bash
-# quick-test-ydea-api.sh ÔÇö Test rapi
-do connessione API Ydea
-# Verifica che le credenziali funzionino prima di eseguire la discovery completaset -euo pipefail
+# /usr/bin/env bash
+# quick-test-ydea-api.sh — Test rapido connessione API Ydea
+# Verifica che le credenziali funzionino prima di eseguire la discovery completa
+
+set -euo pipefail
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 YDEA_TOOLKIT="${SCRIPT_DIR}/ydea-toolkit.sh"
 # Carica le funzioni da ydea-toolkit

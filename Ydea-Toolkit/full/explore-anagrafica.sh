@@ -7,17 +7,37 @@ ANAGRAFICA_ID="${1:-2339268}"
 echo "­ƒöì Esplorazione anagrafica ID: $ANAGRAFICA_ID..."
 echo ""ensure_token
 TOKEN="$(load_token)"
-# Prova vari endpoint per l'anagraficadeclare -a 
-ENDPOINTS=(  "/anagrafica/$ANAGRAFICA_ID"  "/anagrafiche/$ANAGRAFICA_ID"  "/clienti/$ANAGRAFICA_ID"  "/cliente/$ANAGRAFICA_ID"  "/aziende/$ANAGRAFICA_ID"  "/azienda/$ANAGRAFICA_ID"  "/anagrafiche?id=$ANAGRAFICA_ID"  "/sla?anagrafica_id=$ANAGRAFICA_ID"  "/contracts?anagrafica_id=$ANAGRAFICA_ID"  "/contratti?anagrafica_id=$ANAGRAFICA_ID")
-echo "­ƒôí Tentativo di recupero dati anagrafica..."
-echo ""for ENDPOINT in "${ENDPOINTS[@]}"; do  
-echo -n "   GET $ENDPOINT ... "    
-RESPONSE=$(curl -s -w '\n%{http_code}' \    -H "Accept: application/json" \    -H "Authorization: Bearer ${TOKEN}" \    "${YDEA_BASE_URL}${ENDPOINT}" 2>&1 || 
-echo -e "\n000")  
-HTTP_CODE=$(
-echo "$RESPONSE" | tail -n1)    if [[ "$HTTP_CODE" == "200" ]]; then
-    echo "Ô£à HTTP $HTTP_CODE - TROVATO!"        
-HTTP_BODY=$(
+# Prova vari endpoint per l'anagrafica
+declare -a ENDPOINTS=(
+  "/anagrafica/$ANAGRAFICA_ID"
+  "/anagrafiche/$ANAGRAFICA_ID"
+  "/clienti/$ANAGRAFICA_ID"
+  "/cliente/$ANAGRAFICA_ID"
+  "/aziende/$ANAGRAFICA_ID"
+  "/azienda/$ANAGRAFICA_ID"
+  "/anagrafiche?id=$ANAGRAFICA_ID"
+  "/sla?anagrafica_id=$ANAGRAFICA_ID"
+  "/contracts?anagrafica_id=$ANAGRAFICA_ID"
+  "/contratti?anagrafica_id=$ANAGRAFICA_ID"
+)
+
+echo "📊 Tentativo di recupero dati anagrafica..."
+echo ""
+
+for ENDPOINT in "${ENDPOINTS[@]}"; do
+  echo -n "   GET $ENDPOINT ... "
+  
+  RESPONSE=$(curl -s -w '\n%{http_code}' \
+    -H "Accept: application/json" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    "${YDEA_BASE_URL}${ENDPOINT}" 2>&1 || echo -e "\n000")
+  
+  HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+  
+  if [[ "$HTTP_CODE" == "200" ]]; then
+    echo "✅ HTTP $HTTP_CODE - TROVATO!"
+    
+    HTTP_BODY=$(echo "$RESPONSE" | sed '$d')
 echo "$RESPONSE" | sed '$d')        
 echo ""    
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"    
