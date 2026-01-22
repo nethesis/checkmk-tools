@@ -66,8 +66,10 @@ if ($wslAvailable) {
 $scriptFiles = Get-ChildItem -Path $REPO_PATH -Recurse -File -ErrorAction SilentlyContinue | 
     Where-Object { 
         $_.FullName -notmatch '\\\.git\\' -and
-        $_.Extension -notmatch '\.(log|tmp|cache|lock|swp|bak|zip|sha256|md5)$' -and
-        $_.Name -notmatch '^\.gitignore$|^\.gitattributes$'
+        $_.FullName -notmatch '\\BACKUP' -and
+        $_.FullName -notmatch '\.BACKUP' -and
+        $_.Extension -in @('.ps1', '.sh', '.bash', '.bat', '.cmd', '.py') -and
+        $_.Name -notmatch '^(test-|debug-|backup-)' # Escludi script di test
     }
 $totalScripts = $scriptFiles.Count
 $validScripts = 0
@@ -131,6 +133,23 @@ foreach ($script in $scriptFiles) {
                 $corruptedList += "[LETTURA] $relativePath - $_"
                 continue
             }
+        }
+    }
+    
+    # Verifica sintassi Batch/CMD
+    if ($script.Extension -in @(".bat", ".cmd")) {
+        try {
+            # cmd /c verifica la sintassi senza eseguire
+            $cmdCheck = cmd /c "echo off & call `"$($script.FullName)`" /?" 2>&1
+            if ($LASTEXITCODE -ne 0 -and $cmdCheck -match "syntax error|unexpected|invalid") {
+                $corruptedScripts++
+                $errorMsg = ($cmdCheck | Select-Object -First 2) -join "; "
+                $corruptedList += "[SINTASSI BAT] $relativePath - $errorMsg"
+                continue
+            }
+        } catch {
+            # Errore durante la verifica, ma non blocchiamo
+            Write-Host "  [WARN] Impossibile verificare: $relativePath" -ForegroundColor DarkYellow
         }
     }
     
