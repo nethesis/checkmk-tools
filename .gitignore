@@ -12,3 +12,11 @@ __pycache__/
 
 # Personal preferences (not for public repo)
 .copilot-preferences.md
+
+# Backup directories (local only)
+BACKUP_ORIGINALI_PROD*/
+*.BACKUP_*/
+*BACKUP*_202*/
+
+# Temporary reports
+integrity-report*.txt
