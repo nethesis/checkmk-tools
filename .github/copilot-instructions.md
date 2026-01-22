@@ -90,7 +90,31 @@ wsl bash -n "path/to/script.sh"; echo "EXIT CODE: $LASTEXITCODE"
 ```
 
 **Non procedere mai senza exit code 0!**
+### 📂 REGOLA DEPLOYMENT - Path Script dal Repository
 
+**Gli script devono SEMPRE essere eseguiti direttamente dal repository:**
+- ❌ NON copiare script in `/usr/local/bin` o `/usr/bin`
+- ❌ NON creare copie in cartelle di sistema
+- ✅ Esegui direttamente dal clone git del repository
+- ✅ Path base repository: `/opt/checkmk-tools`
+
+**Esempi corretti:**
+```bash
+# Cron job - path assoluta dal repository
+0 3 * * * /opt/checkmk-tools/script-tools/full/cleanup-checkmk-retention.sh >> /var/log/script.log 2>&1
+
+# Esecuzione manuale - path assoluta
+/opt/checkmk-tools/script-tools/full/script-name.sh
+
+# Systemd ExecStart - path assoluta
+ExecStart=/opt/checkmk-tools/script-tools/full/script-name.sh
+```
+
+**Vantaggi:**
+- ✅ Aggiornamenti automatici con `git pull`
+- ✅ Versioning e rollback tramite git
+- ✅ Single source of truth
+- ✅ Nessuna sincronizzazione manuale necessaria
 ### Prima di ogni commit importante:
 1. Eseguire `.\check-integrity.ps1` per verificare lo stato
 2. Se errori >15%, indagare prima di committare
