@@ -20,10 +20,11 @@ $TEMP_DIR = Join-Path $WORKSPACE "REPAIR_TEMP_$(Get-Date -Format 'yyyy-MM-dd_HH-
 $REPORT_FILE = Join-Path $TEMP_DIR "repair-report.txt"
 
 # Verifica WSL
-$wslAvailable = $false
 try {
     $null = wsl --version 2>&1
-    $wslAvailable = $LASTEXITCODE -eq 0
+    if ($LASTEXITCODE -ne 0) {
+        throw "WSL non disponibile"
+    }
 } catch {
     Write-Host "[ERROR] WSL non disponibile - necessario per validazione bash" -ForegroundColor Red
     exit 1
@@ -148,7 +149,7 @@ foreach ($file in $targetFiles) {
     
     # Problema comune: righe concatenate senza newline
     if ($content -match '[a-z]\)[a-zA-Z]') {
-        $originalLength = $content.Length
+
         # Fix: aggiungi newline dopo parentesi chiuse
         $content = $content -replace '(\))([\$a-zA-Z_])', "`$1`n`$2"
         $changes += "- Aggiunte newline dopo parentesi chiuse"

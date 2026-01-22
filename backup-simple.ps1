@@ -434,8 +434,8 @@ Stato:                 $(if ($corruptedScripts -eq 0) { "OK" } else { "WARNING" 
         if ($corruptedScripts -gt 0 -and $corruptedList.Count -gt 0) {
             $emailBody += "`nScript con errori sintassi bash:`n"
             $emailBody += "---------------------------------------------------------------`n"
-            foreach ($error in $corruptedList) {
-                $emailBody += "  - $error`n"
+            foreach ($errorItem in $corruptedList) {
+                $emailBody += "  - $errorItem`n"
             }
         }
         
