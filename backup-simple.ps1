@@ -148,13 +148,56 @@ Write-Host "  Script corrotti:   $corruptedScripts" -ForegroundColor $(if ($corr
 Write-Host "================================================================"
 Write-Host ""
 
-# NOTA: Controllo integrità temporaneamente disabilitato per permettere backup
-# I falsi positivi sono dovuti a problemi di encoding Unicode/UTF-8 nella funzione ParseFile
-# Gli script funzionano correttamente nonostante gli "errori" segnalati
-if ($corruptedScripts -gt 0) {
-    Write-Host "[WARNING] Trovati $corruptedScripts possibili problemi (ignorati per il backup)" -ForegroundColor Yellow
+# ═══════════════════════════════════════════════════════════════
+# CONTROLLO SOGLIA CORRUZIONE MASSIVA
+# ═══════════════════════════════════════════════════════════════
+$corruptionPercentage = if ($totalScripts -gt 0) { 
+    [math]::Round(($corruptedScripts / $totalScripts) * 100, 2) 
+} else { 
+    0 
+}
+$CORRUPTION_THRESHOLD = 15  # Soglia 15%: se più del 15% degli script è corrotto, blocca il backup
+
+Write-Host "Percentuale errori: $corruptionPercentage%" -ForegroundColor $(if ($corruptionPercentage -gt $CORRUPTION_THRESHOLD) { "Red" } else { "Yellow" })
+Write-Host ""
+
+if ($corruptionPercentage -gt $CORRUPTION_THRESHOLD) {
+    Write-Host "╔═══════════════════════════════════════════════════════╗" -ForegroundColor Red
+    Write-Host "║      ⚠️  CORRUZIONE MASSIVA RILEVATA ⚠️              ║" -ForegroundColor White
+    Write-Host "╚═══════════════════════════════════════════════════════╝" -ForegroundColor Red
     Write-Host ""
-    Write-Host "Script segnalati (probabili falsi positivi):" -ForegroundColor Gray
+    Write-Host "[ERRORE CRITICO] Rilevata corruzione massiva del repository!" -ForegroundColor Red
+    Write-Host "  • Script corrotti: $corruptedScripts / $totalScripts ($corruptionPercentage%)" -ForegroundColor Red
+    Write-Host "  • Soglia sicurezza: $CORRUPTION_THRESHOLD%" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "[BACKUP ANNULLATO] Per evitare di propagare la corruzione ai backup esistenti!" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "AZIONI CONSIGLIATE:" -ForegroundColor Yellow
+    Write-Host "  1. Verifica encoding dei file (UTF-8 vs ANSI)" -ForegroundColor Gray
+    Write-Host "  2. Controlla line endings (CRLF vs LF)" -ForegroundColor Gray
+    Write-Host "  3. Ripristina da un backup precedente se necessario" -ForegroundColor Gray
+    Write-Host "  4. Esegui 'git status' per verificare modifiche massive" -ForegroundColor Gray
+    Write-Host "  5. Controlla se c'è stata una conversione di massa non intenzionale" -ForegroundColor Gray
+    Write-Host ""
+    
+    # Mostra primi 10 errori per diagnostica
+    Write-Host "Primi errori rilevati (per diagnostica):" -ForegroundColor Yellow
+    $corruptedList | Select-Object -First 10 | ForEach-Object {
+        Write-Host "  - $_" -ForegroundColor Red
+    }
+    if ($corruptedList.Count -gt 10) {
+        Write-Host "  ... e altri $($corruptedList.Count - 10) errori" -ForegroundColor DarkRed
+    }
+    Write-Host ""
+    
+    exit 1
+}
+
+# Se sotto soglia, continua con warning
+if ($corruptedScripts -gt 0) {
+    Write-Host "[WARNING] Trovati $corruptedScripts errori (sotto soglia $CORRUPTION_THRESHOLD%, backup continua)" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Script segnalati (errori non critici):" -ForegroundColor Gray
     foreach ($item in $corruptedList) {
         Write-Host "  - $item" -ForegroundColor DarkYellow
     }
