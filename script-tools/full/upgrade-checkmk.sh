@@ -159,16 +159,61 @@ main() {
     omd status "$SITE_NAME" || true
 
     echo
+    log "=== PULIZIA AUTOMATICA ==="
+    
+    # 1. Rimuovi versioni OMD vecchie (mantieni solo quella in uso)
+    log "Rimozione versioni CheckMK obsolete..."
+    old_versions_removed=0
+    if [[ -d /opt/omd/versions ]]; then
+        for version_dir in /opt/omd/versions/*; do
+            [[ -d "$version_dir" ]] || continue
+            version_name=$(basename "$version_dir")
+            
+            # Salta la versione corrente e i symlink
+            [[ "$version_name" == "$new_v" ]] && continue
+            [[ -L "$version_dir" ]] && continue
+            
+            # Verifica che nessun site la usi
+            if ! omd sites 2>/dev/null | grep -q "$version_name"; then
+                log "  Rimuovo versione: $version_name"
+                rm -rf "$version_dir" 2>/dev/null || warn "Impossibile rimuovere: $version_dir"
+                ((old_versions_removed++)) || true
+            fi
+        done
+    fi
+    [[ $old_versions_removed -gt 0 ]] && log "Versioni rimosse: $old_versions_removed" || log "Nessuna versione da rimuovere"
+    
+    # 2. Mantieni solo ultimi 3 backup in /opt/omd/backups (per questo site)
+    log "Pulizia backup vecchi (mantiene ultimi 3)..."
+    old_backups_removed=0
+    if [[ -d "$BACKUP_DIR" ]]; then
+        # Trova tutti i backup di questo site, ordina per data (più recenti primi)
+        backup_list=$(find "$BACKUP_DIR" -maxdepth 1 -type f -name "${SITE_NAME}_pre-upgrade_*.tar.gz" 2>/dev/null | sort -r || true)
+        backup_count=$(echo "$backup_list" | grep -c '^' || echo 0)
+        
+        if [[ $backup_count -gt 3 ]]; then
+            # Salta i primi 3 (più recenti), elimina il resto
+            echo "$backup_list" | tail -n +4 | while IFS= read -r old_backup; do
+                log "  Rimuovo backup: $(basename "$old_backup")"
+                rm -f "$old_backup" 2>/dev/null || warn "Impossibile rimuovere: $old_backup"
+                ((old_backups_removed++)) || true
+            done
+        fi
+    fi
+    [[ $old_backups_removed -gt 0 ]] && log "Backup rimossi: $old_backups_removed" || log "Nessun backup da rimuovere"
+    
+    echo
     read -r -p "Eliminare i file scaricati in $DOWNLOAD_DIR? [y/N]: " cleanup
     cleanup="${cleanup:-N}"
     if [[ "$cleanup" =~ ^[Yy]$ ]]; then
         rm -rf "$DOWNLOAD_DIR"
-        log "Pulizia completata"
+        log "File temporanei eliminati"
     else
         log "File mantenuti in: $DOWNLOAD_DIR"
     fi
 
-    log "Backup disponibile in: $backup_file"
+    log "Backup corrente disponibile in: $backup_file"
+    log "Upgrade completato: $current -> $new_v"
 }
 
 main "$@"
