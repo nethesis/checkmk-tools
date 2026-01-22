@@ -13,6 +13,7 @@ SCRIPT_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/scrip
 LOG_FILE="/var/log/cleanup-checkmk-retention.log"
 CRON_TIME="0 3 * * *"  # Default: 03:00 every day
 AUTO_YES=false
+EMAIL_REPORT=""  # Email address for reports
 
 log() { echo -e "\n\033[1;34m[INFO]\033[0m $*"; }
 success() { echo -e "\033[1;32m[OK]\033[0m $*"; }
@@ -31,6 +32,10 @@ while [[ $# -gt 0 ]]; do
       CRON_TIME="$2"
       shift 2
       ;;
+    --email|-e)
+      EMAIL_REPORT="$2"
+      shift 2
+      ;;
     --help|-h)
       cat <<EOF
 Usage: $0 [OPTIONS]
@@ -38,15 +43,17 @@ Usage: $0 [OPTIONS]
 Options:
   --yes, -y           Auto-confirm installation (non-interactive)
   --time, -t TIME     Set cron schedule (format: "MIN HOUR DAY MONTH WEEKDAY")
+  --email, -e EMAIL   Email address for cleanup reports
   --help, -h          Show this help
 
 Examples:
   $0                           # Interactive mode
   $0 --yes                     # Install with default time (03:00)
   $0 --yes --time "0 2 * * *"  # Install at 02:00 AM
+  $0 --yes --email admin@example.com  # Install with email reports
 
 When piped from curl:
-  curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/install-cleanup-cron.sh | sudo bash -s -- --yes
+  curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/install-cleanup-cron.sh | sudo bash -s -- --yes --email admin@example.com
 EOF
       exit 0
       ;;
@@ -193,15 +200,43 @@ else
   esac
 fi
 
+# Ask for email address (only if not auto-yes and not specified)
+if [[ "$AUTO_YES" == false ]] && [[ -z "$EMAIL_REPORT" ]]; then
+  echo ""
+  log "Configurazione email report (opzionale)"
+  echo ""
+  echo "Vuoi ricevere report via email dopo ogni cleanup?"
+  echo ""
+  read -p "Indirizzo email (lascia vuoto per saltare): " EMAIL_REPORT
+  
+  if [[ -n "$EMAIL_REPORT" ]]; then
+    # Valida email (basic)
+    if [[ ! "$EMAIL_REPORT" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+      warn "Email non valida: $EMAIL_REPORT"
+      read -p "Continuare comunque? [y/N]: " answer
+      if [[ ! "$answer" =~ ^[Yy]$ ]]; then
+        EMAIL_REPORT=""
+      fi
+    else
+      success "Email configurata: $EMAIL_REPORT"
+    fi
+  fi
+fi
+
 # Build cron command
-CRON_CMD="$CRON_TIME curl -fsSL $SCRIPT_URL | bash >> $LOG_FILE 2>&1"
+if [[ -n "$EMAIL_REPORT" ]]; then
+  CRON_CMD="$CRON_TIME curl -fsSL $SCRIPT_URL | bash -s -- --email $EMAIL_REPORT >> $LOG_FILE 2>&1"
+else
+  CRON_CMD="$CRON_TIME curl -fsSL $SCRIPT_URL | bash >> $LOG_FILE 2>&1"
+fi
 
 # Show summary and confirm
 echo ""
 log "Installation summary:"
 echo "─────────────────────────────────────────────────────────────"
 echo "Schedule:    $CRON_DESC"
-echo "Command:     curl -fsSL $SCRIPT_URL | bash"
+echo "Command:     curl -fsSL $SCRIPT_URL | bash$([ -n "$EMAIL_REPORT" ] && echo " --email $EMAIL_REPORT" || echo "")"
+echo "Email report:$([ -n "$EMAIL_REPORT" ] && echo " $EMAIL_REPORT" || echo " disabled")"
 echo "Log file:    $LOG_FILE"
 echo "Cron entry:  $CRON_CMD"
 echo "─────────────────────────────────────────────────────────────"

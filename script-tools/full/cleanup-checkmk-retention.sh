@@ -24,6 +24,16 @@ TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 # Dry-run mode (test senza eliminare)
 DRY_RUN="${DRY_RUN:-false}"
 
+# Email report
+EMAIL_TO="${EMAIL_TO:-}"  # Indirizzo email per report (opzionale)
+EMAIL_FROM="checkmk-retention@$(hostname -f 2>/dev/null || echo 'localhost')"
+EMAIL_SUBJECT="CheckMK Retention Cleanup Report - $(date '+%Y-%m-%d')"
+
+# Email report
+EMAIL_TO="${EMAIL_TO:-}"  # Indirizzo email per report (opzionale)
+EMAIL_FROM="checkmk-retention@$(hostname -f 2>/dev/null || echo 'localhost')"
+EMAIL_SUBJECT="CheckMK Retention Cleanup Report - $(date '+%Y-%m-%d')"
+
 # ================================================================
 # FUNZIONI
 # ================================================================
@@ -54,6 +64,150 @@ human_size() {
         echo "$(( bytes / 1048576 ))MB"
     else
         echo "$(( bytes / 1073741824 ))GB"
+    fi
+}
+
+send_email_report() {
+    if [ -z "$EMAIL_TO" ]; then
+        return 0
+    fi
+    
+    log_info "Invio report via email a: $EMAIL_TO"
+    
+    # Verifica che mail/sendmail sia disponibile
+    if ! command -v mail >/dev/null 2>&1 && ! command -v sendmail >/dev/null 2>&1; then
+        log_warn "Comando mail/sendmail non trovato. Report non inviato."
+        log_warn "Installa mailutils: apt install mailutils"
+        return 1
+    fi
+    
+    # Crea report email
+    local email_body
+    email_body=$(cat <<EOF
+CheckMK Retention Cleanup Report
+================================
+
+Data esecuzione: $(date '+%Y-%m-%d %H:%M:%S')
+Hostname: $(hostname -f 2>/dev/null || hostname)
+Site CheckMK: $OMD_SITE
+Modalità: $([ "$DRY_RUN" = "true" ] && echo "DRY-RUN (simulazione)" || echo "PRODUZIONE")
+
+--------------------------------
+CONFIGURAZIONE RETENTION
+--------------------------------
+RRD files: $RETENTION_RRD giorni
+Nagios archives: $RETENTION_NAGIOS giorni
+Notify backups: $RETENTION_NOTIFY giorni
+Compressione automatica dopo: $COMPRESS_AFTER giorni
+
+--------------------------------
+RISULTATI CLEANUP
+--------------------------------
+
+$(tail -n 200 "$LOG_FILE" | grep -A 5 "CLEANUP FILE RRD\|CLEANUP ARCHIVI NAGIOS\|CLEANUP BACKUP NOTIFICHE\|REPORT FINALE" || echo "Nessun dato disponibile")
+
+--------------------------------
+LOG COMPLETO
+--------------------------------
+Vedi log completo: $LOG_FILE
+
+Questo è un messaggio automatico generato da cleanup-checkmk-retention.sh
+EOF
+)
+    
+    # Invia email
+    if command -v mail >/dev/null 2>&1; then
+        echo "$email_body" | mail -s "$EMAIL_SUBJECT" -r "$EMAIL_FROM" "$EMAIL_TO" 2>&1 | tee -a "$LOG_FILE"
+        if [ $? -eq 0 ]; then
+            log_success "Report inviato con successo a $EMAIL_TO"
+        else
+            log_error "Errore nell'invio del report a $EMAIL_TO"
+        fi
+    elif command -v sendmail >/dev/null 2>&1; then
+        {
+            echo "From: $EMAIL_FROM"
+            echo "To: $EMAIL_TO"
+            echo "Subject: $EMAIL_SUBJECT"
+            echo ""
+            echo "$email_body"
+        } | sendmail -t 2>&1 | tee -a "$LOG_FILE"
+        if [ $? -eq 0 ]; then
+            log_success "Report inviato con successo a $EMAIL_TO"
+        else
+            log_error "Errore nell'invio del report a $EMAIL_TO"
+        fi
+    fi
+}
+
+send_email_report() {
+    if [ -z "$EMAIL_TO" ]; then
+        return 0
+    fi
+    
+    log_info "Invio report via email a: $EMAIL_TO"
+    
+    # Verifica che mail/sendmail sia disponibile
+    if ! command -v mail >/dev/null 2>&1 && ! command -v sendmail >/dev/null 2>&1; then
+        log_warn "Comando mail/sendmail non trovato. Report non inviato."
+        log_warn "Installa mailutils: apt install mailutils"
+        return 1
+    fi
+    
+    # Crea report email
+    local email_body
+    email_body=$(cat <<EOF
+CheckMK Retention Cleanup Report
+================================
+
+Data esecuzione: $(date '+%Y-%m-%d %H:%M:%S')
+Hostname: $(hostname -f 2>/dev/null || hostname)
+Site CheckMK: $OMD_SITE
+Modalità: $([ "$DRY_RUN" = "true" ] && echo "DRY-RUN (simulazione)" || echo "PRODUZIONE")
+
+--------------------------------
+CONFIGURAZIONE RETENTION
+--------------------------------
+RRD files: $RETENTION_RRD giorni
+Nagios archives: $RETENTION_NAGIOS giorni
+Notify backups: $RETENTION_NOTIFY giorni
+Compressione automatica dopo: $COMPRESS_AFTER giorni
+
+--------------------------------
+RISULTATI CLEANUP
+--------------------------------
+
+$(tail -n 200 "$LOG_FILE" | grep -A 5 "CLEANUP FILE RRD\|CLEANUP ARCHIVI NAGIOS\|CLEANUP BACKUP NOTIFICHE\|REPORT FINALE" || echo "Nessun dato disponibile")
+
+--------------------------------
+LOG COMPLETO
+--------------------------------
+Vedi log completo: $LOG_FILE
+
+Questo è un messaggio automatico generato da cleanup-checkmk-retention.sh
+EOF
+)
+    
+    # Invia email
+    if command -v mail >/dev/null 2>&1; then
+        echo "$email_body" | mail -s "$EMAIL_SUBJECT" -r "$EMAIL_FROM" "$EMAIL_TO" 2>&1 | tee -a "$LOG_FILE"
+        if [ $? -eq 0 ]; then
+            log_success "Report inviato con successo a $EMAIL_TO"
+        else
+            log_error "Errore nell'invio del report a $EMAIL_TO"
+        fi
+    elif command -v sendmail >/dev/null 2>&1; then
+        {
+            echo "From: $EMAIL_FROM"
+            echo "To: $EMAIL_TO"
+            echo "Subject: $EMAIL_SUBJECT"
+            echo ""
+            echo "$email_body"
+        } | sendmail -t 2>&1 | tee -a "$LOG_FILE"
+        if [ $? -eq 0 ]; then
+            log_success "Report inviato con successo a $EMAIL_TO"
+        else
+            log_error "Errore nell'invio del report a $EMAIL_TO"
+        fi
     fi
 }
 
@@ -345,6 +499,46 @@ generate_report() {
 # ================================================================
 
 main() {
+    # Parse parametri
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --dry-run)
+                DRY_RUN="true"
+                shift
+                ;;
+            --email)
+                EMAIL_TO="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Usage: $0 [OPTIONS]"
+                echo ""
+                echo "Options:"
+                echo "  --dry-run          Esegui in modalità test (non elimina file)"
+                echo "  --email ADDRESS    Invia report via email all'indirizzo specificato"
+                echo "  --help, -h         Mostra questo help"
+                echo ""
+                echo "Environment variables:"
+                echo "  OMD_SITE           Nome del site CheckMK (default: monitoring)"
+                echo "  DRY_RUN            true per modalità test (default: false)"
+                echo "  EMAIL_TO           Indirizzo email per report (opzionale)"
+                echo ""
+                echo "Examples:"
+                echo "  $0 --dry-run"
+                echo "  $0 --email admin@example.com"
+                echo "  $0 --dry-run --email admin@example.com"
+                echo "  EMAIL_TO=admin@example.com $0"
+                echo ""
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                echo "Use --help for usage information"
+                exit 1
+                ;;
+        esac
+    done
+    
     log_info "============================================================"
     log_info "CLEANUP RETENTION CHECKMK - START"
     log_info "============================================================"
@@ -377,6 +571,8 @@ main() {
     cleanup_empty_dirs
     echo ""
     generate_report
+    echo ""
+    send_email_report
     
     log_info ""
     log_info "============================================================"
