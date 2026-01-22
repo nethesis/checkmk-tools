@@ -61,7 +61,7 @@ if crontab -l 2>/dev/null | grep -q "$CRON_PATTERN"; then
   echo "─────────────────────────────────────────────────────────────"
   echo ""
   
-  read -p "Do you want to REPLACE it? [y/N]: " -r
+  read -p "Do you want to REPLACE it? [y/N]: " -r < /dev/tty
   if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     log "Installation cancelled."
     exit 0
@@ -86,7 +86,7 @@ echo "  3) 04:00 AM daily"
 echo "  4) Custom time"
 echo ""
 
-read -p "Select schedule [1-4, default: 1]: " schedule_choice
+read -p "Select schedule [1-4, default: 1]: " schedule_choice < /dev/tty
 
 case "${schedule_choice:-1}" in
   1)
@@ -109,7 +109,7 @@ case "${schedule_choice:-1}" in
     echo "  30 2 * * *    = 02:30 every day"
     echo "  0 3 * * 0     = 03:00 every Sunday"
     echo ""
-    read -p "Custom schedule: " CRON_TIME
+    read -p "Custom schedule: " CRON_TIME < /dev/tty
     CRON_DESC="custom: $CRON_TIME"
     
     # Validate cron syntax (basic)
@@ -137,7 +137,7 @@ echo "Cron entry:  $CRON_CMD"
 echo "─────────────────────────────────────────────────────────────"
 echo ""
 
-read -p "Proceed with installation? [y/N]: " -r
+read -p "Proceed with installation? [y/N]: " -r < /dev/tty
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   log "Installation cancelled."
   exit 0
@@ -167,7 +167,7 @@ fi
 
 # Ask for test run
 echo ""
-read -p "Do you want to run the cleanup script now (test)? [y/N]: " -r
+read -p "Do you want to run the cleanup script now (test)? [y/N]: " -r < /dev/tty
 if [[ $REPLY =~ ^[Yy]$ ]]; then
   log "Running cleanup script in dry-run mode..."
   echo ""
@@ -176,7 +176,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   echo "════════════════════════════════════════════════════════════"
   echo ""
   
-  read -p "Run REAL cleanup now (not dry-run)? [y/N]: " -r
+  read -p "Run REAL cleanup now (not dry-run)? [y/N]: " -r < /dev/tty
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     log "Running REAL cleanup..."
     echo ""
