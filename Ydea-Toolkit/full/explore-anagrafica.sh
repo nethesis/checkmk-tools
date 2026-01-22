@@ -1,12 +1,19 @@
 #!/bin/bash
-/usr/bin/env bash
-# explore-anagrafica.sh - Esplora i dati dell'anagrafica per trovare la SLAset -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"source "$SCRIPT_DIR/ydea-toolkit.sh"
-ANAGRAFICA_ID="${1:-2339268}"  
-# Default: AZIENDA MONITORATA test
-echo "­ƒöì Esplorazione anagrafica ID: $ANAGRAFICA_ID..."
-echo ""ensure_token
+# explore-anagrafica.sh - Esplora i dati dell'anagrafica per trovare la SLA
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/ydea-toolkit.sh"
+
+ANAGRAFICA_ID="${1:-2339268}"  # Default: AZIENDA MONITORATA test
+
+echo "🔍 Esplorazione anagrafica ID: $ANAGRAFICA_ID..."
+echo ""
+
+ensure_token
 TOKEN="$(load_token)"
+
 # Prova vari endpoint per l'anagrafica
 declare -a ENDPOINTS=(
   "/anagrafica/$ANAGRAFICA_ID"
@@ -38,55 +45,71 @@ for ENDPOINT in "${ENDPOINTS[@]}"; do
     echo "✅ HTTP $HTTP_CODE - TROVATO!"
     
     HTTP_BODY=$(echo "$RESPONSE" | sed '$d')
-        
-    echo ""    
-    echo "════════════════════════════════════════════════════════════════════════"    
-echo "RISPOSTA DA: $ENDPOINT"    
-echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"    
-echo ""    
-echo "$HTTP_BODY" | jq '.'    
-echo ""        
-# Cerca campi contenenti "sla", "premium", "mon"    
-echo "­ƒöì Campi contenenti 'SLA', 'Premium' o 'Mon':"    
-echo "$HTTP_BODY" | jq 'walk(if type == "object" then with_entries(select(.key | test("sla|premium|mon|contract|contratt"; "i"))) else . end)' 2>/dev/null || 
-echo "   Nessuno trovato"    
-echo ""        
-# Salva il risultato    
-echo "$HTTP_BODY" | jq '.' > "/tmp/anagrafica-${ANAGRAFICA_ID}.json"    
-echo "­ƒÆ¥ Salvato in: /tmp/anagrafica-${ANAGRAFICA_ID}.json"    
-echo ""
-elif [[ "$HTTP_CODE" == "404" ]]; then
-    echo "ÔØî HTTP $HTTP_CODE - Non trovato"
-elif [[ "$HTTP_CODE" == "401" ]]; then
-    echo "ÔØî HTTP $HTTP_CODE - Non autorizzato"
-elif [[ "$HTTP_CODE" == "403" ]]; then
-    echo "ÔØî HTTP $HTTP_CODE - Accesso negato"
-else    
-echo "ÔØî HTTP $HTTP_CODE"  fi
+    
+    echo ""
+    echo "════════════════════════════════════════════════════════════════════════"
+    echo "RISPOSTA DA: $ENDPOINT"
+    echo "════════════════════════════════════════════════════════════════════════"
+    echo ""
+    
+    echo "$HTTP_BODY" | jq '.'
+    
+    echo ""
+    
+    # Cerca campi contenenti "sla", "premium", "mon"
+    echo "🔍 Campi contenenti 'SLA', 'Premium' o 'Mon':"
+    echo "$HTTP_BODY" | jq 'walk(if type == "object" then with_entries(select(.key | test("sla|premium|mon|contract|contratt"; "i"))) else . end)' 2>/dev/null || echo "   Nessuno trovato"
+    
+    echo ""
+    
+    # Salva il risultato
+    echo "$HTTP_BODY" | jq '.' > "/tmp/anagrafica-${ANAGRAFICA_ID}.json"
+    echo "💾 Salvato in: /tmp/anagrafica-${ANAGRAFICA_ID}.json"
+    echo ""
+  elif [[ "$HTTP_CODE" == "404" ]]; then
+    echo "❌ HTTP $HTTP_CODE - Non trovato"
+  elif [[ "$HTTP_CODE" == "401" ]]; then
+    echo "❌ HTTP $HTTP_CODE - Non autorizzato"
+  elif [[ "$HTTP_CODE" == "403" ]]; then
+    echo "❌ HTTP $HTTP_CODE - Accesso negato"
+  else
+    echo "❌ HTTP $HTTP_CODE"
+  fi
 done
+
 echo ""
-echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
+echo "════════════════════════════════════════════════════════════════════════"
 echo "RICERCA NEI TICKET CON QUESTA ANAGRAFICA"
-echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
+echo "════════════════════════════════════════════════════════════════════════"
 echo ""
+
 echo "Cerco ticket con anagrafica_id=$ANAGRAFICA_ID per vedere tutti i campi disponibili..."
 echo ""
-RESPONSE=$(curl -s \  -H "Accept: application/json" \  -H "Authorization: Bearer ${TOKEN}" \  "${YDEA_BASE_URL}/tickets?limit=50")
-MATCHING_TICKETS=$(
-echo "$RESPONSE" | jq --arg aid "$ANAGRAFICA_ID" '[.objs[] | select(.anagrafica_id == ($aid|tonumber))]')
-COUNT=$(
-echo "$MATCHING_TICKETS" | jq 'length')
+
+RESPONSE=$(curl -s \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  "${YDEA_BASE_URL}/tickets?limit=50")
+
+MATCHING_TICKETS=$(echo "$RESPONSE" | jq --arg aid "$ANAGRAFICA_ID" '[.objs[] | select(.anagrafica_id == ($aid|tonumber))]')
+COUNT=$(echo "$MATCHING_TICKETS" | jq 'length')
+
 echo "Trovati $COUNT ticket con questa anagrafica"
+
 if [[ "$COUNT" -gt 0 ]]; then
-    echo ""  
-echo "Primo ticket trovato (per analisi campi):"  
-echo "$MATCHING_TICKETS" | jq '.[0]'  
-echo ""    
-echo "Tutte le chiavi disponibili nei ticket di questa anagrafica:"  
-echo "$MATCHING_TICKETS" | jq '[.[].keys[]] | unique | sort[]'  
-echo ""    
-# Cerca campi custom o sla  
-echo "Valori customAttributes nei ticket di questa anagrafica:"  
-echo "$MATCHING_TICKETS" | jq '[.[].customAttributes // {}] | unique'fi
+    echo ""
+    echo "Primo ticket trovato (per analisi campi):"
+    echo "$MATCHING_TICKETS" | jq '.[0]'
+    echo ""
+    
+    echo "Tutte le chiavi disponibili nei ticket di questa anagrafica:"
+    echo "$MATCHING_TICKETS" | jq '[.[].keys[]] | unique | sort[]'
+    echo ""
+    
+    # Cerca campi custom o sla
+    echo "Valori customAttributes nei ticket di questa anagrafica:"
+    echo "$MATCHING_TICKETS" | jq '[.[].customAttributes // {}] | unique'
+fi
+
 echo ""
-echo "Ô£à Esplorazione completata!"
+echo "✓ Esplorazione completata!"
