@@ -27,10 +27,15 @@ for PAGE in $(seq 1 $PAGES); do
     echo "Fine"
     break
   fi
-echo "$COUNT ticket"    
-# Estrai tutti i valori 'tipo'  while 
-IFS= read -r tipo; do    [[ -z "$tipo" || "$tipo" == "null" ]] && continue    TIPO_MAP["$tipo"]=1  done < <(
-echo "$RESPONSE" | jq -r '.objs[].tipo // empty')done
+  
+  echo "$COUNT ticket"
+    
+  # Estrai tutti i valori 'tipo'
+  while IFS= read -r tipo; do
+    [[ -z "$tipo" || "$tipo" == "null" ]] && continue
+    TIPO_MAP["$tipo"]=1
+  done < <(echo "$RESPONSE" | jq -r '.objs[].tipo // empty')
+done
 echo ""
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo "TUTTI I VALORI DEL CAMPO 'tipo' ($(printf '%s\n' "${!TIPO_MAP[@]}" | wc -l) valori unici)"

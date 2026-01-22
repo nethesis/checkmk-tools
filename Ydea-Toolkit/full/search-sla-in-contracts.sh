@@ -21,14 +21,23 @@ for PAGE in $(seq 1 10); do
   if ! echo "$RESPONSE" | jq -e '.objs' >/dev/null 2>&1; then
     echo "Fine"
     break
-  fi  
-COUNT=$(
-echo "$RESPONSE" | jq -r '.objs | length')  if [[ "$COUNT" -eq 0 ]]; then
-    echo "Fine"    break  fi
-echo "$COUNT contratti"  
-echo "$RESPONSE" | jq '.objs' >> "$ALL_CONTRACTS.tmp"
-done # Combina tutti i risultatijq -s 'add' "$ALL_CONTRACTS.tmp" 2>/dev/null > "$ALL_CONTRACTS" || 
-echo "[]" > "$ALL_CONTRACTS"rm -f "$ALL_CONTRACTS.tmp"
+  fi
+  
+  COUNT=$(echo "$RESPONSE" | jq -r '.objs | length')
+  
+  if [[ "$COUNT" -eq 0 ]]; then
+    echo "Fine"
+    break
+  fi
+  
+  echo "$COUNT contratti"
+  
+  echo "$RESPONSE" | jq '.objs' >> "$ALL_CONTRACTS.tmp"
+done
+
+# Combina tutti i risultati
+jq -s 'add' "$ALL_CONTRACTS.tmp" 2>/dev/null > "$ALL_CONTRACTS" || echo "[]" > "$ALL_CONTRACTS"
+rm -f "$ALL_CONTRACTS.tmp"
 TOTAL=$(jq 'length' "$ALL_CONTRACTS")
 echo ""
 echo "   Totale contratti raccolti: $TOTAL"

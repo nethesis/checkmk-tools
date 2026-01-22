@@ -28,10 +28,13 @@ FONTE=$(jq -r '.fonte' "$CONFIG_FILE")
 SLA_ID=$(jq -r '.sla_id // empty' "$CONFIG_FILE")
 ASSEGNATOA_ID=$(jq -r '.assegnatoa_id // empty' "$CONFIG_FILE")
 DEFAULT_TIPO=$(jq -r '.default_tipo' "$CONFIG_FILE")log_debug "Config: anagrafica=$ANAGRAFICA_ID, priorita=$PRIORITA_ID, sla=$SLA_ID, assegnatoa=$ASSEGNATOA_ID"
-# Determina tipologia in base al servizio/hostdetermine_tipo() {  local service_lower=$(
-echo "$CMK_SERVICE $CMK_OUTPUT $CMK_HOST" | tr '[:upper:]' '[:lower:]')    
-# Controlla ogni tipologia  while 
-IFS= read -r tipologia_key; do    
+
+# Determina tipologia in base al servizio/host
+determine_tipo() {
+  local service_lower=$(echo "$CMK_SERVICE $CMK_OUTPUT $CMK_HOST" | tr '[:upper:]' '[:lower:]')
+    
+  # Controlla ogni tipologia
+  while IFS= read -r tipologia_key; do    
 # Leggi keywords per questa tipologia    local keywords=$(jq -r ".tipologie.${tipologia_key}.keywords[]" "$CONFIG_FILE" 2>/dev/null || 
 echo "")        
 # Controlla se qualche keyword matcha    while 

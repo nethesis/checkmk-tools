@@ -21,13 +21,21 @@ echo ""
 # Assicurati di avere il token
 ensure_token
 TOKEN="$(load_token)"
-# Prova con limite maggiore per trovare ticket pi├╣ vecchifor LIMIT in 100 200 500 1000; do  
-echo "­ƒôí Tentativo con limit=$LIMIT..."    
-RESPONSE=$(curl -s -w '\n%{http_code}' \    -H "Accept: application/json" \    -H "Authorization: Bearer ${TOKEN}" \    "${YDEA_BASE_URL}/tickets?limit=${LIMIT}")  
-HTTP_BODY="$(
-echo "$RESPONSE" | sed '$d')"  
-HTTP_CODE="$(
-echo "$RESPONSE" | tail -n1)"  if [[ "$HTTP_CODE" != "200" ]]; then
+# Prova con limite maggiore per trovare ticket più vecchi
+for LIMIT in 100 200 500 1000; do
+  
+  echo "🔍 Tentativo con limit=$LIMIT..."
+    
+  RESPONSE=$(curl -s -w '\n%{http_code}' \
+    -H "Accept: application/json" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    "${YDEA_BASE_URL}/tickets?limit=${LIMIT}")
+  
+  HTTP_BODY="$(echo "$RESPONSE" | sed '$d')"
+  
+  HTTP_CODE="$(echo "$RESPONSE" | tail -n1)"
+  
+  if [[ "$HTTP_CODE" != "200" ]]; then
     echo "ÔØî Errore HTTP $HTTP_CODE"    continue  fi  
 # Cerca il ticket per codice  
 TICKET_DATA=$(

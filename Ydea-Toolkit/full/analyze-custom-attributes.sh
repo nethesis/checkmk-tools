@@ -27,9 +27,11 @@ for PAGE in $(seq 1 $PAGES); do
   if [[ "$HTTP_CODE" != "200" ]]; then
     echo "❌ Errore HTTP $HTTP_CODE"
     break
-  fi  
-COUNT=$(
-echo "$HTTP_BODY" | jq -r '.objs | length')  if [[ "$COUNT" -eq 0 ]]; then
+  fi
+  
+  COUNT=$(echo "$HTTP_BODY" | jq -r '.objs | length')
+  
+  if [[ "$COUNT" -eq 0 ]]; then
     echo "Nessun ticket, fine"    break  fi
 echo "$COUNT ticket"    
 # Estrai customAttributes con ID ticket  

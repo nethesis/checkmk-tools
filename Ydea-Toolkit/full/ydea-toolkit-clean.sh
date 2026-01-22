@@ -22,7 +22,6 @@ elif [[ -f "/opt/ydea-toolkit/.env" ]]; then
   # shellcheck disable=SC1091
   source "/opt/ydea-toolkit/.env"
 fi
-fi
 
 
 # ===== Config =====

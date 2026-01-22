@@ -14,14 +14,21 @@ echo ""
 echo "­ƒöÉ Test Connessione Ydea API"
 echo "ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ"
 echo ""
+
 # Test 1: Verifica variabili ambiente
-echo "­ƒôï Test 1: Verifica configurazione..."if [[ -z "${YDEA_ID:-}" || "${YDEA_ID}" == "ID" ]]; then
-    echo "ÔØî YDEA_ID non configurato correttamente"  
-echo "   Edita il file .env e imposta YDEA_ID"
+echo "🔧 Test 1: Verifica configurazione..."
+
+if [[ -z "${YDEA_ID:-}" || "${YDEA_ID}" == "ID" ]]; then
+    echo "❌ YDEA_ID non configurato correttamente"
+  
+    echo "   Edita il file .env e imposta YDEA_ID"
     exit 1
-fi if [[ -z "${YDEA_API_KEY:-}" || "${YDEA_API_KEY}" == "TOKEN" ]]; then
-    echo "ÔØî YDEA_API_KEY non configurato correttamente"  
-echo "   Edita il file .env e imposta YDEA_API_KEY"
+fi
+
+if [[ -z "${YDEA_API_KEY:-}" || "${YDEA_API_KEY}" == "TOKEN" ]]; then
+    echo "❌ YDEA_API_KEY non configurato correttamente"
+  
+    echo "   Edita il file .env e imposta YDEA_API_KEY"
     exit 1
 fi echo "Ô£à Variabili configurate:"
 echo "   YDEA_ID: ${YDEA_ID}"

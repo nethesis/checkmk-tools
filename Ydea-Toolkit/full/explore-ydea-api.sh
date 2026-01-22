@@ -60,8 +60,10 @@ test_endpoint() {
   
   http_code=$(echo "$response" | tail -1)
   response=$(echo "$response" | head -n -1)
-echo "$response" | head -n -1)    
-echo "­ƒôè HTTP Status: $http_code"    if [[ "$http_code" == "200" || "$http_code" == "201" ]]; then
+    
+  echo "📊 HTTP Status: $http_code"
+    
+  if [[ "$http_code" == "200" || "$http_code" == "201" ]]; then
     echo "Ô£à Successo!"    
 echo ""    
 echo "Risposta (primi 50 caratteri):"    

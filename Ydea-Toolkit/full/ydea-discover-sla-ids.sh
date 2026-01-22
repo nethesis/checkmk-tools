@@ -50,11 +50,26 @@ echo ""}
     log_info "Elenco tutte le categorie disponibili:"
     echo "$categories_data" | jq -r '.objs[]? | "\(.id) → \(.nome)"'
     macro_cat_id=""
-else    log_success "Macro categoria '$MACRO_CATEGORY' trovata ÔåÆ ID: $macro_cat_id"  fi    
-# Cerca le sottocategorie  declare -A subcategory_ids  local found_count=0    
-echo ""  log_info "Ricerca sottocategorie..."  
-echo ""    for subcat in "${SUBCATEGORIES[@]}"; do    local subcat_id    subcat_id=$(
-echo "$categories_data" | jq -r --arg name "$subcat" '      .objs[]? | select(.nome == $name) | .id    ' | head -1)        if [[ -n "$subcat_id" && "$subcat_id" != "null" ]]; then      subcategory_ids["$subcat"]="$subcat_id"      
+else
+    log_success "Macro categoria '$MACRO_CATEGORY' trovata → ID: $macro_cat_id"
+fi
+    
+  # Cerca le sottocategorie
+  declare -A subcategory_ids
+  local found_count=0
+    
+  echo ""
+  log_info "Ricerca sottocategorie..."
+  
+  echo ""
+    
+  for subcat in "${SUBCATEGORIES[@]}"; do
+    local subcat_id
+    subcat_id=$(echo "$categories_data" | jq -r --arg name "$subcat" '
+      .objs[]? | select(.nome == $name) | .id
+    ' | head -1)
+        
+    if [[ -n "$subcat_id" && "$subcat_id" != "null" ]]; then      subcategory_ids["$subcat"]="$subcat_id"      
 echo "  Ô£à '$subcat' ÔåÆ ID: $subcat_id"      ((found_count++))    else      
 echo "  ÔØî '$subcat' ÔåÆ NON TROVATA"    fi  done
 echo ""  log_info "Sottocategorie trovate: $found_count/${

@@ -39,12 +39,18 @@ fi
 TICKET_DATA=$(
 echo "$HTTP_BODY" | jq --arg tid "$TICKET_ID" '.objs[] | select(.id == ($tid|tonumber))')
 if [[ -z "$TICKET_DATA" || "$TICKET_DATA" == "null" ]]; then
-    echo "ÔØî Ticket 
-#$TICKET_ID non trovato nei risultati"  
-echo ""  
-echo "Ticket disponibili:"  
-echo "$HTTP_BODY" | jq -r '.objs[] | "\(.id) - \(.codice) - \(.titolo)"' | head -20  exit 1
-fi echo "Ô£à Ticket trovato!"
+    echo "❌ Ticket #$TICKET_ID non trovato nei risultati"
+  
+    echo ""
+  
+    echo "Ticket disponibili:"
+  
+    echo "$HTTP_BODY" | jq -r '.objs[] | "\(.id) - \(.codice) - \(.titolo)"' | head -20
+  
+    exit 1
+fi
+
+echo "✅ Ticket trovato!"
 echo ""
 echo "ÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöüÔöü"
 echo "STRUTTURA COMPLETA DEL TICKET"

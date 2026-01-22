@@ -25,12 +25,12 @@ TOKEN="$(load_token)"
 echo "­ƒôí Tentativo 1: GET /tickets/$TICKET_ID"
 RESPONSE=$(curl -s -w '\n%{http_code}' \  -H "Accept: application/json" \  -H "Authorization: Bearer ${TOKEN}" \  "${YDEA_BASE_URL}/tickets/${TICKET_ID}" 2>&1 || 
 echo -e "\n404")
-HTTP_BODY="$(
-echo "$RESPONSE" | sed '$d')"
-HTTP_CODE="$(
-echo "$RESPONSE" | tail -n1)"
+HTTP_BODY="$(echo "$RESPONSE" | sed '$d')"
+HTTP_CODE="$(echo "$RESPONSE" | tail -n1)"
 echo "   HTTP Status: $HTTP_CODE"
-echo ""if [[ "$HTTP_CODE" == "200" ]]; then
+echo ""
+
+if [[ "$HTTP_CODE" == "200" ]]; then
     TICKET_DATA="$HTTP_BODY"
 else  
 # Se fallisce, prova con paginazione  

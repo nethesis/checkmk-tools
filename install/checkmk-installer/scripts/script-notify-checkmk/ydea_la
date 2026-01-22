@@ -32,7 +32,13 @@ if ! jq empty "$FLAPPING_CACHE" 2>/dev/null;
 then
 log "WARN: Cache flapping corrotta, backup e reset"      [[ -f "$FLAPPING_CACHE" ]] && cp "$FLAPPING_CACHE" "${
 FLAPPING_CACHE}.corrupt.$(date +%s)" 2>/dev/null || true      echo '{}' > "$FLAPPING_CACHE" 2>/dev/null || true      chmod 666 "$FLAPPING_CACHE" 2>/dev/null || true    fi
-fi    # Pulisci entry vecchie (oltre CACHE_MAX_AGE)  clean_old_cache_entries}# Pulisci entry vecchie dalla cache# - Ticket risolti (resolved_at != null): rimossi dopo RESOLVED_TICKET_TTL (5 giorni)# - Ticket attivi (resolved_at == null): rimossi dopo CACHE_MAX_AGE (30 giorni)clean_old_cache_entries() {
+fi
+    
+  # Pulisci entry vecchie (oltre CACHE_MAX_AGE)
+  clean_old_cache_entries
+}
+
+# Pulisci entry vecchie dalla cache# - Ticket risolti (resolved_at != null): rimossi dopo RESOLVED_TICKET_TTL (5 giorni)# - Ticket attivi (resolved_at == null): rimossi dopo CACHE_MAX_AGE (30 giorni)clean_old_cache_entries() {
 local now=$(date -u +%s)  local resolved_cutoff=$((now - RESOLVED_TICKET_TTL))  local active_cutoff=$((now - CACHE_MAX_AGE))    if [[ -f "$TICKET_CACHE" ]] && jq empty "$TICKET_CACHE" 2>/dev/null;
 then
 local cleaned    cleaned=$(jq --arg resolved_cutoff "$resolved_cutoff" --arg active_cutoff "$active_cutoff" '      to_entries | map(        select(          # Ticket risolti: controlla resolved_at          if .value.resolved_at != null then            (.value.resolved_at | tonumber) > ($resolved_cutoff | tonumber)          # Ticket attivi: controlla last_update          else            .value.last_update != null and            (.value.last_update | tonumber) > ($active_cutoff | tonumber)          end        )      ) | from_entries    ' "$TICKET_CACHE" 2>/dev/null) || 
