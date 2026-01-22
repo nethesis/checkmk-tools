@@ -3,19 +3,64 @@ set -euo pipefail
 
 # install-cleanup-cron.sh
 # Interactive installer for cleanup-checkmk-retention.sh cron job
-
-# Redirect stdin from /dev/tty for interactive input when piped
-exec < /dev/tty
+#
+# Usage:
+#   ./install-cleanup-cron.sh              # Interactive mode
+#   ./install-cleanup-cron.sh --yes        # Auto-confirm (default time 03:00)
+#   ./install-cleanup-cron.sh --time "0 2 * * *"  # Specific time
 
 SCRIPT_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh"
 LOG_FILE="/var/log/cleanup-checkmk-retention.log"
 CRON_TIME="0 3 * * *"  # Default: 03:00 every day
+AUTO_YES=false
 
 log() { echo -e "\n\033[1;34m[INFO]\033[0m $*"; }
 success() { echo -e "\033[1;32m[OK]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[WARN]\033[0m $*"; }
 err() { echo -e "\033[1;31m[ERROR]\033[0m $*" >&2; }
 die() { err "$*"; exit 1; }
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --yes|-y)
+      AUTO_YES=true
+      shift
+      ;;
+    --time|-t)
+      CRON_TIME="$2"
+      shift 2
+      ;;
+    --help|-h)
+      cat <<EOF
+Usage: $0 [OPTIONS]
+
+Options:
+  --yes, -y           Auto-confirm installation (non-interactive)
+  --time, -t TIME     Set cron schedule (format: "MIN HOUR DAY MONTH WEEKDAY")
+  --help, -h          Show this help
+
+Examples:
+  $0                           # Interactive mode
+  $0 --yes                     # Install with default time (03:00)
+  $0 --yes --time "0 2 * * *"  # Install at 02:00 AM
+
+When piped from curl:
+  curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/install-cleanup-cron.sh | sudo bash -s -- --yes
+EOF
+      exit 0
+      ;;
+    *)
+      err "Unknown option: $1"
+      exit 1
+      ;;
+  esac
+done
+
+# Redirect stdin from /dev/tty for interactive input when piped (only if not auto-yes)
+if [[ "$AUTO_YES" == false ]] && [[ -t 0 ]]; then
+  exec < /dev/tty
+fi
 
 # Check root
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
@@ -64,10 +109,14 @@ if crontab -l 2>/dev/null | grep -q "$CRON_PATTERN"; then
   echo "─────────────────────────────────────────────────────────────"
   echo ""
   
-  read -p "Do you want to REPLACE it? [y/N]: " answer
-  if [[ ! "$answer" =~ ^[Yy]$ ]]; then
-    log "Installation cancelled."
-    exit 0
+  if [[ "$AUTO_YES" == false ]]; then
+    read -p "Do you want to REPLACE it? [y/N]: " answer
+    if [[ ! "$answer" =~ ^[Yy]$ ]]; then
+      log "Installation cancelled."
+      exit 0
+    fi
+  else
+    log "Auto-confirm enabled - replacing existing cron job"
   fi
   
   # Remove existing cron
@@ -76,55 +125,73 @@ if crontab -l 2>/dev/null | grep -q "$CRON_PATTERN"; then
   success "Existing cron job removed"
 fi
 
-# Ask for schedule
-echo ""
-log "Configure execution schedule"
-echo ""
-echo "Default schedule: 03:00 AM every day (0 3 * * *)"
-echo ""
-echo "Common schedules:"
-echo "  1) 03:00 AM daily (recommended)"
-echo "  2) 02:00 AM daily"
-echo "  3) 04:00 AM daily"
-echo "  4) Custom time"
-echo ""
+# Ask for schedule (only if not auto-yes)
+if [[ "$AUTO_YES" == false ]]; then
+  echo ""
+  log "Configure execution schedule"
+  echo ""
+  echo "Default schedule: 03:00 AM every day (0 3 * * *)"
+  echo ""
+  echo "Common schedules:"
+  echo "  1) 03:00 AM daily (recommended)"
+  echo "  2) 02:00 AM daily"
+  echo "  3) 04:00 AM daily"
+  echo "  4) Custom time"
+  echo ""
 
-read -p "Select schedule [1-4, default: 1]: " schedule_choice
+  read -p "Select schedule [1-4, default: 1]: " schedule_choice
 
-case "${schedule_choice:-1}" in
-  1)
-    CRON_TIME="0 3 * * *"
-    CRON_DESC="03:00 AM daily"
-    ;;
-  2)
-    CRON_TIME="0 2 * * *"
-    CRON_DESC="02:00 AM daily"
-    ;;
-  3)
-    CRON_TIME="0 4 * * *"
-    CRON_DESC="04:00 AM daily"
-    ;;
-  4)
-    echo ""
-    echo "Enter cron schedule (format: MIN HOUR DAY MONTH WEEKDAY)"
-    echo "Examples:"
-    echo "  0 3 * * *     = 03:00 every day"
-    echo "  30 2 * * *    = 02:30 every day"
-    echo "  0 3 * * 0     = 03:00 every Sunday"
-    echo ""
-    read -p "Custom schedule: " CRON_TIME
-    CRON_DESC="custom: $CRON_TIME"
-    
-    # Validate cron syntax (basic)
-    if [[ ! "$CRON_TIME" =~ ^[0-9*,/-]+[[:space:]][0-9*,/-]+[[:space:]][0-9*,/-]+[[:space:]][0-9*,/-]+[[:space:]][0-9*,/-]+$ ]]; then
-      die "Invalid cron syntax. Please use format: MIN HOUR DAY MONTH WEEKDAY"
-    fi
-    ;;
-  *)
-    CRON_TIME="0 3 * * *"
-    CRON_DESC="03:00 AM daily (default)"
-    ;;
-esac
+  case "${schedule_choice:-1}" in
+    1)
+      CRON_TIME="0 3 * * *"
+      CRON_DESC="03:00 AM daily"
+      ;;
+    2)
+      CRON_TIME="0 2 * * *"
+      CRON_DESC="02:00 AM daily"
+      ;;
+    3)
+      CRON_TIME="0 4 * * *"
+      CRON_DESC="04:00 AM daily"
+      ;;
+    4)
+      echo ""
+      echo "Enter cron schedule (format: MIN HOUR DAY MONTH WEEKDAY)"
+      echo "Examples:"
+      echo "  0 3 * * *     = 03:00 every day"
+      echo "  30 2 * * *    = 02:30 every day"
+      echo "  0 3 * * 0     = 03:00 every Sunday"
+      echo ""
+      read -p "Custom schedule: " CRON_TIME
+      CRON_DESC="custom: $CRON_TIME"
+      
+      # Validate cron syntax (basic)
+      if [[ ! "$CRON_TIME" =~ ^[0-9*,/-]+[[:space:]][0-9*,/-]+[[:space:]][0-9*,/-]+[[:space:]][0-9*,/-]+[[:space:]][0-9*,/-]+$ ]]; then
+        die "Invalid cron syntax. Please use format: MIN HOUR DAY MONTH WEEKDAY"
+      fi
+      ;;
+    *)
+      CRON_TIME="0 3 * * *"
+      CRON_DESC="03:00 AM daily (default)"
+      ;;
+  esac
+else
+  # Determine CRON_DESC for auto-yes mode
+  case "$CRON_TIME" in
+    "0 3 * * *")
+      CRON_DESC="03:00 AM daily"
+      ;;
+    "0 2 * * *")
+      CRON_DESC="02:00 AM daily"
+      ;;
+    "0 4 * * *")
+      CRON_DESC="04:00 AM daily"
+      ;;
+    *)
+      CRON_DESC="custom: $CRON_TIME"
+      ;;
+  esac
+fi
 
 # Build cron command
 CRON_CMD="$CRON_TIME curl -fsSL $SCRIPT_URL | bash >> $LOG_FILE 2>&1"
@@ -140,10 +207,14 @@ echo "Cron entry:  $CRON_CMD"
 echo "─────────────────────────────────────────────────────────────"
 echo ""
 
-read -p "Proceed with installation? [y/N]: " answer
-if [[ ! "$answer" =~ ^[Yy]$ ]]; then
-  log "Installation cancelled."
-  exit 0
+if [[ "$AUTO_YES" == false ]]; then
+  read -p "Proceed with installation? [y/N]: " answer
+  if [[ ! "$answer" =~ ^[Yy]$ ]]; then
+    log "Installation cancelled."
+    exit 0
+  fi
+else
+  log "Auto-confirm enabled - proceeding with installation"
 fi
 
 # Install cron job
@@ -168,24 +239,26 @@ else
   die "Cron job installation failed!"
 fi
 
-# Ask for test run
-echo ""
-read -p "Do you want to run the cleanup script now (test)? [y/N]: " answer
-if [[ "$answer" =~ ^[Yy]$ ]]; then
-  log "Running cleanup script in dry-run mode..."
+# Ask for test run (only if not auto-yes)
+if [[ "$AUTO_YES" == false ]]; then
   echo ""
-  echo "════════════════════════════════════════════════════════════"
-  curl -fsSL "$SCRIPT_URL" | bash -s -- --dry-run
-  echo "════════════════════════════════════════════════════════════"
-  echo ""
-  
-  read -p "Run REAL cleanup now (not dry-run)? [y/N]: " answer
+  read -p "Do you want to run the cleanup script now (test)? [y/N]: " answer
   if [[ "$answer" =~ ^[Yy]$ ]]; then
-    log "Running REAL cleanup..."
+    log "Running cleanup script in dry-run mode..."
     echo ""
     echo "════════════════════════════════════════════════════════════"
-    curl -fsSL "$SCRIPT_URL" | bash | tee -a "$LOG_FILE"
+    curl -fsSL "$SCRIPT_URL" | bash -s -- --dry-run
     echo "════════════════════════════════════════════════════════════"
+    echo ""
+    
+    read -p "Run REAL cleanup now (not dry-run)? [y/N]: " answer
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+      log "Running REAL cleanup..."
+      echo ""
+      echo "════════════════════════════════════════════════════════════"
+      curl -fsSL "$SCRIPT_URL" | bash | tee -a "$LOG_FILE"
+      echo "════════════════════════════════════════════════════════════"
+    fi
   fi
 fi
 
