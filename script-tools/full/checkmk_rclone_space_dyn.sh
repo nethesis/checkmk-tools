@@ -312,51 +312,86 @@ fi
 
 log "Push completed successfully."
 
-# Cleanup old local backups
+# Cleanup old local backups - DUAL-SLOT logic (keep only 2 most recent)
 if [[ "$RETENTION_DAYS_LOCAL" -gt 0 ]]; then
-  log "Cleaning up local backups older than ${RETENTION_DAYS_LOCAL} days..."
-  find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 \( -type f -o -type d \) -mtime +${RETENTION_DAYS_LOCAL} -exec rm -rf {} \; 2>/dev/null || true
-  log "Local cleanup completed."
+  log "Cleaning up local backups (keeping only ${RETENTION_DAYS_LOCAL} most recent)..."
+  
+  # List all backups sorted by modification time (newest first)
+  mapfile -t all_backups < <(
+    { 
+      find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type f \
+        \( -name '*.tar.gz' -o -name '*.tgz' -o -name '*.tar' -o -name '*.mkbackup' -o -name '*.zip' \) \
+        -printf '%T@ %p\n' 2>/dev/null
+      find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d \
+        -name 'Check_MK-*' -printf '%T@ %p\n' 2>/dev/null
+    } | sort -nr | cut -d' ' -f2-
+  )
+  
+  # Keep only the N most recent (RETENTION_DAYS_LOCAL = number to keep)
+  local kept=0
+  for backup in "${all_backups[@]}"; do
+    kept=$((kept + 1))
+    if [[ $kept -gt $RETENTION_DAYS_LOCAL ]]; then
+      log "Removing old local backup: $(basename "$backup")"
+      rm -rf "$backup" 2>/dev/null || true
+    else
+      log "Keeping local backup: $(basename "$backup")"
+    fi
+  done
+  
+  log "Local cleanup completed (${kept} backup(s) remaining)."
 fi
 
-# Cleanup old remote backups
+# Cleanup old remote backups - OPTIMIZED logic (keep only RETENTION_DAYS_REMOTE most recent)
 if [[ "$RETENTION_DAYS_REMOTE" -gt 0 ]]; then
-  log "Cleaning up remote backups older than ${RETENTION_DAYS_REMOTE} days..."
-  now=$(date +%s)
+  log "Cleaning up remote backups (keeping only ${RETENTION_DAYS_REMOTE} most recent)..."
   
-  # List all items in remote site path
-  rclone lsf "$REMOTE_SITE_PATH" --format "tp" --separator $'\t' "${COMMON_OPTS[@]}" 2>/dev/null | while IFS=$'\t' read -r timestamp path; do
-    # Parse timestamp (rclone format: 2026-01-20 19:23:46)
-    if [[ -n "$timestamp" ]]; then
-      file_time=$(date -d "$timestamp" +%s 2>/dev/null || echo "0")
+  # List all items in remote site path with timestamps
+  mapfile -t remote_items < <(
+    rclone lsf "$REMOTE_SITE_PATH" --format "tp" --separator $'\t' "${COMMON_OPTS[@]}" 2>/dev/null || true
+  )
+  
+  if [[ ${#remote_items[@]} -eq 0 ]]; then
+    log "No remote backups found (this might be the first upload)."
+  else
+    # Parse and sort backups by timestamp
+    declare -A backup_times
+    local now=$(date +%s)
+    
+    for item in "${remote_items[@]}"; do
+      IFS=$'\t' read -r timestamp path <<< "$item"
       
-      # Skip if parsing failed
-      if [[ "$file_time" -eq 0 ]]; then
-        log "WARNING: Could not parse timestamp for $path: $timestamp"
+      if [[ -z "$timestamp" || -z "$path" ]]; then
         continue
       fi
       
-      # Skip directories with S3 default timestamp (2000-01-01)
-      # These don't have real timestamps, extract from filename instead
-      if [[ "$timestamp" =~ ^2000-01-01 ]] && [[ "$path" == */ ]]; then
-        # Extract timestamp from filename pattern: *-YYYY-MM-DD-HHhMM/
-        if [[ "$path" =~ -([0-9]{4})-([0-9]{2})-([0-9]{2})-([0-9]{2})h([0-9]{2})/$ ]]; then
-          backup_date="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}:${BASH_REMATCH[5]}:00"
-          file_time=$(date -d "$backup_date" +%s 2>/dev/null || echo "0")
-          if [[ "$file_time" -eq 0 ]]; then
-            log "WARNING: Could not parse backup date from filename: $path"
-            continue
-          fi
-        else
-          log "WARNING: Directory without timestamp in name, skipping: $path"
-          continue
-        fi
+      local file_time=0
+      
+      # Parse timestamp (rclone format: 2026-01-20 19:23:46)
+      file_time=$(date -d "$timestamp" +%s 2>/dev/null || echo "0")
+      
+      # For S3 directories with default timestamp (2000-01-01), extract from filename
+      if [[ "$file_time" -lt 946684800 ]] && [[ "$path" =~ -([0-9]{4})-([0-9]{2})-([0-9]{2})-([0-9]{2})h([0-9]{2}) ]]; then
+        local backup_date="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}:${BASH_REMATCH[5]}:00"
+        file_time=$(date -d "$backup_date" +%s 2>/dev/null || echo "0")
       fi
       
-      age_days=$(( (now - file_time) / 86400 ))
+      # Store in associative array: timestamp -> path
+      if [[ $file_time -gt 0 ]]; then
+        backup_times["$file_time"]="$path"
+      else
+        log "WARNING: Could not parse timestamp for: $path"
+      fi
+    done
+    
+    # Sort timestamps (newest first) and keep only N most recent
+    local kept=0
+    for ts in $(printf '%s\n' "${!backup_times[@]}" | sort -nr); do
+      kept=$((kept + 1))
+      local path="${backup_times[$ts]}"
       
-      if [[ $age_days -gt $RETENTION_DAYS_REMOTE ]]; then
-        log "Deleting remote backup (${age_days} days old): $path"
+      if [[ $kept -gt $RETENTION_DAYS_REMOTE ]]; then
+        log "Deleting old remote backup: $path"
         if [[ "$path" == */ ]]; then
           # It's a directory
           rclone purge "${REMOTE_SITE_PATH}/${path%/}" "${COMMON_OPTS[@]}" 2>/dev/null || true
@@ -364,10 +399,13 @@ if [[ "$RETENTION_DAYS_REMOTE" -gt 0 ]]; then
           # It's a file
           rclone delete "${REMOTE_SITE_PATH}/${path}" "${COMMON_OPTS[@]}" 2>/dev/null || true
         fi
+      else
+        log "Keeping remote backup: $path"
       fi
-    fi
-  done || true
-  log "Remote cleanup completed."
+    done
+    
+    log "Remote cleanup completed (${kept} backup(s) checked)."
+  fi
 fi
 
 log "All operations completed."
@@ -400,8 +438,8 @@ Environment=BACKUP_DIR=/var/backups/checkmk
 Environment=RCLONE_CONF=/opt/omd/sites/%i/.config/rclone/rclone.conf
 Environment=RETRIES=3
 Environment=BWLIMIT=0
-Environment=RETENTION_DAYS_LOCAL=30
-Environment=RETENTION_DAYS_REMOTE=90
+Environment=RETENTION_DAYS_LOCAL=2
+Environment=RETENTION_DAYS_REMOTE=1
 
 ExecStart=/usr/local/sbin/checkmk_cloud_backup_push_run.sh %i "${REMOTE}" "${REMOTE_PREFIX}" "${BACKUP_DIR}" "${RCLONE_CONF}" "${RETRIES}" "${BWLIMIT}" "${RETENTION_DAYS_LOCAL}" "${RETENTION_DAYS_REMOTE}"
 
@@ -467,8 +505,8 @@ write_defaults_file() {
 # RCLONE_CONF=/opt/omd/sites/${site}/.config/rclone/rclone.conf
 # RETRIES=3
 # BWLIMIT=0
-# RETENTION_DAYS_LOCAL=30
-# RETENTION_DAYS_REMOTE=90
+# RETENTION_DAYS_LOCAL=2   # Number of backups to keep locally (dual-slot)
+# RETENTION_DAYS_REMOTE=1   # Number of backups to keep on cloud (single backup)
 
 REMOTE=${remote}
 REMOTE_PREFIX=checkmk-backups
@@ -664,12 +702,12 @@ setup() {
   log ""
   
   # Ask for retention settings
-  log "Backup retention settings:"
+  log "Backup retention settings (number of backups to keep):"
   local retention_local retention_remote
-  retention_local="$(prompt_default "Local retention (days)" "30")"
-  retention_remote="$(prompt_default "Remote retention (days)" "90")"
-  log "Local retention: ${retention_local} days"
-  log "Remote retention: ${retention_remote} days"
+  retention_local="$(prompt_default "Local retention (number of backups, recommended: 2 for dual-slot)" "2")"
+  retention_remote="$(prompt_default "Remote retention (number of backups, recommended: 1 for single full)" "1")"
+  log "Local retention: ${retention_local} backup(s)"
+  log "Remote retention: ${retention_remote} backup(s)"
   log ""
   
   # Auto-enable monitoring for all discovered sites
