@@ -383,7 +383,20 @@ Host: $env:COMPUTERNAME
 Script verificati:     $totalScripts
 Script validi:         $validScripts
 Script corrotti:       $corruptedScripts
-Stato:                 $(if ($corruptedScripts -eq 0) { "OK" } else { "ERRORE" })
+Stato:                 $(if ($corruptedScripts -eq 0) { "OK" } else { "WARNING" })
+
+"@
+        
+        # Aggiungi lista errori se presenti
+        if ($corruptedScripts -gt 0 -and $corruptedList.Count -gt 0) {
+            $emailBody += "`nScript con errori sintassi bash:`n"
+            $emailBody += "---------------------------------------------------------------`n"
+            foreach ($error in $corruptedList) {
+                $emailBody += "  - $error`n"
+            }
+        }
+        
+        $emailBody += @"
 
 ---------------------------------------------------------------
   BACKUP LOCALE
