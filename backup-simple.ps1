@@ -7,6 +7,24 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# === CONTROLLO ORARIO NOTTURNO ===
+$currentHour = (Get-Date).Hour
+if ($currentHour -ge 20 -or $currentHour -lt 9) {
+    Write-Host ""
+    Write-Host "================================================================"
+    Write-Host "     BACKUP SOSPESO - ORARIO NOTTURNO"
+    Write-Host "================================================================"
+    Write-Host ""
+    Write-Host "[INFO] Ora corrente: $currentHour:$((Get-Date).Minute.ToString('00'))" -ForegroundColor Yellow
+    Write-Host "[INFO] Backup non consentito tra le 20:00 e le 09:00" -ForegroundColor Yellow
+    Write-Host "[INFO] Il backup si avviera' automaticamente durante il giorno" -ForegroundColor Green
+    Write-Host ""
+    if (-not $Unattended) {
+        Read-Host "Premi INVIO per uscire"
+    }
+    exit 0
+}
+
 # === CONFIGURAZIONE ===
 $REPO_PATH = "C:\Users\Marzio\Desktop\CheckMK\checkmk-tools"
 $LOCAL_BACKUP_BASE = "C:\CheckMK-Backups"
