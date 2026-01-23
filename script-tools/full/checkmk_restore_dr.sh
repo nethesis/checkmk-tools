@@ -12,7 +12,6 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 RCLONE_REMOTE="${RCLONE_REMOTE:-do:testmonbck}"
-RCLONE_PATH="${RCLONE_PATH:-checkmk-backups/monitoring}"
 BACKUP_BASE="/opt/checkmk-backup"
 TMP_DIR="$BACKUP_BASE/tmp"
 
@@ -65,27 +64,6 @@ if ! confirm "Vuoi continuare?" "n"; then
   exit 0
 fi
 
-### VERIFICA RCLONE ###
-title "📡 Verifica Connessione Storage Remoto"
-
-if ! command -v rclone >/dev/null; then
-  error "rclone non installato!"
-  echo ""
-  echo "Installalo con:"
-  echo "  curl https://rclone.org/install.sh | sudo bash"
-  exit 1
-fi
-
-log "Verifica connessione a $RCLONE_REMOTE..."
-if ! rclone lsd "$RCLONE_REMOTE" --config="/opt/omd/sites/monitoring/.config/rclone/rclone.conf" --s3-no-check-bucket >/dev/null 2>&1; then
-  error "Impossibile connettersi a $RCLONE_REMOTE"
-  echo ""
-  echo "Verifica configurazione rclone:"
-  echo "  rclone config"
-  exit 1
-fi
-success "Connessione OK"
-
 ### SELEZIONE SITE ###
 title "🏢 Selezione Site CheckMK"
 
@@ -107,13 +85,49 @@ fi
 
 success "Site '$SITE' trovato"
 
+# Costruisci path rclone basato sul site
+RCLONE_PATH="checkmk-backups/$SITE"
+RCLONE_CONF="/opt/omd/sites/$SITE/.config/rclone/rclone.conf"
+
+if [[ ! -f "$RCLONE_CONF" ]]; then
+  error "Configurazione rclone non trovata per site '$SITE'"
+  echo "  Path cercato: $RCLONE_CONF"
+  echo ""
+  echo "Configura rclone come utente $SITE:"
+  echo "  su - $SITE"
+  echo "  rclone config"
+  exit 1
+fi
+
+### VERIFICA RCLONE ###
+title "📡 Verifica Connessione Storage Remoto"
+
+if ! command -v rclone >/dev/null; then
+  error "rclone non installato!"
+  echo ""
+  echo "Installalo con:"
+  echo "  curl https://rclone.org/install.sh | sudo bash"
+  exit 1
+fi
+
+log "Verifica connessione a $RCLONE_REMOTE/$RCLONE_PATH..."
+if ! su - "$SITE" -c "rclone lsd '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket" >/dev/null 2>&1; then
+  error "Impossibile connettersi a $RCLONE_REMOTE/$RCLONE_PATH"
+  echo ""
+  echo "Verifica che:"
+  echo "  1. La cartella $RCLONE_PATH esiste nel bucket"
+  echo "  2. La configurazione rclone sia corretta: su - $SITE -c 'rclone config'"
+  exit 1
+fi
+success "Connessione OK"
+
 ### LISTA BACKUP DISPONIBILI ###
 title "📦 Backup Disponibili"
 
 log "Recupero lista backup da $RCLONE_REMOTE/$RCLONE_PATH..."
 
 BACKUP_LIST=$(mktemp)
-if ! su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='/opt/omd/sites/$SITE/.config/rclone/rclone.conf' --s3-no-check-bucket --format 'tp'" | grep "\.tgz$" | sort -r > "$BACKUP_LIST"; then
+if ! su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket --format 'tp'" | grep "\.tgz$" | sort -r > "$BACKUP_LIST"; then
   error "Nessun backup trovato per site '$SITE'"
   rm -f "$BACKUP_LIST"
   exit 1
@@ -163,9 +177,9 @@ title "📋 Informazioni Backup"
 METADATA_FILE="${BACKUP_FILE%.tgz}.metadata.txt"
 mkdir -p "$TMP_DIR"
 
-if su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH/$METADATA_FILE' --config='/opt/omd/sites/$SITE/.config/rclone/rclone.conf' --s3-no-check-bucket" >/dev/null 2>&1; then
+if su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH/$METADATA_FILE' --config='$RCLONE_CONF' --s3-no-check-bucket" >/dev/null 2>&1; then
   log "Scarico metadati..."
-  su - "$SITE" -c "rclone copy '$RCLONE_REMOTE/$RCLONE_PATH/$METADATA_FILE' '$TMP_DIR/' --config='/opt/omd/sites/$SITE/.config/rclone/rclone.conf' --s3-no-check-bucket -q"
+  su - "$SITE" -c "rclone copy '$RCLONE_REMOTE/$RCLONE_PATH/$METADATA_FILE' '$TMP_DIR/' --config='$RCLONE_CONF' --s3-no-check-bucket -q"
   
   if [[ -f "$TMP_DIR/$METADATA_FILE" ]]; then
     echo ""
@@ -203,7 +217,7 @@ fi
 title "⬇️  Download Backup"
 
 log "Scarico $BACKUP_FILE da storage remoto..."
-su - "$SITE" -c "rclone copy '$RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_FILE' '$TMP_DIR/' --config='/opt/omd/sites/$SITE/.config/rclone/rclone.conf' --s3-no-check-bucket --progress"
+su - "$SITE" -c "rclone copy '$RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_FILE' '$TMP_DIR/' --config='$RCLONE_CONF' --s3-no-check-bucket --progress"
 
 if [[ ! -f "$TMP_DIR/$BACKUP_FILE" ]]; then
   error "Download fallito!"
