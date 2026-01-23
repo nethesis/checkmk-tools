@@ -173,6 +173,19 @@ foreach ($script in $allScripts) {
                 $corruptedList += "[SINTASSI BASH] $relativePath - $errorMsg"
                 continue
             }
+            
+            # Verifica permessi eseguibili
+            $perms = wsl stat -c "%a" "$wslPath" 2>&1
+            if ($LASTEXITCODE -eq 0 -and $perms -match '^\d{3}$') {
+                $execBit = [int]::Parse($perms.Substring(2, 1))
+                if (($execBit -band 1) -eq 0) {
+                    # Non eseguibile, correggi automaticamente
+                    wsl chmod +x "$wslPath" 2>&1 | Out-Null
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "  [FIX] Reso eseguibile: $relativePath" -ForegroundColor Yellow
+                    }
+                }
+            }
         } catch {
             # Fallback: verifica shebang
             try {
