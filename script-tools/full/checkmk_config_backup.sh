@@ -40,6 +40,23 @@ command -v rclone >/dev/null || {
   exit 1
 }
 
+# Verifica configurazione rclone
+log "[INFO] Verifica configurazione rclone..."
+if ! rclone listremotes 2>/dev/null | grep -q "^${RCLONE_REMOTE%%:*}:"; then
+  log "ERRORE: Remote rclone '$RCLONE_REMOTE' non configurato"
+  log ""
+  log "Configura rclone con:"
+  log "  rclone config"
+  log ""
+  log "Oppure esporta remote esistente:"
+  log "  export RCLONE_REMOTE=nome_remote:bucket"
+  log ""
+  log "Remote disponibili:"
+  rclone listremotes 2>/dev/null || log "  (nessuno configurato)"
+  exit 1
+fi
+log "[OK] Remote rclone configurato: $RCLONE_REMOTE"
+
 ### RACCOLTA METADATI ###
 log "[INFO] Raccolta metadati sistema"
 
