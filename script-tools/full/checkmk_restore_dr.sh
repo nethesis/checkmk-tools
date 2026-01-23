@@ -289,7 +289,11 @@ fi
 title "⬇️  Download Backup"
 
 log "Scarico $BACKUP_FILE da storage remoto..."
-su - "$SITE" -c "rclone copyto '$RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_FILE' '$TMP_DIR/$BACKUP_FILE' --config='$RCLONE_CONF' --s3-no-check-bucket --progress"
+su - "$SITE" -c "rclone copy '$RCLONE_REMOTE/$RCLONE_PATH' '$TMP_DIR/' \
+  --config='$RCLONE_CONF' \
+  --s3-no-check-bucket \
+  --include '$BACKUP_FILE' \
+  --progress"
 
 if [[ ! -f "$TMP_DIR/$BACKUP_FILE" ]]; then
   error "Download fallito!"
