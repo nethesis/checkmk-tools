@@ -64,6 +64,27 @@ if ! confirm "Vuoi continuare?" "n"; then
   exit 0
 fi
 
+### VERIFICA/INSTALLA RCLONE ###
+title "📦 Verifica rclone"
+
+if ! command -v rclone >/dev/null; then
+  warn "rclone non installato"
+  if confirm "Vuoi installarlo ora?" "y"; then
+    log "Installo rclone..."
+    if curl -fsSL https://rclone.org/install.sh | bash; then
+      success "rclone installato"
+    else
+      error "Installazione rclone fallita"
+      exit 1
+    fi
+  else
+    error "rclone necessario per il restore"
+    exit 1
+  fi
+else
+  success "rclone già installato"
+fi
+
 ### SELEZIONE SITE ###
 title "🏢 Selezione Site CheckMK"
 
@@ -90,25 +111,59 @@ RCLONE_PATH="checkmk-backups/$SITE"
 RCLONE_CONF="/opt/omd/sites/$SITE/.config/rclone/rclone.conf"
 
 if [[ ! -f "$RCLONE_CONF" ]]; then
-  error "Configurazione rclone non trovata per site '$SITE'"
+  warn "Configurazione rclone non trovata per site '$SITE'"
   echo "  Path cercato: $RCLONE_CONF"
   echo ""
-  echo "Configura rclone come utente $SITE:"
-  echo "  su - $SITE"
-  echo "  rclone config"
-  exit 1
+  
+  if confirm "Vuoi configurare rclone ora per DigitalOcean Spaces?" "y"; then
+    title "⚙️  Configurazione rclone per DigitalOcean Spaces"
+    
+    # Crea directory config se non esiste
+    su - "$SITE" -c "mkdir -p ~/.config/rclone"
+    
+    echo "Inserisci le credenziali DigitalOcean Spaces:"
+    echo ""
+    read -p "Access Key ID: " ACCESS_KEY
+    read -sp "Secret Access Key: " SECRET_KEY
+    echo ""
+    read -p "Region [ams3]: " REGION
+    REGION="${REGION:-ams3}"
+    read -p "Endpoint [${REGION}.digitaloceanspaces.com]: " ENDPOINT
+    ENDPOINT="${ENDPOINT:-${REGION}.digitaloceanspaces.com}"
+    
+    # Estrai nome remote da RCLONE_REMOTE (es: do:testmonbck -> do)
+    REMOTE_NAME="${RCLONE_REMOTE%%:*}"
+    
+    log "Creo configurazione rclone remote '$REMOTE_NAME'..."
+    
+    # Crea configurazione rclone
+    su - "$SITE" -c "rclone config create '$REMOTE_NAME' s3 \
+      provider='DigitalOcean' \
+      env_auth='false' \
+      access_key_id='$ACCESS_KEY' \
+      secret_access_key='$SECRET_KEY' \
+      region='$REGION' \
+      endpoint='$ENDPOINT' \
+      acl='private'"
+    
+    if [[ $? -eq 0 ]]; then
+      success "Configurazione rclone creata"
+    else
+      error "Configurazione rclone fallita"
+      exit 1
+    fi
+  else
+    error "Configurazione rclone necessaria per il restore"
+    echo ""
+    echo "Configura manualmente con:"
+    echo "  su - $SITE"
+    echo "  rclone config"
+    exit 1
+  fi
 fi
 
-### VERIFICA RCLONE ###
+### VERIFICA CONNESSIONE STORAGE ###
 title "📡 Verifica Connessione Storage Remoto"
-
-if ! command -v rclone >/dev/null; then
-  error "rclone non installato!"
-  echo ""
-  echo "Installalo con:"
-  echo "  curl https://rclone.org/install.sh | sudo bash"
-  exit 1
-fi
 
 log "Verifica connessione a $RCLONE_REMOTE/$RCLONE_PATH..."
 if ! su - "$SITE" -c "rclone lsd '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket" >/dev/null 2>&1; then
