@@ -97,14 +97,28 @@ SITE="${SITE:-monitoring}"
 SITE_BASE="/opt/omd/sites/$SITE"
 
 if [[ ! -d "$SITE_BASE" ]]; then
-  error "Site '$SITE' non trovato in $SITE_BASE"
+  warn "Site '$SITE' non trovato in $SITE_BASE"
   echo ""
-  echo "Crea prima il site con:"
-  echo "  omd create $SITE"
-  exit 1
+  
+  if confirm "Vuoi creare il site '$SITE' ora?" "y"; then
+    log "Creo site '$SITE'..."
+    if omd create "$SITE"; then
+      success "Site '$SITE' creato"
+      SITE_BASE="/opt/omd/sites/$SITE"
+    else
+      error "Creazione site fallita"
+      exit 1
+    fi
+  else
+    error "Site necessario per il restore"
+    echo ""
+    echo "Crea manualmente con:"
+    echo "  omd create $SITE"
+    exit 1
+  fi
+else
+  success "Site '$SITE' trovato"
 fi
-
-success "Site '$SITE' trovato"
 
 # Costruisci path rclone basato sul site
 RCLONE_PATH="checkmk-backups/$SITE"
