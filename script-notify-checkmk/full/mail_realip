@@ -84,15 +84,14 @@ FRP_ROW=""
 # Link diretti a view.py
 CMK_URL="${CMK_URL%/}"
 H_ENC=$(urlencode "$HOSTNAME")
-S_ENC=$(urlencode "$SITE")
 SRV_ENC=$(urlencode "$SERVICE")
 
 if [[ "$SERVICE" != "Host Check" ]]; then
-    SRV_LINK="${CMK_URL}/${S_ENC}/check_mk/view.py?view_name=service&host=${H_ENC}&service=${SRV_ENC}"
+    SRV_LINK="${CMK_URL}/check_mk/view.py?view_name=service&host=${H_ENC}&service=${SRV_ENC}"
 else
-    SRV_LINK="${CMK_URL}/${S_ENC}/check_mk/view.py?view_name=host&host=${H_ENC}"
+    SRV_LINK="${CMK_URL}/check_mk/view.py?view_name=host&host=${H_ENC}"
 fi
-HOST_LINK="${CMK_URL}/${S_ENC}/check_mk/view.py?view_name=host&host=${H_ENC}"
+HOST_LINK="${CMK_URL}/check_mk/view.py?view_name=host&host=${H_ENC}"
 
 # Genera HTML ed invia con sendmail
 {
