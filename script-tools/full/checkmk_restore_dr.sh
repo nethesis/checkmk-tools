@@ -198,19 +198,14 @@ title "📦 Backup Disponibili"
 
 log "Recupero lista backup da $RCLONE_REMOTE/$RCLONE_PATH..."
 
-BACKUP_LIST=$(mktemp)
-if ! su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket --format 'tp'" | grep "\.tgz$" | sort -r > "$BACKUP_LIST"; then
-  error "Nessun backup trovato per site '$SITE'"
+# Lista tutti i file .tgz
+BACKUP_FILES=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket --files-only" | grep "checkmk-DR-.*\.tgz$" | sort -r)
+
+if [[ -z "$BACKUP_FILES" ]]; then
+  error "Nessun backup DR trovato per site '$SITE'"
   echo ""
   log "DEBUG: Contenuto cartella remota:"
-  su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket" || echo "  (errore listing)"
-  rm -f "$BACKUP_LIST"
-  exit 1
-fi
-
-if [[ ! -s "$BACKUP_LIST" ]]; then
-  error "Nessun backup trovato per site '$SITE'"
-  rm -f "$BACKUP_LIST"
+  su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket --files-only" | head -20 || echo "  (errore listing)"
   exit 1
 fi
 
@@ -219,30 +214,28 @@ echo "Backup disponibili:"
 echo ""
 i=1
 declare -A BACKUP_MAP
-while IFS=$'\t' read -r mtime filename; do
+while IFS= read -r filename; do
   BACKUP_MAP[$i]="$filename"
-  BACKUP_DATE=$(date -d "$mtime" "+%d/%m/%Y %H:%M" 2>/dev/null || echo "$mtime")
+  # Estrai data dal nome file: checkmk-DR-monitoring-2026-01-23_17-00-37.tgz
+  BACKUP_DATE=$(echo "$filename" | grep -oP '\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}' | sed 's/_/ /; s/-/\//g' || echo "N/A")
   printf "%2d) %s  [%s]\n" "$i" "$filename" "$BACKUP_DATE"
   ((i++))
-done < "$BACKUP_LIST"
+done <<< "$BACKUP_FILES"
 
 echo ""
 read -p "Seleziona numero backup (1-$((i-1))) o 'q' per uscire: " selection
 
 if [[ "$selection" == "q" ]]; then
-  rm -f "$BACKUP_LIST"
   error "Operazione annullata"
   exit 0
 fi
 
 if [[ ! "$selection" =~ ^[0-9]+$ ]] || [[ "$selection" -lt 1 ]] || [[ "$selection" -ge "$i" ]]; then
-  rm -f "$BACKUP_LIST"
   error "Selezione non valida"
   exit 1
 fi
 
 BACKUP_FILE="${BACKUP_MAP[$selection]}"
-rm -f "$BACKUP_LIST"
 
 success "Selezionato: $BACKUP_FILE"
 
