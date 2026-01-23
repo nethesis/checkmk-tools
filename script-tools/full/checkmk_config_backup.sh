@@ -10,8 +10,8 @@ if [[ -z "${1:-}" ]]; then
     exit 1
   fi
   
-  # Ottieni prima riga non-header da omd sites
-  SITE=$(omd sites 2>/dev/null | awk 'NR==2 {print $1}')
+  # Ottieni prima riga che non è l'header (skippa linea con "SITE")
+  SITE=$(omd sites 2>/dev/null | grep -v "^SITE" | head -1 | awk '{print $1}')
   
   if [[ -z "$SITE" ]]; then
     echo "ERRORE: Nessun site CheckMK trovato"
@@ -23,8 +23,8 @@ if [[ -z "${1:-}" ]]; then
     exit 1
   fi
   
-  # Conta quanti site ci sono
-  SITE_COUNT=$(omd sites 2>/dev/null | awk 'NR>1' | wc -l)
+  # Conta quanti site ci sono (escluso header)
+  SITE_COUNT=$(omd sites 2>/dev/null | grep -v "^SITE" | wc -l)
   
   if [[ $SITE_COUNT -eq 1 ]]; then
     echo "[AUTO-DETECT] Rilevato site: $SITE"
