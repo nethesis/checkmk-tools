@@ -81,19 +81,18 @@ NEW_LABEL=$(get_label "$NEW_STATE")
 FRP_ROW=""
 [[ "$FRP" == "yes" ]] && FRP_ROW="<tr><td>FRP Tunnel:</td><td><span style=\"color:#00d4aa;font-weight:600\">✓ Active</span> (Real IP: $REAL_IP)</td></tr>"
 
-# Link
+# Link diretti CheckMK
 CMK_URL="${CMK_URL%/}"
 H_ENC=$(urlencode "$HOSTNAME")
 S_ENC=$(urlencode "$SITE")
 SRV_ENC=$(urlencode "$SERVICE")
 
 if [[ "$SERVICE" != "Host Check" ]]; then
-    SRV_LINK="${CMK_URL}/check_mk/index.py?start_url=/check_mk/view.py%3Fhost%3D${H_ENC}%26service%3D${SRV_ENC}%26site%3D${S_ENC}%26view_name%3Dservice"
+    SRV_LINK="${CMK_URL}/check_mk/view.py?view_name=service&host=${H_ENC}&service=${SRV_ENC}&site=${S_ENC}"
 else
-    SRV_LINK="${CMK_URL}/check_mk/index.py?start_url=/check_mk/view.py%3Fhost%3D${H_ENC}%26site%3D${S_ENC}%26view_name%3Dhoststatus"
+    SRV_LINK="${CMK_URL}/check_mk/view.py?view_name=hoststatus&host=${H_ENC}&site=${S_ENC}"
 fi
-HOST_LINK="${CMK_URL}/check_mk/index.py?start_url=/check_mk/view.py%3Fhost%3D${H_ENC}%26site%3D${S_ENC}%26view_name%3Dhoststatus"
-HOST_LINK="${CMK_URL}/check_mk/index.py?start_url=/check_mk/view.py%3Fhost%3D${H_ENC}%26site%3D${S_ENC}%26view_name%3Dhoststatus"
+HOST_LINK="${CMK_URL}/check_mk/view.py?view_name=hoststatus&host=${H_ENC}&site=${S_ENC}"
 
 # Genera HTML ed invia con sendmail
 {
