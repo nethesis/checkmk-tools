@@ -4,5 +4,5 @@
 
 SCRIPT_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-notify-checkmk/full/mail_realip"
 
-# Esegue lo script Python remoto
-python3 <(curl -fsSL "$SCRIPT_URL") "$@"
+# Esegue lo script Bash remoto
+bash <(curl -fsSL "$SCRIPT_URL") "$@"
