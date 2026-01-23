@@ -201,6 +201,9 @@ log "Recupero lista backup da $RCLONE_REMOTE/$RCLONE_PATH..."
 BACKUP_LIST=$(mktemp)
 if ! su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket --format 'tp'" | grep "\.tgz$" | sort -r > "$BACKUP_LIST"; then
   error "Nessun backup trovato per site '$SITE'"
+  echo ""
+  log "DEBUG: Contenuto cartella remota:"
+  su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket" || echo "  (errore listing)"
   rm -f "$BACKUP_LIST"
   exit 1
 fi
