@@ -42,17 +42,18 @@ command -v rclone >/dev/null || {
 
 # Verifica configurazione rclone
 log "[INFO] Verifica configurazione rclone..."
-if ! rclone listremotes 2>/dev/null | grep -q "^${RCLONE_REMOTE%%:*}:"; then
-  log "ERRORE: Remote rclone '$RCLONE_REMOTE' non configurato"
+if ! su - "$SITE" -c "rclone listremotes 2>/dev/null" | grep -q "^${RCLONE_REMOTE%%:*}:"; then
+  log "ERRORE: Remote rclone '$RCLONE_REMOTE' non configurato per utente $SITE"
   log ""
   log "Configura rclone con:"
+  log "  su - $SITE"
   log "  rclone config"
   log ""
   log "Oppure esporta remote esistente:"
   log "  export RCLONE_REMOTE=nome_remote:bucket"
   log ""
-  log "Remote disponibili:"
-  rclone listremotes 2>/dev/null || log "  (nessuno configurato)"
+  log "Remote disponibili per utente $SITE:"
+  su - "$SITE" -c "rclone listremotes 2>/dev/null" || log "  (nessuno configurato)"
   exit 1
 fi
 log "[OK] Remote rclone configurato: $RCLONE_REMOTE"
@@ -241,30 +242,30 @@ log "[OK] Istruzioni restore create"
 ### UPLOAD VIA RCLONE ###
 log "[INFO] Upload su storage remoto: $RCLONE_REMOTE:$RCLONE_PATH"
 
-rclone copy "$TMP_DIR/$ARCHIVE" \
-  "$RCLONE_REMOTE:$RCLONE_PATH" \
+su - "$SITE" -c "rclone copy '$TMP_DIR/$ARCHIVE' \
+  '$RCLONE_REMOTE:$RCLONE_PATH' \
   --checksum \
   --immutable \
   --transfers 2 \
-  --log-level INFO 2>&1 | tee -a "$LOG_FILE"
+  --log-level INFO" 2>&1 | tee -a "$LOG_FILE"
 
-rclone copy "$TMP_DIR/$METADATA" \
-  "$RCLONE_REMOTE:$RCLONE_PATH" \
+su - "$SITE" -c "rclone copy '$TMP_DIR/$METADATA' \
+  '$RCLONE_REMOTE:$RCLONE_PATH' \
   --checksum \
-  --immutable 2>&1 | tee -a "$LOG_FILE"
+  --immutable" 2>&1 | tee -a "$LOG_FILE"
 
 # Upload istruzioni restore
-rclone copy "$TMP_DIR/RESTORE_INSTRUCTIONS.txt" \
-  "$RCLONE_REMOTE:$RCLONE_PATH" \
+su - "$SITE" -c "rclone copy '$TMP_DIR/RESTORE_INSTRUCTIONS.txt' \
+  '$RCLONE_REMOTE:$RCLONE_PATH' \
   --checksum \
-  --immutable 2>&1 | tee -a "$LOG_FILE"
+  --immutable" 2>&1 | tee -a "$LOG_FILE"
 
 log "[OK] Upload completato"
 
 ### VERIFICA REMOTA ###
 log "[INFO] Verifica presenza file remoto"
-if rclone lsf "$RCLONE_REMOTE:$RCLONE_PATH/$ARCHIVE" >/dev/null 2>&1; then
-  REMOTE_SIZE=$(rclone lsf "$RCLONE_REMOTE:$RCLONE_PATH/$ARCHIVE" --format s)
+if su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE:$RCLONE_PATH/$ARCHIVE'" >/dev/null 2>&1; then
+  REMOTE_SIZE=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE:$RCLONE_PATH/$ARCHIVE' --format s")
   LOCAL_SIZE=$(stat -c%s "$TMP_DIR/$ARCHIVE")
   if [[ "$REMOTE_SIZE" -eq "$LOCAL_SIZE" ]]; then
     log "[OK] Verifica dimensione: OK (${LOCAL_SIZE} bytes)"
@@ -282,11 +283,11 @@ log "[INFO] Applico retention ($RETENTION_DAYS giorni)"
 # Calcola data limite
 CUTOFF_DATE=$(date -d "$RETENTION_DAYS days ago" +%Y-%m-%d)
 
-rclone lsf "$RCLONE_REMOTE:$RCLONE_PATH" --format "tp" | while IFS=$'\t' read -r mtime path; do
+su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE:$RCLONE_PATH' --format 'tp'" | while IFS=$'\t' read -r mtime path; do
   FILE_DATE=$(date -d "$mtime" +%Y-%m-%d 2>/dev/null || echo "9999-99-99")
   if [[ "$FILE_DATE" < "$CUTOFF_DATE" ]]; then
     log "  - Rimuovo file obsoleto: $path (data: $FILE_DATE)"
-    rclone delete "$RCLONE_REMOTE:$RCLONE_PATH/$path" 2>&1 | tee -a "$LOG_FILE"
+    su - "$SITE" -c "rclone delete '$RCLONE_REMOTE:$RCLONE_PATH/$path'" 2>&1 | tee -a "$LOG_FILE"
   fi
 done
 
