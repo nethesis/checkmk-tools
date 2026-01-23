@@ -12,6 +12,7 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 RCLONE_REMOTE="${RCLONE_REMOTE:-do:testmonbck}"
+RCLONE_PATH="${RCLONE_PATH:-checkmk-backups/monitoring}"
 BACKUP_BASE="/opt/checkmk-backup"
 TMP_DIR="$BACKUP_BASE/tmp"
 
@@ -76,7 +77,7 @@ if ! command -v rclone >/dev/null; then
 fi
 
 log "Verifica connessione a $RCLONE_REMOTE..."
-if ! rclone lsd "$RCLONE_REMOTE:" >/dev/null 2>&1; then
+if ! rclone lsd "$RCLONE_REMOTE" --config="/opt/omd/sites/monitoring/.config/rclone/rclone.conf" --s3-no-check-bucket >/dev/null 2>&1; then
   error "Impossibile connettersi a $RCLONE_REMOTE"
   echo ""
   echo "Verifica configurazione rclone:"
@@ -109,11 +110,10 @@ success "Site '$SITE' trovato"
 ### LISTA BACKUP DISPONIBILI ###
 title "📦 Backup Disponibili"
 
-RCLONE_PATH="checkmk-dr-backup/$SITE"
-log "Recupero lista backup da $RCLONE_REMOTE:$RCLONE_PATH..."
+log "Recupero lista backup da $RCLONE_REMOTE/$RCLONE_PATH..."
 
 BACKUP_LIST=$(mktemp)
-if ! rclone lsf "$RCLONE_REMOTE:$RCLONE_PATH" --format "tp" | grep "\.tgz$" | sort -r > "$BACKUP_LIST"; then
+if ! su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='/opt/omd/sites/$SITE/.config/rclone/rclone.conf' --s3-no-check-bucket --format 'tp'" | grep "\.tgz$" | sort -r > "$BACKUP_LIST"; then
   error "Nessun backup trovato per site '$SITE'"
   rm -f "$BACKUP_LIST"
   exit 1
@@ -163,9 +163,9 @@ title "📋 Informazioni Backup"
 METADATA_FILE="${BACKUP_FILE%.tgz}.metadata.txt"
 mkdir -p "$TMP_DIR"
 
-if rclone lsf "$RCLONE_REMOTE:$RCLONE_PATH/$METADATA_FILE" >/dev/null 2>&1; then
+if su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH/$METADATA_FILE' --config='/opt/omd/sites/$SITE/.config/rclone/rclone.conf' --s3-no-check-bucket" >/dev/null 2>&1; then
   log "Scarico metadati..."
-  rclone copy "$RCLONE_REMOTE:$RCLONE_PATH/$METADATA_FILE" "$TMP_DIR/" -q
+  su - "$SITE" -c "rclone copy '$RCLONE_REMOTE/$RCLONE_PATH/$METADATA_FILE' '$TMP_DIR/' --config='/opt/omd/sites/$SITE/.config/rclone/rclone.conf' --s3-no-check-bucket -q"
   
   if [[ -f "$TMP_DIR/$METADATA_FILE" ]]; then
     echo ""
@@ -203,7 +203,7 @@ fi
 title "⬇️  Download Backup"
 
 log "Scarico $BACKUP_FILE da storage remoto..."
-rclone copy "$RCLONE_REMOTE:$RCLONE_PATH/$BACKUP_FILE" "$TMP_DIR/" --progress
+su - "$SITE" -c "rclone copy '$RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_FILE' '$TMP_DIR/' --config='/opt/omd/sites/$SITE/.config/rclone/rclone.conf' --s3-no-check-bucket --progress"
 
 if [[ ! -f "$TMP_DIR/$BACKUP_FILE" ]]; then
   error "Download fallito!"
