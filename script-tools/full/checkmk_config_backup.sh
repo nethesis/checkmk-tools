@@ -24,6 +24,9 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
 }
 
+### CREAZIONE DIRECTORY ###
+mkdir -p "$BACKUP_BASE" "$TMP_DIR"
+
 ### PRECHECK ###
 log "=== INIZIO BACKUP DR per site $SITE ==="
 
@@ -36,8 +39,6 @@ command -v rclone >/dev/null || {
   log "ERRORE: rclone non installato"
   exit 1
 }
-
-mkdir -p "$TMP_DIR"
 
 ### RACCOLTA METADATI ###
 log "[INFO] Raccolta metadati sistema"
