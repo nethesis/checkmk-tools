@@ -9,9 +9,6 @@ FROM_EMAIL="${NOTIFY_PARAMETER_FROM:-checkmk@monitoring.local}"
 TO_EMAIL="${NOTIFY_CONTACTEMAIL:-root@localhost}"
 # ==============
 
-TO_EMAIL="${NOTIFY_CONTACTEMAIL:-root@localhost}"
-# ==============
-
 # Funzione per ottenere colore stato
 get_color() {
     case "${1^^}" in
