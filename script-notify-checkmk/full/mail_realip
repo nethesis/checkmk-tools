@@ -106,7 +106,7 @@ HOST_LINK="${CMK_URL}/check_mk/index.py?start_url=/check_mk/view.py%3Fhost%3D${H
     cat <<EOF
 <!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><style>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px}
 .container{max-width:650px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)}
 .header{background:#1a1a1a;padding:20px;display:flex;align-items:center;gap:10px}
@@ -114,20 +114,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .logo-text{color:#00d4aa;font-size:18px;font-weight:600}
 .status-bar{background:linear-gradient(90deg,${OLD_COLOR} 0%,${OLD_COLOR} 48%,#666 48%,#666 52%,${NEW_COLOR} 52%,${NEW_COLOR} 100%);height:6px}
 .content{padding:30px}
-.event-row{background:#2a2a2a;padding:15px 20px;border-radius:6px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.event-row{background:#2a2a2a;padding:15px 20px;border-radius:6px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
 .event-label{color:#999;font-size:14px;font-weight:500}
-.event-value{color:#fff;font-size:14px}
-.state-badge{padding:6px 14px;border-radius:4px;font-weight:600;font-size:13px;color:#fff;background-color:${NEW_COLOR}}
+.event-value{color:#fff;font-size:14px;word-break:break-word}
+.state-badge{padding:6px 14px;border-radius:4px;font-weight:600;font-size:13px;color:#fff;background-color:${NEW_COLOR};white-space:nowrap}
 .section-title{color:#999;font-size:18px;font-weight:600;margin:20px 0 15px}
 .info-table{width:100%;border-collapse:collapse;margin-bottom:25px}
-.info-table td{padding:10px 0;border-bottom:1px solid #e0e0e0}
+.info-table td{padding:10px 0;border-bottom:1px solid #e0e0e0;word-break:break-word}
 .info-table td:first-child{color:#333;font-weight:600;width:140px}
 .info-table td:last-child{color:#666}
-.service-details{background:#fafafa;padding:15px;border-radius:6px;border-left:4px solid ${NEW_COLOR};margin-top:15px}
+.service-details{background:#fafafa;padding:15px;border-radius:6px;border-left:4px solid ${NEW_COLOR};margin-top:15px;overflow-x:auto}
 .service-details pre{margin:0;white-space:pre-wrap;word-wrap:break-word;font-family:monospace;font-size:13px;color:#333}
 .footer{background:#f8f8f8;padding:20px;text-align:center;color:#666;font-size:13px}
-.buttons{margin-top:15px;display:flex;gap:10px;justify-content:center}
-.btn{display:inline-block;padding:10px 20px;background:${NEW_COLOR};color:#fff;text-decoration:none;border-radius:4px;font-weight:600;font-size:13px}
+.buttons{margin-top:15px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-block;padding:12px 24px;background:${NEW_COLOR};color:#fff;text-decoration:none;border-radius:4px;font-weight:600;font-size:14px;min-width:120px}
+@media(max-width:600px){
+body{padding:10px}
+.content{padding:15px}
+.header{padding:15px}
+.event-row{padding:12px 15px;flex-direction:column;align-items:flex-start}
+.info-table td:first-child{width:100px;font-size:13px}
+.info-table td:last-child{font-size:13px}
+.section-title{font-size:16px}
+.btn{width:100%;min-width:auto;padding:14px 20px;font-size:15px}
+.buttons{gap:8px}
+}
 </style></head>
 <body>
 <div class="container">
