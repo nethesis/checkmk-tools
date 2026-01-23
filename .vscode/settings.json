@@ -3766,5 +3766,11 @@
     "z0",
     "zero",
     "zione"
-  ]
+  ],
+  "files.associations": {
+    "**/script-notify-checkmk/full/mail_realip": "shellscript",
+    "**/script-notify-checkmk/full/telegram_*": "shellscript",
+    "**/script-notify-checkmk/full/ydea_*": "shellscript",
+    "**/script-notify-checkmk/full/dump_env": "shellscript"
+  }
 }

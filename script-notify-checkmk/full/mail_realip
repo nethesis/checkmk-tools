@@ -1,448 +1,159 @@
-#!/usr/bin/env python3
-# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#!/usr/bin/env bash
 # mail_realip - HTML Mail Notification with Real IP Support
 # Bulk: yes
+set -euo pipefail
 
-import os
-import sys
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from datetime import datetime
+# === CONFIG ===
+CMK_URL="${NOTIFY_PARAMETER_CHECKMK_URL:-https://monitor.nethlab.it/monitoring}"
+FROM_EMAIL="${NOTIFY_PARAMETER_FROM:-checkmk@monitoring.local}"
+TO_EMAIL="${NOTIFY_CONTACTEMAIL:-root@localhost}"
+# ==============
 
-def get_state_color(state):
-    """Restituisce il colore CSS per ogni stato"""
-    colors = {
-        'OK': '#13d389',
-        'UP': '#13d389',
-        'WARNING': '#ffd700',
-        'WARN': '#ffd700',
-        'CRITICAL': '#ff5151',
-        'CRIT': '#ff5151',
-        'UNKNOWN': '#ff9800',
-        'DOWN': '#ff5151',
-        'UNREACHABLE': '#ff9800',
-    }
-    return colors.get(state.upper(), '#666666')
+TO_EMAIL="${NOTIFY_CONTACTEMAIL:-root@localhost}"
+# ==============
 
-def get_state_label(state):
-    """Abbrevia lo stato per il badge"""
-    labels = {
-        'WARNING': 'WARN',
-        'CRITICAL': 'CRIT',
-        'UNKNOWN': 'UNKN',
-    }
-    return labels.get(state.upper(), state.upper())
+# Funzione per ottenere colore stato
+get_color() {
+    case "${1^^}" in
+        OK|UP) echo "#13d389" ;;
+        WARNING|WARN) echo "#ffd700" ;;
+        CRITICAL|CRIT|DOWN) echo "#ff5151" ;;
+        *) echo "#ff9800" ;;
+    esac
+}
 
-def format_output(output):
-    """Formatta l'output aggiungendo <br> per newline"""
-    if not output:
-        return "N/A"
-    return output.replace('\n', '<br>')
+# Funzione per abbreviare stato
+get_label() {
+    case "${1^^}" in
+        WARNING) echo "WARN" ;;
+        CRITICAL) echo "CRIT" ;;
+        UNKNOWN) echo "UNKN" ;;
+        *) echo "${1^^}" ;;
+    esac
+}
 
-def build_html_email():
-    """Costruisce l'email HTML formattata"""
-    
-    # Recupera variabili d'ambiente di CheckMK
-    notification_type = os.environ.get('NOTIFY_NOTIFICATIONTYPE', 'PROBLEM')
-    hostname = os.environ.get('NOTIFY_HOSTNAME', 'N/A')
-    hostalias = os.environ.get('NOTIFY_HOSTALIAS', hostname)
-    host_address = os.environ.get('NOTIFY_HOSTADDRESS', 'N/A')
-    
-    # Gestione real_ip label - PRIORITÀ MASSIMA
-    real_ip = os.environ.get('NOTIFY_HOSTLABEL_real_ip')
-    frp_tunnel = os.environ.get('NOTIFY_HOSTLABEL_frp_tunnel', 'no')
-    display_address = host_address
-    
-    if real_ip:
-        display_address = real_ip
-        # Sostituisci l'IP anche nelle variabili d'ambiente
-        os.environ["NOTIFY_HOSTADDRESS"] = real_ip
-        os.environ["HOSTADDRESS"] = real_ip
-    
-    service_desc = os.environ.get('NOTIFY_SERVICEDESC', None)
-    
-    # Determina se è host o service
-    if service_desc and service_desc not in ['', 'N/A']:
-        # Service notification
-        what = os.environ.get('NOTIFY_WHAT', 'SERVICE')
-        old_state = os.environ.get('NOTIFY_PREVIOUSSERVICEHARDSHORTSTATE', 'OK')
-        new_state = os.environ.get('NOTIFY_SERVICESHORTSTATE', 'UNKNOWN')
-        output = os.environ.get('NOTIFY_SERVICEOUTPUT', 'N/A')
-        longoutput = os.environ.get('NOTIFY_LONGSERVICEOUTPUT', '')
-        service_name = service_desc
-    else:
-        # Host notification
-        what = 'HOST'
-        service_name = None
-        old_state = os.environ.get('NOTIFY_PREVIOUSHOSTHARDSHORTSTATE', 'UP')
-        new_state = os.environ.get('NOTIFY_HOSTSHORTSTATE', 'DOWN')
-        output = os.environ.get('NOTIFY_HOSTOUTPUT', 'N/A')
-        longoutput = os.environ.get('NOTIFY_LONGHOSTOUTPUT', '')
-    
-    # Se real_ip è definito, sostituisci gli IP vecchi nell'output
-    if real_ip and output and host_address != real_ip:
-        output = output.replace(host_address, real_ip)
-    if real_ip and longoutput and host_address != real_ip:
-        longoutput = longoutput.replace(host_address, real_ip)
-    
-    event_date = os.environ.get('NOTIFY_SHORTDATETIME', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    site = os.environ.get('NOTIFY_OMD_SITE', 'monitoring')
-    
-    # Combina output e longoutput
-    full_output = output
-    if longoutput:
-        full_output += '<br>' + format_output(longoutput)
-    
-    # Colori stati
-    old_color = get_state_color(old_state)
-    new_color = get_state_color(new_state)
-    old_label = get_state_label(old_state)
-    new_label = get_state_label(new_state)
-    
-    # Determina il colore del bordo superiore
-    if new_label in ['CRIT', 'DOWN']:
-        border_color = '#ff5151'
-    elif new_label in ['WARN']:
-        border_color = '#ffd700'
-    elif new_label in ['OK', 'UP']:
-        border_color = '#13d389'
-    else:
-        border_color = '#ff9800'
-    
-    # Aggiungi info FRP se applicabile
-    frp_info = ""
-    if real_ip and frp_tunnel == 'yes':
-        frp_info = f"""
-                <tr>
-                    <td>FRP Tunnel:</td>
-                    <td><span style="color: #00d4aa; font-weight: 600;">✓ Active</span> (Real IP: {real_ip})</td>
-                </tr>
-"""
-    
-    # Costruisci HTML
-    html = f"""<!DOCTYPE html>
+# URL encoding
+urlencode() {
+    local string="$1"
+    python3 -c "import urllib.parse; print(urllib.parse.quote('$string'), end='')" 2>/dev/null || echo "$string"
+}
+
+# Variabili CheckMK
+HOSTNAME="${NOTIFY_HOSTNAME:-Unknown}"
+SITE="${NOTIFY_OMD_SITE:-monitoring}"
+DATE="${NOTIFY_SHORTDATETIME:-$(date '+%Y-%m-%d %H:%M:%S')}"
+
+# Real IP o fallback
+REAL_IP="${NOTIFY_HOSTLABEL_real_ip:-${NOTIFY_HOSTADDRESS:-N/A}}"
+FRP="${NOTIFY_HOSTLABEL_frp_tunnel:-no}"
+
+# Service o Host?
+if [[ -n "${NOTIFY_SERVICEDESC:-}" ]]; then
+    OLD_STATE="${NOTIFY_PREVIOUSSERVICEHARDSHORTSTATE:-OK}"
+    NEW_STATE="${NOTIFY_SERVICESHORTSTATE:-UNKNOWN}"
+    OUTPUT="${NOTIFY_SERVICEOUTPUT:-N/A}"
+    LONG="${NOTIFY_LONGSERVICEOUTPUT:-}"
+    SERVICE="${NOTIFY_SERVICEDESC}"
+    SUBJECT="Checkmk: $HOSTNAME/$SERVICE $NEW_STATE"
+else
+    OLD_STATE="${NOTIFY_PREVIOUSHOSTHARDSHORTSTATE:-UP}"
+    NEW_STATE="${NOTIFY_HOSTSHORTSTATE:-DOWN}"
+    OUTPUT="${NOTIFY_HOSTOUTPUT:-N/A}"
+    LONG="${NOTIFY_LONGHOSTOUTPUT:-}"
+    SERVICE="Host Check"
+    SUBJECT="Checkmk: $HOSTNAME $NEW_STATE"
+fi
+
+# Sostituisci IP nell'output
+if [[ -n "${NOTIFY_HOSTADDRESS:-}" ]] && [[ "$NOTIFY_HOSTADDRESS" != "$REAL_IP" ]]; then
+    OUTPUT="${OUTPUT//$NOTIFY_HOSTADDRESS/$REAL_IP}"
+    LONG="${LONG//$NOTIFY_HOSTADDRESS/$REAL_IP}"
+fi
+
+# Combina output
+FULL_OUTPUT="$OUTPUT"
+[[ -n "$LONG" ]] && FULL_OUTPUT+="<br>${LONG//$'\n'/<br>}"
+
+# Colori e label
+OLD_COLOR=$(get_color "$OLD_STATE")
+NEW_COLOR=$(get_color "$NEW_STATE")
+OLD_LABEL=$(get_label "$OLD_STATE")
+NEW_LABEL=$(get_label "$NEW_STATE")
+
+# Info FRP
+FRP_ROW=""
+[[ "$FRP" == "yes" ]] && FRP_ROW="<tr><td>FRP Tunnel:</td><td><span style=\"color:#00d4aa;font-weight:600\">✓ Active</span> (Real IP: $REAL_IP)</td></tr>"
+
+# Link
+CMK_URL="${CMK_URL%/}"
+H_ENC=$(urlencode "$HOSTNAME")
+S_ENC=$(urlencode "$SITE")
+SRV_ENC=$(urlencode "$SERVICE")
+
+if [[ "$SERVICE" != "Host Check" ]]; then
+    SRV_LINK="${CMK_URL}/check_mk/index.py?start_url=/check_mk/view.py%3Fhost%3D${H_ENC}%26service%3D${SRV_ENC}%26site%3D${S_ENC}%26view_name%3Dservice"
+else
+    SRV_LINK="${CMK_URL}/check_mk/index.py?start_url=/check_mk/view.py%3Fhost%3D${H_ENC}%26site%3D${S_ENC}%26view_name%3Dhoststatus"
+fi
+HOST_LINK="${CMK_URL}/check_mk/index.py?start_url=/check_mk/view.py%3Fhost%3D${H_ENC}%26site%3D${S_ENC}%26view_name%3Dhoststatus"
+HOST_LINK="${CMK_URL}/check_mk/index.py?start_url=/check_mk/view.py%3Fhost%3D${H_ENC}%26site%3D${S_ENC}%26view_name%3Dhoststatus"
+
+# Genera HTML ed invia con sendmail
+{
+    echo "To: $TO_EMAIL"
+    echo "From: $FROM_EMAIL"
+    echo "Subject: $SUBJECT"
+    echo "Content-Type: text/html; charset=UTF-8"
+    echo "MIME-Version: 1.0"
+    echo ""
+    cat <<EOF
+<!DOCTYPE html>
 <html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f5f5f5;
-            margin: 0;
-            padding: 20px;
-        }}
-        .container {{
-            max-width: 650px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }}
-        .header {{
-            background-color: #1a1a1a;
-            padding: 20px;
-            text-align: left;
-        }}
-        .logo {{
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }}
-        .logo-icon {{
-            width: 24px;
-            height: 24px;
-            background-color: #00d4aa;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 14px;
-        }}
-        .logo-text {{
-            color: #00d4aa;
-            font-size: 18px;
-            font-weight: 600;
-        }}
-        .status-bar {{
-            background: linear-gradient(90deg, {old_color} 0%, {old_color} 48%, #666 48%, #666 52%, {new_color} 52%, {new_color} 100%);
-            height: 6px;
-        }}
-        .content {{
-            padding: 30px;
-        }}
-        .event-row {{
-            background-color: #2a2a2a;
-            padding: 15px 20px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }}
-        .event-label {{
-            color: #999;
-            font-size: 14px;
-            font-weight: 500;
-        }}
-        .event-value {{
-            color: #ffffff;
-            font-size: 14px;
-        }}
-        .state-transition {{
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }}
-        .state-badge {{
-            padding: 6px 14px;
-            border-radius: 4px;
-            font-weight: 600;
-            font-size: 13px;
-            color: white;
-        }}
-        .arrow {{
-            color: #999;
-            font-size: 18px;
-        }}
-        .section-title {{
-            color: #999;
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }}
-        .info-table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 25px;
-        }}
-        .info-table td {{
-            padding: 10px 0;
-            border-bottom: 1px solid #e0e0e0;
-        }}
-        .info-table td:first-child {{
-            color: #333;
-            font-weight: 600;
-            width: 140px;
-        }}
-        .info-table td:last-child {{
-            color: #666;
-        }}
-        .info-table tr:last-child td {{
-            border-bottom: none;
-        }}
-        .summary {{
-            background-color: #f8f8f8;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            color: #333;
-            line-height: 1.6;
-        }}
-        .footer {{
-            background-color: #f8f8f8;
-            padding: 20px;
-            text-align: center;
-            color: #666;
-            font-size: 13px;
-        }}
-        .buttons {{
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-        }}
-        .btn {{
-            display: inline-block;
-            padding: 10px 20px;
-            background-color: #00d4aa;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: 600;
-            font-size: 13px;
-        }}
-        .btn-secondary {{
-            background-color: #666;
-        }}
-        .service-details {{
-            background-color: #fafafa;
-            padding: 15px;
-            border-radius: 6px;
-            border-left: 4px solid {new_color};
-            margin-top: 15px;
-        }}
-        .service-details pre {{
-            margin: 0;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            color: #333;
-        }}
-    </style>
-</head>
+<head><meta charset="UTF-8"><style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px}
+.container{max-width:650px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.header{background:#1a1a1a;padding:20px;display:flex;align-items:center;gap:10px}
+.logo-icon{width:24px;height:24px;background:#00d4aa;border-radius:4px;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px}
+.logo-text{color:#00d4aa;font-size:18px;font-weight:600}
+.status-bar{background:linear-gradient(90deg,${OLD_COLOR} 0%,${OLD_COLOR} 48%,#666 48%,#666 52%,${NEW_COLOR} 52%,${NEW_COLOR} 100%);height:6px}
+.content{padding:30px}
+.event-row{background:#2a2a2a;padding:15px 20px;border-radius:6px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.event-label{color:#999;font-size:14px;font-weight:500}
+.event-value{color:#fff;font-size:14px}
+.state-badge{padding:6px 14px;border-radius:4px;font-weight:600;font-size:13px;color:#fff;background-color:${NEW_COLOR}}
+.section-title{color:#999;font-size:18px;font-weight:600;margin:20px 0 15px}
+.info-table{width:100%;border-collapse:collapse;margin-bottom:25px}
+.info-table td{padding:10px 0;border-bottom:1px solid #e0e0e0}
+.info-table td:first-child{color:#333;font-weight:600;width:140px}
+.info-table td:last-child{color:#666}
+.service-details{background:#fafafa;padding:15px;border-radius:6px;border-left:4px solid ${NEW_COLOR};margin-top:15px}
+.service-details pre{margin:0;white-space:pre-wrap;word-wrap:break-word;font-family:monospace;font-size:13px;color:#333}
+.footer{background:#f8f8f8;padding:20px;text-align:center;color:#666;font-size:13px}
+.buttons{margin-top:15px;display:flex;gap:10px;justify-content:center}
+.btn{display:inline-block;padding:10px 20px;background:${NEW_COLOR};color:#fff;text-decoration:none;border-radius:4px;font-weight:600;font-size:13px}
+</style></head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo">
-                <div class="logo-icon">✓</div>
-                <span class="logo-text">checkmk</span>
-            </div>
-        </div>
-        
-        <div class="status-bar"></div>
-        
-        <div class="content">
-            <div class="event-row">
-                <span class="event-label">Event:</span>
-                <div class="state-transition">
-                    <span class="state-badge" style="background-color: {old_color};">{old_label}</span>
-                    <span class="arrow">→</span>
-                    <span class="state-badge" style="background-color: {new_color};">{new_label}</span>
-                </div>
-            </div>
-            
-            <div class="event-row">
-                <span class="event-label">Service:</span>
-                <span class="event-value">{service_name if service_name else 'Host Check'}</span>
-            </div>
-            
-            <div class="event-row">
-                <span class="event-label">Host:</span>
-                <span class="event-value">{hostname}</span>
-            </div>
-            
-            <h2 class="section-title">🔍 Event overview</h2>
-            
-            <table class="info-table">
-                <tr>
-                    <td>Event date:</td>
-                    <td>{event_date}</td>
-                </tr>
-                <tr>
-                    <td>Address:</td>
-                    <td>{display_address}</td>
-                </tr>{frp_info}
-                <tr>
-                    <td>Site:</td>
-                    <td>{site}</td>
-                </tr>
-                <tr>
-                    <td>Summary:</td>
-                    <td>{format_output(output)}</td>
-                </tr>
-            </table>
-            
-            <h2 class="section-title">📋 Service details:</h2>
-            
-            <div class="service-details">
-                <pre>{format_output(full_output)}</pre>
-            </div>
-        </div>
-        
-        <div class="footer">
-            Sent by Checkmk
-            <div class="buttons">
-                <a href="#" class="btn">Service</a>
-                <a href="#" class="btn btn-secondary">Host</a>
-            </div>
-        </div>
-    </div>
+<div class="container">
+<div class="header"><div class="logo-icon">✓</div><span class="logo-text">checkmk</span></div>
+<div class="status-bar"></div>
+<div class="content">
+<div class="event-row"><span class="event-label">Event:</span><div><span class="state-badge" style="background:${OLD_COLOR}">${OLD_LABEL}</span> → <span class="state-badge">${NEW_LABEL}</span></div></div>
+<div class="event-row"><span class="event-label">Service:</span><span class="event-value">${SERVICE}</span></div>
+<div class="event-row"><span class="event-label">Host:</span><span class="event-value">${HOSTNAME}</span></div>
+<h2 class="section-title">🔍 Event overview</h2>
+<table class="info-table">
+<tr><td>Event date:</td><td>${DATE}</td></tr>
+<tr><td>Address:</td><td>${REAL_IP}</td></tr>
+${FRP_ROW}
+<tr><td>Site:</td><td>${SITE}</td></tr>
+<tr><td>Summary:</td><td>${OUTPUT//$'\n'/<br>}</td></tr>
+</table>
+<h2 class="section-title">📋 Service details:</h2>
+<div class="service-details"><pre>${FULL_OUTPUT}</pre></div>
+</div>
+<div class="footer">Sent by Checkmk<div class="buttons"><a href="${SRV_LINK}" class="btn">Service</a><a href="${HOST_LINK}" class="btn">Host</a></div></div>
+</div>
 </body>
 </html>
-"""
-    
-    return html
-
-def send_email(html_content):
-    """Invia l'email HTML"""
-    
-    # Configurazione SMTP
-    smtp_server = os.environ.get('NOTIFY_PARAMETER_SMTP_SERVER', 'localhost')
-    smtp_port = int(os.environ.get('NOTIFY_PARAMETER_SMTP_PORT', '25'))
-    smtp_user = os.environ.get('NOTIFY_PARAMETER_SMTP_USER', '')
-    smtp_password = os.environ.get('NOTIFY_PARAMETER_SMTP_PASSWORD', '')
-    from_addr = os.environ.get('NOTIFY_PARAMETER_FROM', 'checkmk@monitoring.local')
-    to_addr = os.environ.get('NOTIFY_CONTACTEMAIL', os.environ.get('NOTIFY_PARAMETER_TO', ''))
-    
-    if not to_addr:
-        print("ERROR: No recipient email address configured", file=sys.stderr)
-        sys.exit(1)
-    
-    # Prepara subject
-    hostname = os.environ.get('NOTIFY_HOSTNAME', 'Unknown')
-    service_desc = os.environ.get('NOTIFY_SERVICEDESC', None)
-    notification_type = os.environ.get('NOTIFY_NOTIFICATIONTYPE', 'PROBLEM')
-    
-    if service_desc and service_desc not in ['', 'N/A']:
-        state = os.environ.get('NOTIFY_SERVICESHORTSTATE', 'UNKNOWN')
-        subject = f"Checkmk: {hostname}/{service_desc} {state}"
-    else:
-        state = os.environ.get('NOTIFY_HOSTSHORTSTATE', 'DOWN')
-        subject = f"Checkmk: {hostname} {state}"
-    
-    # Crea messaggio
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From'] = from_addr
-    msg['To'] = to_addr
-    
-    # Testo plain come fallback
-    text_content = f"""
-CheckMK Notification
-
-Host: {hostname}
-Service: {service_desc if service_desc else 'Host Check'}
-State: {state}
-Type: {notification_type}
-
-Output:
-{os.environ.get('NOTIFY_SERVICEOUTPUT' if service_desc else 'NOTIFY_HOSTOUTPUT', 'N/A')}
-"""
-    
-    part1 = MIMEText(text_content, 'plain', 'utf-8')
-    part2 = MIMEText(html_content, 'html', 'utf-8')
-    
-    msg.attach(part1)
-    msg.attach(part2)
-    
-    # Invia email
-    try:
-        if smtp_user and smtp_password:
-            # SMTP con autenticazione
-            server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls()
-            server.send_message(msg)
-            server.quit()
-        else:
-            # SMTP senza autenticazione (localhost)
-            server = smtplib.SMTP(smtp_server, smtp_port)
-            server.send_message(msg)
-            server.quit()
-        
-        print(f"Email sent successfully to {to_addr}")
-        return 0
-    
-    except Exception as e:
-        print(f"ERROR sending email: {e}", file=sys.stderr)
-        return 1
-
-def main():
-    """Main function"""
-    try:
-        html_content = build_html_email()
-        return send_email(html_content)
-    except Exception as e:
-        print(f"ERROR in notification script: {e}", file=sys.stderr)
-        return 2
-
-if __name__ == "__main__":
-    sys.exit(main())
+EOF
+} | /usr/sbin/sendmail -t
