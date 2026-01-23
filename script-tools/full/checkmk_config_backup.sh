@@ -5,8 +5,13 @@ set -euo pipefail
 # Auto-detect site se non specificato
 if [[ -z "${1:-}" ]]; then
   # Rileva site disponibili
-  AVAILABLE_SITES=$(omd sites 2>/dev/null | tail -n +2 | awk '{print $1}' || echo "")
-  SITE_COUNT=$(echo "$AVAILABLE_SITES" | grep -v '^$' | wc -l)
+  if ! command -v omd >/dev/null 2>&1; then
+    echo "ERRORE: comando 'omd' non trovato. CheckMK non installato?"
+    exit 1
+  fi
+  
+  AVAILABLE_SITES=$(omd sites 2>/dev/null | tail -n +2 | awk '{print $1}' || true)
+  SITE_COUNT=$(echo "$AVAILABLE_SITES" | grep -c -v '^$' || true)
   
   if [[ $SITE_COUNT -eq 0 ]]; then
     echo "ERRORE: Nessun site CheckMK trovato"
