@@ -280,17 +280,20 @@ su - "$SITE" -c "rclone copy '$TMP_DIR/$ARCHIVE' \
   --checksum \
   --immutable \
   --transfers 2 \
+  --s3-no-check-bucket \
   --log-level INFO" 2>&1 | tee -a "$LOG_FILE"
 
 su - "$SITE" -c "rclone copy '$TMP_DIR/$METADATA' \
   '$RCLONE_REMOTE/$RCLONE_PATH' \
   --checksum \
+  --s3-no-check-bucket \
   --immutable" 2>&1 | tee -a "$LOG_FILE"
 
 # Upload istruzioni restore
 su - "$SITE" -c "rclone copy '$TMP_DIR/RESTORE_INSTRUCTIONS.txt' \
   '$RCLONE_REMOTE/$RCLONE_PATH' \
   --checksum \
+  --s3-no-check-bucket \
   --immutable" 2>&1 | tee -a "$LOG_FILE"
 
 log "[OK] Upload completato"
