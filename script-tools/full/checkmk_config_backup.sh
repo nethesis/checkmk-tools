@@ -42,8 +42,8 @@ BACKUP_BASE="/opt/checkmk-backup"
 TMP_DIR="$BACKUP_BASE/tmp"
 LOG_FILE="$BACKUP_BASE/backup-dr.log"
 
-RCLONE_REMOTE="${RCLONE_REMOTE:-do:testmonbck/checkmk-backups/monitoring}"
-RCLONE_PATH=""
+RCLONE_REMOTE="${RCLONE_REMOTE:-do:testmonbck}"
+RCLONE_PATH="${RCLONE_PATH:-checkmk-backups/monitoring}"
 
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 INCLUDE_RRD="${INCLUDE_RRD:-false}"  # Set to 'true' per includere dati storici (molto pesante!)
@@ -273,23 +273,23 @@ RESTORE_EOF
 log "[OK] Istruzioni restore create"
 
 ### UPLOAD VIA RCLONE ###
-log "[INFO] Upload su storage remoto: $RCLONE_REMOTE"
+log "[INFO] Upload su storage remoto: $RCLONE_REMOTE/$RCLONE_PATH"
 
 su - "$SITE" -c "rclone copy '$TMP_DIR/$ARCHIVE' \
-  '$RCLONE_REMOTE' \
+  '$RCLONE_REMOTE/$RCLONE_PATH' \
   --checksum \
   --immutable \
   --transfers 2 \
   --log-level INFO" 2>&1 | tee -a "$LOG_FILE"
 
 su - "$SITE" -c "rclone copy '$TMP_DIR/$METADATA' \
-  '$RCLONE_REMOTE' \
+  '$RCLONE_REMOTE/$RCLONE_PATH' \
   --checksum \
   --immutable" 2>&1 | tee -a "$LOG_FILE"
 
 # Upload istruzioni restore
 su - "$SITE" -c "rclone copy '$TMP_DIR/RESTORE_INSTRUCTIONS.txt' \
-  '$RCLONE_REMOTE' \
+  '$RCLONE_REMOTE/$RCLONE_PATH' \
   --checksum \
   --immutable" 2>&1 | tee -a "$LOG_FILE"
 
@@ -297,8 +297,8 @@ log "[OK] Upload completato"
 
 ### VERIFICA REMOTA ###
 log "[INFO] Verifica presenza file remoto"
-if su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$ARCHIVE'" >/dev/null 2>&1; then
-  REMOTE_SIZE=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$ARCHIVE' --format s")
+if su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH/$ARCHIVE'" >/dev/null 2>&1; then
+  REMOTE_SIZE=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH/$ARCHIVE' --format s")
   LOCAL_SIZE=$(stat -c%s "$TMP_DIR/$ARCHIVE")
   if [[ "$REMOTE_SIZE" -eq "$LOCAL_SIZE" ]]; then
     log "[OK] Verifica dimensione: OK (${LOCAL_SIZE} bytes)"
@@ -316,11 +316,11 @@ log "[INFO] Applico retention ($RETENTION_DAYS giorni)"
 # Calcola data limite
 CUTOFF_DATE=$(date -d "$RETENTION_DAYS days ago" +%Y-%m-%d)
 
-su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE' --format 'tp'" | while IFS=$'\t' read -r mtime path; do
+su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --format 'tp'" | while IFS=$'\t' read -r mtime path; do
   FILE_DATE=$(date -d "$mtime" +%Y-%m-%d 2>/dev/null || echo "9999-99-99")
   if [[ "$FILE_DATE" < "$CUTOFF_DATE" ]]; then
     log "  - Rimuovo file obsoleto: $path (data: $FILE_DATE)"
-    su - "$SITE" -c "rclone delete '$RCLONE_REMOTE/$path'" 2>&1 | tee -a "$LOG_FILE"
+    su - "$SITE" -c "rclone delete '$RCLONE_REMOTE/$RCLONE_PATH/$path'" 2>&1 | tee -a "$LOG_FILE"
   fi
 done
 
@@ -331,7 +331,7 @@ log "=== BACKUP DR COMPLETATO CON SUCCESSO ==="
 log "Archivio: $ARCHIVE"
 log "Dimensione: $(numfmt --to=iec-i --suffix=B $LOCAL_SIZE 2>/dev/null || echo "$LOCAL_SIZE bytes")"
 log "Checksum: $CHECKSUM"
-log "Destinazione: $RCLONE_REMOTE"
+log "Destinazione: $RCLONE_REMOTE/$RCLONE_PATH"
 log "Include RRD: $INCLUDE_RRD"
 log "Retention: $RETENTION_DAYS giorni"
 log ""
