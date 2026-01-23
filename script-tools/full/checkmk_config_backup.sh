@@ -277,6 +277,7 @@ log "[INFO] Upload su storage remoto: $RCLONE_REMOTE/$RCLONE_PATH"
 
 su - "$SITE" -c "rclone copy '$TMP_DIR/$ARCHIVE' \
   '$RCLONE_REMOTE/$RCLONE_PATH' \
+  --config='/opt/omd/sites/$SITE/.config/rclone/rclone.conf' \
   --checksum \
   --immutable \
   --transfers 2 \
@@ -285,6 +286,7 @@ su - "$SITE" -c "rclone copy '$TMP_DIR/$ARCHIVE' \
 
 su - "$SITE" -c "rclone copy '$TMP_DIR/$METADATA' \
   '$RCLONE_REMOTE/$RCLONE_PATH' \
+  --config='/opt/omd/sites/$SITE/.config/rclone/rclone.conf' \
   --checksum \
   --s3-no-check-bucket \
   --immutable" 2>&1 | tee -a "$LOG_FILE"
@@ -292,6 +294,7 @@ su - "$SITE" -c "rclone copy '$TMP_DIR/$METADATA' \
 # Upload istruzioni restore
 su - "$SITE" -c "rclone copy '$TMP_DIR/RESTORE_INSTRUCTIONS.txt' \
   '$RCLONE_REMOTE/$RCLONE_PATH' \
+  --config='/opt/omd/sites/$SITE/.config/rclone/rclone.conf' \
   --checksum \
   --s3-no-check-bucket \
   --immutable" 2>&1 | tee -a "$LOG_FILE"
