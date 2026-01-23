@@ -2,7 +2,29 @@
 set -euo pipefail
 
 ### CONFIGURAZIONE ###
-SITE="${1:-monitoring}"
+# Auto-detect site se non specificato
+if [[ -z "${1:-}" ]]; then
+  # Rileva site disponibili
+  AVAILABLE_SITES=$(omd sites 2>/dev/null | tail -n +2 | awk '{print $1}' || echo "")
+  SITE_COUNT=$(echo "$AVAILABLE_SITES" | grep -v '^$' | wc -l)
+  
+  if [[ $SITE_COUNT -eq 0 ]]; then
+    echo "ERRORE: Nessun site CheckMK trovato"
+    echo "Crea un site con: omd create <nome_site>"
+    exit 1
+  elif [[ $SITE_COUNT -eq 1 ]]; then
+    SITE="$AVAILABLE_SITES"
+    echo "[AUTO-DETECT] Rilevato site: $SITE"
+  else
+    # Più site disponibili, usa il primo
+    SITE=$(echo "$AVAILABLE_SITES" | head -1)
+    echo "[AUTO-DETECT] Trovati $SITE_COUNT site, uso: $SITE"
+    echo "Per usare altro site: $0 <site_name>"
+  fi
+else
+  SITE="$1"
+fi
+
 SITE_BASE="/opt/omd/sites/$SITE"
 
 BACKUP_BASE="/opt/checkmk-backup"
