@@ -10,11 +10,10 @@ if [[ -z "${1:-}" ]]; then
     exit 1
   fi
   
-  # Ottieni lista site (skippa header "SITE VERSION COMMENTS")
-  mapfile -t AVAILABLE_SITES < <(omd sites 2>/dev/null | awk 'NR>1 {print $1}')
-  SITE_COUNT=${#AVAILABLE_SITES[@]}
+  # Ottieni prima riga non-header da omd sites
+  SITE=$(omd sites 2>/dev/null | awk 'NR==2 {print $1}')
   
-  if [[ $SITE_COUNT -eq 0 ]]; then
+  if [[ -z "$SITE" ]]; then
     echo "ERRORE: Nessun site CheckMK trovato"
     echo ""
     echo "Lista site installati:"
@@ -22,12 +21,14 @@ if [[ -z "${1:-}" ]]; then
     echo ""
     echo "Crea un site con: omd create <nome_site>"
     exit 1
-  elif [[ $SITE_COUNT -eq 1 ]]; then
-    SITE="${AVAILABLE_SITES[0]}"
+  fi
+  
+  # Conta quanti site ci sono
+  SITE_COUNT=$(omd sites 2>/dev/null | awk 'NR>1' | wc -l)
+  
+  if [[ $SITE_COUNT -eq 1 ]]; then
     echo "[AUTO-DETECT] Rilevato site: $SITE"
   else
-    # Più site disponibili, usa il primo
-    SITE="${AVAILABLE_SITES[0]}"
     echo "[AUTO-DETECT] Trovati $SITE_COUNT site, uso: $SITE"
     echo "Per usare altro site: $0 <site_name>"
   fi
