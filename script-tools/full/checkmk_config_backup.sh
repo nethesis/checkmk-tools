@@ -10,14 +10,8 @@ if [[ -z "${1:-}" ]]; then
     exit 1
   fi
   
-  # Ottieni lista site (skippa header)
-  AVAILABLE_SITES=()
-  while IFS= read -r line; do
-    # Estrai solo il nome del site (prima colonna)
-    site_name=$(echo "$line" | awk '{print $1}')
-    [[ -n "$site_name" ]] && AVAILABLE_SITES+=("$site_name")
-  done < <(omd sites 2>/dev/null | tail -n +2)
-  
+  # Ottieni lista site (skippa header "SITE VERSION COMMENTS")
+  mapfile -t AVAILABLE_SITES < <(omd sites 2>/dev/null | awk 'NR>1 {print $1}')
   SITE_COUNT=${#AVAILABLE_SITES[@]}
   
   if [[ $SITE_COUNT -eq 0 ]]; then
