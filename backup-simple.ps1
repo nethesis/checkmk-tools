@@ -15,7 +15,7 @@ if ($currentHour -ge 20 -or $currentHour -lt 9) {
     Write-Host "     BACKUP SOSPESO - ORARIO NOTTURNO"
     Write-Host "================================================================"
     Write-Host ""
-    Write-Host "[INFO] Ora corrente: $currentHour:$((Get-Date).Minute.ToString('00'))" -ForegroundColor Yellow
+    Write-Host "[INFO] Ora corrente: ${currentHour}:$((Get-Date).Minute.ToString('00'))" -ForegroundColor Yellow
     Write-Host "[INFO] Backup non consentito tra le 20:00 e le 09:00" -ForegroundColor Yellow
     Write-Host "[INFO] Il backup si avviera' automaticamente durante il giorno" -ForegroundColor Green
     Write-Host ""
@@ -32,7 +32,7 @@ $NETWORK_BACKUP_BASE = "\\192.168.10.132\usbshare\CheckMK-Backups"
 $TIMESTAMP = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $LOCAL_BACKUP_PATH = Join-Path $LOCAL_BACKUP_BASE $TIMESTAMP
 $NETWORK_BACKUP_PATH = Join-Path $NETWORK_BACKUP_BASE $TIMESTAMP
-$RETENTION_COUNT = 10
+$RETENTION_COUNT = 20
 
 # === CONFIGURAZIONE EMAIL ===
 $SMTP_SERVER = "smtp-relay.nethesis.it"
@@ -220,7 +220,9 @@ $corruptionPercentage = if ($totalScripts -gt 0) {
 } else { 
     0 
 }
-$CORRUPTION_THRESHOLD = 15  # Soglia 15%: se più del 15% degli script è corrotto, blocca il backup
+
+# Soglia 15%: se più del 15% degli script è corrotto, blocca il backup
+$CORRUPTION_THRESHOLD = 15
 
 Write-Host "Percentuale errori: $corruptionPercentage%" -ForegroundColor $(if ($corruptionPercentage -gt $CORRUPTION_THRESHOLD) { "Red" } else { "Yellow" })
 Write-Host ""
