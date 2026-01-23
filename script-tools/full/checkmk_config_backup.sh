@@ -43,7 +43,7 @@ TMP_DIR="$BACKUP_BASE/tmp"
 LOG_FILE="$BACKUP_BASE/backup-dr.log"
 
 RCLONE_REMOTE="${RCLONE_REMOTE:-do:testmonbck}"
-RCLONE_PATH="checkmk-dr-backup/$SITE"
+RCLONE_PATH="checkmk-backups/$SITE/DR-backup"
 
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 INCLUDE_RRD="${INCLUDE_RRD:-false}"  # Set to 'true' per includere dati storici (molto pesante!)
