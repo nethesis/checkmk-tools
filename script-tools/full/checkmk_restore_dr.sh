@@ -13,7 +13,6 @@ NC='\033[0m'
 
 RCLONE_REMOTE="${RCLONE_REMOTE:-do:testmonbck}"
 BACKUP_BASE="/opt/checkmk-backup"
-TMP_DIR="$BACKUP_BASE/tmp"
 
 ### FUNZIONI UTILITY ###
 log() { echo -e "${BLUE}[$(date '+%H:%M:%S')]${NC} $*"; }
@@ -119,6 +118,10 @@ if [[ ! -d "$SITE_BASE" ]]; then
 else
   success "Site '$SITE' trovato"
 fi
+
+# Usa directory temporanea del site user (ha già i permessi)
+TMP_DIR="/opt/omd/sites/$SITE/tmp/dr-restore"
+su - "$SITE" -c "mkdir -p '$TMP_DIR'"
 
 # Costruisci path rclone basato sul site
 RCLONE_PATH="checkmk-backups/$SITE"
@@ -248,7 +251,7 @@ mkdir -p "$TMP_DIR"
 
 if su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH/$METADATA_FILE' --config='$RCLONE_CONF' --s3-no-check-bucket" >/dev/null 2>&1; then
   log "Scarico metadati..."
-  su - "$SITE" -c "rclone copy '$RCLONE_REMOTE/$RCLONE_PATH/$METADATA_FILE' '$TMP_DIR/' --config='$RCLONE_CONF' --s3-no-check-bucket -q"
+  su - "$SITE" -c "rclone copyto '$RCLONE_REMOTE/$RCLONE_PATH/$METADATA_FILE' '$TMP_DIR/$METADATA_FILE' --config='$RCLONE_CONF' --s3-no-check-bucket -q"
   
   if [[ -f "$TMP_DIR/$METADATA_FILE" ]]; then
     echo ""
@@ -286,7 +289,7 @@ fi
 title "⬇️  Download Backup"
 
 log "Scarico $BACKUP_FILE da storage remoto..."
-su - "$SITE" -c "rclone copy '$RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_FILE' '$TMP_DIR/' --config='$RCLONE_CONF' --s3-no-check-bucket --progress"
+su - "$SITE" -c "rclone copyto '$RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_FILE' '$TMP_DIR/$BACKUP_FILE' --config='$RCLONE_CONF' --s3-no-check-bucket --progress"
 
 if [[ ! -f "$TMP_DIR/$BACKUP_FILE" ]]; then
   error "Download fallito!"
