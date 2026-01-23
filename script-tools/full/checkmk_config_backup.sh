@@ -42,7 +42,7 @@ BACKUP_BASE="/opt/checkmk-backup"
 TMP_DIR="$BACKUP_BASE/tmp"
 LOG_FILE="$BACKUP_BASE/backup-dr.log"
 
-RCLONE_REMOTE="${RCLONE_REMOTE:-do:testmonbck}"
+RCLONE_REMOTE="${RCLONE_REMOTE:-do:testmonbck/checkmk-backups/monitoring}"
 RCLONE_PATH=""
 
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
