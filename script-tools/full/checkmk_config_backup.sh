@@ -10,19 +10,30 @@ if [[ -z "${1:-}" ]]; then
     exit 1
   fi
   
-  AVAILABLE_SITES=$(omd sites 2>/dev/null | tail -n +2 | awk '{print $1}' || true)
-  SITE_COUNT=$(echo "$AVAILABLE_SITES" | grep -c -v '^$' || true)
+  # Ottieni lista site (skippa header)
+  AVAILABLE_SITES=()
+  while IFS= read -r line; do
+    # Estrai solo il nome del site (prima colonna)
+    site_name=$(echo "$line" | awk '{print $1}')
+    [[ -n "$site_name" ]] && AVAILABLE_SITES+=("$site_name")
+  done < <(omd sites 2>/dev/null | tail -n +2)
+  
+  SITE_COUNT=${#AVAILABLE_SITES[@]}
   
   if [[ $SITE_COUNT -eq 0 ]]; then
     echo "ERRORE: Nessun site CheckMK trovato"
+    echo ""
+    echo "Lista site installati:"
+    omd sites 2>/dev/null || echo "(comando omd sites fallito)"
+    echo ""
     echo "Crea un site con: omd create <nome_site>"
     exit 1
   elif [[ $SITE_COUNT -eq 1 ]]; then
-    SITE="$AVAILABLE_SITES"
+    SITE="${AVAILABLE_SITES[0]}"
     echo "[AUTO-DETECT] Rilevato site: $SITE"
   else
     # Più site disponibili, usa il primo
-    SITE=$(echo "$AVAILABLE_SITES" | head -1)
+    SITE="${AVAILABLE_SITES[0]}"
     echo "[AUTO-DETECT] Trovati $SITE_COUNT site, uso: $SITE"
     echo "Per usare altro site: $0 <site_name>"
   fi
