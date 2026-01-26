@@ -175,6 +175,21 @@ for item in "${BACKUP_ITEMS[@]}"; do
   fi
 done
 
+# Escludi cartelle specifiche pesanti dentro local/notifications
+EXCLUDE_PATTERNS=(
+  "local/share/check_mk/notifications/backup-giornaliero"
+  "local/share/check_mk/notifications/__pycache__"
+)
+
+log ""
+log "[INFO] Escludo cartelle pesanti/inutili:"
+for pattern in "${EXCLUDE_PATTERNS[@]}"; do
+  if [[ -e "$SITE_BASE/$pattern" ]]; then
+    EXCLUDE_SIZE=$(du -sh "$SITE_BASE/$pattern" 2>/dev/null | cut -f1 || echo "N/A")
+    log "  ❌ Escludo: $pattern ($EXCLUDE_SIZE)"
+  fi
+done
+
 # Mostra cosa viene ESCLUSO
 log ""
 log "[INFO] ESCLUSO dal backup (ricreabili o troppo pesanti):"
@@ -185,10 +200,18 @@ log "  ❌ var/check_mk/packages - MKP packages (reinstallare)"
 log "  ❌ local/share/check_mk/checks - plugin custom (da GitHub)"
 log ""
 
-# Crea archivio MINIMALE
+# Crea archivio MINIMALE con esclusioni
 log "[INFO] Compressione archivio..."
+
+# Costruisci parametri --exclude per tar
+EXCLUDE_ARGS=()
+for pattern in "${EXCLUDE_PATTERNS[@]}"; do
+  EXCLUDE_ARGS+=(--exclude="$pattern")
+done
+
 tar czf "$TMP_DIR/$ARCHIVE" \
   -C "$SITE_BASE" \
+  "${EXCLUDE_ARGS[@]}" \
   "${TAR_ITEMS[@]}" 2>&1 | tee -a "$LOG_FILE"
 
 # Verifica integrità archivio
@@ -351,6 +374,12 @@ log "[INFO] Applico retention ($RETENTION_DAYS giorni)"
 CUTOFF_DATE=$(date -d "$RETENTION_DAYS days ago" +%Y-%m-%d)
 
 su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --format 'tp'" | while IFS=$'\t' read -r mtime path; do
+  # SKIP file con MINIMAL nel nome (non applica retention)
+  if [[ "$path" =~ MINIMAL ]]; then
+    log "  ⏭️  Skip retention: $path (contiene MINIMAL)"
+    continue
+  fi
+  
   FILE_DATE=$(date -d "$mtime" +%Y-%m-%d 2>/dev/null || echo "9999-99-99")
   if [[ "$FILE_DATE" < "$CUTOFF_DATE" ]]; then
     log "  - Rimuovo file obsoleto: $path (data: $FILE_DATE)"
