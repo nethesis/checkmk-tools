@@ -125,18 +125,8 @@ su - "$SITE" -c "mkdir -p '$TMP_DIR'"
 
 # Costruisci path rclone basato sul site
 RCLONE_PATH="checkmk-backups/$SITE"
+RCLONE_PATH_MINIMAL="checkmk-backups/$SITE-minimal"
 RCLONE_CONF="/opt/omd/sites/$SITE/.config/rclone/rclone.conf"
-
-# Rileva automaticamente se esistono solo backup minimal
-log "Rilevamento tipo backup..."
-if su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH-minimal' --config='$RCLONE_CONF' --s3-no-check-bucket --max-depth 1 2>/dev/null" | grep -q '.' 2>/dev/null; then
-  STANDARD_FILES=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket --max-depth 1 2>/dev/null | grep '\.tgz$' | wc -l")
-  if [[ "$STANDARD_FILES" -eq 0 ]]; then
-    warn "Path standard vuoto, uso backup minimal"
-    RCLONE_PATH="checkmk-backups/$SITE-minimal"
-    success "Rilevati backup minimal in $RCLONE_PATH"
-  fi
-fi
 
 if [[ ! -f "$RCLONE_CONF" ]]; then
   warn "Configurazione rclone non trovata per site '$SITE'"
@@ -193,13 +183,13 @@ fi
 ### VERIFICA CONNESSIONE STORAGE ###
 title "📡 Verifica Connessione Storage Remoto"
 
-log "Verifica connessione a $RCLONE_REMOTE/$RCLONE_PATH..."
-if ! su - "$SITE" -c "rclone lsd '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket" >/dev/null 2>&1; then
-  error "Impossibile connettersi a $RCLONE_REMOTE/$RCLONE_PATH"
+log "Verifica connessione storage remoto..."
+if ! su - "$SITE" -c "rclone lsd '$RCLONE_REMOTE/' --config='$RCLONE_CONF' --s3-no-check-bucket --max-depth 1" >/dev/null 2>&1; then
+  error "Impossibile connettersi a $RCLONE_REMOTE"
   echo ""
   echo "Verifica che:"
-  echo "  1. La cartella $RCLONE_PATH esiste nel bucket"
-  echo "  2. La configurazione rclone sia corretta: su - $SITE -c 'rclone config'"
+  echo "  1. La configurazione rclone sia corretta: su - $SITE -c 'rclone config'"
+  echo "  2. Le credenziali siano valide"
   exit 1
 fi
 success "Connessione OK"
@@ -207,13 +197,17 @@ success "Connessione OK"
 ### LISTA BACKUP DISPONIBILI ###
 title "📦 Backup Disponibili"
 
-log "Recupero lista backup da $RCLONE_REMOTE/$RCLONE_PATH..."
+log "Recupero lista backup da storage remoto..."
 
-# Lista tutti i file .tgz (supporta sia DR che MINIMAL)
-BACKUP_FILES=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket --files-only" | grep -E "checkmk-(DR|MINIMAL)-.*\.tgz$" | sort -r)
+# Lista tutti i file .tgz da entrambi i path
+BACKUP_FILES_STANDARD=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket --files-only 2>/dev/null" | grep "\.tgz$" || true)
+BACKUP_FILES_MINIMAL=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH_MINIMAL' --config='$RCLONE_CONF' --s3-no-check-bucket --files-only 2>/dev/null" | grep "\.tgz$" || true)
+
+# Combina e ordina per data (più recenti prima)
+BACKUP_FILES=$(printf "%s\n%s" "$BACKUP_FILES_STANDARD" "$BACKUP_FILES_MINIMAL" | grep -v '^$' | sort -r)
 
 if [[ -z "$BACKUP_FILES" ]]; then
-  error "Nessun backup trovato per site '$SITE'"
+  error "Nessun file .tgz trovato"
   echo ""
   log "DEBUG: Contenuto cartella remota:"
   su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket --files-only" | head -20 || echo "  (errore listing)"
@@ -248,7 +242,14 @@ fi
 
 BACKUP_FILE="${BACKUP_MAP[$selection]}"
 
-success "Selezionato: $BACKUP_FILE"
+# Determina da quale path scaricare
+if echo "$BACKUP_FILES_MINIMAL" | grep -q "^$BACKUP_FILE$"; then
+  SELECTED_PATH="$RCLONE_PATH_MINIMAL"
+else
+  SELECTED_PATH="$RCLONE_PATH"
+fi
+
+success "Selezionato: $BACKUP_FILE (da $SELECTED_PATH)"
 
 ### SCARICA METADATA ###
 title "📋 Informazioni Backup"
@@ -256,9 +257,9 @@ title "📋 Informazioni Backup"
 METADATA_FILE="${BACKUP_FILE%.tgz}.metadata.txt"
 mkdir -p "$TMP_DIR"
 
-if su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH/$METADATA_FILE' --config='$RCLONE_CONF' --s3-no-check-bucket" >/dev/null 2>&1; then
+if su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$SELECTED_PATH/$METADATA_FILE' --config='$RCLONE_CONF' --s3-no-check-bucket" >/dev/null 2>&1; then
   log "Scarico metadati..."
-  su - "$SITE" -c "rclone copyto '$RCLONE_REMOTE/$RCLONE_PATH/$METADATA_FILE' '$TMP_DIR/$METADATA_FILE' --config='$RCLONE_CONF' --s3-no-check-bucket -q"
+  su - "$SITE" -c "rclone copyto '$RCLONE_REMOTE/$SELECTED_PATH/$METADATA_FILE' '$TMP_DIR/$METADATA_FILE' --config='$RCLONE_CONF' --s3-no-check-bucket -q"
   
   if [[ -f "$TMP_DIR/$METADATA_FILE" ]]; then
     echo ""
@@ -296,7 +297,7 @@ fi
 title "⬇️  Download Backup"
 
 log "Scarico $BACKUP_FILE da storage remoto..."
-su - "$SITE" -c "rclone copy '$RCLONE_REMOTE/$RCLONE_PATH' '$TMP_DIR/' \
+su - "$SITE" -c "rclone copy '$RCLONE_REMOTE/$SELECTED_PATH' '$TMP_DIR/' \
   --config='$RCLONE_CONF' \
   --s3-no-check-bucket \
   --include '$BACKUP_FILE' \
