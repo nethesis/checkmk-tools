@@ -94,10 +94,12 @@ $settings = New-ScheduledTaskSettingsSet `
     -StartWhenAvailable `
     -RunOnlyIfNetworkAvailable:$false `
     -DontStopOnIdleEnd `
-    -MultipleInstances IgnoreNew
+    -MultipleInstances IgnoreNew `
+    -WakeToRun:$false
 
-# Configura principal (utente corrente)
-$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
+# Configura principal con S4U (funziona anche senza login interattivo)
+# IMPORTANTE: S4U permette esecuzione anche con utente disconnesso/lock screen
+$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Highest
 
 # Registra task
 try {
@@ -107,7 +109,7 @@ try {
         -Trigger $trigger `
         -Settings $settings `
         -Principal $principal `
-        -Description "Backup automatico ogni ora del repository checkmk-tools" `
+        -Description "Backup automatico $frequenzaTesto del repository checkmk-tools (funziona anche con utente disconnesso)" `
         -Force | Out-Null
     
     Write-Host "✓ Scheduled Task creato con successo!" -ForegroundColor Green
