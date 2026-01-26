@@ -80,8 +80,10 @@ if ($existingTask) {
 
 # Configura action con logging migliorato e modalità unattended
 $logFile = "`"$LOG_PATH\backup_`$(Get-Date -Format 'yyyy-MM-dd').log`""
+$pwshPath = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+if (-not $pwshPath) { $pwshPath = "C:\Program Files\PowerShell\7\pwsh.exe" }
 $action = New-ScheduledTaskAction `
-    -Execute "PowerShell.exe" `
+    -Execute $pwshPath `
     -Argument "-NoProfile -ExecutionPolicy Bypass -Command `"& '$SCRIPT_PATH' -Unattended *>&1 | Tee-Object -FilePath $logFile -Append`""
 
 # Configura trigger con la frequenza scelta

@@ -15,7 +15,7 @@ if (-not (Test-Path $LOG_PATH)) {
 
 # Esegui backup
 try {
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $SCRIPT_PATH -Unattended 2>&1 | Out-File -FilePath $LOG_FILE -Append -Encoding UTF8
+    & $SCRIPT_PATH -Unattended 2>&1 | Out-File -FilePath $LOG_FILE -Append -Encoding UTF8
     $exitCode = $LASTEXITCODE
     "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Backup completato (exit code: $exitCode)" | Out-File -FilePath $LOG_FILE -Append -Encoding UTF8
     exit $exitCode
