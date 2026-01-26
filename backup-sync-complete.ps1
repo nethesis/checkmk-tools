@@ -39,9 +39,19 @@ function Test-ScriptIntegrity {
         return $false
     }
     
-    # Verifica che il file non sia vuoto
+    # Skip verifica vuoto per file che possono essere legittimamente vuoti
+    $allowedEmptyFiles = @(
+        "corrupted-files-list.txt",
+        ".gitkeep",
+        ".env"
+    )
+    
+    $fileName = Split-Path $ScriptPath -Leaf
+    $canBeEmpty = $allowedEmptyFiles -contains $fileName
+    
+    # Verifica che il file non sia vuoto (a meno che non sia nella whitelist)
     $fileInfo = Get-Item $ScriptPath
-    if ($fileInfo.Length -eq 0) {
+    if ($fileInfo.Length -eq 0 -and -not $canBeEmpty) {
         Write-Host "✗ File vuoto: $relativePath" -ForegroundColor Red
         return $false
     }
