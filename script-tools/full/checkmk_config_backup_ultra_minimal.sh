@@ -132,8 +132,10 @@ BACKUP_ITEMS=(
 
 # ESCLUDI file pesanti da WATO (solo snapshot .tar.gz)
 EXCLUDE_PATTERNS=(
-  "var/check_mk/wato/snapshots/*.tar.gz"     # Snapshot storici pesanti
-  "var/check_mk/wato/log/*.tar.gz"           # Log compressi
+  "var/check_mk/wato/snapshots"              # Directory snapshot intera (molto pesante)
+  "var/check_mk/wato/log"                    # Directory log intera
+  "var/check_mk/wato/*/replication_changes*" # File replicazione distribuita
+  "var/check_mk/wato/*/activation_state*"    # File stato attivazione temporanei
 )
 
 # ESCLUSO INTENZIONALMENTE:
