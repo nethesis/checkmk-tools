@@ -328,7 +328,7 @@ if [[ "$RETENTION_DAYS_LOCAL" -gt 0 ]]; then
   )
   
   # Keep only the N most recent (RETENTION_DAYS_LOCAL = number to keep)
-  local kept=0
+  kept=0
   for backup in "${all_backups[@]}"; do
     kept=$((kept + 1))
     if [[ $kept -gt $RETENTION_DAYS_LOCAL ]]; then
@@ -356,7 +356,7 @@ if [[ "$RETENTION_DAYS_REMOTE" -gt 0 ]]; then
   else
     # Parse and sort backups by timestamp
     declare -A backup_times
-    local now=$(date +%s)
+    now=$(date +%s)
     
     for item in "${remote_items[@]}"; do
       IFS=$'\t' read -r timestamp path <<< "$item"
@@ -365,14 +365,14 @@ if [[ "$RETENTION_DAYS_REMOTE" -gt 0 ]]; then
         continue
       fi
       
-      local file_time=0
+      file_time=0
       
       # Parse timestamp (rclone format: 2026-01-20 19:23:46)
       file_time=$(date -d "$timestamp" +%s 2>/dev/null || echo "0")
       
       # For S3 directories with default timestamp (2000-01-01), extract from filename
       if [[ "$file_time" -lt 946684800 ]] && [[ "$path" =~ -([0-9]{4})-([0-9]{2})-([0-9]{2})-([0-9]{2})h([0-9]{2}) ]]; then
-        local backup_date="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}:${BASH_REMATCH[5]}:00"
+        backup_date="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}:${BASH_REMATCH[5]}:00"
         file_time=$(date -d "$backup_date" +%s 2>/dev/null || echo "0")
       fi
       
@@ -385,10 +385,10 @@ if [[ "$RETENTION_DAYS_REMOTE" -gt 0 ]]; then
     done
     
     # Sort timestamps (newest first) and keep only N most recent
-    local kept=0
+    kept=0
     for ts in $(printf '%s\n' "${!backup_times[@]}" | sort -nr); do
       kept=$((kept + 1))
-      local path="${backup_times[$ts]}"
+      path="${backup_times[$ts]}"
       
       if [[ $kept -gt $RETENTION_DAYS_REMOTE ]]; then
         log "Deleting old remote backup: $path"
