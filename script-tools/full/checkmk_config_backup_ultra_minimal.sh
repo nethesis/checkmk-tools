@@ -256,12 +256,6 @@ else
     # Parsing data modificazione (formato: 2026-01-26 11:26:56)
     FILE_DATE=$(date -d "$mtime" +%s 2>/dev/null || echo "0")
     
-    # Skip se contiene "ULTRA-MINIMAL" (mai cancellare)
-    if [[ "$filename" =~ ULTRA-MINIMAL ]]; then
-      log "  ⏭️  Skip retention: $filename (contiene ULTRA-MINIMAL)"
-      continue
-    fi
-    
     if [[ $FILE_DATE -lt $CUTOFF_DATE ]] && [[ $FILE_DATE -gt 0 ]]; then
       AGE_DAYS=$(( ($(date +%s) - FILE_DATE) / 86400 ))
       log "  🗑️  Cancello backup vecchio ($AGE_DAYS giorni): $filename"
@@ -281,7 +275,7 @@ log "Archivio: $ARCHIVE"
 log "Dimensione: $ARCHIVE_SIZE ($ARCHIVE_SIZE_BYTES bytes)"
 log "Checksum: $CHECKSUM"
 log "Destinazione: $RCLONE_REMOTE/$RCLONE_PATH/"
-log "Retention: $RETENTION_DAYS giorni (backup ULTRA-MINIMAL mai cancellati)"
+log "Retention: $RETENTION_DAYS giorni"
 log ""
 log "✅ NOTA: Questo backup include configurazione completa:"
 log "    ✓ Hosts/rules, ✓ Dashboard, ✓ Notifiche custom, ✓ Ydea-toolkit"
