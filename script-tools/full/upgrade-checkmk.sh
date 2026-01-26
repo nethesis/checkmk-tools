@@ -8,10 +8,11 @@ set -euo pipefail
 SITE_NAME=""
 DOWNLOAD_DIR="/tmp/checkmk-upgrade"
 BACKUP_DIR="/opt/omd/backups"
+REPORT_FILE="/tmp/checkmk-upgrade-report.txt"
 
-die() { echo "[ERR] $*" >&2; exit 1; }
-log() { echo "[INFO] $*"; }
-warn() { echo "[WARN] $*"; }
+die() { echo "[ERR] $*" >&2; echo "[ERR] $*" >> "$REPORT_FILE"; exit 1; }
+log() { echo "[INFO] $*"; echo "[INFO] $*" >> "$REPORT_FILE"; }
+warn() { echo "[WARN] $*"; echo "[WARN] $*" >> "$REPORT_FILE"; }
 
 need_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "comando mancante: $1"
@@ -92,6 +93,17 @@ detect_site() {
 }
 
 main() {
+    # Inizializza report file
+    cat > "$REPORT_FILE" <<EOF
+================================================================
+  CHECKMK AUTO-UPGRADE REPORT
+================================================================
+Server: $(hostname)
+Data: $(date '+%Y-%m-%d %H:%M:%S')
+User: $(whoami)
+
+EOF
+
     require_root
     need_cmd omd
     need_cmd curl
@@ -106,19 +118,40 @@ main() {
     log "Sito: $SITE_NAME"
     current="$(get_current_version)"
     latest="$(get_latest_version)"
+    
+    cat >> "$REPORT_FILE" <<EOF
+----------------------------------------------------------------
+  INFORMAZIONI UPGRADE
+----------------------------------------------------------------
+Sito: $SITE_NAME
+Versione corrente: $current
+Ultima versione disponibile: $latest
+
+EOF
+    
     log "Versione corrente: $current"
     log "Ultima versione:   $latest"
 
     if [[ "$current" == "$latest" ]]; then
         log "Nessun aggiornamento necessario"
+        cat >> "$REPORT_FILE" <<EOF
+RISULTATO: Nessun aggiornamento necessario
+Il sito è già alla versione più recente.
+EOF
         exit 0
     fi
 
     echo
     echo "Aggiornamento previsto: $current -> $latest"
-    read -r -p "Procedere? [y/N]: " confirm
-    confirm="${confirm:-N}"
-    [[ "$confirm" =~ ^[Yy]$ ]] || exit 0
+    
+    # In modalità automatica (cron), non chiedere conferma
+    if [[ -t 0 ]]; then
+        read -r -p "Procedere? [y/N]: " confirm
+        confirm="${confirm:-N}"
+        [[ "$confirm" =~ ^[Yy]$ ]] || exit 0
+    else
+        log "Modalità automatica: procedo con l'upgrade"
+    fi
 
     mkdir -p "$DOWNLOAD_DIR" "$BACKUP_DIR"
 
@@ -156,7 +189,11 @@ main() {
 
     new_v="$(get_current_version)"
     log "Versione dopo upgrade: $new_v"
-    omd status "$SITE_NAME" || true
+    
+    # Verifica stato servizi
+    site_status=$(omd status "$SITE_NAME" 2>&1 || true)
+    log "=== STATUS SERVIZI ==="
+    echo "$site_status" | tee -a "$REPORT_FILE"
 
     echo
     log "=== PULIZIA AUTOMATICA ==="
@@ -202,18 +239,48 @@ main() {
     fi
     [[ $old_backups_removed -gt 0 ]] && log "Backup rimossi: $old_backups_removed" || log "Nessun backup da rimuovere"
     
-    echo
-    read -r -p "Eliminare i file scaricati in $DOWNLOAD_DIR? [y/N]: " cleanup
-    cleanup="${cleanup:-N}"
-    if [[ "$cleanup" =~ ^[Yy]$ ]]; then
+    # Cleanup file download (automatico in modalità cron)
+    if [[ ! -t 0 ]]; then
         rm -rf "$DOWNLOAD_DIR"
-        log "File temporanei eliminati"
+        log "File temporanei eliminati automaticamente"
     else
-        log "File mantenuti in: $DOWNLOAD_DIR"
+        echo
+        read -r -p "Eliminare i file scaricati in $DOWNLOAD_DIR? [y/N]: " cleanup
+        cleanup="${cleanup:-N}"
+        if [[ "$cleanup" =~ ^[Yy]$ ]]; then
+            rm -rf "$DOWNLOAD_DIR"
+            log "File temporanei eliminati"
+        else
+            log "File mantenuti in: $DOWNLOAD_DIR"
+        fi
     fi
 
     log "Backup corrente disponibile in: $backup_file"
     log "Upgrade completato: $current -> $new_v"
+    
+    # Riepilogo finale nel report
+    cat >> "$REPORT_FILE" <<EOF
+
+----------------------------------------------------------------
+  RIEPILOGO UPGRADE
+----------------------------------------------------------------
+✅ UPGRADE COMPLETATO CON SUCCESSO
+
+Versione iniziale:      $current
+Versione finale:        $new_v
+Backup creato:          $backup_file
+Versioni OMD rimosse:   $old_versions_removed
+Backup vecchi rimossi:  $old_backups_removed
+
+Servizi CheckMK:
+$site_status
+
+================================================================
+Report generato: $(date '+%Y-%m-%d %H:%M:%S')
+================================================================
+EOF
+
+    log "Report salvato in: $REPORT_FILE"
 }
 
 main "$@"

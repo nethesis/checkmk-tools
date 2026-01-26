@@ -158,7 +158,7 @@ if [[ $enable_email =~ ^[Ss]$ ]]; then
     
     # Validazione base email
     if [[ $email_address =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
-        EMAIL_NOTIFY=" && echo \"CheckMK upgrade completato su \$(hostname) alle \$(date)\" | mail -s \"CheckMK Auto-Upgrade Report\" $email_address || echo \"CheckMK upgrade fallito su \$(hostname) alle \$(date)\" | mail -s \"[ERROR] CheckMK Auto-Upgrade Failed\" $email_address"
+        EMAIL_NOTIFY=" && (cat /tmp/checkmk-upgrade-report.txt | mail -s \"✅ CheckMK Auto-Upgrade Report - \$(hostname)\" $email_address) || (echo -e \"❌ ERRORE UPGRADE CheckMK\\n\\nServer: \$(hostname)\\nData: \$(date)\\n\\nVerifica i log manualmente.\" | mail -s \"[ERROR] CheckMK Auto-Upgrade Failed - \$(hostname)\" $email_address)"
         print_success "Notifiche email configurate per: $email_address"
         
         # Verifica se mail è installato
