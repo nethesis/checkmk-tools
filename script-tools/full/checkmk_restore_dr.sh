@@ -351,8 +351,8 @@ echo "  In caso di problemi: $BACKUP_OLD"
 ### ESTRAZIONE BACKUP ###
 title "📂 Ripristino Configurazione"
 
-log "Estraggo backup in /opt (site + ydea-toolkit)..."
-if tar xzf "$TMP_DIR/$BACKUP_FILE" -C /opt 2>&1 | tee /tmp/tar_extract.log; then
+log "Estraggo backup in $SITE_BASE (include ydea-toolkit via path relativo)..."
+if tar xzf "$TMP_DIR/$BACKUP_FILE" -C "$SITE_BASE" 2>&1 | tee /tmp/tar_extract.log; then
   success "Estrazione completata"
 else
   error "Errore durante l'estrazione!"

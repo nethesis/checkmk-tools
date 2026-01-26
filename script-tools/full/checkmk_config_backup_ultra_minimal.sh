@@ -124,27 +124,25 @@ log "[OK] Metadati raccolti"
 log "[INFO] Creazione backup ULTRA-MINIMALE (config completa)"
 
 # Lista ULTRA-RIDOTTA - solo configurazione hosts ATTIVA
-# NOTA: Path relativi a /opt (non più a /opt/omd/sites/monitoring)
 BACKUP_ITEMS=(
-  "omd/sites/$SITE/etc/check_mk/conf.d"               # ✅ CRITICO: File main.mk, wato_rules.mk (hosts/rules)
-  "omd/sites/$SITE/etc/check_mk/multisite.d"          # ✅ Configurazione multisite base
-  "omd/sites/$SITE/etc/check_mk/backup.mk"            # ✅ Configurazione backup UI (360 bytes)
-  "omd/sites/$SITE/local/share/check_mk/notifications" # ✅ Script notifiche custom (mail_realip, telegram, ydea)
-  "omd/sites/$SITE/var/check_mk/wato"                 # ✅ Dashboard, bookmark, config WATO
-  "omd/sites/$SITE/var/check_mk/web"                  # ✅ Dashboard utenti, viste personalizzate
-  "omd/sites/$SITE/version"                           # ✅ Versione CheckMK installata
-  "ydea-toolkit"                                       # ✅ Configurazione Ydea API (.env, .env.ag, .env.la, config)
+  "etc/check_mk/conf.d"               # ✅ CRITICO: File main.mk, wato_rules.mk (hosts/rules)
+  "etc/check_mk/multisite.d"          # ✅ Configurazione multisite base
+  "etc/check_mk/backup.mk"            # ✅ Configurazione backup UI (360 bytes)
+  "local/share/check_mk/notifications" # ✅ Script notifiche custom (mail_realip, telegram, ydea)
+  "var/check_mk/wato"                 # ✅ Dashboard, bookmark, config WATO
+  "var/check_mk/web"                  # ✅ Dashboard utenti, viste personalizzate
+  "version"                           # ✅ Versione CheckMK installata
+  "../../../ydea-toolkit"              # ✅ Configurazione Ydea API (path relativo da $SITE_BASE)
 )
 
 # ESCLUDI file pesanti da WATO (solo snapshot .tar e log)
-# NOTA: Path relativi a /opt
 EXCLUDE_PATTERNS=(
-  "omd/sites/$SITE/var/check_mk/wato/snapshots/*.tar"        # Snapshot WATO storici (1.5MB)
-  "omd/sites/$SITE/var/check_mk/wato/snapshots/workdir"      # Directory temporanea
-  "omd/sites/$SITE/var/check_mk/wato/log/*.log"              # Log audit (1.3MB)
-  "omd/sites/$SITE/var/check_mk/wato/*/replication_changes*" # File replicazione distribuita
-  "omd/sites/$SITE/var/check_mk/wato/*/activation_state*"    # File stato attivazione temporanei
-  "ydea-toolkit/cache/*"                                      # Cache Ydea (temporanea)
+  "var/check_mk/wato/snapshots/*.tar"        # Snapshot WATO storici (1.5MB)
+  "var/check_mk/wato/snapshots/workdir"      # Directory temporanea
+  "var/check_mk/wato/log/*.log"              # Log audit (1.3MB)
+  "var/check_mk/wato/*/replication_changes*" # File replicazione distribuita
+  "var/check_mk/wato/*/activation_state*"    # File stato attivazione temporanei
+  "../../../ydea-toolkit/cache/*"            # Cache Ydea (path relativo)
 )
 
 # ESCLUSO INTENZIONALMENTE:
@@ -162,9 +160,11 @@ log "[INFO] Creazione archivio compresso..."
 # Crea lista file da includere
 INCLUDE_ARGS=()
 for item in "${BACKUP_ITEMS[@]}"; do
-  if [[ -e "/opt/$item" ]]; then
+  # Risolvi path assoluto per verifica (gestisce ../../../ydea-toolkit)
+  FULL_PATH="$(cd "$SITE_BASE" && readlink -f "$item" 2>/dev/null || echo "$SITE_BASE/$item")"
+  if [[ -e "$FULL_PATH" ]]; then
     INCLUDE_ARGS+=("$item")
-    log "  ✅ Include: $item ($(du -sh "/opt/$item" 2>/dev/null | cut -f1))"
+    log "  ✅ Include: $item ($(du -sh "$FULL_PATH" 2>/dev/null | cut -f1))"
   else
     log "  ⏭️  Skip: $item (non esiste)"
   fi
@@ -181,8 +181,8 @@ for pattern in "${EXCLUDE_PATTERNS[@]}"; do
   log "  ❌ Exclude: $pattern"
 done
 
-# Crea archivio da /opt (non più da $SITE_BASE)
-cd /opt
+# Crea archivio da $SITE_BASE
+cd "$SITE_BASE"
 
 # Costruisci argomenti esclusione
 EXCLUDE_ARGS=()
@@ -308,8 +308,8 @@ PROCEDURA RESTORE:
    su - <site>
    rclone copy do:testmonbck/checkmk-backups/monitoring-minimal/<backup.tgz> /tmp/
 
-4. Estrai configurazione completa in /opt (site + ydea-toolkit):
-   cd /opt
+4. Estrai configurazione in $SITE_BASE (ydea-toolkit incluso via path relativo):
+   cd /opt/omd/sites/<site>
    tar xzf /tmp/<backup.tgz>
    chown -R <site>:<site> /opt/omd/sites/<site>
    chown -R root:root /opt/ydea-toolkit
@@ -337,9 +337,10 @@ COSA RIPRISTINATO AUTOMATICAMENTE:
 
 RESTORE VELOCE (test):
   omd stop <site> && \
-  cd /opt && \
+  cd /opt/omd/sites/<site> && \
   tar xzf /tmp/<backup.tgz> && \
   chown -R <site>:<site> /opt/omd/sites/<site> && \
+  chown -R root:root /opt/ydea-toolkit && \
   omd start <site> && \
   cmk -R
 
