@@ -168,6 +168,12 @@ if [[ ${#INCLUDE_ARGS[@]} -eq 0 ]]; then
   exit 1
 fi
 
+# Mostra esclusioni
+log "[INFO] Esclusioni attive:"
+for pattern in "${EXCLUDE_PATTERNS[@]}"; do
+  log "  ❌ Exclude: $pattern"
+done
+
 # Crea archivio
 cd "$SITE_BASE"
 
@@ -176,6 +182,8 @@ EXCLUDE_ARGS=()
 for pattern in "${EXCLUDE_PATTERNS[@]}"; do
   EXCLUDE_ARGS+=(--exclude="$pattern")
 done
+
+log "[DEBUG] Comando tar: tar czf <archive> ${EXCLUDE_ARGS[*]} ${INCLUDE_ARGS[*]}"
 
 if tar czf "$TMP_DIR/$ARCHIVE" "${EXCLUDE_ARGS[@]}" "${INCLUDE_ARGS[@]}" 2>&1 | tee -a "$LOG_FILE"; then
   ARCHIVE_SIZE=$(du -h "$TMP_DIR/$ARCHIVE" | cut -f1)
