@@ -187,14 +187,14 @@ EOF
 log "[INFO] Upload su storage remoto $RCLONE_REMOTE/$RCLONE_PATH"
 
 # Upload come utente site (ha configurazione rclone)
-if su - "$SITE" -c "rclone copy '$TMP_DIR/$ARCHIVE' '$RCLONE_REMOTE/$RCLONE_PATH/' --progress --config=\$HOME/.config/rclone/rclone.conf 2>&1" | tee -a "$LOG_FILE"; then
+if su - "$SITE" -c "rclone copy '$TMP_DIR/$ARCHIVE' '$RCLONE_REMOTE/$RCLONE_PATH/' --progress --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf 2>&1" | tee -a "$LOG_FILE"; then
   log "[OK] Upload archivio completato"
 else
   log "ERRORE: Upload archivio fallito"
   exit 1
 fi
 
-if su - "$SITE" -c "rclone copy '$TMP_DIR/$METADATA' '$RCLONE_REMOTE/$RCLONE_PATH/' --config=\$HOME/.config/rclone/rclone.conf 2>&1" | tee -a "$LOG_FILE"; then
+if su - "$SITE" -c "rclone copy '$TMP_DIR/$METADATA' '$RCLONE_REMOTE/$RCLONE_PATH/' --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf 2>&1" | tee -a "$LOG_FILE"; then
   log "[OK] Upload metadati completato"
 else
   log "WARNING: Upload metadati fallito (non critico)"
@@ -209,7 +209,7 @@ log "[OK] File temporanei rimossi"
 log "[INFO] Applicazione retention remota ($RETENTION_DAYS giorni)"
 
 # Lista backup ultra-minimal remoti
-REMOTE_BACKUPS=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH/' --format 'tp' --config=\$HOME/.config/rclone/rclone.conf 2>/dev/null" | grep "checkmk-ULTRA-MINIMAL.*\.tgz$" || true)
+REMOTE_BACKUPS=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH/' --format 'tp' --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf 2>/dev/null" | grep "checkmk-ULTRA-MINIMAL.*\.tgz$" || true)
 
 if [[ -z "$REMOTE_BACKUPS" ]]; then
   log "[INFO] Nessun backup remoto da verificare per retention"
@@ -230,11 +230,11 @@ else
       AGE_DAYS=$(( ($(date +%s) - FILE_DATE) / 86400 ))
       log "  🗑️  Cancello backup vecchio ($AGE_DAYS giorni): $filename"
       
-      su - "$SITE" -c "rclone delete '$RCLONE_REMOTE/$RCLONE_PATH/$filename' --config=\$HOME/.config/rclone/rclone.conf" 2>&1 | tee -a "$LOG_FILE"
+      su - "$SITE" -c "rclone delete '$RCLONE_REMOTE/$RCLONE_PATH/$filename' --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf" 2>&1 | tee -a "$LOG_FILE"
       
       # Cancella anche metadata associato
       METADATA_FILE="${filename%.tgz}.metadata.txt"
-      su - "$SITE" -c "rclone delete '$RCLONE_REMOTE/$RCLONE_PATH/$METADATA_FILE' --config=\$HOME/.config/rclone/rclone.conf 2>/dev/null" || true
+      su - "$SITE" -c "rclone delete '$RCLONE_REMOTE/$RCLONE_PATH/$METADATA_FILE' --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf 2>/dev/null" || true
     fi
   done <<< "$REMOTE_BACKUPS"
 fi
@@ -305,7 +305,7 @@ TROUBLESHOOTING:
 EOINSTRUCTIONS
 
 # Upload istruzioni restore
-if su - "$SITE" -c "rclone copyto '$RESTORE_INSTRUCTIONS' '$RCLONE_REMOTE/$RCLONE_PATH/RESTORE_INSTRUCTIONS_ULTRA_MINIMAL.txt' --config=\$HOME/.config/rclone/rclone.conf 2>/dev/null"; then
+if su - "$SITE" -c "rclone copyto '$RESTORE_INSTRUCTIONS' '$RCLONE_REMOTE/$RCLONE_PATH/RESTORE_INSTRUCTIONS_ULTRA_MINIMAL.txt' --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf 2>/dev/null"; then
   log "[OK] Istruzioni restore caricate su storage remoto"
 else
   log "[WARNING] Upload istruzioni restore fallito (non critico)"
