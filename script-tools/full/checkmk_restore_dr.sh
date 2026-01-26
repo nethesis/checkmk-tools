@@ -364,6 +364,17 @@ else
   exit 1
 fi
 
+# Sposta ydea-toolkit nella posizione corretta se estratto in $SITE_BASE
+if [[ -d "$SITE_BASE/ydea-toolkit" ]]; then
+  log "Sposto ydea-toolkit da $SITE_BASE/ydea-toolkit a /opt/ydea-toolkit..."
+  if [[ -d /opt/ydea-toolkit ]]; then
+    warn "Directory /opt/ydea-toolkit esiste già, la sovrascrivo"
+    rm -rf /opt/ydea-toolkit
+  fi
+  mv "$SITE_BASE/ydea-toolkit" /opt/ydea-toolkit
+  success "ydea-toolkit spostato in /opt/"
+fi
+
 ### RIPRISTINO PERMESSI ###
 title "🔐 Ripristino Permessi"
 
