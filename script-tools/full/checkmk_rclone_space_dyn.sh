@@ -342,65 +342,38 @@ if [[ "$RETENTION_DAYS_LOCAL" -gt 0 ]]; then
   log "Local cleanup completed (${kept} backup(s) remaining)."
 fi
 
-# Cleanup old remote backups - OPTIMIZED logic (keep only RETENTION_DAYS_REMOTE most recent)
+# Cleanup old remote backups - SIMPLIFIED logic (keep only RETENTION_DAYS_REMOTE most recent)
 if [[ "$RETENTION_DAYS_REMOTE" -gt 0 ]]; then
   log "Cleaning up remote backups (keeping only ${RETENTION_DAYS_REMOTE} most recent)..."
   
-  # List all items in remote site path with timestamps
-  mapfile -t remote_items < <(
-    rclone lsf "$REMOTE_SITE_PATH" --format "tp" --separator $'\t' "${COMMON_OPTS[@]}" 2>/dev/null || true
+  # List all directories and archives (exclude metadata/info files)
+  mapfile -t all_backups < <(
+    rclone lsf "$REMOTE_SITE_PATH" --dirs-only "${COMMON_OPTS[@]}" 2>/dev/null || true
+    rclone lsf "$REMOTE_SITE_PATH" --files-only "${COMMON_OPTS[@]}" 2>/dev/null | grep -E '\.(tgz|tar\.gz|tar|zip)$' || true
   )
   
-  if [[ ${#remote_items[@]} -eq 0 ]]; then
+  if [[ ${#all_backups[@]} -eq 0 ]]; then
     log "No remote backups found (this might be the first upload)."
   else
-    # Parse and sort backups by timestamp
-    declare -A backup_times
-    now=$(date +%s)
+    # Sort by name (newest first - ISO date format sorts correctly)
+    mapfile -t sorted_backups < <(printf '%s\n' "${all_backups[@]}" | sort -r)
     
-    for item in "${remote_items[@]}"; do
-      IFS=$'\t' read -r timestamp path <<< "$item"
-      
-      if [[ -z "$timestamp" || -z "$path" ]]; then
-        continue
-      fi
-      
-      file_time=0
-      
-      # Parse timestamp (rclone format: 2026-01-20 19:23:46)
-      file_time=$(date -d "$timestamp" +%s 2>/dev/null || echo "0")
-      
-      # For S3 directories with default timestamp (2000-01-01), extract from filename
-      if [[ "$file_time" -lt 946684800 ]] && [[ "$path" =~ -([0-9]{4})-([0-9]{2})-([0-9]{2})-([0-9]{2})h([0-9]{2}) ]]; then
-        backup_date="${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}:${BASH_REMATCH[5]}:00"
-        file_time=$(date -d "$backup_date" +%s 2>/dev/null || echo "0")
-      fi
-      
-      # Store in associative array: timestamp -> path
-      if [[ $file_time -gt 0 ]]; then
-        backup_times["$file_time"]="$path"
-      else
-        log "WARNING: Could not parse timestamp for: $path"
-      fi
-    done
-    
-    # Sort timestamps (newest first) and keep only N most recent
+    # Keep only N most recent
     kept=0
-    for ts in $(printf '%s\n' "${!backup_times[@]}" | sort -nr); do
+    for backup in "${sorted_backups[@]}"; do
       kept=$((kept + 1))
-      path="${backup_times[$ts]}"
       
       if [[ $kept -gt $RETENTION_DAYS_REMOTE ]]; then
-        log "Deleting old remote backup: $path"
-        if [[ "$path" == */ ]]; then
-          # It's a directory
-          rclone purge "${REMOTE_SITE_PATH}/${path%/}" "${COMMON_OPTS[@]}" 2>/dev/null || true
+        log "Deleting old remote backup: $backup"
+        if [[ "$backup" == */ ]]; then
+          # It's a directory - purge it
+          rclone purge "${REMOTE_SITE_PATH}/${backup%/}" "${COMMON_OPTS[@]}" 2>/dev/null || true
         else
-          # It's a file
-          rclone delete "${REMOTE_SITE_PATH}/${path}" "${COMMON_OPTS[@]}" 2>/dev/null || true
+          # It's a file - delete it
+          rclone delete "${REMOTE_SITE_PATH}/${backup}" "${COMMON_OPTS[@]}" 2>/dev/null || true
         fi
       else
-        log "Keeping remote backup: $path"
+        log "Keeping remote backup: $backup"
       fi
     done
     
