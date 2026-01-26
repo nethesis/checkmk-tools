@@ -57,7 +57,7 @@ mkdir -p "$BACKUP_BASE" "$TMP_DIR"
 
 ### PRECHECK ###
 log "=== INIZIO BACKUP ULTRA-MINIMALE per site $SITE ==="
-log "[INFO] Backup SOLO configurazione hosts/rules (no utenti/notifiche)"
+log "[INFO] Backup configurazione completa: hosts, dashboard, notifiche, ydea-toolkit"
 
 if [[ ! -d "$SITE_BASE" ]]; then
   log "ERRORE: site $SITE non trovato in $SITE_BASE"
@@ -120,8 +120,8 @@ EOF
 
 log "[OK] Metadati raccolti"
 
-### BACKUP ULTRA-MINIMALE - SOLO HOSTS/RULES ###
-log "[INFO] Creazione backup ULTRA-MINIMALE (solo hosts e regole)"
+### BACKUP ULTRA-MINIMALE - CONFIG COMPLETA ###
+log "[INFO] Creazione backup ULTRA-MINIMALE (config completa)"
 
 # Lista ULTRA-RIDOTTA - solo configurazione hosts ATTIVA
 # NOTA: Path relativi a /opt (non più a /opt/omd/sites/monitoring)
@@ -283,8 +283,9 @@ log "Checksum: $CHECKSUM"
 log "Destinazione: $RCLONE_REMOTE/$RCLONE_PATH/"
 log "Retention: $RETENTION_DAYS giorni (backup ULTRA-MINIMAL mai cancellati)"
 log ""
-log "⚠️  NOTA: Questo backup include SOLO hosts e regole"
-log "    Post-restore da ricreare: utenti web, notifiche, viste, SSL"
+log "✅ NOTA: Questo backup include configurazione completa:"
+log "    ✓ Hosts/rules, ✓ Dashboard, ✓ Notifiche custom, ✓ Ydea-toolkit"
+log "    ❌ Da ricreare: utenti web, certificati SSL"
 
 # Crea file RESTORE_INSTRUCTIONS se non esiste
 RESTORE_INSTRUCTIONS="$TMP_DIR/RESTORE_INSTRUCTIONS_ULTRA_MINIMAL.txt"
@@ -305,31 +306,40 @@ PROCEDURA RESTORE:
 
 3. Scarica backup da storage remoto:
    su - <site>
-   rclone copy do:testmonbck/checkmk-backups/monitoring-ultra-minimal/<backup.tgz> /tmp/
+   rclone copy do:testmonbck/checkmk-backups/monitoring-minimal/<backup.tgz> /tmp/
 
-4. Estrai SOLO hosts/rules (sovrascrive configurazione esistente):
-   cd /opt/omd/sites/<site>
+4. Estrai configurazione completa in /opt (site + ydea-toolkit):
+   cd /opt
    tar xzf /tmp/<backup.tgz>
+   chown -R <site>:<site> /opt/omd/sites/<site>
+   chown -R root:root /opt/ydea-toolkit
 
 5. Riavvia site:
    omd start <site>
 
-6. RICONFIGURA MANUALMENTE:
-   - Crea utenti web o configura LDAP/SSO
-   - Reinstalla script notifiche custom (email, Telegram, Ydea, ecc.)
-   - Rigenera certificati SSL se necessario: omd update-apache-config
-   - Ricrea viste personalizzate dashboard
-   - Bake agents: cmk --bake-agents
+6. CONFIGURA SOLO:
+   - Password cmkadmin: cmk-passwd cmkadmin
+   - Utenti web (se necessario)
+   - Certificati SSL custom (se necessario)
 
 7. Verifica configurazione:
    cmk --list-hosts
    cmk -U    # update config
    cmk -R    # reload Apache
 
+COSA RIPRISTINATO AUTOMATICAMENTE:
+✅ Hosts/rules monitoring
+✅ Dashboard personalizzate
+✅ Bookmark utenti
+✅ Script notifiche custom (mail_realip, telegram, ydea)
+✅ Configurazione Ydea (.env, .env.ag, .env.la)
+✅ Setup backup UI
+
 RESTORE VELOCE (test):
   omd stop <site> && \
-  cd /opt/omd/sites/<site> && \
+  cd /opt && \
   tar xzf /tmp/<backup.tgz> && \
+  chown -R <site>:<site> /opt/omd/sites/<site> && \
   omd start <site> && \
   cmk -R
 
