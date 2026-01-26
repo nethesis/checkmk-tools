@@ -165,8 +165,8 @@ title "📦 File Disponibili"
 
 log "Recupero lista file da $RCLONE_REMOTE/$RCLONE_PATH..."
 
-# Lista tutti i file
-BACKUP_FILES=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket --files-only" | sort -r)
+# Lista tutti i file (incluse sottocartelle)
+BACKUP_FILES=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket --recursive" | sort -r)
 
 if [[ -z "$BACKUP_FILES" ]]; then
   error "Nessun file trovato in $RCLONE_REMOTE/$RCLONE_PATH"
