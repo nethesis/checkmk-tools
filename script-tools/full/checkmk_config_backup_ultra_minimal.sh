@@ -134,10 +134,11 @@ BACKUP_ITEMS=(
   "version"                           # ✅ Versione CheckMK installata
 )
 
-# ESCLUDI file pesanti da WATO (solo snapshot .tar.gz)
+# ESCLUDI file pesanti da WATO (solo snapshot .tar e log)
 EXCLUDE_PATTERNS=(
-  "var/check_mk/wato/snapshots"              # Directory snapshot intera (molto pesante)
-  "var/check_mk/wato/log"                    # Directory log intera
+  "var/check_mk/wato/snapshots/*.tar"        # Snapshot WATO storici (1.5MB)
+  "var/check_mk/wato/snapshots/workdir"      # Directory temporanea
+  "var/check_mk/wato/log/*.log"              # Log audit (1.3MB)
   "var/check_mk/wato/*/replication_changes*" # File replicazione distribuita
   "var/check_mk/wato/*/activation_state*"    # File stato attivazione temporanei
 )
