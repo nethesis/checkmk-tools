@@ -94,16 +94,22 @@ Kernel: $(uname -r)
 Host count: $(su - "$SITE" -c "cmk --list-hosts 2>/dev/null | wc -l" || echo "N/A")
 
 === BACKUP STRATEGY ===
-Tipo: ULTRA-MINIMALE (solo hosts/rules)
-Include: etc/check_mk/conf.d/, etc/check_mk/multisite.d/
-Escluso: snapshot WATO, utenti web, notifiche, viste, RRD, inventory, agent bakery
+Tipo: ULTRA-MINIMALE (config attiva completa, no snapshot storici)
+Include: etc/check_mk/conf.d/, etc/check_mk/multisite.d/, var/check_mk/wato/ (esclusi .tar.gz snapshot)
+Escluso: snapshot WATO storici, utenti web, notifiche custom, RRD, inventory, agent bakery
 Dimensione attesa: < 500 KB
+
+=== COSA INCLUSO ===
+✅ Hosts e regole monitoring
+✅ Dashboard personalizzate
+✅ Bookmark utenti
+✅ Configurazioni WATO attive
+✅ Setup notifiche base
 
 === COSA MANCA (DA RICREARE POST-RESTORE) ===
 - Snapshot WATO storici (rollback configurazioni passate)
 - Utenti web (creare manualmente o da LDAP)
-- Script notifiche custom (email, Telegram, Ydea, ecc.)
-- Viste personalizzate dashboard
+- Script notifiche custom esterni (Telegram, Ydea, email custom)
 - Grafici storici RRD
 - Agent Bakery
 - Storico inventory HW/SW
@@ -120,18 +126,23 @@ log "[INFO] Creazione backup ULTRA-MINIMALE (solo hosts e regole)"
 BACKUP_ITEMS=(
   "etc/check_mk/conf.d"               # ✅ CRITICO: File main.mk, wato_rules.mk (hosts/rules)
   "etc/check_mk/multisite.d"          # ✅ Configurazione multisite base
+  "var/check_mk/wato"                 # ✅ Dashboard, bookmark, config WATO
   "version"                           # ✅ Versione CheckMK installata
 )
 
+# ESCLUDI file pesanti da WATO (solo snapshot .tar.gz)
+EXCLUDE_PATTERNS=(
+  "var/check_mk/wato/snapshots/*.tar.gz"     # Snapshot storici pesanti
+  "var/check_mk/wato/log/*.tar.gz"           # Log compressi
+)
+
 # ESCLUSO INTENZIONALMENTE:
-# ❌ var/check_mk/wato - snapshot WATO (~3MB, copie storiche per rollback)
-# ❌ .version - file versione dettagliato (non essenziale)
 # ❌ etc/htpasswd - utenti web (da ricreare)
 # ❌ etc/auth.* - autenticazione (da ricreare)
 # ❌ etc/apache - config web server (defaults vanno bene)
 # ❌ etc/ssl - certificati SSL (da rigenerare)
 # ❌ etc/omd - config OMD (defaults vanno bene)
-# ❌ var/check_mk/web - viste personalizzate utenti
+# ❌ var/check_mk/web - viste personalizzate utenti (duplicate in wato)
 # ❌ local/share/check_mk/notifications - script notifiche custom
 # ❌ var/check_mk/rrd - dati storici grafici
 # ❌ var/check_mk/inventory_archive - archivio inventory HW/SW
@@ -157,7 +168,14 @@ fi
 
 # Crea archivio
 cd "$SITE_BASE"
-if tar czf "$TMP_DIR/$ARCHIVE" "${INCLUDE_ARGS[@]}" 2>&1 | tee -a "$LOG_FILE"; then
+
+# Costruisci argomenti esclusione
+EXCLUDE_ARGS=()
+for pattern in "${EXCLUDE_PATTERNS[@]}"; do
+  EXCLUDE_ARGS+=(--exclude="$pattern")
+done
+
+if tar czf "$TMP_DIR/$ARCHIVE" "${EXCLUDE_ARGS[@]}" "${INCLUDE_ARGS[@]}" 2>&1 | tee -a "$LOG_FILE"; then
   ARCHIVE_SIZE=$(du -h "$TMP_DIR/$ARCHIVE" | cut -f1)
   ARCHIVE_SIZE_BYTES=$(stat -c%s "$TMP_DIR/$ARCHIVE")
   log "[OK] Archivio creato: $ARCHIVE ($ARCHIVE_SIZE)"
