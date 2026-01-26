@@ -76,8 +76,8 @@ log "Sites disponibili sul sistema:"
 omd sites | tail -n +2 || true
 echo ""
 
-read -p "Nome del site [monitoring]: " SITE_INPUT
-SITE="${SITE_INPUT:-monitoring}"
+read -p "Nome del site [monitoring]: " SITE
+SITE="${SITE:-monitoring}"
 SITE_BASE="/opt/omd/sites/$SITE"
 
 if [[ ! -d "$SITE_BASE" ]]; then
@@ -93,17 +93,6 @@ success "Site '$SITE' trovato"
 # Costruisci path rclone basato sul site
 RCLONE_PATH="checkmk-backups/$SITE"
 RCLONE_CONF="/opt/omd/sites/$SITE/.config/rclone/rclone.conf"
-
-# Rileva automaticamente se esistono solo backup minimal
-log "Rilevamento tipo backup..."
-if su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH-minimal' --config='$RCLONE_CONF' --s3-no-check-bucket --max-depth 1 2>/dev/null" | grep -q '.' 2>/dev/null; then
-  STANDARD_FILES=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket --max-depth 1 2>/dev/null" | wc -l)
-  if [[ "$STANDARD_FILES" -eq 0 ]]; then
-    warn "Path standard vuoto, uso backup minimal"
-    RCLONE_PATH="checkmk-backups/$SITE-minimal"
-    success "Rilevati backup minimal in $RCLONE_PATH"
-  fi
-fi
 
 if [[ ! -f "$RCLONE_CONF" ]]; then
   warn "Configurazione rclone non trovata per site '$SITE'"
