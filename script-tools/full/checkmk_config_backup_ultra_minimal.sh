@@ -95,8 +95,8 @@ Host count: $(su - "$SITE" -c "cmk --list-hosts 2>/dev/null | wc -l" || echo "N/
 
 === BACKUP STRATEGY ===
 Tipo: ULTRA-MINIMALE (config attiva completa, no snapshot storici)
-Include: etc/check_mk/conf.d/, etc/check_mk/multisite.d/, var/check_mk/wato/, local/share/check_mk/notifications/
-Escluso: snapshot WATO storici, utenti web, RRD, inventory, agent bakery
+Include: omd/sites/$SITE/etc/check_mk/conf.d/, multisite.d/, wato/, notifications/, ydea-toolkit/
+Escluso: snapshot WATO storici, utenti web, RRD, inventory, agent bakery, cache
 Dimensione attesa: < 500 KB
 
 === COSA INCLUSO ===
@@ -106,6 +106,7 @@ Dimensione attesa: < 500 KB
 ✅ Configurazioni WATO attive
 ✅ Setup notifiche base
 ✅ Script notifiche custom (mail_realip, telegram, ydea)
+✅ Configurazione Ydea-Toolkit (.env, .env.ag, .env.la, premium-mon-config.json)
 
 === COSA MANCA (DA RICREARE POST-RESTORE) ===
 - Snapshot WATO storici (rollback configurazioni passate)
@@ -123,23 +124,27 @@ log "[OK] Metadati raccolti"
 log "[INFO] Creazione backup ULTRA-MINIMALE (solo hosts e regole)"
 
 # Lista ULTRA-RIDOTTA - solo configurazione hosts ATTIVA
+# NOTA: Path relativi a /opt (non più a /opt/omd/sites/monitoring)
 BACKUP_ITEMS=(
-  "etc/check_mk/conf.d"               # ✅ CRITICO: File main.mk, wato_rules.mk (hosts/rules)
-  "etc/check_mk/multisite.d"          # ✅ Configurazione multisite base
-  "etc/check_mk/backup.mk"            # ✅ Configurazione backup UI (360 bytes)
-  "local/share/check_mk/notifications" # ✅ Script notifiche custom (mail_realip, telegram, ydea)
-  "var/check_mk/wato"                 # ✅ Dashboard, bookmark, config WATO
-  "var/check_mk/web"                  # ✅ Dashboard utenti, viste personalizzate
-  "version"                           # ✅ Versione CheckMK installata
+  "omd/sites/$SITE/etc/check_mk/conf.d"               # ✅ CRITICO: File main.mk, wato_rules.mk (hosts/rules)
+  "omd/sites/$SITE/etc/check_mk/multisite.d"          # ✅ Configurazione multisite base
+  "omd/sites/$SITE/etc/check_mk/backup.mk"            # ✅ Configurazione backup UI (360 bytes)
+  "omd/sites/$SITE/local/share/check_mk/notifications" # ✅ Script notifiche custom (mail_realip, telegram, ydea)
+  "omd/sites/$SITE/var/check_mk/wato"                 # ✅ Dashboard, bookmark, config WATO
+  "omd/sites/$SITE/var/check_mk/web"                  # ✅ Dashboard utenti, viste personalizzate
+  "omd/sites/$SITE/version"                           # ✅ Versione CheckMK installata
+  "ydea-toolkit"                                       # ✅ Configurazione Ydea API (.env, .env.ag, .env.la, config)
 )
 
 # ESCLUDI file pesanti da WATO (solo snapshot .tar e log)
+# NOTA: Path relativi a /opt
 EXCLUDE_PATTERNS=(
-  "var/check_mk/wato/snapshots/*.tar"        # Snapshot WATO storici (1.5MB)
-  "var/check_mk/wato/snapshots/workdir"      # Directory temporanea
-  "var/check_mk/wato/log/*.log"              # Log audit (1.3MB)
-  "var/check_mk/wato/*/replication_changes*" # File replicazione distribuita
-  "var/check_mk/wato/*/activation_state*"    # File stato attivazione temporanei
+  "omd/sites/$SITE/var/check_mk/wato/snapshots/*.tar"        # Snapshot WATO storici (1.5MB)
+  "omd/sites/$SITE/var/check_mk/wato/snapshots/workdir"      # Directory temporanea
+  "omd/sites/$SITE/var/check_mk/wato/log/*.log"              # Log audit (1.3MB)
+  "omd/sites/$SITE/var/check_mk/wato/*/replication_changes*" # File replicazione distribuita
+  "omd/sites/$SITE/var/check_mk/wato/*/activation_state*"    # File stato attivazione temporanei
+  "ydea-toolkit/cache/*"                                      # Cache Ydea (temporanea)
 )
 
 # ESCLUSO INTENZIONALMENTE:
@@ -157,9 +162,9 @@ log "[INFO] Creazione archivio compresso..."
 # Crea lista file da includere
 INCLUDE_ARGS=()
 for item in "${BACKUP_ITEMS[@]}"; do
-  if [[ -e "$SITE_BASE/$item" ]]; then
+  if [[ -e "/opt/$item" ]]; then
     INCLUDE_ARGS+=("$item")
-    log "  ✅ Include: $item ($(du -sh "$SITE_BASE/$item" 2>/dev/null | cut -f1))"
+    log "  ✅ Include: $item ($(du -sh "/opt/$item" 2>/dev/null | cut -f1))"
   else
     log "  ⏭️  Skip: $item (non esiste)"
   fi
@@ -176,8 +181,8 @@ for pattern in "${EXCLUDE_PATTERNS[@]}"; do
   log "  ❌ Exclude: $pattern"
 done
 
-# Crea archivio
-cd "$SITE_BASE"
+# Crea archivio da /opt (non più da $SITE_BASE)
+cd /opt
 
 # Costruisci argomenti esclusione
 EXCLUDE_ARGS=()

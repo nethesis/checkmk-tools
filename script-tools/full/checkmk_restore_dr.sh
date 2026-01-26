@@ -343,6 +343,7 @@ mkdir -p "$BACKUP_OLD"
 log "Salvo configurazione attuale in $BACKUP_OLD..."
 tar czf "$BACKUP_OLD/etc-backup.tgz" -C "$SITE_BASE" etc 2>/dev/null || true
 tar czf "$BACKUP_OLD/local-backup.tgz" -C "$SITE_BASE" local 2>/dev/null || true
+tar czf "$BACKUP_OLD/ydea-toolkit-backup.tgz" -C /opt ydea-toolkit 2>/dev/null || true
 
 success "Backup di sicurezza creato"
 echo "  In caso di problemi: $BACKUP_OLD"
@@ -350,8 +351,8 @@ echo "  In caso di problemi: $BACKUP_OLD"
 ### ESTRAZIONE BACKUP ###
 title "📂 Ripristino Configurazione"
 
-log "Estraggo backup in $SITE_BASE..."
-if tar xzf "$TMP_DIR/$BACKUP_FILE" -C "$SITE_BASE" 2>&1 | tee /tmp/tar_extract.log; then
+log "Estraggo backup in /opt (site + ydea-toolkit)..."
+if tar xzf "$TMP_DIR/$BACKUP_FILE" -C /opt 2>&1 | tee /tmp/tar_extract.log; then
   success "Estrazione completata"
 else
   error "Errore durante l'estrazione!"
@@ -368,6 +369,9 @@ title "🔐 Ripristino Permessi"
 
 log "Ripristino ownership per user '$SITE'..."
 chown -R "$SITE:$SITE" "$SITE_BASE"
+log "Ripristino ownership per ydea-toolkit..."
+chown -R root:root /opt/ydea-toolkit 2>/dev/null || true
+chmod 644 /opt/ydea-toolkit/.env* 2>/dev/null || true
 success "Permessi ripristinati"
 
 ### RIAVVIO SITE ###
@@ -423,20 +427,18 @@ if confirm "Vuoi ricompilare la configurazione monitoring?"; then
   success "Configurazione ricompilata"
 fi
 
-### REINSTALLA YDEA-TOOLKIT ###
-title "🎫 Reinstallazione Componenti Esterni"
+### COMPONENTI ESTERNI ###
+title "⚙️  Configurazione Componenti Esterni"
 
-echo "Il backup non include cronjobs e configurazione /opt/ydea-toolkit"
+echo "✅ Ydea-Toolkit ripristinato da backup (/opt/ydea-toolkit/)"
+echo "✅ Script notifiche custom ripristinati"
 echo ""
-if confirm "Vuoi reinstallare integrazione Ydea-Toolkit ora?"; then
-  log "Scarico e installo ydea-toolkit..."
-  export CHECKMK_SITE="$SITE"
-  curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/Ydea-Toolkit/full/install-ydea-checkmk-integration.sh | bash
-  success "Integrazione Ydea installata"
+log "Verifica configurazione Ydea..."
+if [[ -f /opt/ydea-toolkit/.env ]]; then
+  success "File .env trovato"
+  echo "  YDEA_ID: $(grep YDEA_ID /opt/ydea-toolkit/.env | cut -d'=' -f2 | tr -d '"')"
 else
-  warn "Ricorda di reinstallare manualmente con:"
-  echo "  export CHECKMK_SITE=$SITE"
-  echo "  curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/Ydea-Toolkit/full/install-ydea-checkmk-integration.sh | bash"
+  warn "File .env non trovato, verifica manualmente"
 fi
 
 echo ""
