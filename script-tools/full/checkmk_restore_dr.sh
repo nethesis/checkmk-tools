@@ -448,6 +448,31 @@ fi
 ### CLEANUP ###
 rm -f "$TMP_DIR/$BACKUP_FILE" "$TMP_DIR/$METADATA_FILE"
 
+### CONFIGURAZIONE PASSWORD CMKADMIN ###
+title "🔑 Configurazione Password cmkadmin"
+
+echo "Vuoi impostare una nuova password per l'utente 'cmkadmin'?"
+echo ""
+if confirm "Impostare nuova password per cmkadmin?" "y"; then
+  echo ""
+  log "Inserisci la nuova password per 'cmkadmin':"
+  
+  # Usa htpasswd per impostare la password
+  if su - "$SITE" -c "htpasswd -m ~/etc/htpasswd cmkadmin" 2>&1; then
+    success "Password cmkadmin impostata correttamente"
+  else
+    warn "Errore nell'impostazione della password"
+    echo "Puoi impostarla manualmente con:"
+    echo "  su - $SITE"
+    echo "  htpasswd ~/etc/htpasswd cmkadmin"
+  fi
+else
+  warn "Password cmkadmin non modificata"
+  echo "Ricorda di cambiarla manualmente per sicurezza:"
+  echo "  su - $SITE"
+  echo "  htpasswd ~/etc/htpasswd cmkadmin"
+fi
+
 ### RIEPILOGO FINALE ###
 title "🎉 RESTORE COMPLETATO!"
 
