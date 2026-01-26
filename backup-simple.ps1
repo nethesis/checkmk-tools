@@ -234,7 +234,7 @@ if ($corruptionPercentage -gt $CORRUPTION_THRESHOLD) {
     Write-Host ""
     Write-Host "[ERRORE CRITICO] Rilevata corruzione massiva del repository!" -ForegroundColor Red
     Write-Host "  • Script corrotti: $corruptedScripts / $totalScripts ($corruptionPercentage%)" -ForegroundColor Red
-    Write-Host "  • Soglia sicurezza: $CORRUPTION_THRESHOLD%" -ForegroundColor Yellow
+    Write-Host "  • Soglia sicurezza: $($CORRUPTION_THRESHOLD)%" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "[BACKUP ANNULLATO] Per evitare di propagare la corruzione ai backup esistenti!" -ForegroundColor Red
     Write-Host ""
@@ -440,7 +440,7 @@ Write-Host "================================================================"
 Write-Host ""
 
 $existingBackups = Get-ChildItem -Path $LOCAL_BACKUP_BASE -Directory | 
-    Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$' } |
+    Where-Object { $_.Name -match '^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\z' } |
     Sort-Object Name -Descending
 
 $backupCount = $existingBackups.Count
