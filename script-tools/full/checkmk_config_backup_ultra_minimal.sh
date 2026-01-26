@@ -95,8 +95,8 @@ Host count: $(su - "$SITE" -c "cmk --list-hosts 2>/dev/null | wc -l" || echo "N/
 
 === BACKUP STRATEGY ===
 Tipo: ULTRA-MINIMALE (config attiva completa, no snapshot storici)
-Include: etc/check_mk/conf.d/, etc/check_mk/multisite.d/, var/check_mk/wato/ (esclusi .tar.gz snapshot)
-Escluso: snapshot WATO storici, utenti web, notifiche custom, RRD, inventory, agent bakery
+Include: etc/check_mk/conf.d/, etc/check_mk/multisite.d/, var/check_mk/wato/, local/share/check_mk/notifications/
+Escluso: snapshot WATO storici, utenti web, RRD, inventory, agent bakery
 Dimensione attesa: < 500 KB
 
 === COSA INCLUSO ===
@@ -105,11 +105,11 @@ Dimensione attesa: < 500 KB
 ✅ Bookmark utenti
 ✅ Configurazioni WATO attive
 ✅ Setup notifiche base
+✅ Script notifiche custom (mail_realip, telegram, ydea)
 
 === COSA MANCA (DA RICREARE POST-RESTORE) ===
 - Snapshot WATO storici (rollback configurazioni passate)
 - Utenti web (creare manualmente o da LDAP)
-- Script notifiche custom esterni (Telegram, Ydea, email custom)
 - Grafici storici RRD
 - Agent Bakery
 - Storico inventory HW/SW
@@ -127,6 +127,7 @@ BACKUP_ITEMS=(
   "etc/check_mk/conf.d"               # ✅ CRITICO: File main.mk, wato_rules.mk (hosts/rules)
   "etc/check_mk/multisite.d"          # ✅ Configurazione multisite base
   "etc/check_mk/backup.mk"            # ✅ Configurazione backup UI (360 bytes)
+  "local/share/check_mk/notifications" # ✅ Script notifiche custom (mail_realip, telegram, ydea)
   "var/check_mk/wato"                 # ✅ Dashboard, bookmark, config WATO
   "var/check_mk/web"                  # ✅ Dashboard utenti, viste personalizzate
   "version"                           # ✅ Versione CheckMK installata
@@ -147,7 +148,6 @@ EXCLUDE_PATTERNS=(
 # ❌ etc/apache - config web server (defaults vanno bene)
 # ❌ etc/ssl - certificati SSL (da rigenerare)
 # ❌ etc/omd - config OMD (defaults vanno bene)
-# ❌ local/share/check_mk/notifications - script notifiche custom
 # ❌ var/check_mk/rrd - dati storici grafici
 # ❌ var/check_mk/inventory_archive - archivio inventory HW/SW
 # ❌ var/check_mk/agents - agent bakery
