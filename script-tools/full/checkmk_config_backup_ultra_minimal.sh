@@ -95,11 +95,12 @@ Host count: $(su - "$SITE" -c "cmk --list-hosts 2>/dev/null | wc -l" || echo "N/
 
 === BACKUP STRATEGY ===
 Tipo: ULTRA-MINIMALE (solo hosts/rules)
-Include: etc/check_mk/conf.d/, var/check_mk/wato/
-Escluso: utenti web, notifiche, viste, RRD, inventory, agent bakery
+Include: etc/check_mk/conf.d/, etc/check_mk/multisite.d/
+Escluso: snapshot WATO, utenti web, notifiche, viste, RRD, inventory, agent bakery
 Dimensione attesa: < 500 KB
 
 === COSA MANCA (DA RICREARE POST-RESTORE) ===
+- Snapshot WATO storici (rollback configurazioni passate)
 - Utenti web (creare manualmente o da LDAP)
 - Script notifiche custom (email, Telegram, Ydea, ecc.)
 - Viste personalizzate dashboard
@@ -115,16 +116,16 @@ log "[OK] Metadati raccolti"
 ### BACKUP ULTRA-MINIMALE - SOLO HOSTS/RULES ###
 log "[INFO] Creazione backup ULTRA-MINIMALE (solo hosts e regole)"
 
-# Lista ULTRA-RIDOTTA - solo configurazione hosts
+# Lista ULTRA-RIDOTTA - solo configurazione hosts ATTIVA
 BACKUP_ITEMS=(
   "etc/check_mk/conf.d"               # ✅ CRITICO: File main.mk, wato_rules.mk (hosts/rules)
   "etc/check_mk/multisite.d"          # ✅ Configurazione multisite base
-  "var/check_mk/wato"                 # ✅ CRITICO: Snapshot configurazioni WATO
   "version"                           # ✅ Versione CheckMK installata
-  ".version"                          # ✅ File versione dettagliato
 )
 
 # ESCLUSO INTENZIONALMENTE:
+# ❌ var/check_mk/wato - snapshot WATO (~3MB, copie storiche per rollback)
+# ❌ .version - file versione dettagliato (non essenziale)
 # ❌ etc/htpasswd - utenti web (da ricreare)
 # ❌ etc/auth.* - autenticazione (da ricreare)
 # ❌ etc/apache - config web server (defaults vanno bene)
