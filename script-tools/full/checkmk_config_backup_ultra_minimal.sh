@@ -39,7 +39,7 @@ TMP_DIR="$BACKUP_BASE/tmp"
 LOG_FILE="$BACKUP_BASE/backup-ultra-minimal.log"
 
 RCLONE_REMOTE="${RCLONE_REMOTE:-do:testmonbck}"
-RCLONE_PATH="${RCLONE_PATH:-checkmk-backups/monitoring-ultra-minimal}"
+RCLONE_PATH="${RCLONE_PATH:-checkmk-backups/monitoring-minimal}"
 
 RETENTION_DAYS="${RETENTION_DAYS:-90}"
 
@@ -182,13 +182,6 @@ cat >> "$TMP_DIR/$METADATA" <<EOF
 SHA256: $CHECKSUM
 Dimensione: $ARCHIVE_SIZE ($ARCHIVE_SIZE_BYTES bytes)
 EOF
-
-### CREA DIRECTORY REMOTA SE NON ESISTE ###
-log "[INFO] Verifica/creazione directory remota..."
-if ! su - "$SITE" -c "rclone lsd '$RCLONE_REMOTE/$RCLONE_PATH' --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf" >/dev/null 2>&1; then
-  log "[INFO] Directory remota non esiste, la creo..."
-  su - "$SITE" -c "rclone mkdir '$RCLONE_REMOTE/$RCLONE_PATH' --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf" 2>&1 | tee -a "$LOG_FILE"
-fi
 
 ### UPLOAD SU STORAGE REMOTO ###
 log "[INFO] Upload su storage remoto $RCLONE_REMOTE/$RCLONE_PATH"
