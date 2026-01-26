@@ -126,9 +126,7 @@ log "[INFO] Creazione backup ULTRA-MINIMALE (solo hosts e regole)"
 BACKUP_ITEMS=(
   "etc/check_mk/conf.d"               # ✅ CRITICO: File main.mk, wato_rules.mk (hosts/rules)
   "etc/check_mk/multisite.d"          # ✅ Configurazione multisite base
-  "etc/backup.mk"                     # ✅ Configurazione backup UI
-  "etc/backup_keys.mk"                # ✅ Chiavi backup
-  "etc/backup"                        # ✅ Directory backup
+  "etc/check_mk/backup.mk"            # ✅ Configurazione backup UI (360 bytes)
   "var/check_mk/wato"                 # ✅ Dashboard, bookmark, config WATO
   "var/check_mk/web"                  # ✅ Dashboard utenti, viste personalizzate
   "version"                           # ✅ Versione CheckMK installata
