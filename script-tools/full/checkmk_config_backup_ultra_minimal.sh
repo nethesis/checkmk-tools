@@ -127,6 +127,7 @@ BACKUP_ITEMS=(
   "etc/check_mk/conf.d"               # ✅ CRITICO: File main.mk, wato_rules.mk (hosts/rules)
   "etc/check_mk/multisite.d"          # ✅ Configurazione multisite base
   "var/check_mk/wato"                 # ✅ Dashboard, bookmark, config WATO
+  "var/check_mk/web"                  # ✅ Dashboard utenti, viste personalizzate
   "version"                           # ✅ Versione CheckMK installata
 )
 
@@ -144,7 +145,6 @@ EXCLUDE_PATTERNS=(
 # ❌ etc/apache - config web server (defaults vanno bene)
 # ❌ etc/ssl - certificati SSL (da rigenerare)
 # ❌ etc/omd - config OMD (defaults vanno bene)
-# ❌ var/check_mk/web - viste personalizzate utenti (duplicate in wato)
 # ❌ local/share/check_mk/notifications - script notifiche custom
 # ❌ var/check_mk/rrd - dati storici grafici
 # ❌ var/check_mk/inventory_archive - archivio inventory HW/SW
