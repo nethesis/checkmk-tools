@@ -111,7 +111,8 @@ function Test-ScriptIntegrity {
     else {
         try {
             $content = Get-Content $ScriptPath -Raw -ErrorAction Stop
-            if ([string]::IsNullOrWhiteSpace($content)) {
+            # Skip verifica contenuto vuoto per file nella whitelist
+            if ([string]::IsNullOrWhiteSpace($content) -and -not $canBeEmpty) {
                 Write-Host "✗ File corrotto o non leggibile: $relativePath" -ForegroundColor Red
                 return $false
             }
