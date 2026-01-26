@@ -99,11 +99,20 @@ $corruptedList = @()
 
 Write-Host "[INFO] Verifica di $totalScripts script..." -ForegroundColor Cyan
 
+# Whitelist file che possono essere legittimamente vuoti
+$allowedEmptyFiles = @(
+    "corrupted-files-list.txt",
+    ".gitkeep",
+    ".env"
+)
+
 foreach ($script in $scriptFiles) {
     $relativePath = $script.FullName.Replace($REPO_PATH, "").TrimStart('\')
+    $fileName = $script.Name
+    $canBeEmpty = $allowedEmptyFiles -contains $fileName
     
-    # Verifica file non vuoto
-    if ($script.Length -eq 0) {
+    # Verifica file non vuoto (a meno che non sia nella whitelist)
+    if ($script.Length -eq 0 -and -not $canBeEmpty) {
         $corruptedScripts++
         $corruptedList += "[VUOTO] $relativePath"
         continue

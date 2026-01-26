@@ -96,6 +96,15 @@ $categoryStats = @{
 foreach ($script in $allScripts) {
     $relativePath = $script.FullName.Replace($REPO_PATH, "").TrimStart('\')
     
+    # Whitelist file che possono essere legittimamente vuoti
+    $allowedEmptyFiles = @(
+        "corrupted-files-list.txt",
+        ".gitkeep",
+        ".env"
+    )
+    $fileName = $script.Name
+    $canBeEmpty = $allowedEmptyFiles -contains $fileName
+    
     # Determina tipo tramite estensione o shebang
     $scriptType = $script.Extension
     $category = 'Unknown'
@@ -206,7 +215,8 @@ foreach ($script in $allScripts) {
     if ($scriptType -in @(".bat", ".cmd")) {
         try {
             $content = Get-Content $script.FullName -Raw -ErrorAction Stop
-            if ([string]::IsNullOrWhiteSpace($content)) {
+            # Skip verifica vuoto per file nella whitelist
+            if ([string]::IsNullOrWhiteSpace($content) -and -not $canBeEmpty) {
                 $corruptedScripts++
                 $categoryStats[$category].Errors++
                 $corruptedList += "[VUOTO] $relativePath - File vuoto"
