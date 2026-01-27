@@ -40,10 +40,11 @@
    - ✅ Non eliminare mai backup senza conferma esplicita
 
 7. **Controllo integrità periodico automatico**
-   - ✅ Eseguire periodicamente (random) `.\check-integrity.ps1`
+   - ✅ Durante le conversazioni, proporre periodicamente `.\check-integrity.ps1 -SendEmail`
+   - ✅ Eseguire il controllo in momenti opportuni (dopo modifiche, commit importanti, richieste utente)
    - ✅ Inviare email se anche solo 1 file corrotto viene trovato
-   - ✅ Email deve includere: lista file corrotti, percentuale errori, dettagli
-   - ✅ Non inviare email se tutto OK (solo log locale)
+   - ✅ Email include: lista file corrotti, percentuale errori, dettagli
+   - ✅ Non inviare email se tutto OK (solo output console)
 
 **Esempio workflow corretto:**
 ```bash
