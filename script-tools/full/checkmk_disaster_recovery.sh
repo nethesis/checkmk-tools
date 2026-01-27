@@ -368,6 +368,34 @@ title "✅ Verifica Status Finale"
 echo ""
 omd status "$SITE_NAME"
 
+### CAMBIO PASSWORD CMKADMIN ###
+echo ""
+title "🔐 Cambio Password cmkadmin"
+
+echo ""
+warn "⚠️  IMPORTANTE: Per motivi di sicurezza, si consiglia di cambiare la password di cmkadmin"
+echo ""
+
+if confirm "Vuoi cambiare la password di cmkadmin ora?" "y"; then
+  echo ""
+  log "Cambio password per utente 'cmkadmin' del site '$SITE_NAME'..."
+  echo ""
+  
+  # Esegui cmk-passwd come utente del site
+  if su - "$SITE_NAME" -c "cmk-passwd cmkadmin"; then
+    echo ""
+    success "Password cmkadmin cambiata con successo"
+  else
+    echo ""
+    warn "Cambio password fallito o annullato"
+    echo "Puoi cambiarla manualmente con: su - $SITE_NAME -c 'cmk-passwd cmkadmin'"
+  fi
+else
+  echo ""
+  warn "Password NON cambiata"
+  echo "Ricorda di cambiarla manualmente: su - $SITE_NAME -c 'cmk-passwd cmkadmin'"
+fi
+
 ### RIEPILOGO FINALE ###
 echo ""
 title "🎉 DISASTER RECOVERY COMPLETATO!"
