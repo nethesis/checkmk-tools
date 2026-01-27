@@ -258,41 +258,81 @@ while IFS= read -r filename; do
 done <<< "$BACKUP_FILES"
 
 echo ""
-read -p "Seleziona numero (1-$((i-1))) o 'q' per uscire: " selection
+echo "Esempi di selezione:"
+echo "  - Singolo:  5"
+echo "  - Multipli: 1,3,5"
+echo "  - Range:    1-5"
+echo "  - Misto:    1,3-7,10"
+echo ""
+read -p "Seleziona numero/i (1-$((i-1))) o 'q' per uscire: " selection
 
 if [[ "$selection" == "q" ]]; then
   error "Operazione annullata"
   exit 0
 fi
 
-if [[ ! "$selection" =~ ^[0-9]+$ ]] || [[ "$selection" -lt 1 ]] || [[ "$selection" -ge "$i" ]]; then
-  error "Selezione non valida"
-  exit 1
-fi
+# Espandi range e converti in array di numeri
+declare -a SELECTED_NUMBERS
+IFS=',' read -ra PARTS <<< "$selection"
+for part in "${PARTS[@]}"; do
+  part=$(echo "$part" | xargs)  # Trim whitespace
+  
+  if [[ "$part" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+    # Range: 3-7
+    start="${BASH_REMATCH[1]}"
+    end="${BASH_REMATCH[2]}"
+    for ((n=start; n<=end; n++)); do
+      SELECTED_NUMBERS+=("$n")
+    done
+  elif [[ "$part" =~ ^[0-9]+$ ]]; then
+    # Singolo numero
+    SELECTED_NUMBERS+=("$part")
+  else
+    error "Formato non valido: '$part'"
+    exit 1
+  fi
+done
 
-SELECTED_ITEM="${ITEM_MAP[$selection]}"
-SELECTED_TYPE="${ITEM_TYPE[$selection]}"
+# Valida tutti i numeri selezionati
+for num in "${SELECTED_NUMBERS[@]}"; do
+  if [[ "$num" -lt 1 ]] || [[ "$num" -ge "$i" ]]; then
+    error "Numero fuori range: $num (validi: 1-$((i-1)))"
+    exit 1
+  fi
+done
 
-if [[ "$SELECTED_TYPE" == "dir" ]]; then
-  success "Selezionata directory: $SELECTED_ITEM"
-else
-  success "Selezionato file: $SELECTED_ITEM"
-fi
+# Rimuovi duplicati e ordina
+SELECTED_NUMBERS=($(printf '%s\n' "${SELECTED_NUMBERS[@]}" | sort -nu))
+
+echo ""
+success "Selezionati ${#SELECTED_NUMBERS[@]} backup:"
+for num in "${SELECTED_NUMBERS[@]}"; do
+  ITEM="${ITEM_MAP[$num]}"
+  TYPE="${ITEM_TYPE[$num]}"
+  if [[ "$TYPE" == "dir" ]]; then
+    echo "  [$num] 📁 $ITEM/"
+  else
+    echo "  [$num] 📄 $ITEM"
+  fi
+done
 
 ### CONFERMA DOWNLOAD ###
 title "⚠️  Conferma Download"
 
-if [[ "$SELECTED_TYPE" == "dir" ]]; then
-  echo "Stai per scaricare la directory:"
-  echo "  - Directory: $SELECTED_ITEM/"
-  echo "  - Da: $RCLONE_REMOTE/$RCLONE_PATH/"
-  echo "  - A: $DOWNLOAD_DIR/"
-else
-  echo "Stai per scaricare il file:"
-  echo "  - File: $SELECTED_ITEM"
-  echo "  - Da: $RCLONE_REMOTE/$RCLONE_PATH/"
-  echo "  - A: $DOWNLOAD_DIR/"
-fi
+echo "Stai per scaricare ${#SELECTED_NUMBERS[@]} backup:"
+echo ""
+for num in "${SELECTED_NUMBERS[@]}"; do
+  ITEM="${ITEM_MAP[$num]}"
+  TYPE="${ITEM_TYPE[$num]}"
+  if [[ "$TYPE" == "dir" ]]; then
+    echo "  📁 $ITEM/ → $DOWNLOAD_DIR/$ITEM/"
+  else
+    echo "  📄 $ITEM → $DOWNLOAD_DIR/$ITEM"
+  fi
+done
+echo ""
+echo "Da: $RCLONE_REMOTE/$RCLONE_PATH/"
+echo "A:  $DOWNLOAD_DIR/"
 echo ""
 
 if ! confirm "Vuoi procedere?" "y"; then
@@ -306,66 +346,96 @@ title "⬇️  Download"
 # Crea directory destinazione
 mkdir -p "$DOWNLOAD_DIR"
 
-if [[ "$SELECTED_TYPE" == "dir" ]]; then
-  # Download directory completa
-  log "Scarico directory $SELECTED_ITEM/..."
-  if rclone copy "$RCLONE_REMOTE/$RCLONE_PATH/$SELECTED_ITEM" "$DOWNLOAD_DIR/$SELECTED_ITEM" \
-    --config="$RCLONE_CONF" \
-    --s3-no-check-bucket \
-    --progress; then
-    
-    success "Download completato"
-    
-    # Verifica directory
-    if [[ -d "$DOWNLOAD_DIR/$SELECTED_ITEM" ]]; then
-      DIR_SIZE=$(du -sh "$DOWNLOAD_DIR/$SELECTED_ITEM" | cut -f1)
-      success "Directory salvata: $DOWNLOAD_DIR/$SELECTED_ITEM/ ($DIR_SIZE)"
-      echo ""
-      echo "Contenuto:"
-      ls -lh "$DOWNLOAD_DIR/$SELECTED_ITEM/"
-    else
-      error "Directory non trovata dopo il download"
-      exit 1
-    fi
-  else
-    error "Download fallito"
-    exit 1
-  fi
+# Array per tracciare successi/fallimenti
+declare -a DOWNLOADED_ITEMS
+declare -a FAILED_ITEMS
+
+# Download di tutti gli elementi selezionati
+for num in "${SELECTED_NUMBERS[@]}"; do
+  SELECTED_ITEM="${ITEM_MAP[$num]}"
+  SELECTED_TYPE="${ITEM_TYPE[$num]}"
   
-  DOWNLOADED_PATH="$DOWNLOAD_DIR/$SELECTED_ITEM/"
+  echo ""
+  log "[$num/${#SELECTED_NUMBERS[@]}] Processing: $SELECTED_ITEM"
   
-else
-  # Download file singolo
-  log "Scarico file $SELECTED_ITEM..."
-  if rclone copy "$RCLONE_REMOTE/$RCLONE_PATH" "$DOWNLOAD_DIR/" \
-    --config="$RCLONE_CONF" \
-    --s3-no-check-bucket \
-    --include "$SELECTED_ITEM" \
-    --progress; then
-    
-    success "Download completato"
-    
-    # Verifica file
-    DOWNLOADED_FILE="$DOWNLOAD_DIR/$SELECTED_ITEM"
-    if [[ -f "$DOWNLOADED_FILE" ]]; then
-      FILE_SIZE=$(du -h "$DOWNLOADED_FILE" | cut -f1)
-      success "File salvato: $DOWNLOADED_FILE ($FILE_SIZE)"
+  if [[ "$SELECTED_TYPE" == "dir" ]]; then
+    # Download directory completa
+    log "  Scarico directory $SELECTED_ITEM/..."
+    if rclone copy "$RCLONE_REMOTE/$RCLONE_PATH/$SELECTED_ITEM" "$DOWNLOAD_DIR/$SELECTED_ITEM" \
+      --config="$RCLONE_CONF" \
+      --s3-no-check-bucket \
+      --progress; then
       
-      # Mostra permessi
-      ls -lh "$DOWNLOADED_FILE"
+      # Verifica directory
+      if [[ -d "$DOWNLOAD_DIR/$SELECTED_ITEM" ]]; then
+        DIR_SIZE=$(du -sh "$DOWNLOAD_DIR/$SELECTED_ITEM" 2>/dev/null | cut -f1 || echo "N/A")
+        success "  ✅ Directory: $SELECTED_ITEM/ ($DIR_SIZE)"
+        DOWNLOADED_ITEMS+=("$SELECTED_ITEM/ ($DIR_SIZE)")
+      else
+        warn "  ⚠️  Directory non trovata dopo download: $SELECTED_ITEM/"
+        FAILED_ITEMS+=("$SELECTED_ITEM/ (directory not found)")
+      fi
     else
-      error "File non trovato dopo il download"
-      exit 1
+      error "  ❌ Download fallito: $SELECTED_ITEM/"
+      FAILED_ITEMS+=("$SELECTED_ITEM/ (download failed)")
     fi
+    
   else
-    error "Download fallito"
-    exit 1
+    # Download file singolo
+    log "  Scarico file $SELECTED_ITEM..."
+    if rclone copy "$RCLONE_REMOTE/$RCLONE_PATH" "$DOWNLOAD_DIR/" \
+      --config="$RCLONE_CONF" \
+      --s3-no-check-bucket \
+      --include "$SELECTED_ITEM" \
+      --progress; then
+      
+      # Verifica file
+      DOWNLOADED_FILE="$DOWNLOAD_DIR/$SELECTED_ITEM"
+      if [[ -f "$DOWNLOADED_FILE" ]]; then
+        FILE_SIZE=$(du -h "$DOWNLOADED_FILE" 2>/dev/null | cut -f1 || echo "N/A")
+        success "  ✅ File: $SELECTED_ITEM ($FILE_SIZE)"
+        DOWNLOADED_ITEMS+=("$SELECTED_ITEM ($FILE_SIZE)")
+      else
+        warn "  ⚠️  File non trovato dopo download: $SELECTED_ITEM"
+        FAILED_ITEMS+=("$SELECTED_ITEM (file not found)")
+      fi
+    else
+      error "  ❌ Download fallito: $SELECTED_ITEM"
+      FAILED_ITEMS+=("$SELECTED_ITEM (download failed)")
+    fi
   fi
-  
-  DOWNLOADED_PATH="$DOWNLOAD_DIR/$SELECTED_ITEM"
+done
+
+### RIEPILOGO FINALE ###
+echo ""
+title "📊 Riepilogo Download"
+
+if [[ ${#DOWNLOADED_ITEMS[@]} -gt 0 ]]; then
+  success "Download completati: ${#DOWNLOADED_ITEMS[@]}/${#SELECTED_NUMBERS[@]}"
+  echo ""
+  for item in "${DOWNLOADED_ITEMS[@]}"; do
+    echo "  ✅ $item"
+  done
+fi
+
+if [[ ${#FAILED_ITEMS[@]} -gt 0 ]]; then
+  echo ""
+  error "Download falliti: ${#FAILED_ITEMS[@]}/${#SELECTED_NUMBERS[@]}"
+  echo ""
+  for item in "${FAILED_ITEMS[@]}"; do
+    echo "  ❌ $item"
+  done
 fi
 
 echo ""
-success "✅ Operazione completata con successo!"
-echo ""
-echo "Scaricato in: $DOWNLOADED_PATH"
+if [[ ${#FAILED_ITEMS[@]} -eq 0 ]]; then
+  success "✅ Operazione completata con successo!"
+  echo ""
+  echo "Tutti i backup scaricati in: $DOWNLOAD_DIR/"
+  exit 0
+else
+  warn "⚠️  Operazione completata con errori"
+  echo ""
+  echo "Percorso download: $DOWNLOAD_DIR/"
+  exit 1
+fi
