@@ -368,33 +368,24 @@ title "✅ Verifica Status Finale"
 echo ""
 omd status "$SITE_NAME"
 
-### CAMBIO PASSWORD CMKADMIN ###
+### CAMBIO PASSWORD CMKADMIN (OBBLIGATORIO) ###
 echo ""
-title "🔐 Cambio Password cmkadmin"
+title "🔐 Cambio Password cmkadmin (OBBLIGATORIO)"
 
 echo ""
-warn "⚠️  IMPORTANTE: Per motivi di sicurezza, si consiglia di cambiare la password di cmkadmin"
+warn "⚠️  Per motivi di sicurezza, DEVI cambiare la password di cmkadmin"
+echo ""
+log "Imposta ora la nuova password per l'utente 'cmkadmin' del site '$SITE_NAME'"
 echo ""
 
-if confirm "Vuoi cambiare la password di cmkadmin ora?" "y"; then
+# Esegui cmk-passwd come utente del site (obbligatorio)
+if ! su - "$SITE_NAME" -c "cmk-passwd cmkadmin"; then
   echo ""
-  log "Cambio password per utente 'cmkadmin' del site '$SITE_NAME'..."
-  echo ""
-  
-  # Esegui cmk-passwd come utente del site
-  if su - "$SITE_NAME" -c "cmk-passwd cmkadmin"; then
-    echo ""
-    success "Password cmkadmin cambiata con successo"
-  else
-    echo ""
-    warn "Cambio password fallito o annullato"
-    echo "Puoi cambiarla manualmente con: su - $SITE_NAME -c 'cmk-passwd cmkadmin'"
-  fi
-else
-  echo ""
-  warn "Password NON cambiata"
-  echo "Ricorda di cambiarla manualmente: su - $SITE_NAME -c 'cmk-passwd cmkadmin'"
+  error "Cambio password fallito. Il disaster recovery non può completarsi senza una password sicura."
 fi
+
+echo ""
+success "Password cmkadmin cambiata con successo"
 
 ### RIEPILOGO FINALE ###
 echo ""
