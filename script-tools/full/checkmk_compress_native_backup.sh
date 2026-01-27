@@ -60,7 +60,7 @@ if [[ "$ALREADY_RENAMED" == "false" ]]; then
     CURRENT_MTIME=$(stat -c %Y "$SITE_TAR")
     
     if [[ "$CURRENT_MTIME" == "$LAST_MTIME" ]]; then
-      ((STABLE_COUNT++))
+      STABLE_COUNT=$((STABLE_COUNT + 1))
       echo -n "."
     else
       STABLE_COUNT=0
