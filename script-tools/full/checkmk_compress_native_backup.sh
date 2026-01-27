@@ -21,22 +21,56 @@ log() { echo -e "${GREEN}[$(date '+%H:%M:%S')]${NC} $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 
-### TROVA BACKUP PIÙ RECENTE ###
-log "Cerco backup nativi CheckMK in $BACKUP_DIR..."
+### TROVA BACKUP "COMPLETE" (SENZA TIMESTAMP) ###
+log "Cerco backup 'complete' in $BACKUP_DIR..."
 
-LATEST_BACKUP=$(find "$BACKUP_DIR" -maxdepth 1 -type d -name "Check_MK-*" | sort -r | head -1)
+COMPLETE_BACKUP=$(find "$BACKUP_DIR" -maxdepth 1 -type d -name "*-complete" -not -name "*-complete-*" | head -1)
 
-if [[ -z "$LATEST_BACKUP" ]]; then
-  error "Nessun backup CheckMK trovato in $BACKUP_DIR"
-  exit 1
+if [[ -z "$COMPLETE_BACKUP" ]]; then
+  warn "Nessun backup 'complete' trovato, cerco backup più recente con timestamp..."
+  COMPLETE_BACKUP=$(find "$BACKUP_DIR" -maxdepth 1 -type d -name "Check_MK-*-complete-*" | sort -r | head -1)
+  
+  if [[ -z "$COMPLETE_BACKUP" ]]; then
+    error "Nessun backup CheckMK trovato in $BACKUP_DIR"
+    exit 1
+  fi
+  
+  ALREADY_RENAMED=true
+else
+  ALREADY_RENAMED=false
 fi
 
-BACKUP_NAME=$(basename "$LATEST_BACKUP")
-SITE_TAR="$LATEST_BACKUP/site-$SITE.tar.gz"
+BACKUP_NAME=$(basename "$COMPLETE_BACKUP")
+SITE_TAR="$COMPLETE_BACKUP/site-$SITE.tar.gz"
 
 if [[ ! -f "$SITE_TAR" ]]; then
   error "File $SITE_TAR non trovato!"
   exit 1
+fi
+
+### ATTENDI STABILITÀ ###
+if [[ "$ALREADY_RENAMED" == "false" ]]; then
+  log "Attendo che il backup sia stabile (non modificato da 2 minuti)..."
+  
+  STABLE_COUNT=0
+  LAST_MTIME=$(stat -c %Y "$SITE_TAR")
+  
+  while [[ $STABLE_COUNT -lt 12 ]]; do  # 12 x 10sec = 2 minuti
+    sleep 10
+    CURRENT_MTIME=$(stat -c %Y "$SITE_TAR")
+    
+    if [[ "$CURRENT_MTIME" == "$LAST_MTIME" ]]; then
+      ((STABLE_COUNT++))
+      echo -n "."
+    else
+      STABLE_COUNT=0
+      LAST_MTIME=$CURRENT_MTIME
+      echo -n "⟳"
+    fi
+  done
+  
+  echo ""
+  log "✅ Backup stabile, procedo con compressione"
 fi
 
 ORIGINAL_SIZE=$(du -h "$SITE_TAR" | cut -f1)
@@ -129,8 +163,35 @@ log "Sostituisco file originale con versione compressa..."
 mv "$COMPRESSED_TEMP" "$SITE_TAR"
 chown monitoring:monitoring "$SITE_TAR"
 chmod 600 "$SITE_TAR"
-LOCAL_PATH="$SITE_TAR"
 log "✅ File sostituito: $SITE_TAR ($COMPRESSED_SIZE)"
+
+### RINOMINA DIRECTORY CON TIMESTAMP ###
+if [[ "$ALREADY_RENAMED" == "false" ]]; then
+  TIMESTAMP=$(date +%Y-%m-%d-%Hh%M)
+  NEW_NAME="${BACKUP_NAME}-${TIMESTAMP}"
+  NEW_PATH="$BACKUP_DIR/$NEW_NAME"
+  
+  log "Rinomino directory con timestamp: $NEW_NAME"
+  mv "$COMPLETE_BACKUP" "$NEW_PATH"
+  
+  COMPLETE_BACKUP="$NEW_PATH"
+  BACKUP_NAME="$NEW_NAME"
+  log "✅ Directory rinominata"
+fi
+
+### UPLOAD RCLONE ###
+log "Upload su $RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_NAME/..."
+
+# Upload intera directory preservando nome
+PARENT_DIR=$(dirname "$COMPLETE_BACKUP")
+if su - "$SITE" -c "rclone copy '$PARENT_DIR/$BACKUP_NAME' '$RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_NAME/' --progress --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf"; then
+  log "✅ Upload completato"
+  log "   - mkbackup.info"
+  log "   - site-$SITE.tar.gz ($COMPRESSED_SIZE)"
+else
+  error "Upload fallito!"
+  exit 1
+fi
 
 ### RIEPILOGO ###
 echo ""
@@ -139,11 +200,10 @@ log "Backup originale:    $ORIGINAL_SIZE"
 log "Backup compresso:    $COMPRESSED_SIZE"
 log "Riduzione:           ${REDUCTION}%"
 log "Rimosso:             $(numfmt --to=iec $REMOVED_SIZE)"
-log "Directory locale:    $LATEST_BACKUP/"
+log "Directory locale:    $COMPLETE_BACKUP/"
 log "  - mkbackup.info"
 log "  - site-$SITE.tar.gz"
-echo ""
-log "💡 Nota: Upload su cloud gestito dalla unit di backup"
+log "Cloud:               $RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_NAME/"
 echo ""
 
 exit 0
