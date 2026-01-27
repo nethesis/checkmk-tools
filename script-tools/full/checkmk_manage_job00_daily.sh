@@ -115,8 +115,9 @@ else
     chown monitoring:monitoring "$SITE_TAR" 2>/dev/null || chown $SITE:$SITE "$SITE_TAR"
     chmod 600 "$SITE_TAR"
     
-    # Rinomina con timestamp
-    TIMESTAMP=$(date +%Y-%m-%d-%Hh%M)
+    # Rinomina con timestamp del backup (non ora corrente)
+    BACKUP_MTIME=$(stat -c %Y "$BACKUP")
+    TIMESTAMP=$(date -d @$BACKUP_MTIME +%Y-%m-%d-%Hh%M)
     NEW_NAME="${BACKUP_NAME}-${TIMESTAMP}"
     NEW_PATH="$BACKUP_DIR/$NEW_NAME"
     

@@ -60,8 +60,9 @@ log "📦 Backup size: $BACKUP_SIZE"
 if [[ "$BACKUP_NAME" =~ -[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}h[0-9]{2}$ ]]; then
     log "✅ Backup already processed (has timestamp)"
 else
-    # Rinomina con timestamp
-    TIMESTAMP=$(date +%Y-%m-%d-%Hh%M)
+    # Rinomina con timestamp del backup (non ora corrente)
+    BACKUP_MTIME=$(stat -c %Y "$BACKUP")
+    TIMESTAMP=$(date -d @$BACKUP_MTIME +%Y-%m-%d-%Hh%M)
     NEW_NAME="${BACKUP_NAME}-${TIMESTAMP}"
     NEW_PATH="$BACKUP_DIR/$NEW_NAME"
     
