@@ -140,6 +140,54 @@ if [[ -z "$RCLONE_CONF" ]] || [[ ! -f "$RCLONE_CONF" ]]; then
   fi
 else
   success "Configurazione rclone trovata: $RCLONE_CONF"
+  
+  # Test connessione rapida
+  log "Test connessione rclone..."
+  if ! rclone lsd "$RCLONE_REMOTE" --config="$RCLONE_CONF" --s3-no-check-bucket >/dev/null 2>&1; then
+    warn "Configurazione rclone non funzionante"
+    
+    if confirm "Vuoi riconfigurare rclone?" "y"; then
+      # Riconfigura
+      echo ""
+      echo "Inserisci le credenziali DigitalOcean Spaces:"
+      echo ""
+      read -p "Access Key ID: " ACCESS_KEY
+      read -sp "Secret Access Key: " SECRET_KEY
+      echo ""
+      read -p "Region [ams3]: " REGION
+      REGION="${REGION:-ams3}"
+      read -p "Endpoint [${REGION}.digitaloceanspaces.com]: " ENDPOINT
+      ENDPOINT="${ENDPOINT:-${REGION}.digitaloceanspaces.com}"
+      
+      REMOTE_NAME="${RCLONE_REMOTE%%:*}"
+      
+      log "Ricreo configurazione rclone remote '$REMOTE_NAME'..."
+      
+      # Cancella e ricrea
+      rclone config delete "$REMOTE_NAME" 2>/dev/null || true
+      rclone config create "$REMOTE_NAME" s3 \
+        provider='DigitalOcean' \
+        env_auth='false' \
+        access_key_id="$ACCESS_KEY" \
+        secret_access_key="$SECRET_KEY" \
+        region="$REGION" \
+        endpoint="$ENDPOINT" \
+        acl='private'
+      
+      if [[ $? -eq 0 ]]; then
+        success "Configurazione rclone ricreata"
+      else
+        error "Configurazione rclone fallita"
+        exit 1
+      fi
+    else
+      error "Configurazione rclone non funzionante"
+      echo "Correggi manualmente: nano $RCLONE_CONF"
+      exit 1
+    fi
+  else
+    success "Configurazione rclone funzionante"
+  fi
 fi
 
 ### SELEZIONE PATH BUCKET ###
