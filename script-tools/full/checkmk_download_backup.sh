@@ -72,8 +72,8 @@ fi
 ### SELEZIONE DESTINAZIONE DOWNLOAD ###
 title "📂 Destinazione Download"
 
-read -p "Directory download [/tmp/checkmk-backups]: " DOWNLOAD_DIR
-DOWNLOAD_DIR="${DOWNLOAD_DIR:-/tmp/checkmk-backups}"
+read -p "Directory download [/var/backups/checkmk]: " DOWNLOAD_DIR
+DOWNLOAD_DIR="${DOWNLOAD_DIR:-/var/backups/checkmk}"
 
 mkdir -p "$DOWNLOAD_DIR"
 log "Directory download: $DOWNLOAD_DIR"
