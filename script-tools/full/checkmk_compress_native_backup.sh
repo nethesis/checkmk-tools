@@ -7,6 +7,7 @@ set -euo pipefail
 BACKUP_DIR="/var/backups/checkmk"
 SITE="${1:-monitoring}"
 TMP_DIR="/opt/checkmk-backup/tmp"
+LOCAL_BACKUP_DIR="/opt/checkmk-backup/compressed"
 RCLONE_REMOTE="${RCLONE_REMOTE:-do:testmonbck}"
 RCLONE_PATH="${RCLONE_PATH:-checkmk-backups/monitoring-compressed}"
 
@@ -105,6 +106,13 @@ log "📊 Riduzione dimensione: ${REDUCTION}%"
 cd "$TMP_DIR"
 rm -rf "$TMP_DIR/extract"
 
+### COPIA LOCALE ###
+mkdir -p "$LOCAL_BACKUP_DIR"
+log "Copio backup in $LOCAL_BACKUP_DIR..."
+cp "$TMP_DIR/$COMPRESSED_NAME" "$LOCAL_BACKUP_DIR/"
+LOCAL_PATH="$LOCAL_BACKUP_DIR/$COMPRESSED_NAME"
+log "✅ Copia locale salvata"
+
 ### UPLOAD RCLONE ###
 log "Upload su $RCLONE_REMOTE/$RCLONE_PATH/..."
 
@@ -115,7 +123,7 @@ else
   exit 1
 fi
 
-### CLEANUP LOCALE ###
+### CLEANUP TMP ###
 rm -f "$TMP_DIR/$COMPRESSED_NAME"
 
 ### RIEPILOGO ###
@@ -125,7 +133,8 @@ log "Backup originale:    $ORIGINAL_SIZE"
 log "Backup compresso:    $COMPRESSED_SIZE"
 log "Riduzione:           ${REDUCTION}%"
 log "Rimosso:             $(numfmt --to=iec $REMOVED_SIZE)"
-log "Destinazione:        $RCLONE_REMOTE/$RCLONE_PATH/$COMPRESSED_NAME"
+log "Locale:              $LOCAL_PATH"
+log "Cloud:               $RCLONE_REMOTE/$RCLONE_PATH/$COMPRESSED_NAME"
 echo ""
 
 exit 0
