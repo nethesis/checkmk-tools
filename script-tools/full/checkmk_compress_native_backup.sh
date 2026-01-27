@@ -132,21 +132,6 @@ chmod 600 "$SITE_TAR"
 LOCAL_PATH="$SITE_TAR"
 log "✅ File sostituito: $SITE_TAR ($COMPRESSED_SIZE)"
 
-### UPLOAD RCLONE ###
-log "Upload su $RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_NAME/..."
-
-# Upload intera directory preservando nome
-# rclone copy copia il contenuto, quindi dobbiamo copiare dalla parent dir
-PARENT_DIR=$(dirname "$LATEST_BACKUP")
-if su - "$SITE" -c "rclone copy '$PARENT_DIR/$BACKUP_NAME' '$RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_NAME/' --progress --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf"; then
-  log "✅ Upload completato"
-  log "   - mkbackup.info"
-  log "   - site-$SITE.tar.gz ($COMPRESSED_SIZE)"
-else
-  error "Upload fallito!"
-  exit 1
-fi
-
 ### RIEPILOGO ###
 echo ""
 log "=== RIEPILOGO ==="
@@ -157,7 +142,8 @@ log "Rimosso:             $(numfmt --to=iec $REMOVED_SIZE)"
 log "Directory locale:    $LATEST_BACKUP/"
 log "  - mkbackup.info"
 log "  - site-$SITE.tar.gz"
-log "Cloud:               $RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_NAME/"
+echo ""
+log "💡 Nota: Upload su cloud gestito dalla unit di backup"
 echo ""
 
 exit 0
