@@ -56,28 +56,43 @@ log "✅ Estratto: $EXTRACTED_SIZE"
 ### ANALISI DIRECTORY PESANTI ###
 log "Analizzo directory pesanti..."
 
+# Il backup nativo ha struttura: monitoring/var/, monitoring/etc/, ecc.
+cd monitoring 2>/dev/null || { error "Struttura backup non riconosciuta"; exit 1; }
+
 echo ""
-echo "TOP 10 directory per dimensione:"
-du -sh var/check_mk/* 2>/dev/null | sort -rh | head -10 || true
+echo "TOP 15 directory per dimensione:"
+du -sh * 2>/dev/null | sort -rh | head -15 || true
+echo ""
+du -sh var/* 2>/dev/null | sort -rh | head -10 || true
 
 ### RIMOZIONE PARTI PESANTI ###
 log "Rimuovo componenti pesanti..."
 
-# Lista directory da rimuovere
+# Lista directory da rimuovere (path relativi da monitoring/)
 REMOVE_DIRS=(
-  "var/check_mk/rrd"                    # Dati storici grafici (300-400MB)
-  "var/check_mk/inventory_archive"      # Archivio inventory (50-100MB)
-  "var/check_mk/agents"                 # Agent bakery (20-50MB)
+  "var/nagios"                          # Dati RRD Nagios (250MB)
+  "checkmk-tools"                       # Repository git locale (150MB)
+  "monitoring"                          # File binario non necessario (19MB)
+  "var/check_mk/crashes"                # Crash reports (13MB)
+  "var/check_mk/rest_api"               # Cache REST API (3.7MB)
+  "var/check_mk/precompiled_checks"     # Check precompilati (3.6MB)
+  "var/check_mk/logwatch"               # Log logwatch (1.9MB)
   "var/check_mk/wato/snapshots"         # Snapshot WATO storici
-  "var/check_mk/wato/log"               # Log audit
+  "var/check_mk/wato/log"               # Log audit WATO
+  "var/check_mk/inventory_archive"      # Archivio inventory
+  "var/check_mk/background_jobs"        # Job background temporanei
   "var/log"                             # Log vari
+  "var/tmp"                             # File temporanei
   "tmp"                                 # File temporanei
+  ".bash_history"                       # Bash history
+  ".cache"                              # Cache varie
+  "debug_*.log"                         # Log debug
 )
 
 REMOVED_SIZE=0
 for dir in "${REMOVE_DIRS[@]}"; do
-  if [[ -d "$dir" ]]; then
-    DIR_SIZE=$(du -sb "$dir" | cut -f1)
+  if [[ -d "$dir" ]] || [[ -f "$dir" ]]; then
+    DIR_SIZE=$(du -sb "$dir" 2>/dev/null | cut -f1)
     REMOVED_SIZE=$((REMOVED_SIZE + DIR_SIZE))
     rm -rf "$dir"
     log "  ❌ Rimosso: $dir ($(numfmt --to=iec $DIR_SIZE))"
@@ -90,7 +105,9 @@ log "✅ Totale rimosso: $(numfmt --to=iec $REMOVED_SIZE)"
 COMPRESSED_NAME="checkmk-COMPRESSED-$SITE-$(date +%F_%H-%M-%S).tar.gz"
 log "Ricomprimo backup ottimizzato..."
 
-tar czf "$TMP_DIR/$COMPRESSED_NAME" . 2>&1 | tail -5
+# Torna alla root dell'estrazione (contiene monitoring/)
+cd ..
+tar czf "$TMP_DIR/$COMPRESSED_NAME" monitoring/ 2>&1 | tail -5
 
 COMPRESSED_SIZE=$(du -h "$TMP_DIR/$COMPRESSED_NAME" | cut -f1)
 COMPRESSED_BYTES=$(stat -c%s "$TMP_DIR/$COMPRESSED_NAME")
