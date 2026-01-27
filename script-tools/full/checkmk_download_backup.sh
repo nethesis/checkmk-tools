@@ -190,76 +190,102 @@ else
   fi
 fi
 
-### SELEZIONE PATH BUCKET ###
-title "🗂️  Path Bucket"
+### SELEZIONE JOB DA VISUALIZZARE ###
+title "🗂️  Selezione Job"
 
-echo "Path disponibili:"
-echo "  - checkmk-backups/job00-daily   (backup compressi giornalieri, retention 90)"
-echo "  - checkmk-backups/job01-weekly  (backup completi settimanali, retention 5)"
+echo "Quale/i job vuoi visualizzare?"
 echo ""
-read -p "Path bucket [checkmk-backups/job00-daily]: " RCLONE_PATH
-RCLONE_PATH="${RCLONE_PATH:-checkmk-backups/job00-daily}"
+echo "  1) 📦 job00-daily  - Backup compressi giornalieri (1.2M, retention 90)"
+echo "  2) 📦 job01-weekly - Backup completi settimanali (362M, retention 5)"
+echo "  3) 📦 Entrambi     - Mostra tutti i backup disponibili"
+echo ""
+read -p "Selezione [1-3, default: 3]: " JOB_CHOICE
+JOB_CHOICE="${JOB_CHOICE:-3}"
 
-### VERIFICA CONNESSIONE STORAGE ###
-title "📡 Verifica Connessione Storage Remoto"
+declare -a PATHS_TO_SCAN
+case $JOB_CHOICE in
+  1)
+    PATHS_TO_SCAN=("checkmk-backups/job00-daily")
+    log "Visualizzo solo job00-daily"
+    ;;
+  2)
+    PATHS_TO_SCAN=("checkmk-backups/job01-weekly")
+    log "Visualizzo solo job01-weekly"
+    ;;
+  3)
+    PATHS_TO_SCAN=("checkmk-backups/job00-daily" "checkmk-backups/job01-weekly")
+    log "Visualizzo entrambi i job"
+    ;;
+  *)
+    error "Selezione non valida"
+    exit 1
+    ;;
+esac
 
-log "Verifica connessione a $RCLONE_REMOTE/$RCLONE_PATH..."
-if ! rclone lsd "$RCLONE_REMOTE/$RCLONE_PATH" --config="$RCLONE_CONF" --s3-no-check-bucket >/dev/null 2>&1; then
-  error "Impossibile connettersi a $RCLONE_REMOTE/$RCLONE_PATH"
-  echo ""
-  echo "Verifica che:"
-  echo "  1. La cartella $RCLONE_PATH esiste nel bucket"
-  echo "  2. La configurazione rclone sia corretta: rclone config"
-  exit 1
-fi
-success "Connessione OK"
-
-### LISTA FILE E DIRECTORY DISPONIBILI ###
+### VERIFICA CONNESSIONE E LISTA BACKUP ###
 title "📦 Backup Disponibili"
 
-log "Recupero lista da $RCLONE_REMOTE/$RCLONE_PATH..."
-
-# Lista directory (backup nativi CheckMK)
-BACKUP_DIRS=$(rclone lsd "$RCLONE_REMOTE/$RCLONE_PATH" --config="$RCLONE_CONF" --s3-no-check-bucket 2>/dev/null | awk '{print $5}' | sort -r)
-
-# Lista file singoli (backup custom)
-BACKUP_FILES=$(rclone lsf "$RCLONE_REMOTE/$RCLONE_PATH" --config="$RCLONE_CONF" --s3-no-check-bucket --files-only --max-depth 1 2>/dev/null | sort -r)
-
-if [[ -z "$BACKUP_DIRS" ]] && [[ -z "$BACKUP_FILES" ]]; then
-  error "Nessun backup trovato in $RCLONE_REMOTE/$RCLONE_PATH"
-  exit 1
-fi
-
-echo ""
-echo "Backup disponibili:"
-echo ""
 i=1
 declare -A ITEM_MAP
 declare -A ITEM_TYPE
+declare -A ITEM_PATH
 
-# Mostra directory (backup nativi)
-while IFS= read -r dirname; do
-  [[ -z "$dirname" ]] && continue
-  ITEM_MAP[$i]="$dirname"
-  ITEM_TYPE[$i]="dir"
-  printf "%2d) 📁 %-60s [DIRECTORY]\n" "$i" "$dirname"
-  ((i++))
-done <<< "$BACKUP_DIRS"
-
-# Mostra file singoli (backup custom)
-while IFS= read -r filename; do
-  [[ -z "$filename" ]] && continue
-  ITEM_MAP[$i]="$filename"
-  ITEM_TYPE[$i]="file"
-  FILE_SIZE=$(rclone size "$RCLONE_REMOTE/$RCLONE_PATH/$filename" --json --config="$RCLONE_CONF" --s3-no-check-bucket 2>/dev/null | grep -oP '(?<="bytes":)\d+' || echo "0")
-  if [[ "$FILE_SIZE" -gt 0 ]]; then
-    FILE_SIZE_HR=$(numfmt --to=iec-i --suffix=B "$FILE_SIZE" 2>/dev/null || echo "$FILE_SIZE bytes")
-  else
-    FILE_SIZE_HR="N/A"
+for RCLONE_PATH in "${PATHS_TO_SCAN[@]}"; do
+  # Estrai nome job per etichetta
+  JOB_LABEL=""
+  if [[ "$RCLONE_PATH" == *"job00-daily"* ]]; then
+    JOB_LABEL="[job00-daily]"
+  elif [[ "$RCLONE_PATH" == *"job01-weekly"* ]]; then
+    JOB_LABEL="[job01-weekly]"
   fi
-  printf "%2d) 📄 %-50s [%s]\n" "$i" "$filename" "$FILE_SIZE_HR"
-  ((i++))
-done <<< "$BACKUP_FILES"
+  
+  log "Scansiono $RCLONE_REMOTE/$RCLONE_PATH..."
+  
+  # Verifica connessione
+  if ! rclone lsd "$RCLONE_REMOTE/$RCLONE_PATH" --config="$RCLONE_CONF" --s3-no-check-bucket >/dev/null 2>&1; then
+    warn "Path non accessibile: $RCLONE_PATH (potrebbe non esistere)"
+    continue
+  fi
+  
+  # Lista directory (backup nativi CheckMK)
+  BACKUP_DIRS=$(rclone lsd "$RCLONE_REMOTE/$RCLONE_PATH" --config="$RCLONE_CONF" --s3-no-check-bucket 2>/dev/null | awk '{print $5}' | sort -r)
+  
+  # Lista file singoli (backup custom)
+  BACKUP_FILES=$(rclone lsf "$RCLONE_REMOTE/$RCLONE_PATH" --config="$RCLONE_CONF" --s3-no-check-bucket --files-only --max-depth 1 2>/dev/null | sort -r)
+  
+  # Mostra directory (backup nativi)
+  while IFS= read -r dirname; do
+    [[ -z "$dirname" ]] && continue
+    ITEM_MAP[$i]="$dirname"
+    ITEM_TYPE[$i]="dir"
+    ITEM_PATH[$i]="$RCLONE_PATH"
+    printf "%2d) 📁 %-50s %s\n" "$i" "$dirname" "$JOB_LABEL"
+    ((i++))
+  done <<< "$BACKUP_DIRS"
+  
+  # Mostra file singoli (backup custom)
+  while IFS= read -r filename; do
+    [[ -z "$filename" ]] && continue
+    ITEM_MAP[$i]="$filename"
+    ITEM_TYPE[$i]="file"
+    ITEM_PATH[$i]="$RCLONE_PATH"
+    FILE_SIZE=$(rclone size "$RCLONE_REMOTE/$RCLONE_PATH/$filename" --json --config="$RCLONE_CONF" --s3-no-check-bucket 2>/dev/null | grep -oP '(?<="bytes":)\d+' || echo "0")
+    if [[ "$FILE_SIZE" -gt 0 ]]; then
+      FILE_SIZE_HR=$(numfmt --to=iec-i --suffix=B "$FILE_SIZE" 2>/dev/null || echo "$FILE_SIZE bytes")
+    else
+      FILE_SIZE_HR="N/A"
+    fi
+    printf "%2d) 📄 %-40s [%s] %s\n" "$i" "$filename" "$FILE_SIZE_HR" "$JOB_LABEL"
+    ((i++))
+  done <<< "$BACKUP_FILES"
+done
+
+if [[ $i -eq 1 ]]; then
+  error "Nessun backup trovato nei path selezionati"
+  exit 1
+fi
+
+success "Trovati $((i-1)) backup"
 
 echo ""
 echo "Esempi di selezione:"
@@ -328,14 +354,24 @@ echo ""
 for num in "${SELECTED_NUMBERS[@]}"; do
   ITEM="${ITEM_MAP[$num]}"
   TYPE="${ITEM_TYPE[$num]}"
+  PATH="${ITEM_PATH[$num]}"
+  
+  # Estrai nome job per visualizzazione
+  JOB_NAME="?"
+  if [[ "$PATH" == *"job00-daily"* ]]; then
+    JOB_NAME="job00-daily"
+  elif [[ "$PATH" == *"job01-weekly"* ]]; then
+    JOB_NAME="job01-weekly"
+  fi
+  
   if [[ "$TYPE" == "dir" ]]; then
-    echo "  📁 $ITEM/ → $DOWNLOAD_DIR/$ITEM/"
+    echo "  📁 [$JOB_NAME] $ITEM/ → $DOWNLOAD_DIR/$ITEM/"
   else
-    echo "  📄 $ITEM → $DOWNLOAD_DIR/$ITEM"
+    echo "  📄 [$JOB_NAME] $ITEM → $DOWNLOAD_DIR/$ITEM"
   fi
 done
 echo ""
-echo "Da: $RCLONE_REMOTE/$RCLONE_PATH/"
+echo "Da: $RCLONE_REMOTE/..."
 echo "A:  $DOWNLOAD_DIR/"
 echo ""
 
@@ -358,14 +394,15 @@ declare -a FAILED_ITEMS
 for num in "${SELECTED_NUMBERS[@]}"; do
   SELECTED_ITEM="${ITEM_MAP[$num]}"
   SELECTED_TYPE="${ITEM_TYPE[$num]}"
+  SELECTED_PATH="${ITEM_PATH[$num]}"
   
   echo ""
-  log "[$num/${#SELECTED_NUMBERS[@]}] Processing: $SELECTED_ITEM"
+  log "[$num/${#SELECTED_NUMBERS[@]}] Processing: $SELECTED_ITEM from $SELECTED_PATH"
   
   if [[ "$SELECTED_TYPE" == "dir" ]]; then
     # Download directory completa
     log "  Scarico directory $SELECTED_ITEM/..."
-    if rclone copy "$RCLONE_REMOTE/$RCLONE_PATH/$SELECTED_ITEM" "$DOWNLOAD_DIR/$SELECTED_ITEM" \
+    if rclone copy "$RCLONE_REMOTE/$SELECTED_PATH/$SELECTED_ITEM" "$DOWNLOAD_DIR/$SELECTED_ITEM" \
       --config="$RCLONE_CONF" \
       --s3-no-check-bucket \
       --progress; then
@@ -387,7 +424,7 @@ for num in "${SELECTED_NUMBERS[@]}"; do
   else
     # Download file singolo
     log "  Scarico file $SELECTED_ITEM..."
-    if rclone copy "$RCLONE_REMOTE/$RCLONE_PATH" "$DOWNLOAD_DIR/" \
+    if rclone copy "$RCLONE_REMOTE/$SELECTED_PATH" "$DOWNLOAD_DIR/" \
       --config="$RCLONE_CONF" \
       --s3-no-check-bucket \
       --include "$SELECTED_ITEM" \
