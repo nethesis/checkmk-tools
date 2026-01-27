@@ -86,7 +86,6 @@ REMOVE_PATHS=(
   "monitoring/var/check_mk/wato/log"               # Log audit WATO
   "monitoring/var/check_mk/inventory_archive"      # Archivio inventory
   "monitoring/var/check_mk/background_jobs"        # Job background temporanei
-  "monitoring/var/log"                             # Log vari (symlink warning non critici)
   "monitoring/var/tmp"                             # File temporanei
   "monitoring/tmp"                                 # File temporanei
 )
