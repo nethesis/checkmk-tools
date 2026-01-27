@@ -1,7 +1,7 @@
 # Wrapper per eseguire backup in modalità unattended con logging
 $ErrorActionPreference = "Continue"
 
-$SCRIPT_PATH = "C:\Users\Marzio\Desktop\CheckMK\checkmk-tools\backup-sync-complete.ps1"
+$SCRIPT_PATH = "C:\Users\Marzio\Desktop\CheckMK\checkmk-tools\backup-simple.ps1"
 $LOG_PATH = "C:\CheckMK-Backups\logs"
 $LOG_FILE = Join-Path $LOG_PATH "backup_$(Get-Date -Format 'yyyy-MM-dd').log"
 

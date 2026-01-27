@@ -7,24 +7,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# === CONTROLLO ORARIO NOTTURNO ===
-$currentHour = (Get-Date).Hour
-if ($currentHour -ge 20 -or $currentHour -lt 9) {
-    Write-Host ""
-    Write-Host "================================================================"
-    Write-Host "     BACKUP SOSPESO - ORARIO NOTTURNO"
-    Write-Host "================================================================"
-    Write-Host ""
-    Write-Host "[INFO] Ora corrente: ${currentHour}:$((Get-Date).Minute.ToString('00'))" -ForegroundColor Yellow
-    Write-Host "[INFO] Backup non consentito tra le 20:00 e le 09:00" -ForegroundColor Yellow
-    Write-Host "[INFO] Il backup si avviera' automaticamente durante il giorno" -ForegroundColor Green
-    Write-Host ""
-    if (-not $Unattended) {
-        Read-Host "Premi INVIO per uscire"
-    }
-    exit 0
-}
-
 # === CONFIGURAZIONE ===
 $REPO_PATH = "C:\Users\Marzio\Desktop\CheckMK\checkmk-tools"
 $LOCAL_BACKUP_BASE = "C:\CheckMK-Backups"
@@ -43,11 +25,17 @@ $EMAIL_TO = "marzio@nethesis.it"
 $EMAIL_CREDENTIAL_FILE = Join-Path $LOCAL_BACKUP_BASE "smtp_credential.xml"  # File credenziali crittografato
 $SEND_EMAIL = $true  # Email attivata
 
+# === VARIABILI GLOBALI PER EMAIL ERRORE ===
+$GLOBAL_ERROR_MESSAGE = ""
+
 Write-Host ""
 Write-Host "================================================================"
 Write-Host "     BACKUP COMPLETO REPOSITORY CHECKMK-TOOLS"
 Write-Host "================================================================"
 Write-Host ""
+
+# === INIZIO TRY GLOBALE PER GESTIONE ERRORI ===
+try {
 
 # Crea cartella backup se non esiste
 if (-not (Test-Path $LOCAL_BACKUP_BASE)) {
@@ -57,7 +45,7 @@ if (-not (Test-Path $LOCAL_BACKUP_BASE)) {
 # Verifica che il repository esista
 if (-not (Test-Path $REPO_PATH)) {
     Write-Host "[ERRORE] Repository non trovato: $REPO_PATH" -ForegroundColor Red
-    exit 1
+    throw "Repository non trovato: $REPO_PATH"
 }
 
 # === CONTROLLO INTEGRITA SCRIPT ===
@@ -612,3 +600,86 @@ Questo e un messaggio automatico generato dal sistema di backup.
 }
 
 exit 0
+
+} catch {
+    # === GESTIONE ERRORE GLOBALE CON INVIO EMAIL ===
+    $GLOBAL_ERROR_MESSAGE = $_.Exception.Message
+    $errorDetails = $_.Exception | Out-String
+    
+    Write-Host ""
+    Write-Host "================================================================" -ForegroundColor Red
+    Write-Host "    BACKUP FALLITO - ERRORE CRITICO" -ForegroundColor Red
+    Write-Host "================================================================" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "[ERRORE] $GLOBAL_ERROR_MESSAGE" -ForegroundColor Red
+    Write-Host ""
+    
+    # Invia email di errore
+    if ($SEND_EMAIL) {
+        try {
+            $emailSubject = "[CheckMK Backup] ERRORE - $TIMESTAMP"
+            
+            $emailBody = @"
+===============================================================
+       BACKUP FALLITO - ERRORE CRITICO
+===============================================================
+
+Data e ora: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+Host: $env:COMPUTERNAME
+Repository: $REPO_PATH
+
+---------------------------------------------------------------
+  DETTAGLIO ERRORE
+---------------------------------------------------------------
+$GLOBAL_ERROR_MESSAGE
+
+---------------------------------------------------------------
+  STACK TRACE
+---------------------------------------------------------------
+$errorDetails
+
+---------------------------------------------------------------
+  AZIONE RICHIESTA
+---------------------------------------------------------------
+Verificare manualmente il sistema di backup.
+Log disponibile in: C:\CheckMK-Backups\logs\
+
+===============================================================
+  NOTIFICA AUTOMATICA DI ERRORE
+===============================================================
+
+Questo e un messaggio automatico generato dal sistema di backup.
+"@
+            
+            $smtpParams = @{
+                SmtpServer = $SMTP_SERVER
+                Port = $SMTP_PORT
+                From = $EMAIL_FROM
+                To = $EMAIL_TO
+                Subject = $emailSubject
+                Body = $emailBody
+                Encoding = [System.Text.Encoding]::UTF8
+            }
+            
+            if ($SMTP_USE_SSL) {
+                $smtpParams.UseSsl = $true
+            }
+            
+            if (Test-Path $EMAIL_CREDENTIAL_FILE) {
+                $credential = Import-Clixml -Path $EMAIL_CREDENTIAL_FILE
+                $smtpParams.Credential = $credential
+                
+                Send-MailMessage @smtpParams -WarningAction SilentlyContinue
+                Write-Host "[OK] Email di errore inviata a: $EMAIL_TO" -ForegroundColor Green
+            } else {
+                Write-Host "[WARN] Impossibile inviare email: credenziali mancanti" -ForegroundColor Yellow
+            }
+            
+        } catch {
+            Write-Host "[WARN] Impossibile inviare email di errore: $_" -ForegroundColor Yellow
+        }
+    }
+    
+    Write-Host ""
+    exit 1
+}
