@@ -133,11 +133,12 @@ LOCAL_PATH="$SITE_TAR"
 log "✅ File sostituito: $SITE_TAR ($COMPRESSED_SIZE)"
 
 ### UPLOAD RCLONE ###
-CLOUD_PATH="$RCLONE_PATH/$BACKUP_NAME"
-log "Upload su $RCLONE_REMOTE/$CLOUD_PATH/..."
+log "Upload su $RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_NAME/..."
 
-# Upload intera directory (mkbackup.info + site-monitoring.tar.gz)
-if su - "$SITE" -c "rclone copy '$LATEST_BACKUP' '$RCLONE_REMOTE/$CLOUD_PATH/' --progress --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf"; then
+# Upload intera directory preservando nome
+# rclone copy copia il contenuto, quindi dobbiamo copiare dalla parent dir
+PARENT_DIR=$(dirname "$LATEST_BACKUP")
+if su - "$SITE" -c "rclone copy '$PARENT_DIR/$BACKUP_NAME' '$RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_NAME/' --progress --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf"; then
   log "✅ Upload completato"
   log "   - mkbackup.info"
   log "   - site-$SITE.tar.gz ($COMPRESSED_SIZE)"
@@ -156,7 +157,7 @@ log "Rimosso:             $(numfmt --to=iec $REMOVED_SIZE)"
 log "Directory locale:    $LATEST_BACKUP/"
 log "  - mkbackup.info"
 log "  - site-$SITE.tar.gz"
-log "Cloud:               $RCLONE_REMOTE/$CLOUD_PATH/"
+log "Cloud:               $RCLONE_REMOTE/$RCLONE_PATH/$BACKUP_NAME/"
 echo ""
 
 exit 0
