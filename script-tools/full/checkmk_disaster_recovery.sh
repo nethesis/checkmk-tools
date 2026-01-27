@@ -242,29 +242,37 @@ fi
 BACKUP_SIZE=$(du -h "$BACKUP_TARFILE" | cut -f1)
 success "Download completato ($BACKUP_SIZE)"
 
-### STOP SITE ESISTENTE ###
-title "⏸️  Stop Site Esistente"
+### VERIFICA SITE ESISTENTE ###
+title "🔍 Verifica Site Esistente"
 
+SITE_EXISTS=false
 if omd sites | grep -q "^$SITE_NAME "; then
-  warn "Site '$SITE_NAME' esistente rilevato"
+  SITE_EXISTS=true
+  warn "Site '$SITE_NAME' già esistente!"
+  echo ""
+  echo "Informazioni site corrente:"
+  omd sites | grep "^$SITE_NAME "
+  echo ""
+  omd status "$SITE_NAME" 2>/dev/null || true
+  echo ""
+  warn "⚠️  Per procedere con il restore, il site deve essere rimosso!"
+  echo ""
+  
+  if ! confirm "Vuoi RIMUOVERE il site esistente '$SITE_NAME' e continuare?" "n"; then
+    error "Operazione annullata. Site esistente non rimosso."
+  fi
+  
+  ### STOP E RIMOZIONE SITE ###
   log "Fermo il site..."
   omd stop "$SITE_NAME" 2>/dev/null || true
-  success "Site fermato"
-else
-  log "Nessun site esistente da fermare"
-fi
-
-### RIMOZIONE SITE ESISTENTE ###
-title "🗑️  Rimozione Site Esistente"
-
-if omd sites | grep -q "^$SITE_NAME "; then
-  warn "Rimuovo site esistente '$SITE_NAME'..."
+  
+  log "Rimuovo site esistente..."
   if ! omd rm --kill "$SITE_NAME"; then
     error "Rimozione site fallita"
   fi
-  success "Site rimosso"
+  success "Site rimosso con successo"
 else
-  log "Nessun site da rimuovere"
+  log "Nessun site esistente, procedo con restore pulito"
 fi
 
 ### RESTORE BACKUP ###
@@ -278,13 +286,16 @@ fi
 
 success "Backup ripristinato"
 
-### CREAZIONE DIRECTORY MANCANTI ###
+### POST-RESTORE: CONFIGURAZIONE SPECIFICA PER TIPO BACKUP ###
+SITE_DIR="/opt/omd/sites/$SITE_NAME"
+
 if [ "$IS_COMPRESSED" = true ]; then
-  title "📁 Creazione Directory Mancanti (Backup Compresso)"
+  # === BACKUP COMPRESSO (job00-daily) ===
+  title "📁 Post-Restore: Backup Compresso (job00-daily)"
   
-  SITE_DIR="/opt/omd/sites/$SITE_NAME"
+  log "Backup compresso rilevato - creo directory mancanti..."
   
-  # Directory critiche per backup compressi
+  # Directory critiche rimosse durante compressione
   REQUIRED_DIRS=(
     "$SITE_DIR/var/nagios"
     "$SITE_DIR/var/nagios/rrd"
@@ -296,21 +307,23 @@ if [ "$IS_COMPRESSED" = true ]; then
     "$SITE_DIR/var/check_mk/logwatch"
     "$SITE_DIR/var/check_mk/wato/snapshots"
     "$SITE_DIR/var/check_mk/wato/log"
+    "$SITE_DIR/var/check_mk/rest_api"
+    "$SITE_DIR/var/check_mk/precompiled_checks"
     "$SITE_DIR/var/tmp"
     "$SITE_DIR/tmp"
   )
   
   for dir in "${REQUIRED_DIRS[@]}"; do
     if [[ ! -d "$dir" ]]; then
-      log "  Creo: $dir"
+      log "  ✓ Creo: $(basename $dir)"
       mkdir -p "$dir"
     fi
   done
   
-  success "Directory create"
+  success "Directory mancanti create"
   
   ### CORREZIONE OWNERSHIP ###
-  title "🔧 Correzione Ownership e Permessi"
+  title "🔧 Correzione Ownership e Permessi (job00)"
   
   log "Correggo ownership ricorsivo..."
   chown -R "$SITE_NAME:$SITE_NAME" "$SITE_DIR/var/log" 2>/dev/null || true
@@ -323,7 +336,19 @@ if [ "$IS_COMPRESSED" = true ]; then
   chmod 755 "$SITE_DIR/var/log/nagios" 2>/dev/null || true
   chmod 755 "$SITE_DIR/var/nagios" 2>/dev/null || true
   
-  success "Ownership e permessi corretti"
+  success "Ownership e permessi corretti per backup compresso"
+  
+else
+  # === BACKUP COMPLETO (job01-weekly) ===
+  title "✅ Post-Restore: Backup Completo (job01-weekly)"
+  
+  log "Backup completo rilevato - nessuna directory da ricreare"
+  log "Verifico solo ownership base..."
+  
+  # Verifica ownership generale (non ricorsivo)
+  chown "$SITE_NAME:$SITE_NAME" "$SITE_DIR" 2>/dev/null || true
+  
+  success "Backup completo ripristinato correttamente"
 fi
 
 ### AVVIO SITE ###
