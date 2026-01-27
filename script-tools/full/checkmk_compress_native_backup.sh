@@ -97,8 +97,6 @@ for path in "${REMOVE_PATHS[@]}"; do
   tar --delete -f "$WORK_TAR" "$path" 2>/dev/null || true
 done
 
-log "✅ Totale rimosso: $(numfmt --to=iec $REMOVED_SIZE)"
-
 ### RICOMPRIMI ###
 log "Ricomprimo tar..."
 gzip -f "$WORK_TAR"
@@ -151,7 +149,6 @@ log "=== RIEPILOGO ==="
 log "Backup originale:    $ORIGINAL_SIZE"
 log "Backup compresso:    $COMPRESSED_SIZE"
 log "Riduzione:           ${REDUCTION}%"
-log "Rimosso:             $(numfmt --to=iec $REMOVED_SIZE)"
 log "Directory locale:    $COMPLETE_BACKUP/"
 log "  - mkbackup.info"
 log "  - site-$SITE.tar.gz"
