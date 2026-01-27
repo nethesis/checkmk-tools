@@ -77,91 +77,61 @@ ORIGINAL_SIZE=$(du -h "$SITE_TAR" | cut -f1)
 log "✅ Backup trovato: $BACKUP_NAME"
 log "   Dimensione originale: $ORIGINAL_SIZE"
 
-### ESTRAZIONE ###
-mkdir -p "$TMP_DIR/extract"
-cd "$TMP_DIR/extract"
+### COPIA BACKUP PER MODIFICA IN-PLACE ###
+log "Copio backup per modifica in-place..."
+WORK_TAR="$TMP_DIR/site-$SITE.tar"
+WORK_TARGZ="$TMP_DIR/site-$SITE.tar.gz"
 
-log "Estraggo backup nativo..."
-tar xzf "$SITE_TAR" 2>&1 | tail -5
+cp "$SITE_TAR" "$WORK_TARGZ"
 
-EXTRACTED_SIZE=$(du -sh . | cut -f1)
-log "✅ Estratto: $EXTRACTED_SIZE"
+### DECOMPRIMI (non estrarre) ###
+log "Decomprimo tar.gz..."
+gunzip -f "$WORK_TARGZ"
 
-### ANALISI DIRECTORY PESANTI ###
-log "Analizzo directory pesanti..."
+### RIMOZIONE PARTI PESANTI con tar --delete ###
+log "Rimuovo componenti pesanti con tar --delete (preserva metadati)..."
 
-# Il backup nativo ha struttura: monitoring/var/, monitoring/etc/, ecc.
-cd monitoring 2>/dev/null || { error "Struttura backup non riconosciuta"; exit 1; }
-
-echo ""
-echo "TOP 15 directory per dimensione:"
-du -sh * 2>/dev/null | sort -rh | head -15 || true
-echo ""
-du -sh var/* 2>/dev/null | sort -rh | head -10 || true
-
-### RIMOZIONE PARTI PESANTI ###
-log "Rimuovo componenti pesanti..."
-
-# Lista directory da rimuovere (path relativi da monitoring/)
-REMOVE_DIRS=(
-  "var/nagios"                          # Dati RRD Nagios (250MB)
-  "checkmk-tools"                       # Repository git locale (150MB)
-  "monitoring"                          # File binario non necessario (19MB)
-  "var/check_mk/crashes"                # Crash reports (13MB)
-  "var/check_mk/rest_api"               # Cache REST API (3.7MB)
-  "var/check_mk/precompiled_checks"     # Check precompilati (3.6MB)
-  "var/check_mk/logwatch"               # Log logwatch (1.9MB)
-  "var/check_mk/wato/snapshots"         # Snapshot WATO storici
-  "var/check_mk/wato/log"               # Log audit WATO
-  "var/check_mk/inventory_archive"      # Archivio inventory
-  "var/check_mk/background_jobs"        # Job background temporanei
-  "var/log"                             # Log vari
-  "var/tmp"                             # File temporanei
-  "tmp"                                 # File temporanei
-  ".bash_history"                       # Bash history
-  ".cache"                              # Cache varie
-  "debug_*.log"                         # Log debug
+# Lista directory da rimuovere (path assoluti nel tar: monitoring/...)
+REMOVE_PATHS=(
+  "monitoring/var/nagios"                          # Dati RRD Nagios (250MB)
+  "monitoring/checkmk-tools"                       # Repository git locale (150MB)
+  "monitoring/monitoring"                          # File binario non necessario (19MB)
+  "monitoring/var/check_mk/crashes"                # Crash reports (13MB)
+  "monitoring/var/check_mk/rest_api"               # Cache REST API (3.7MB)
+  "monitoring/var/check_mk/precompiled_checks"     # Check precompilati (3.6MB)
+  "monitoring/var/check_mk/logwatch"               # Log logwatch (1.9MB)
+  "monitoring/var/check_mk/wato/snapshots"         # Snapshot WATO storici
+  "monitoring/var/check_mk/wato/log"               # Log audit WATO
+  "monitoring/var/check_mk/inventory_archive"      # Archivio inventory
+  "monitoring/var/check_mk/background_jobs"        # Job background temporanei
+  "monitoring/var/log"                             # Log vari (symlink warning non critici)
+  "monitoring/var/tmp"                             # File temporanei
+  "monitoring/tmp"                                 # File temporanei
 )
 
-REMOVED_SIZE=0
-for dir in "${REMOVE_DIRS[@]}"; do
-  if [[ -d "$dir" ]] || [[ -f "$dir" ]]; then
-    DIR_SIZE=$(du -sb "$dir" 2>/dev/null | cut -f1)
-    REMOVED_SIZE=$((REMOVED_SIZE + DIR_SIZE))
-    rm -rf "$dir"
-    log "  ❌ Rimosso: $dir ($(numfmt --to=iec $DIR_SIZE))"
-  fi
+# Rimuovi directory dal tar (in-place)
+for path in "${REMOVE_PATHS[@]}"; do
+  log "  ❌ Rimuovo: $path"
+  tar --delete -f "$WORK_TAR" "$path" 2>/dev/null || true
 done
 
 log "✅ Totale rimosso: $(numfmt --to=iec $REMOVED_SIZE)"
 
-### RICOMPRESSIONE ###
-COMPRESSED_NAME="site-$SITE.tar.gz"
-COMPRESSED_TEMP="$TMP_DIR/$COMPRESSED_NAME.new"
-log "Ricomprimo backup ottimizzato..."
+### RICOMPRIMI ###
+log "Ricomprimo tar..."
+gzip -f "$WORK_TAR"
 
-# Torna alla root dell'estrazione (contiene monitoring/)
-cd ..
-tar czf "$COMPRESSED_TEMP" monitoring/ 2>&1 | tail -5
+### SOSTITUISCI FILE ORIGINALE ###
+COMPRESSED_SIZE=$(du -h "$WORK_TARGZ" | cut -f1)
+COMPRESSED_BYTES=$(du -b "$WORK_TARGZ" | cut -f1)
+ORIGINAL_BYTES=$(stat -c %s "$SITE_TAR")
 
-COMPRESSED_SIZE=$(du -h "$COMPRESSED_TEMP" | cut -f1)
-COMPRESSED_BYTES=$(stat -c%s "$COMPRESSED_TEMP")
-
-log "✅ Backup compresso creato: $COMPRESSED_SIZE"
-
-# Calcola percentuale riduzione
-ORIGINAL_BYTES=$(stat -c%s "$SITE_TAR")
 REDUCTION=$(( 100 - (COMPRESSED_BYTES * 100 / ORIGINAL_BYTES) ))
 log "📊 Riduzione dimensione: ${REDUCTION}%"
 
-### CLEANUP ESTRAZIONE ###
-cd "$TMP_DIR"
-rm -rf "$TMP_DIR/extract"
-
-### SOSTITUISCI FILE ORIGINALE ###
 log "Sostituisco file originale con versione compressa..."
-mv "$COMPRESSED_TEMP" "$SITE_TAR"
-chown monitoring:monitoring "$SITE_TAR"
+mv "$WORK_TARGZ" "$SITE_TAR"
+chown monitoring:monitoring "$SITE_TAR" 2>/dev/null || chown $SITE:$SITE "$SITE_TAR"
 chmod 600 "$SITE_TAR"
 log "✅ File sostituito: $SITE_TAR ($COMPRESSED_SIZE)"
 
