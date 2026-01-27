@@ -18,14 +18,24 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# Step 1: Copia script in /opt/checkmk-tools
-echo "📋 Copying scripts..."
-mkdir -p /opt/checkmk-tools/script-tools/full
-cp checkmk_manage_job00_daily.sh /opt/checkmk-tools/script-tools/full/
-cp checkmk_manage_job01_weekly.sh /opt/checkmk-tools/script-tools/full/
-chmod +x /opt/checkmk-tools/script-tools/full/checkmk_manage_job00_daily.sh
-chmod +x /opt/checkmk-tools/script-tools/full/checkmk_manage_job01_weekly.sh
-echo "✅ Scripts copied"
+# Step 1: Verifica e prepara script
+echo "📋 Preparing scripts..."
+SCRIPT_DIR="/opt/checkmk-tools/script-tools/full"
+CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+mkdir -p "$SCRIPT_DIR"
+
+# Copia solo se non siamo già nella directory target
+if [[ "$CURRENT_DIR" != "$SCRIPT_DIR" ]]; then
+    cp checkmk_manage_job00_daily.sh "$SCRIPT_DIR/"
+    cp checkmk_manage_job01_weekly.sh "$SCRIPT_DIR/"
+    echo "✅ Scripts copied to $SCRIPT_DIR"
+else
+    echo "✅ Already in target directory, skipping copy"
+fi
+
+chmod +x "$SCRIPT_DIR/checkmk_manage_job00_daily.sh"
+chmod +x "$SCRIPT_DIR/checkmk_manage_job01_weekly.sh"
 
 # Step 2: Copia systemd units
 echo "⚙️  Installing systemd units..."
