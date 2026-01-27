@@ -18,6 +18,30 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+# Chiedi modalità installazione
+echo ""
+echo "Select schedule mode:"
+echo "  1) 🧪 TEST MODE - Every minute (for immediate testing)"
+echo "  2) 🚀 PRODUCTION MODE - job00 daily 03:00, job01 Sunday 04:00"
+echo ""
+read -p "Enter choice [1-2]: " MODE_CHOICE
+
+case $MODE_CHOICE in
+    1)
+        echo "✅ TEST MODE selected - timers will run every minute"
+        TIMER_MODE="test"
+        ;;
+    2)
+        echo "✅ PRODUCTION MODE selected - standard schedule"
+        TIMER_MODE="production"
+        ;;
+    *)
+        echo "❌ Invalid choice, defaulting to PRODUCTION MODE"
+        TIMER_MODE="production"
+        ;;
+esac
+echo ""
+
 # Step 1: Verifica e prepara script
 echo "📋 Preparing scripts..."
 SCRIPT_DIR="/opt/checkmk-tools/script-tools/full"
@@ -37,12 +61,36 @@ fi
 chmod +x "$SCRIPT_DIR/checkmk_manage_job00_daily.sh"
 chmod +x "$SCRIPT_DIR/checkmk_manage_job01_weekly.sh"
 
-# Step 2: Copia systemd units
+# Step 2: Configura e installa systemd units
 echo "⚙️  Installing systemd units..."
+
+# Copia timer base
+cp systemd/checkmk-backup-job00.timer /tmp/checkmk-backup-job00.timer
+cp systemd/checkmk-backup-job01.timer /tmp/checkmk-backup-job01.timer
+
+# Modifica timer in base alla modalità
+if [[ "$TIMER_MODE" == "test" ]]; then
+    echo "  🧪 Configuring TEST schedule (every minute)..."
+    sed -i 's/^OnCalendar=.*/OnCalendar=*-*-* *:*:00/' /tmp/checkmk-backup-job00.timer
+    sed -i 's/^RandomizedDelaySec=/#RandomizedDelaySec=/' /tmp/checkmk-backup-job00.timer
+    sed -i 's/^OnCalendar=.*/OnCalendar=*-*-* *:*:00/' /tmp/checkmk-backup-job01.timer
+    sed -i 's/^RandomizedDelaySec=/#RandomizedDelaySec=/' /tmp/checkmk-backup-job01.timer
+else
+    echo "  🚀 Configuring PRODUCTION schedule..."
+    sed -i 's|^# TEST MODE.*||' /tmp/checkmk-backup-job00.timer
+    sed -i 's|^# (restore.*||' /tmp/checkmk-backup-job00.timer
+    sed -i 's|^# TEST MODE.*||' /tmp/checkmk-backup-job01.timer
+    sed -i 's|^# (restore.*||' /tmp/checkmk-backup-job01.timer
+fi
+
+# Installa timer configurati
+mv /tmp/checkmk-backup-job00.timer /etc/systemd/system/
+mv /tmp/checkmk-backup-job01.timer /etc/systemd/system/
+
+# Installa services
 cp systemd/checkmk-backup-job00.service /etc/systemd/system/
-cp systemd/checkmk-backup-job00.timer /etc/systemd/system/
 cp systemd/checkmk-backup-job01.service /etc/systemd/system/
-cp systemd/checkmk-backup-job01.timer /etc/systemd/system/
+
 echo "✅ Systemd units installed"
 
 # Step 3: Reload systemd

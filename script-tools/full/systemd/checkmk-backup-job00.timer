@@ -3,10 +3,9 @@ Description=CheckMK Job00 Daily Backup Timer
 Requires=checkmk-backup-job00.service
 
 [Timer]
-# TEST MODE: Every minute (restore to 03:00 for production)
-OnCalendar=*-*-* *:*:00
+OnCalendar=*-*-* 03:00:00
 Persistent=true
-# RandomizedDelaySec=300
+RandomizedDelaySec=300
 
 [Install]
 WantedBy=timers.target
