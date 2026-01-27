@@ -193,8 +193,12 @@ fi
 ### SELEZIONE PATH BUCKET ###
 title "🗂️  Path Bucket"
 
-read -p "Path bucket [checkmk-backups/monitoring-compressed]: " RCLONE_PATH
-RCLONE_PATH="${RCLONE_PATH:-checkmk-backups/monitoring-compressed}"
+echo "Path disponibili:"
+echo "  - checkmk-backups/job00-daily   (backup compressi giornalieri, retention 90)"
+echo "  - checkmk-backups/job01-weekly  (backup completi settimanali, retention 5)"
+echo ""
+read -p "Path bucket [checkmk-backups/job00-daily]: " RCLONE_PATH
+RCLONE_PATH="${RCLONE_PATH:-checkmk-backups/job00-daily}"
 
 ### VERIFICA CONNESSIONE STORAGE ###
 title "📡 Verifica Connessione Storage Remoto"
