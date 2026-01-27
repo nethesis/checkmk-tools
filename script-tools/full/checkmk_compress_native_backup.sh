@@ -136,9 +136,11 @@ log "✅ File sostituito: $SITE_TAR ($COMPRESSED_SIZE)"
 CLOUD_PATH="$RCLONE_PATH/$BACKUP_NAME"
 log "Upload su $RCLONE_REMOTE/$CLOUD_PATH/..."
 
-# Upload con nome originale nella cartella originale
-if su - "$SITE" -c "rclone copy '$SITE_TAR' '$RCLONE_REMOTE/$CLOUD_PATH/' --progress --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf"; then
-  log "✅ Upload completato: $CLOUD_PATH/site-$SITE.tar.gz"
+# Upload intera directory (mkbackup.info + site-monitoring.tar.gz)
+if su - "$SITE" -c "rclone copy '$LATEST_BACKUP' '$RCLONE_REMOTE/$CLOUD_PATH/' --progress --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf"; then
+  log "✅ Upload completato"
+  log "   - mkbackup.info"
+  log "   - site-$SITE.tar.gz ($COMPRESSED_SIZE)"
 else
   error "Upload fallito!"
   exit 1
@@ -151,8 +153,10 @@ log "Backup originale:    $ORIGINAL_SIZE"
 log "Backup compresso:    $COMPRESSED_SIZE"
 log "Riduzione:           ${REDUCTION}%"
 log "Rimosso:             $(numfmt --to=iec $REMOVED_SIZE)"
-log "File locale:         $SITE_TAR"
-log "Cloud:               $RCLONE_REMOTE/$CLOUD_PATH/site-$SITE.tar.gz"
+log "Directory locale:    $LATEST_BACKUP/"
+log "  - mkbackup.info"
+log "  - site-$SITE.tar.gz"
+log "Cloud:               $RCLONE_REMOTE/$CLOUD_PATH/"
 echo ""
 
 exit 0
