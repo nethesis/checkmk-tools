@@ -79,6 +79,10 @@ log "   Dimensione originale: $ORIGINAL_SIZE"
 
 ### COPIA BACKUP PER MODIFICA IN-PLACE ###
 log "Copio backup per modifica in-place..."
+
+# Crea directory temporanea se non esiste
+mkdir -p "$TMP_DIR"
+
 WORK_TAR="$TMP_DIR/site-$SITE.tar"
 WORK_TARGZ="$TMP_DIR/site-$SITE.tar.gz"
 
