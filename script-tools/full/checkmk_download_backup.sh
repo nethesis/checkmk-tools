@@ -69,41 +69,37 @@ else
   success "rclone già installato"
 fi
 
-### SELEZIONE SITE ###
-title "🏢 Selezione Site CheckMK"
+### SELEZIONE DESTINAZIONE DOWNLOAD ###
+title "📂 Destinazione Download"
 
-log "Sites disponibili sul sistema:"
-omd sites | tail -n +2 || true
-echo ""
+read -p "Directory download [/tmp/checkmk-backups]: " DOWNLOAD_DIR
+DOWNLOAD_DIR="${DOWNLOAD_DIR:-/tmp/checkmk-backups}"
 
-read -p "Nome del site [monitoring]: " SITE
-SITE="${SITE:-monitoring}"
-SITE_BASE="/opt/omd/sites/$SITE"
+mkdir -p "$DOWNLOAD_DIR"
+log "Directory download: $DOWNLOAD_DIR"
 
-if [[ ! -d "$SITE_BASE" ]]; then
-  error "Site '$SITE' non trovato in $SITE_BASE"
-  echo ""
-  echo "Sites disponibili:"
-  omd sites 2>/dev/null || echo "Nessun site installato"
-  exit 1
+### CONFIGURAZIONE RCLONE ###
+title "⚙️  Configurazione rclone"
+
+# Cerca configurazione rclone in ordine di priorità
+RCLONE_CONF=""
+if [[ -f "/root/.config/rclone/rclone.conf" ]]; then
+  RCLONE_CONF="/root/.config/rclone/rclone.conf"
+elif [[ -f "/opt/omd/sites/monitoring/.config/rclone/rclone.conf" ]]; then
+  RCLONE_CONF="/opt/omd/sites/monitoring/.config/rclone/rclone.conf"
 fi
 
-success "Site '$SITE' trovato"
-
-# Costruisci path rclone basato sul site
-RCLONE_PATH="checkmk-backups/$SITE"
-RCLONE_CONF="/opt/omd/sites/$SITE/.config/rclone/rclone.conf"
-
-if [[ ! -f "$RCLONE_CONF" ]]; then
-  warn "Configurazione rclone non trovata per site '$SITE'"
-  echo "  Path cercato: $RCLONE_CONF"
+if [[ -z "$RCLONE_CONF" ]] || [[ ! -f "$RCLONE_CONF" ]]; then
+  warn "Configurazione rclone non trovata"
+  echo "  Cercato in: /root/.config/rclone/rclone.conf"
+  echo "              /opt/omd/sites/monitoring/.config/rclone/rclone.conf"
   echo ""
   
   if confirm "Vuoi configurare rclone ora per DigitalOcean Spaces?" "y"; then
-    title "⚙️  Configurazione rclone per DigitalOcean Spaces"
     
-    # Crea directory config se non esiste
-    su - "$SITE" -c "mkdir -p ~/.config/rclone"
+    # Crea directory config root
+    mkdir -p /root/.config/rclone
+    RCLONE_CONF="/root/.config/rclone/rclone.conf"
     
     echo "Inserisci le credenziali DigitalOcean Spaces:"
     echo ""
@@ -121,14 +117,14 @@ if [[ ! -f "$RCLONE_CONF" ]]; then
     log "Creo configurazione rclone remote '$REMOTE_NAME'..."
     
     # Crea configurazione rclone
-    su - "$SITE" -c "rclone config create '$REMOTE_NAME' s3 \
+    rclone config create "$REMOTE_NAME" s3 \
       provider='DigitalOcean' \
       env_auth='false' \
-      access_key_id='$ACCESS_KEY' \
-      secret_access_key='$SECRET_KEY' \
-      region='$REGION' \
-      endpoint='$ENDPOINT' \
-      acl='private'"
+      access_key_id="$ACCESS_KEY" \
+      secret_access_key="$SECRET_KEY" \
+      region="$REGION" \
+      endpoint="$ENDPOINT" \
+      acl='private'
     
     if [[ $? -eq 0 ]]; then
       success "Configurazione rclone creata"
@@ -139,23 +135,29 @@ if [[ ! -f "$RCLONE_CONF" ]]; then
   else
     error "Configurazione rclone necessaria per scaricare i backup"
     echo ""
-    echo "Configura manualmente con:"
-    echo "  su - $SITE"
-    echo "  rclone config"
+    echo "Configura manualmente con: rclone config"
     exit 1
   fi
+else
+  success "Configurazione rclone trovata: $RCLONE_CONF"
 fi
+
+### SELEZIONE PATH BUCKET ###
+title "🗂️  Path Bucket"
+
+read -p "Path bucket [checkmk-backups/monitoring-compressed]: " RCLONE_PATH
+RCLONE_PATH="${RCLONE_PATH:-checkmk-backups/monitoring-compressed}"
 
 ### VERIFICA CONNESSIONE STORAGE ###
 title "📡 Verifica Connessione Storage Remoto"
 
 log "Verifica connessione a $RCLONE_REMOTE/$RCLONE_PATH..."
-if ! su - "$SITE" -c "rclone lsd '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket" >/dev/null 2>&1; then
+if ! rclone lsd "$RCLONE_REMOTE/$RCLONE_PATH" --config="$RCLONE_CONF" --s3-no-check-bucket >/dev/null 2>&1; then
   error "Impossibile connettersi a $RCLONE_REMOTE/$RCLONE_PATH"
   echo ""
   echo "Verifica che:"
   echo "  1. La cartella $RCLONE_PATH esiste nel bucket"
-  echo "  2. La configurazione rclone sia corretta: su - $SITE -c 'rclone config'"
+  echo "  2. La configurazione rclone sia corretta: rclone config"
   exit 1
 fi
 success "Connessione OK"
@@ -166,7 +168,7 @@ title "📦 File Disponibili"
 log "Recupero lista file da $RCLONE_REMOTE/$RCLONE_PATH..."
 
 # Lista tutti i file (incluse sottocartelle)
-BACKUP_FILES=$(su - "$SITE" -c "rclone lsf '$RCLONE_REMOTE/$RCLONE_PATH' --config='$RCLONE_CONF' --s3-no-check-bucket --recursive" | sort -r)
+BACKUP_FILES=$(rclone lsf "$RCLONE_REMOTE/$RCLONE_PATH" --config="$RCLONE_CONF" --s3-no-check-bucket --recursive | sort -r)
 
 if [[ -z "$BACKUP_FILES" ]]; then
   error "Nessun file trovato in $RCLONE_REMOTE/$RCLONE_PATH"
@@ -181,7 +183,7 @@ declare -A FILE_MAP
 while IFS= read -r filename; do
   FILE_MAP[$i]="$filename"
   # Mostra dimensione se possibile
-  FILE_SIZE=$(su - "$SITE" -c "rclone size '$RCLONE_REMOTE/$RCLONE_PATH/$filename' --json --config='$RCLONE_CONF' --s3-no-check-bucket" 2>/dev/null | grep -oP '(?<="bytes":)\d+' || echo "0")
+  FILE_SIZE=$(rclone size "$RCLONE_REMOTE/$RCLONE_PATH/$filename" --json --config="$RCLONE_CONF" --s3-no-check-bucket 2>/dev/null | grep -oP '(?<="bytes":)\d+' || echo "0")
   if [[ "$FILE_SIZE" -gt 0 ]]; then
     FILE_SIZE_HR=$(numfmt --to=iec-i --suffix=B "$FILE_SIZE" 2>/dev/null || echo "$FILE_SIZE bytes")
   else
@@ -228,21 +230,22 @@ title "⬇️  Download File"
 mkdir -p "$DOWNLOAD_DIR"
 
 log "Scarico $SELECTED_FILE..."
-if su - "$SITE" -c "rclone copy '$RCLONE_REMOTE/$RCLONE_PATH' '$DOWNLOAD_DIR/' \
-  --config='$RCLONE_CONF' \
+if rclone copy "$RCLONE_REMOTE/$RCLONE_PATH" "$DOWNLOAD_DIR/" \
+  --config="$RCLONE_CONF" \
   --s3-no-check-bucket \
-  --include '$SELECTED_FILE' \
-  --progress"; then
+  --include "$SELECTED_FILE" \
+  --progress; then
   
   success "Download completato"
   
   # Verifica file
-  if [[ -f "$DOWNLOAD_DIR/$SELECTED_FILE" ]]; then
-    FILE_SIZE=$(du -h "$DOWNLOAD_DIR/$SELECTED_FILE" | cut -f1)
-    success "File salvato: $DOWNLOAD_DIR/$SELECTED_FILE ($FILE_SIZE)"
+  DOWNLOADED_FILE="$DOWNLOAD_DIR/$SELECTED_FILE"
+  if [[ -f "$DOWNLOADED_FILE" ]]; then
+    FILE_SIZE=$(du -h "$DOWNLOADED_FILE" | cut -f1)
+    success "File salvato: $DOWNLOADED_FILE ($FILE_SIZE)"
     
     # Mostra permessi
-    ls -lh "$DOWNLOAD_DIR/$SELECTED_FILE"
+    ls -lh "$DOWNLOADED_FILE"
   else
     error "File non trovato dopo il download"
     exit 1
@@ -255,4 +258,4 @@ fi
 echo ""
 success "✅ Operazione completata con successo!"
 echo ""
-echo "File scaricato in: $DOWNLOAD_DIR/$SELECTED_FILE"
+echo "File scaricato in: $DOWNLOADED_FILE"
