@@ -1,5 +1,52 @@
 # GitHub Copilot Instructions - checkmk-tools
 
+## ⚠️ REGOLE DI SICUREZZA OBBLIGATORIE
+
+### 🛡️ Protezione Dati e Conferme
+
+**SEMPRE rispettare queste regole:**
+
+1. **Un comando alla volta**
+   - ❌ NON eseguire comandi multipli senza conferma
+   - ✅ Eseguire un comando, attendere conferma utente
+   - ⚠️ SPECIALMENTE per operazioni distruttive (rm, delete, drop, truncate)
+
+2. **Backup prima di cancellare**
+   - ❌ NON cancellare mai file/directory senza backup
+   - ✅ SEMPRE creare backup prima di operazioni distruttive
+   - ✅ Formato backup: `NOME_ORIGINALE.backup_YYYY-MM-DD_HH-MM-SS`
+   - ✅ Confermare path backup all'utente prima di procedere
+
+3. **Conferma operazioni critiche**
+   - Cancellazioni
+   - Modifiche massive (>10 file)
+   - Deploy su produzione
+   - Comandi su sistemi remoti
+
+4. **Verifica preferenze Copilot periodicamente**
+   - ✅ Controllare `.github/copilot-instructions.md` regolarmente
+   - ✅ Assicurarsi di seguire sempre le ultime istruzioni
+   - ✅ Suggerire aggiornamenti quando necessario
+
+5. **Memorizza informazioni utili**
+   - ✅ Se scopri pattern/comandi/procedure utili → aggiungili alle copilot-instructions
+   - ✅ Workflow che funzionano bene vanno documentati
+   - ✅ Path comuni, configurazioni standard, troubleshooting tips
+
+**Esempio workflow corretto:**
+```bash
+# 1. Backup
+cp file.txt file.txt.backup_2026-01-27_20-30-00
+
+# 2. Chiedi conferma
+"Ho creato backup in file.txt.backup_2026-01-27_20-30-00. Procedo con cancellazione?"
+
+# 3. Solo dopo OK utente
+rm file.txt
+```
+
+---
+
 ## 🔧 Strumenti di Controllo Qualità
 
 ### check-integrity.ps1 - Controllo Integrità Repository
@@ -141,4 +188,118 @@ ExecStart=/bin/bash -c "curl -fsSL https://raw.githubusercontent.com/Coverup20/c
 
 ---
 
-**Ultimo aggiornamento**: 2026-01-22
+## 🔌 Accesso Remoto SSH - VPS e Server Locali
+
+### Setup WSL SSH
+
+**Environment configurato:**
+- ✅ WSL: Ubuntu su Windows (`wsl -- bash -c "command"`)
+- ✅ SSH Keys: `~/.ssh/checkmk` (protetta da passphrase)
+- ✅ SSH Config: `~/.ssh/config` con alias host
+- ✅ SSH ControlMaster: Riutilizzo connessioni (passphrase 1 volta, poi 10 min attiva)
+
+**Host disponibili:**
+
+```bash
+# VPS CheckMK (chiave: ~/.ssh/checkmk + passphrase)
+checkmk-vps-01    # monitor.nethlab.it (CheckMK 2.4.0p19.cre)
+checkmk-vps-02    # monitor01.nethlab.it
+checkmk-vps03     # 143.110.148.110
+
+# Server locali CheckMK (autenticazione password)
+checkmk-z1plus    # 192.168.10.128 (locale)
+checkmk-testfrp   # 192.168.10.126 (user: admin_nethesis)
+
+# Server locali altri (autenticazione password)
+ns-lab00          # 192.168.10.100:2222 (root)
+
+# Altri server (chiave: ~/.ssh/sos-openssh)
+sos               # sos.nethesis.it (user: marzio)
+fwlab             # 192.168.5.117:2222 (root)
+redteam           # redteam.security.nethesis.it (root)
+```
+
+### 🚀 Workflow Accesso Remoto
+
+**1. Comando singolo SSH:**
+```powershell
+# Da PowerShell → esegui comando su VPS
+wsl -- ssh checkmk-vps-01 "omd version"
+wsl -- ssh checkmk-vps-02 "omd sites"
+wsl -- ssh checkmk-vps03 "systemctl status omd"
+```
+
+**2. Esecuzione script da GitHub:**
+```powershell
+# Download ed esecuzione diretta script dal repository
+wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh | bash"
+
+# Con parametri
+wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/script.sh | bash -s -- arg1 arg2"
+```
+
+**3. Verifica stato CheckMK remoto:**
+```powershell
+# Check rapido su tutti i VPS
+wsl -- ssh checkmk-vps-01 "omd status"
+wsl -- ssh checkmk-vps-02 "omd status"
+wsl -- ssh checkmk-vps03 "omd status"
+
+# Verifica backup
+wsl -- ssh checkmk-vps-01 "ls -lh /opt/omd/sites/monitoring/var/check_mk/notify-backup/"
+```
+
+**4. Deploy script su VPS:**
+```powershell
+# NON copiare file, eseguire sempre da GitHub!
+# ❌ SBAGLIATO: scp script.sh checkmk-vps-01:/usr/local/bin/
+# ✅ CORRETTO: esegui da GitHub con curl
+
+wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh | bash"
+```
+
+### 🔐 Note Sicurezza
+
+- **Passphrase**: Le chiavi richiedono passphrase ad ogni comando
+  - Non è un problema: inserire passphrase quando richiesta
+  - Protegge accesso non autorizzato
+  
+- **StrictHostKeyChecking no**: Disabilitato per automazione
+  - OK per ambiente lab/interno
+  - Valutare riabilitazione per produzione
+
+### 🎯 Use Cases Comuni
+
+**Controllo integrità remoto:**
+```powershell
+# Esegui check-integrity su VPS
+wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh | bash -n"
+```
+
+**Verifica logs:**
+```powershell
+wsl -- ssh checkmk-vps-01 "tail -100 /omd/sites/monitoring/var/log/notify.log"
+```
+
+**Raccolta info sistema:**
+```powershell
+wsl -- ssh checkmk-vps-01 "df -h && free -h && uptime"
+```
+
+### ⚙️ Path Chiavi e Config
+
+```bash
+# WSL paths
+~/.ssh/checkmk              # Chiave privata VPS (con passphrase)
+~/.ssh/sos-openssh          # Chiave privata altri server
+~/.ssh/config               # Configurazione SSH
+~/.ssh/known_hosts          # Host verificati
+
+# Windows paths originali (backup)
+C:\Users\Marzio\.ssh\checkmk
+C:\Users\Marzio\.ssh\sos-openssh
+```
+
+---
+
+**Ultimo aggiornamento**: 2026-01-27
