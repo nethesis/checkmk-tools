@@ -33,6 +33,12 @@
    - ✅ Workflow che funzionano bene vanno documentati
    - ✅ Path comuni, configurazioni standard, troubleshooting tips
 
+6. **Pulizia backup dopo test**
+   - ✅ Quando i test su file backuppati terminano con successo
+   - ✅ Proporre rimozione dei file backup creati
+   - ✅ ATTENDERE conferma utente prima di eliminare
+   - ✅ Non eliminare mai backup senza conferma esplicita
+
 **Esempio workflow corretto:**
 ```bash
 # 1. Backup
