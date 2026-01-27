@@ -102,15 +102,16 @@ done
 log "✅ Totale rimosso: $(numfmt --to=iec $REMOVED_SIZE)"
 
 ### RICOMPRESSIONE ###
-COMPRESSED_NAME="checkmk-COMPRESSED-$SITE-$(date +%F_%H-%M-%S).tar.gz"
+COMPRESSED_NAME="site-$SITE.tar.gz"
+COMPRESSED_TEMP="$TMP_DIR/$COMPRESSED_NAME.new"
 log "Ricomprimo backup ottimizzato..."
 
 # Torna alla root dell'estrazione (contiene monitoring/)
 cd ..
-tar czf "$TMP_DIR/$COMPRESSED_NAME" monitoring/ 2>&1 | tail -5
+tar czf "$COMPRESSED_TEMP" monitoring/ 2>&1 | tail -5
 
-COMPRESSED_SIZE=$(du -h "$TMP_DIR/$COMPRESSED_NAME" | cut -f1)
-COMPRESSED_BYTES=$(stat -c%s "$TMP_DIR/$COMPRESSED_NAME")
+COMPRESSED_SIZE=$(du -h "$COMPRESSED_TEMP" | cut -f1)
+COMPRESSED_BYTES=$(stat -c%s "$COMPRESSED_TEMP")
 
 log "✅ Backup compresso creato: $COMPRESSED_SIZE"
 
@@ -123,35 +124,41 @@ log "📊 Riduzione dimensione: ${REDUCTION}%"
 cd "$TMP_DIR"
 rm -rf "$TMP_DIR/extract"
 
-### COPIA LOCALE ###
-mkdir -p "$LOCAL_BACKUP_DIR"
-log "Copio backup in $LOCAL_BACKUP_DIR..."
-cp "$TMP_DIR/$COMPRESSED_NAME" "$LOCAL_BACKUP_DIR/"
-LOCAL_PATH="$LOCAL_BACKUP_DIR/$COMPRESSED_NAME"
-log "✅ Copia locale salvata"
+### BACKUP ORIGINALE ###
+log "Creo backup del file originale..."
+ORIGINAL_BACKUP="$SITE_TAR.ORIGINAL-$(date +%F_%H-%M-%S)"
+cp "$SITE_TAR" "$ORIGINAL_BACKUP"
+log "✅ Originale salvato: $(basename $ORIGINAL_BACKUP)"
+
+### SOSTITUISCI FILE ORIGINALE ###
+log "Sostituisco file originale con versione compressa..."
+mv "$COMPRESSED_TEMP" "$SITE_TAR"
+chown monitoring:monitoring "$SITE_TAR"
+chmod 600 "$SITE_TAR"
+LOCAL_PATH="$SITE_TAR"
+log "✅ File sostituito: $SITE_TAR"
 
 ### UPLOAD RCLONE ###
 log "Upload su $RCLONE_REMOTE/$RCLONE_PATH/..."
 
-if su - "$SITE" -c "rclone copy '$TMP_DIR/$COMPRESSED_NAME' '$RCLONE_REMOTE/$RCLONE_PATH/' --progress --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf"; then
-  log "✅ Upload completato"
+# Upload con nome timestampato per versioning cloud
+CLOUD_NAME="checkmk-COMPRESSED-$SITE-$(date +%F_%H-%M-%S).tar.gz"
+if su - "$SITE" -c "rclone copy '$SITE_TAR' '$RCLONE_REMOTE/$RCLONE_PATH/$CLOUD_NAME' --progress --s3-no-check-bucket --config=\$HOME/.config/rclone/rclone.conf"; then
+  log "✅ Upload completato: $CLOUD_NAME"
 else
   error "Upload fallito!"
   exit 1
 fi
 
-### CLEANUP TMP ###
-rm -f "$TMP_DIR/$COMPRESSED_NAME"
-
 ### RIEPILOGO ###
 echo ""
 log "=== RIEPILOGO ==="
-log "Backup originale:    $ORIGINAL_SIZE"
+log "Backup originale:    $ORIGINAL_SIZE → $(basename $ORIGINAL_BACKUP)"
 log "Backup compresso:    $COMPRESSED_SIZE"
 log "Riduzione:           ${REDUCTION}%"
 log "Rimosso:             $(numfmt --to=iec $REMOVED_SIZE)"
-log "Locale:              $LOCAL_PATH"
-log "Cloud:               $RCLONE_REMOTE/$RCLONE_PATH/$COMPRESSED_NAME"
+log "File locale:         $SITE_TAR"
+log "Cloud:               $RCLONE_REMOTE/$RCLONE_PATH/$CLOUD_NAME"
 echo ""
 
 exit 0
