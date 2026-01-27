@@ -210,39 +210,55 @@ if ! rclone lsd "$RCLONE_REMOTE/$RCLONE_PATH" --config="$RCLONE_CONF" --s3-no-ch
 fi
 success "Connessione OK"
 
-### LISTA FILE DISPONIBILI ###
-title "📦 File Disponibili"
+### LISTA FILE E DIRECTORY DISPONIBILI ###
+title "📦 Backup Disponibili"
 
-log "Recupero lista file da $RCLONE_REMOTE/$RCLONE_PATH..."
+log "Recupero lista da $RCLONE_REMOTE/$RCLONE_PATH..."
 
-# Lista tutti i file (incluse sottocartelle)
-BACKUP_FILES=$(rclone lsf "$RCLONE_REMOTE/$RCLONE_PATH" --config="$RCLONE_CONF" --s3-no-check-bucket --recursive | sort -r)
+# Lista directory (backup nativi CheckMK)
+BACKUP_DIRS=$(rclone lsd "$RCLONE_REMOTE/$RCLONE_PATH" --config="$RCLONE_CONF" --s3-no-check-bucket 2>/dev/null | awk '{print $5}' | sort -r)
 
-if [[ -z "$BACKUP_FILES" ]]; then
-  error "Nessun file trovato in $RCLONE_REMOTE/$RCLONE_PATH"
+# Lista file singoli (backup custom)
+BACKUP_FILES=$(rclone lsf "$RCLONE_REMOTE/$RCLONE_PATH" --config="$RCLONE_CONF" --s3-no-check-bucket --files-only --max-depth 1 2>/dev/null | sort -r)
+
+if [[ -z "$BACKUP_DIRS" ]] && [[ -z "$BACKUP_FILES" ]]; then
+  error "Nessun backup trovato in $RCLONE_REMOTE/$RCLONE_PATH"
   exit 1
 fi
 
 echo ""
-echo "File disponibili:"
+echo "Backup disponibili:"
 echo ""
 i=1
-declare -A FILE_MAP
+declare -A ITEM_MAP
+declare -A ITEM_TYPE
+
+# Mostra directory (backup nativi)
+while IFS= read -r dirname; do
+  [[ -z "$dirname" ]] && continue
+  ITEM_MAP[$i]="$dirname"
+  ITEM_TYPE[$i]="dir"
+  printf "%2d) 📁 %-60s [DIRECTORY]\n" "$i" "$dirname"
+  ((i++))
+done <<< "$BACKUP_DIRS"
+
+# Mostra file singoli (backup custom)
 while IFS= read -r filename; do
-  FILE_MAP[$i]="$filename"
-  # Mostra dimensione se possibile
+  [[ -z "$filename" ]] && continue
+  ITEM_MAP[$i]="$filename"
+  ITEM_TYPE[$i]="file"
   FILE_SIZE=$(rclone size "$RCLONE_REMOTE/$RCLONE_PATH/$filename" --json --config="$RCLONE_CONF" --s3-no-check-bucket 2>/dev/null | grep -oP '(?<="bytes":)\d+' || echo "0")
   if [[ "$FILE_SIZE" -gt 0 ]]; then
     FILE_SIZE_HR=$(numfmt --to=iec-i --suffix=B "$FILE_SIZE" 2>/dev/null || echo "$FILE_SIZE bytes")
   else
     FILE_SIZE_HR="N/A"
   fi
-  printf "%2d) %-50s [%s]\n" "$i" "$filename" "$FILE_SIZE_HR"
+  printf "%2d) 📄 %-50s [%s]\n" "$i" "$filename" "$FILE_SIZE_HR"
   ((i++))
 done <<< "$BACKUP_FILES"
 
 echo ""
-read -p "Seleziona numero file (1-$((i-1))) o 'q' per uscire: " selection
+read -p "Seleziona numero (1-$((i-1))) o 'q' per uscire: " selection
 
 if [[ "$selection" == "q" ]]; then
   error "Operazione annullata"
@@ -254,16 +270,29 @@ if [[ ! "$selection" =~ ^[0-9]+$ ]] || [[ "$selection" -lt 1 ]] || [[ "$selectio
   exit 1
 fi
 
-SELECTED_FILE="${FILE_MAP[$selection]}"
-success "Selezionato: $SELECTED_FILE"
+SELECTED_ITEM="${ITEM_MAP[$selection]}"
+SELECTED_TYPE="${ITEM_TYPE[$selection]}"
+
+if [[ "$SELECTED_TYPE" == "dir" ]]; then
+  success "Selezionata directory: $SELECTED_ITEM"
+else
+  success "Selezionato file: $SELECTED_ITEM"
+fi
 
 ### CONFERMA DOWNLOAD ###
 title "⚠️  Conferma Download"
 
-echo "Stai per scaricare:"
-echo "  - File: $SELECTED_FILE"
-echo "  - Da: $RCLONE_REMOTE/$RCLONE_PATH"
-echo "  - A: $DOWNLOAD_DIR"
+if [[ "$SELECTED_TYPE" == "dir" ]]; then
+  echo "Stai per scaricare la directory:"
+  echo "  - Directory: $SELECTED_ITEM/"
+  echo "  - Da: $RCLONE_REMOTE/$RCLONE_PATH/"
+  echo "  - A: $DOWNLOAD_DIR/"
+else
+  echo "Stai per scaricare il file:"
+  echo "  - File: $SELECTED_ITEM"
+  echo "  - Da: $RCLONE_REMOTE/$RCLONE_PATH/"
+  echo "  - A: $DOWNLOAD_DIR/"
+fi
 echo ""
 
 if ! confirm "Vuoi procedere?" "y"; then
@@ -271,39 +300,72 @@ if ! confirm "Vuoi procedere?" "y"; then
   exit 0
 fi
 
-### DOWNLOAD FILE ###
-title "⬇️  Download File"
+### DOWNLOAD ###
+title "⬇️  Download"
 
 # Crea directory destinazione
 mkdir -p "$DOWNLOAD_DIR"
 
-log "Scarico $SELECTED_FILE..."
-if rclone copy "$RCLONE_REMOTE/$RCLONE_PATH" "$DOWNLOAD_DIR/" \
-  --config="$RCLONE_CONF" \
-  --s3-no-check-bucket \
-  --include "$SELECTED_FILE" \
-  --progress; then
-  
-  success "Download completato"
-  
-  # Verifica file
-  DOWNLOADED_FILE="$DOWNLOAD_DIR/$SELECTED_FILE"
-  if [[ -f "$DOWNLOADED_FILE" ]]; then
-    FILE_SIZE=$(du -h "$DOWNLOADED_FILE" | cut -f1)
-    success "File salvato: $DOWNLOADED_FILE ($FILE_SIZE)"
+if [[ "$SELECTED_TYPE" == "dir" ]]; then
+  # Download directory completa
+  log "Scarico directory $SELECTED_ITEM/..."
+  if rclone copy "$RCLONE_REMOTE/$RCLONE_PATH/$SELECTED_ITEM" "$DOWNLOAD_DIR/$SELECTED_ITEM" \
+    --config="$RCLONE_CONF" \
+    --s3-no-check-bucket \
+    --progress; then
     
-    # Mostra permessi
-    ls -lh "$DOWNLOADED_FILE"
+    success "Download completato"
+    
+    # Verifica directory
+    if [[ -d "$DOWNLOAD_DIR/$SELECTED_ITEM" ]]; then
+      DIR_SIZE=$(du -sh "$DOWNLOAD_DIR/$SELECTED_ITEM" | cut -f1)
+      success "Directory salvata: $DOWNLOAD_DIR/$SELECTED_ITEM/ ($DIR_SIZE)"
+      echo ""
+      echo "Contenuto:"
+      ls -lh "$DOWNLOAD_DIR/$SELECTED_ITEM/"
+    else
+      error "Directory non trovata dopo il download"
+      exit 1
+    fi
   else
-    error "File non trovato dopo il download"
+    error "Download fallito"
     exit 1
   fi
+  
+  DOWNLOADED_PATH="$DOWNLOAD_DIR/$SELECTED_ITEM/"
+  
 else
-  error "Download fallito"
-  exit 1
+  # Download file singolo
+  log "Scarico file $SELECTED_ITEM..."
+  if rclone copy "$RCLONE_REMOTE/$RCLONE_PATH" "$DOWNLOAD_DIR/" \
+    --config="$RCLONE_CONF" \
+    --s3-no-check-bucket \
+    --include "$SELECTED_ITEM" \
+    --progress; then
+    
+    success "Download completato"
+    
+    # Verifica file
+    DOWNLOADED_FILE="$DOWNLOAD_DIR/$SELECTED_ITEM"
+    if [[ -f "$DOWNLOADED_FILE" ]]; then
+      FILE_SIZE=$(du -h "$DOWNLOADED_FILE" | cut -f1)
+      success "File salvato: $DOWNLOADED_FILE ($FILE_SIZE)"
+      
+      # Mostra permessi
+      ls -lh "$DOWNLOADED_FILE"
+    else
+      error "File non trovato dopo il download"
+      exit 1
+    fi
+  else
+    error "Download fallito"
+    exit 1
+  fi
+  
+  DOWNLOADED_PATH="$DOWNLOAD_DIR/$SELECTED_ITEM"
 fi
 
 echo ""
 success "✅ Operazione completata con successo!"
 echo ""
-echo "File scaricato in: $DOWNLOADED_FILE"
+echo "Scaricato in: $DOWNLOADED_PATH"
