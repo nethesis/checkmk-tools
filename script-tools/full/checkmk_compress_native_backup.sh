@@ -50,27 +50,36 @@ fi
 
 ### ATTENDI STABILITÀ ###
 if [[ "$ALREADY_RENAMED" == "false" ]]; then
-  log "Attendo che il backup sia stabile (non modificato da 2 minuti)..."
+  # Se il file è già vecchio (>2 min), skippa wait
+  CURRENT_TIME=$(date +%s)
+  FILE_MTIME=$(stat -c %Y "$SITE_TAR")
+  AGE_SECONDS=$((CURRENT_TIME - FILE_MTIME))
   
-  STABLE_COUNT=0
-  LAST_MTIME=$(stat -c %Y "$SITE_TAR")
-  
-  while [[ $STABLE_COUNT -lt 12 ]]; do  # 12 x 10sec = 2 minuti
-    sleep 10
-    CURRENT_MTIME=$(stat -c %Y "$SITE_TAR")
+  if [[ $AGE_SECONDS -gt 120 ]]; then
+    log "✅ Backup già stabile (modificato $(($AGE_SECONDS / 60)) minuti fa), procedo"
+  else
+    log "Attendo che il backup sia stabile (non modificato da 2 minuti)..."
     
-    if [[ "$CURRENT_MTIME" == "$LAST_MTIME" ]]; then
-      STABLE_COUNT=$((STABLE_COUNT + 1))
-      echo -n "."
-    else
-      STABLE_COUNT=0
-      LAST_MTIME=$CURRENT_MTIME
-      echo -n "⟳"
-    fi
-  done
-  
-  echo ""
-  log "✅ Backup stabile, procedo con compressione"
+    STABLE_COUNT=0
+    LAST_MTIME=$FILE_MTIME
+    
+    while [[ $STABLE_COUNT -lt 12 ]]; do  # 12 x 10sec = 2 minuti
+      sleep 10
+      CURRENT_MTIME=$(stat -c %Y "$SITE_TAR")
+      
+      if [[ "$CURRENT_MTIME" == "$LAST_MTIME" ]]; then
+        STABLE_COUNT=$((STABLE_COUNT + 1))
+        echo -n "."
+      else
+        STABLE_COUNT=0
+        LAST_MTIME=$CURRENT_MTIME
+        echo -n "⟳"
+      fi
+    done
+    
+    echo ""
+    log "✅ Backup stabile, procedo con compressione"
+  fi
 fi
 
 ORIGINAL_SIZE=$(du -h "$SITE_TAR" | cut -f1)
