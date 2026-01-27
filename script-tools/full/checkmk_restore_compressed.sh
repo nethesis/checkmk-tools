@@ -34,7 +34,7 @@ SITE_NAME="${2:-}"
 
 # Estrai nome site dal backup se non specificato
 if [[ -z "$SITE_NAME" ]]; then
-    SITE_NAME=$(tar tzf "$BACKUP_FILE" | head -1 | cut -d'/' -f1)
+    SITE_NAME=$(tar tzf "$BACKUP_FILE" 2>/dev/null | head -1 | cut -d'/' -f1 || true)
     log "Site name detected: $SITE_NAME"
 fi
 
