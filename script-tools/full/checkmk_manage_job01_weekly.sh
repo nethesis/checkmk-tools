@@ -37,9 +37,9 @@ log "============================================"
 log "CheckMK Job01 Weekly Backup Management"
 log "============================================"
 
-# Step 1: Trova ultimo backup job01-complete
-log "📂 Searching for job01-complete backup..."
-BACKUP=$(find "$BACKUP_DIR" -maxdepth 1 -type d -name "*job01-complete*" | sort -r | head -1)
+# Step 1: Trova backup job01-complete SENZA timestamp (ancora da processare)
+log "📂 Searching for unprocessed job01-complete backup..."
+BACKUP=$(find "$BACKUP_DIR" -maxdepth 1 -type d -name "*job01-complete" -not -name "*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*" | head -1)
 
 if [[ -z "$BACKUP" ]]; then
     log "⚠️  No job01-complete backup found, exiting"
