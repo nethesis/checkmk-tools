@@ -39,6 +39,12 @@
    - ✅ ATTENDERE conferma utente prima di eliminare
    - ✅ Non eliminare mai backup senza conferma esplicita
 
+7. **Controllo integrità periodico automatico**
+   - ✅ Eseguire periodicamente (random) `.\check-integrity.ps1`
+   - ✅ Inviare email se anche solo 1 file corrotto viene trovato
+   - ✅ Email deve includere: lista file corrotti, percentuale errori, dettagli
+   - ✅ Non inviare email se tutto OK (solo log locale)
+
 **Esempio workflow corretto:**
 ```bash
 # 1. Backup

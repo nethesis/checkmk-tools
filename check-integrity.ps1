@@ -4,12 +4,21 @@
 param(
     [switch]$Detailed,      # Mostra lista completa errori
     [switch]$ExportReport,  # Esporta report in file
-    [int]$Threshold = 15    # Soglia corruzione (default 15%)
+    [int]$Threshold = 15,   # Soglia corruzione (default 15%)
+    [switch]$SendEmail      # Invia email se errori trovati
 )
 
 $ErrorActionPreference = "Continue"
 
 $REPO_PATH = "C:\Users\Marzio\Desktop\CheckMK\checkmk-tools"
+
+# === CONFIGURAZIONE EMAIL ===
+$SMTP_SERVER = "smtp-relay.nethesis.it"
+$SMTP_PORT = 587
+$SMTP_USE_SSL = $true
+$EMAIL_FROM = "checkmk@nethesis.it"
+$EMAIL_TO = "marzio@nethesis.it"
+$EMAIL_CREDENTIAL_FILE = "C:\CheckMK-Backups\smtp_credential.xml"
 
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Cyan
@@ -408,6 +417,114 @@ DETTAGLIO PER TIPO:
     
     $reportContent | Out-File -FilePath $reportPath -Encoding UTF8
     Write-Host "[INFO] Report esportato: $reportPath" -ForegroundColor Cyan
+    Write-Host ""
+}
+
+# ═══════════════════════════════════════════════════════════════
+# INVIO EMAIL SE RICHIESTO E ERRORI TROVATI
+# ═══════════════════════════════════════════════════════════════
+
+if ($SendEmail -and $corruptedScripts -gt 0) {
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host "    INVIO EMAIL NOTIFICA ERRORI" -ForegroundColor White
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    try {
+        $emailSubject = "[CheckMK Integrity] ERRORI RILEVATI - $corruptedScripts script corrotti"
+        
+        $emailBody = @"
+===============================================================
+       CONTROLLO INTEGRITÀ - ERRORI RILEVATI
+===============================================================
+
+Data e ora: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+Repository: $REPO_PATH
+
+---------------------------------------------------------------
+  RIEPILOGO GENERALE
+---------------------------------------------------------------
+Script verificati:     $totalScripts
+Script validi:         $validScripts
+Script corrotti:       $corruptedScripts
+Percentuale errori:    $([math]::Round($corruptionPercentage, 2))%
+Soglia corruzione:     $Threshold%
+
+STATO: $(if ($corruptionPercentage -gt $Threshold) { 'CRITICO ❌' } else { 'WARNING ⚠️' })
+
+---------------------------------------------------------------
+  DETTAGLIO PER TIPO
+---------------------------------------------------------------
+"@
+        
+        foreach ($cat in $categoryStats.Keys | Sort-Object) {
+            $stats = $categoryStats[$cat]
+            if ($stats.Total -gt 0) {
+                $catPercent = [math]::Round(($stats.Errors / $stats.Total) * 100, 1)
+                $emailBody += "`n  $cat"
+                $emailBody += "`n    Totale:      $($stats.Total)"
+                $emailBody += "`n    Validi:      $($stats.Valid)"
+                $emailBody += "`n    Errori:      $($stats.Errors) ($catPercent%)"
+            }
+        }
+        
+        if ($corruptedList.Count -gt 0) {
+            $emailBody += "`n`n---------------------------------------------------------------"
+            $emailBody += "`n  LISTA SCRIPT CORROTTI (primi 20)"
+            $emailBody += "`n---------------------------------------------------------------`n"
+            $emailBody += ($corruptedList | Select-Object -First 20) -join "`n"
+            
+            if ($corruptedList.Count -gt 20) {
+                $emailBody += "`n`n... e altri $($corruptedList.Count - 20) errori"
+                $emailBody += "`n`nEsegui: .\check-integrity.ps1 -Detailed per vedere tutti gli errori"
+            }
+        }
+        
+        $emailBody += @"
+
+
+---------------------------------------------------------------
+  AZIONE RICHIESTA
+---------------------------------------------------------------
+Verificare e correggere gli script con errori di sintassi.
+Eseguire: .\check-integrity.ps1 -Detailed per lista completa
+
+===============================================================
+  NOTIFICA AUTOMATICA CONTROLLO INTEGRITÀ
+===============================================================
+
+Questo è un messaggio automatico generato dal sistema.
+"@
+        
+        $smtpParams = @{
+            SmtpServer = $SMTP_SERVER
+            Port = $SMTP_PORT
+            From = $EMAIL_FROM
+            To = $EMAIL_TO
+            Subject = $emailSubject
+            Body = $emailBody
+            Encoding = [System.Text.Encoding]::UTF8
+        }
+        
+        if ($SMTP_USE_SSL) {
+            $smtpParams.UseSsl = $true
+        }
+        
+        if (Test-Path $EMAIL_CREDENTIAL_FILE) {
+            $credential = Import-Clixml -Path $EMAIL_CREDENTIAL_FILE
+            $smtpParams.Credential = $credential
+            
+            Send-MailMessage @smtpParams -WarningAction SilentlyContinue
+            Write-Host "[OK] Email inviata a: $EMAIL_TO" -ForegroundColor Green
+        } else {
+            Write-Host "[WARN] Impossibile inviare email: credenziali mancanti" -ForegroundColor Yellow
+            Write-Host "[INFO] File richiesto: $EMAIL_CREDENTIAL_FILE" -ForegroundColor Gray
+        }
+        
+    } catch {
+        Write-Host "[WARN] Impossibile inviare email: $_" -ForegroundColor Yellow
+    }
+    
     Write-Host ""
 }
 
