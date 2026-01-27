@@ -72,6 +72,7 @@ REQUIRED_DIRS=(
     "$SITE_DIR/var/nagios/rrd"
     "$SITE_DIR/var/log/apache"
     "$SITE_DIR/var/log/nagios"
+    "$SITE_DIR/var/log/agent-receiver"
     "$SITE_DIR/var/check_mk/crashes"
     "$SITE_DIR/var/check_mk/inventory_archive"
     "$SITE_DIR/var/check_mk/logwatch"
