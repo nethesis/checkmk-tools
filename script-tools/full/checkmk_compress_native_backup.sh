@@ -124,19 +124,13 @@ log "📊 Riduzione dimensione: ${REDUCTION}%"
 cd "$TMP_DIR"
 rm -rf "$TMP_DIR/extract"
 
-### BACKUP ORIGINALE ###
-log "Creo backup del file originale..."
-ORIGINAL_BACKUP="$SITE_TAR.ORIGINAL-$(date +%F_%H-%M-%S)"
-cp "$SITE_TAR" "$ORIGINAL_BACKUP"
-log "✅ Originale salvato: $(basename $ORIGINAL_BACKUP)"
-
 ### SOSTITUISCI FILE ORIGINALE ###
 log "Sostituisco file originale con versione compressa..."
 mv "$COMPRESSED_TEMP" "$SITE_TAR"
 chown monitoring:monitoring "$SITE_TAR"
 chmod 600 "$SITE_TAR"
 LOCAL_PATH="$SITE_TAR"
-log "✅ File sostituito: $SITE_TAR"
+log "✅ File sostituito: $SITE_TAR ($COMPRESSED_SIZE)"
 
 ### UPLOAD RCLONE ###
 CLOUD_PATH="$RCLONE_PATH/$BACKUP_NAME"
@@ -153,7 +147,7 @@ fi
 ### RIEPILOGO ###
 echo ""
 log "=== RIEPILOGO ==="
-log "Backup originale:    $ORIGINAL_SIZE → $(basename $ORIGINAL_BACKUP)"
+log "Backup originale:    $ORIGINAL_SIZE"
 log "Backup compresso:    $COMPRESSED_SIZE"
 log "Riduzione:           ${REDUCTION}%"
 log "Rimosso:             $(numfmt --to=iec $REMOVED_SIZE)"
