@@ -137,6 +137,8 @@ DETTAGLIO PER TIPO:
 ## 🎯 Workflow Consigliato
 
 ### ⚠️ REGOLA OBBLIGATORIA - Validazione Script
+
+#### Bash/Shell Script
 **SEMPRE quando crei o modifichi uno script Bash/Shell:**
 1. ✅ Testa con `wsl bash -n <file_path>` 
 2. ✅ Verifica che `$LASTEXITCODE -eq 0`
@@ -150,6 +152,26 @@ wsl bash -n "path/to/script.sh"; echo "EXIT CODE: $LASTEXITCODE"
 ```
 
 **Non procedere mai senza exit code 0!**
+
+#### PowerShell Script (.ps1)
+**SEMPRE quando crei o modifichi uno script PowerShell:**
+1. ✅ Valida con PSParser
+2. ✅ Verifica che errori count = 0
+3. ✅ Se errori presenti, correggi e ritesta
+4. ✅ Ripeti finché non ottieni 0 errori
+5. ✅ Solo allora considera il file completato
+
+**Comando validazione da usare:**
+```powershell
+$errors = $null; $null = [System.Management.Automation.PSParser]::Tokenize((Get-Content "path/to/script.ps1" -Raw), [ref]$errors); if ($errors.Count -eq 0) { Write-Host "Sintassi OK" -ForegroundColor Green } else { Write-Host "ERRORI:" -ForegroundColor Red; $errors }; Write-Host "EXIT CODE: $LASTEXITCODE"
+```
+
+**Errori comuni PowerShell:**
+- ❌ Carattere `%` non escaped in stringhe → Usare `$($variabile)%`
+- ❌ Regex anchor `\z` → Preferire `$` (più compatibile)
+- ❌ Apici/virgolette non chiuse correttamente
+
+**Non procedere mai se PSParser riporta errori!**
 ### 📂 REGOLA DEPLOYMENT - Path Script Repository
 
 **⚠️ IMPORTANTE: Repository già clonato su tutte le macchine**
