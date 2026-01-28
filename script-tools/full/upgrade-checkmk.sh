@@ -220,6 +220,25 @@ EOF
     fi
     [[ $old_versions_removed -gt 0 ]] && log "Versioni rimosse: $old_versions_removed" || log "Nessuna versione da rimuovere"
     
+    # 1b. Rimuovi pacchetti .deb obsoleti (mantieni solo la versione corrente)
+    log "Rimozione pacchetti CheckMK obsoleti..."
+    old_packages_removed=0
+    if command -v dpkg >/dev/null 2>&1; then
+        # Lista tutti i pacchetti check-mk-raw installati
+        old_packages=$(dpkg -l | grep -E 'check-mk-raw-[0-9]' | awk '{print $2}' | grep -v "check-mk-raw-${new_v}" || true)
+        if [[ -n "$old_packages" ]]; then
+            for pkg in $old_packages; do
+                log "  Rimuovo pacchetto: $pkg"
+                apt-get remove -y "$pkg" >> "$REPORT_FILE" 2>&1 || warn "Impossibile rimuovere: $pkg"
+                ((old_packages_removed++)) || true
+            done
+            # Cleanup finale
+            apt-get autoremove -y >> "$REPORT_FILE" 2>&1 || true
+            apt-get clean >> "$REPORT_FILE" 2>&1 || true
+        fi
+    fi
+    [[ $old_packages_removed -gt 0 ]] && log "Pacchetti rimossi: $old_packages_removed" || log "Nessun pacchetto da rimuovere"
+    
     # 2. Mantieni solo ultimi 3 backup in /opt/omd/backups (per questo site)
     log "Pulizia backup vecchi (mantiene ultimi 3)..."
     old_backups_removed=0
@@ -270,6 +289,7 @@ Versione iniziale:      $current
 Versione finale:        $new_v
 Backup creato:          $backup_file
 Versioni OMD rimosse:   $old_versions_removed
+Pacchetti .deb rimossi: $old_packages_removed
 Backup vecchi rimossi:  $old_backups_removed
 
 Servizi CheckMK:
