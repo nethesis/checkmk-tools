@@ -201,6 +201,44 @@ ExecStart=/bin/bash -c "curl -fsSL https://raw.githubusercontent.com/Coverup20/c
 
 ---
 
+## 🔧 Agent CheckMK - Installazione/Aggiornamento
+
+**⚠️ IMPORTANTE: Usare sempre lo script dedicato per agent CheckMK**
+
+### Script da usare:
+```bash
+# Su server remoti CheckMK
+/opt/checkmk-tools/script-tools/full/install-agent-interactive.sh
+
+# Da GitHub (se repo non clonato)
+curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/install-agent-interactive.sh | bash
+```
+
+### Cosa fa lo script:
+- ✅ Rileva OS automaticamente (Debian/Ubuntu/RHEL/OpenWrt)
+- ✅ Scarica agent corretto dalla versione CheckMK server
+- ✅ **Disabilita automaticamente `cmk-agent-ctl-daemon.service`** (causa conflitti porta 6556)
+- ✅ Configura socket TCP plain su porta 6556
+- ✅ Gestisce correttamente systemd/xinetd/procd
+- ✅ Opzionale: configura FRPC per tunnel
+
+### Problema comune:
+**NON usare solo `dpkg -i check-mk-agent.deb`** perché:
+- ❌ Lascia attivo `cmk-agent-ctl-daemon` che va in conflitto
+- ❌ Non configura correttamente il socket TCP
+- ❌ Causa errore "Address in use (os error 98)"
+
+### Fix se già installato manualmente:
+```bash
+# Disabilita daemon problematico
+systemctl disable --now cmk-agent-ctl-daemon.service
+systemctl reset-failed cmk-agent-ctl-daemon.service
+
+# L'agent continua a funzionare via check-mk-agent.socket
+```
+
+---
+
 ## 🔌 Accesso Remoto SSH - VPS e Server Locali
 
 ### Setup WSL SSH
