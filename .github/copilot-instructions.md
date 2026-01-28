@@ -157,11 +157,13 @@ wsl bash -n "path/to/script.sh"; echo "EXIT CODE: $LASTEXITCODE"
 **Path repository locale:**
 - ✅ **TUTTE le macchine (server e host) hanno git clone in `/opt/checkmk-tools/`**
 - ✅ Repository aggiornato automaticamente (git pull automatico)
-- ✅ Preferire esecuzione locale quando disponibile
+- ✅ Preferire esecuzione locale quando disponibile (più comodo/veloce)
+- ⚠️ **ATTENZIONE: Il clone locale è READ-ONLY** - qualsiasi modifica viene sovrascritta dal git pull automatico
+- ❌ **MAI modificare file in `/opt/checkmk-tools/`** - modifiche si perdono sistematicamente
 
 **Ordine di priorità:**
-1. **Locale (se disponibile)**: `/opt/checkmk-tools/script-tools/full/script-name.sh`
-2. **GitHub raw**: `https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/...`
+1. **Locale (se disponibile)**: `/opt/checkmk-tools/script-tools/full/script-name.sh` (più comodo)
+2. **GitHub raw**: `https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/...` (funziona ugualmente bene)
 
 **Esempi esecuzione locale:**
 ```bash
@@ -189,10 +191,17 @@ curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script
 - ✅ Funziona offline
 - ✅ Stesso codice su tutti i server (git pull auto)
 
-**Quando usare GitHub raw:**
-- Host remoti senza repository clonato
-- Bootstrap/installazione iniziale
-- Test rapidi senza accesso server
+**Vantaggi GitHub raw (curl/wget):**
+- ✅ Funziona ugualmente bene
+- ✅ Sempre ultima versione GitHub
+- ✅ Utile per host remoti o bootstrap
+
+**⚠️ REGOLA IMPORTANTE: Modifiche al repository**
+- ✅ Modifiche SOLO su VSCode locale (Windows)
+- ✅ Commit e push da VSCode
+- ✅ Git pull automatico distribuisce a tutti i server
+- ❌ **MAI modificare file in `/opt/checkmk-tools/` sui server remoti**
+- ❌ Modifiche locali vengono perse al prossimo git pull
 ### Prima di ogni commit importante:
 1. Eseguire `.\check-integrity.ps1` per verificare lo stato
 2. Se errori >15%, indagare prima di committare
