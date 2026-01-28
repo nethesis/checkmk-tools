@@ -60,7 +60,59 @@ rm file.txt
 
 ---
 
-## 🔧 Strumenti di Controllo Qualità
+## �️ NethServer - Gestione Configurazione
+
+### ⚠️ REGOLA CRITICA - NON modificare file di configurazione manualmente
+
+**NethServer (NS7/NS8) usa sistema e-smith/template:**
+- ❌ **MAI modificare direttamente** file in `/etc/` (fail2ban, httpd, postfix, etc.)
+- ✅ **SEMPRE usare interfaccia web** o comandi `config`
+- ⚠️ Modifiche manuali ai file = **perse al prossimo `signal-event`**
+
+**Esempio configurazioni gestite da template:**
+```bash
+/etc/fail2ban/fail2ban.conf          # Gestito da templates
+/etc/fail2ban/jail.conf              # Gestito da templates
+/etc/httpd/conf.d/*                  # Gestito da templates
+/etc/postfix/main.cf                 # Gestito da templates
+/etc/shorewall/*                     # Gestito da templates
+```
+
+**Metodi corretti per modificare configurazioni:**
+
+1. **Via interfaccia web NethServer**
+   - Server Manager → sezione specifica
+   - Modifiche persistenti e validate
+
+2. **Via comandi config (CLI)**
+```bash
+# Visualizza configurazione
+config show fail2ban
+
+# Modifica proprietà
+config setprop fail2ban LogLevel NOTICE
+config setprop fail2ban DbPurgeAge 30d
+
+# Applica modifiche
+signal-event nethserver-fail2ban-save
+```
+
+3. **Via template custom** (avanzato)
+```bash
+# Crea template custom in /etc/e-smith/templates-custom/
+# Le modifiche sopravvivono ai signal-event
+```
+
+**⚠️ Conseguenze modifiche manuali:**
+- `signal-event nethserver-<servizio>-save` → configurazione ripristinata
+- Riavvio servizio → configurazione ripristinata
+- Aggiornamenti sistema → configurazione ripristinata
+
+**✅ SEMPRE chiedere conferma utente** prima di suggerire modifiche manuali a file su NethServer!
+
+---
+
+## �🔧 Strumenti di Controllo Qualità
 
 ### check-integrity.ps1 - Controllo Integrità Repository
 
