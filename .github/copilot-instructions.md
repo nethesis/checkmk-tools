@@ -150,33 +150,49 @@ wsl bash -n "path/to/script.sh"; echo "EXIT CODE: $LASTEXITCODE"
 ```
 
 **Non procedere mai senza exit code 0!**
-### 📂 REGOLA DEPLOYMENT - Path Script dal Repository GitHub
+### 📂 REGOLA DEPLOYMENT - Path Script Repository
 
-**Gli script devono SEMPRE essere eseguiti direttamente dal repository GitHub con curl:**
-- ❌ NON copiare script in `/usr/local/bin` o `/usr/bin`
-- ❌ NON creare copie locali o git clone
-- ✅ Esegui direttamente da GitHub tramite curl/wget
-- ✅ Repository GitHub: `https://github.com/Coverup20/checkmk-tools.git`
-- ✅ Raw URL base: `https://raw.githubusercontent.com/Coverup20/checkmk-tools/main`
+**⚠️ IMPORTANTE: Repository già clonato su tutte le macchine**
 
-**Esempi corretti per cron/systemd:**
+**Path repository locale:**
+- ✅ **TUTTE le macchine (server e host) hanno git clone in `/opt/checkmk-tools/`**
+- ✅ Repository aggiornato automaticamente (git pull automatico)
+- ✅ Preferire esecuzione locale quando disponibile
+
+**Ordine di priorità:**
+1. **Locale (se disponibile)**: `/opt/checkmk-tools/script-tools/full/script-name.sh`
+2. **GitHub raw**: `https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/...`
+
+**Esempi esecuzione locale:**
+```bash
+# Esecuzione diretta da repo locale
+/opt/checkmk-tools/script-tools/full/install-agent-interactive.sh
+
+# Cron job - usa repo locale
+0 3 * * * /opt/checkmk-tools/script-tools/full/cleanup-checkmk-retention.sh >> /var/log/script.log 2>&1
+
+# Con bash esplicito
+bash /opt/checkmk-tools/script-tools/full/script-name.sh
+```
+
+**Esempi esecuzione da GitHub (fallback o host remoti):**
 ```bash
 # Cron job - esecuzione diretta da GitHub
 0 3 * * * curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh | bash >> /var/log/script.log 2>&1
 
-# Esecuzione manuale - scarica ed esegui da GitHub
+# Esecuzione manuale remota
 curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/script-name.sh | bash
-
-# Systemd ExecStart - esecuzione diretta da GitHub
-ExecStart=/bin/bash -c "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/script-name.sh | bash"
 ```
 
-**Vantaggi:**
-- ✅ Sempre l'ultima versione da GitHub (no git pull necessario)
-- ✅ Nessun repository locale da mantenere
-- ✅ Single source of truth: repository GitHub
-- ✅ Tutti i server usano identica versione in tempo reale
-- ✅ Zero sincronizzazione manuale
+**Vantaggi path locale:**
+- ✅ Più veloce (no download)
+- ✅ Funziona offline
+- ✅ Stesso codice su tutti i server (git pull auto)
+
+**Quando usare GitHub raw:**
+- Host remoti senza repository clonato
+- Bootstrap/installazione iniziale
+- Test rapidi senza accesso server
 ### Prima di ogni commit importante:
 1. Eseguire `.\check-integrity.ps1` per verificare lo stato
 2. Se errori >15%, indagare prima di committare
