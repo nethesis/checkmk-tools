@@ -278,8 +278,8 @@ systemctl reset-failed cmk-agent-ctl-daemon.service
 
 ```bash
 # VPS CheckMK (chiave: ~/.ssh/checkmk + passphrase)
-checkmk-vps-01    # monitor.nethlab.it (CheckMK 2.4.0p19.cre)
-checkmk-vps-02    # monitor01.nethlab.it
+checkmk-vps-01    # monitor.nethlab.it (CheckMK 2.4.0p19.cre) - PRODUZIONE
+checkmk-vps-02    # monitor01.nethlab.it - ⚠️ TEST CRITICI / STAGING
 checkmk-vps03     # 143.110.148.110
 
 # Server locali CheckMK (autenticazione password)
@@ -297,6 +297,15 @@ redteam           # redteam.security.nethesis.it (root)
 ```
 
 ### 🚀 Workflow Accesso Remoto
+
+**⚠️ IMPORTANTE - Ambiente Test:**
+- **checkmk-vps-02** (monitor01.nethlab.it) è dedicato ai **TEST CRITICI**
+- Usare **SEMPRE** vps-02 per testare:
+  - Nuovi script di disaster recovery
+  - Modifiche agli script di backup/restore
+  - Upgrade CheckMK con cambiamenti critici
+  - Test di procedure che potrebbero compromettere il sistema
+- **NON testare direttamente su vps-01 (produzione)**
 
 **1. Comando singolo SSH:**
 ```powershell
