@@ -288,6 +288,7 @@ checkmk-testfrp   # 192.168.10.126 (user: admin_nethesis)
 
 # Server locali altri (autenticazione password)
 ns-lab00          # 192.168.10.100:2222 (root)
+rl94ns8           # 10.155.100.70:22 (root, NethServer 8)
 
 # Altri server (chiave: ~/.ssh/sos-openssh)
 sos               # sos.nethesis.it (user: marzio)
