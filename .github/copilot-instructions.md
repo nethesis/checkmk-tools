@@ -409,7 +409,7 @@ systemctl reset-failed cmk-agent-ctl-daemon.service
 - ✅ WSL: Ubuntu su Windows (`wsl -- bash -c "command"`)
 - ✅ SSH Keys: `~/.ssh/checkmk` (protetta da passphrase)
 - ✅ SSH Config: `~/.ssh/config` con alias host
-- ✅ SSH ControlMaster: Riutilizzo connessioni (passphrase 1 volta, poi 10 min attiva)
+- ✅ SSH ControlMaster: Riutilizzo connessioni (passphrase 1 volta, poi 1 min attiva)
 
 **⚠️ REGOLA CRITICA - Gestione Password SSH:**
 - ❌ **MAI inviare comandi multipli** quando SSH richiede password
@@ -433,6 +433,7 @@ checkmk-z1plus    # 192.168.10.128 (locale)
 checkmk-testfrp   # 192.168.10.126 (user: admin_nethesis)
 
 # Server locali altri (autenticazione password)
+nodo-proxmox      # 10.155.100.20:22 (root, Proxmox VE)
 ns-lab00          # 192.168.10.100:2222 (root)
 rl94ns8           # 10.155.100.70:22 (root, NethServer 8)
 nsec8-stable      # 10.155.100.100:22 (root, NethServer Security 8)
