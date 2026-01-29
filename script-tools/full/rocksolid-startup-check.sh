@@ -24,7 +24,8 @@ log "[Repository] Verifica repository opkg..."
 
 if command -v opkg >/dev/null 2>&1; then
     # Controlla se repository sono corrotti
-    REPO_STATUS=$(opkg list 2>&1 | grep -c "parse_from_stream_nomalloc" || echo 0)
+    REPO_STATUS=$(opkg list 2>&1 | grep -c "parse_from_stream_nomalloc" 2>/dev/null || echo "0")
+    REPO_STATUS=$(echo "$REPO_STATUS" | tr -d ' ')
     
     if [ "$REPO_STATUS" -gt 0 ]; then
         log "[Repository] CORRUZIONE rilevata - riparo repository"
@@ -206,7 +207,8 @@ fi
 # ============================================================================
 log "[Protezioni] Verifica sysupgrade.conf..."
 
-PROTECTED_COUNT=$(grep -c -E 'check_mk|frpc|checkmk-tools|git-auto-sync' "$SYSUPGRADE_CONF" 2>/dev/null || echo "0")
+PROTECTED_COUNT=$(grep -c -E 'check_mk|frpc|checkmk-tools|rc.local' "$SYSUPGRADE_CONF" 2>/dev/null || echo "0")
+PROTECTED_COUNT=$(echo "$PROTECTED_COUNT" | tr -d ' ')
 log "[Protezioni] File protetti: $PROTECTED_COUNT"
 
 if [ "$PROTECTED_COUNT" -lt 5 ]; then
