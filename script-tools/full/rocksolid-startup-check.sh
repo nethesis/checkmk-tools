@@ -176,8 +176,29 @@ log "[Repository] Verifica in corso..."
 
 if [ -d /opt/checkmk-tools/.git ]; then
     log "[Repository] OK - Presente in /opt/checkmk-tools"
+    
+    # Aggiorna repository se git disponibile
+    if command -v git >/dev/null 2>&1; then
+        log "[Repository] Aggiornamento da GitHub..."
+        cd /opt/checkmk-tools && git pull origin main >> "$LOG_FILE" 2>&1
+        log "[Repository] Aggiornamento completato"
+    fi
 else
     log "[Repository] WARN: Repository non trovato in /opt/checkmk-tools"
+    
+    # Clona automaticamente se git disponibile
+    if command -v git >/dev/null 2>&1; then
+        log "[Repository] Clonazione automatica da GitHub..."
+        mkdir -p /opt
+        git clone https://github.com/Coverup20/checkmk-tools.git /opt/checkmk-tools >> "$LOG_FILE" 2>&1
+        if [ -d /opt/checkmk-tools/.git ]; then
+            log "[Repository] Clonato con successo"
+        else
+            log "[Repository] ERRORE: Clonazione fallita"
+        fi
+    else
+        log "[Repository] WARN: Git non disponibile, impossibile clonare"
+    fi
 fi
 
 # ============================================================================
