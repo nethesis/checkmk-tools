@@ -139,66 +139,32 @@ else
 fi
 
 # ============================================================================
-# 4. VERIFICA GIT AUTO-SYNC
+# 4. VERIFICA GIT (opzionale)
 # ============================================================================
-log "[Git Auto-Sync] Verifica in corso..."
+# NOTA: Git non più necessario - tutti gli script eseguiti via curl da GitHub
+log "[Git] Verifica in corso..."
 
-if [ -x /usr/local/bin/git-auto-sync.sh ]; then
-    # Verifica cron job
-    if grep -q 'git-auto-sync.sh' /etc/crontabs/root 2>/dev/null; then
-        log "[Git Auto-Sync] OK - Cron job configurato"
-        
-        # Test sync se git disponibile
-        if command -v git >/dev/null 2>&1 && [ -d /opt/checkmk-tools/.git ]; then
-            log "[Git Auto-Sync] Test sync manuale..."
-            /usr/local/bin/git-auto-sync.sh >> "$LOG_FILE" 2>&1
-            log "[Git Auto-Sync] Sync completato"
-        fi
-    else
-        log "[Git Auto-Sync] WARN: Cron job mancante, ripristino..."
-        if [ -x /etc/git-sync-post-upgrade.sh ]; then
-            /etc/git-sync-post-upgrade.sh >> "$LOG_FILE" 2>&1
-        else
-            # Aggiungi manualmente
-            echo "* * * * * /usr/local/bin/git-auto-sync.sh" >> /etc/crontabs/root
-            /etc/init.d/cron restart 2>/dev/null || true
-            log "[Git Auto-Sync] Cron job ripristinato"
-        fi
-    fi
+if command -v git >/dev/null 2>&1; then
+    GIT_VERSION=$(git --version 2>/dev/null || echo "unknown")
+    log "[Git] OK - Presente: $GIT_VERSION (opzionale)"
+    GIT_STATUS="OK"
 else
-    log "[Git Auto-Sync] Non configurato (opzionale)"
+    log "[Git] Non installato (non necessario - script eseguiti via curl da GitHub)"
+    GIT_STATUS="N/A"
 fi
 
 # ============================================================================
 # 5. VERIFICA REPOSITORY CHECKMK-TOOLS
 # ============================================================================
-log "[Repository] Verifica in corso..."
+# NOTA: Repository locale non necessario - tutti gli script vengono eseguiti
+# direttamente da GitHub tramite curl per evitare corruzione file locali
+log "[Repository] Verifica directory backup..."
 
-if [ -d /opt/checkmk-tools/.git ]; then
-    log "[Repository] OK - Presente in /opt/checkmk-tools"
-    
-    # Aggiorna repository se git disponibile
-    if command -v git >/dev/null 2>&1; then
-        log "[Repository] Aggiornamento da GitHub..."
-        cd /opt/checkmk-tools && git pull origin main >> "$LOG_FILE" 2>&1
-        log "[Repository] Aggiornamento completato"
-    fi
+if [ -d /opt/checkmk-tools/BACKUP-BINARIES ]; then
+    log "[Repository] OK - Directory backup binari presente"
 else
-    log "[Repository] WARN: Repository non trovato in /opt/checkmk-tools"
-    
-    # Clona automaticamente se git disponibile
-    if command -v git >/dev/null 2>&1; then
-        log "[Repository] Clonazione automatica da GitHub..."
-        mkdir -p /opt
-        git clone https://github.com/Coverup20/checkmk-tools.git /opt/checkmk-tools >> "$LOG_FILE" 2>&1
-        if [ -d /opt/checkmk-tools/.git ]; then
-            log "[Repository] Clonato con successo"
-        else
-            log "[Repository] ERRORE: Clonazione fallita"
-        fi
-    else
-        log "[Repository] WARN: Git non disponibile, impossibile clonare"
-    fi
+    log "[Repository] WARN: Directory backup binari non trovata"
+    mkdir -p /opt/checkmk-tools/BACKUP-BINARIES 2>/dev/null || true
 fi
 
 # ============================================================================
@@ -236,16 +202,9 @@ fi
 
 # Git
 if command -v git >/dev/null 2>&1; then
-    log "  Git:            [OK]"
+    log "  Git:            [$GIT_STATUS]"
 else
-    log "  Git:            [FAIL]"
-fi
-
-# Git Sync
-if [ -x /usr/local/bin/git-auto-sync.sh ]; then
-    log "  Git Auto-Sync:  [OK]"
-else
-    log "  Git Auto-Sync:  [N/A]"
+    log "  Git:            [N/A]"
 fi
 
 log "========================================="
