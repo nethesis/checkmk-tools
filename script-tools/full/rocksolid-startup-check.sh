@@ -207,8 +207,8 @@ fi
 # ============================================================================
 log "[Protezioni] Verifica sysupgrade.conf..."
 
-# Conta tutte le righe non-commento non-vuote (protezioni totali)
-PROTECTED_COUNT=$(grep -v '^#' "$SYSUPGRADE_CONF" 2>/dev/null | grep -v '^$' | grep -E '^\/' | wc -l)
+# Conta tutte le righe non-commento non-vuote che iniziano con / (protezioni totali)
+PROTECTED_COUNT=$(grep -v '^#' "$SYSUPGRADE_CONF" 2>/dev/null | grep -v '^$' | grep -E '^/' | wc -l)
 PROTECTED_COUNT=$(echo "$PROTECTED_COUNT" | tr -d ' \n')
 log "[Protezioni] File protetti: $PROTECTED_COUNT"
 
