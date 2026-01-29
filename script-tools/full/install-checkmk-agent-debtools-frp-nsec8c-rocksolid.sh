@@ -14,8 +14,13 @@ SYSUPGRADE_CONF="${SYSUPGRADE_CONF:-/etc/sysupgrade.conf}"
 REPO_BASE="${REPO_BASE:-https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base}"
 REPO_PACKAGES="${REPO_PACKAGES:-https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages}"
 
-# URL del .deb dell'agente (da cui estraiamo /usr/bin/check_mk_agent)
-DEB_URL="${DEB_URL:-https://monitoring.nethlab.it/monitoring/check_mk/agents/check-mk-agent_2.4.0p14-1_all.deb}"
+# Configurazione CheckMK Server
+CMK_SERVER="${CMK_SERVER:-monitor.nethlab.it}"
+CMK_SITE="${CMK_SITE:-monitoring}"
+CMK_PROTOCOL="${CMK_PROTOCOL:-https}"
+
+# URL del .deb dell'agente (rilevato automaticamente o override manuale)
+DEB_URL="${DEB_URL:-}"
 
 FRP_VER="${FRP_VER:-0.64.0}"
 FRPC_BIN="${FRPC_BIN:-/usr/local/bin/frpc}"
@@ -39,6 +44,55 @@ add_repo() {
     name="$1"
     url="$2"
     grep -q "$url" "$CUSTOMFEEDS" 2>/dev/null || echo "src/gz $name $url" >>"$CUSTOMFEEDS"
+}
+
+# ============================================================================
+# Rileva versione CheckMK e costruisce URL .deb dinamicamente
+# ============================================================================
+detect_checkmk_agent_url() {
+    if [ -n "$DEB_URL" ]; then
+        log "URL .deb specificato manualmente: $DEB_URL"
+        return 0
+    fi
+    
+    log "Rilevamento automatico versione CheckMK da $CMK_SERVER..."
+    
+    # Prova a rilevare la versione dall'API o dalla pagina agents
+    local version=""
+    local base_url="${CMK_PROTOCOL}://${CMK_SERVER}/${CMK_SITE}/check_mk/agents"
+    
+    # Metodo 1: Cerca la versione dalla pagina agents
+    if command -v wget >/dev/null 2>&1; then
+        version=$(wget -qO- --no-check-certificate "$base_url/" 2>/dev/null | grep -oP 'check-mk-agent_\K[0-9]+\.[0-9]+\.[0-9]+p[0-9]+' | head -1)
+    elif command -v curl >/dev/null 2>&1; then
+        version=$(curl -fsSL --insecure "$base_url/" 2>/dev/null | grep -oP 'check-mk-agent_\K[0-9]+\.[0-9]+\.[0-9]+p[0-9]+' | head -1)
+    fi
+    
+    # Metodo 2: Prova URL diretto standard
+    if [ -z "$version" ]; then
+        warn "Impossibile rilevare versione automaticamente, provo versione di default"
+        # Prova a scaricare dalla directory agents standard
+        local test_url="${base_url}/check-mk-agent_2.4.0p14-1_all.deb"
+        if command -v wget >/dev/null 2>&1; then
+            if wget --spider --no-check-certificate "$test_url" 2>/dev/null; then
+                version="2.4.0p14"
+            fi
+        elif command -v curl >/dev/null 2>&1; then
+            if curl -fsSL -I --insecure "$test_url" >/dev/null 2>&1; then
+                version="2.4.0p14"
+            fi
+        fi
+    fi
+    
+    if [ -n "$version" ]; then
+        DEB_URL="${base_url}/check-mk-agent_${version}-1_all.deb"
+        log "Versione rilevata: $version"
+        log "URL .deb: $DEB_URL"
+    else
+        # Fallback: usa URL di default
+        DEB_URL="${CMK_PROTOCOL}://${CMK_SERVER}/${CMK_SITE}/check_mk/agents/check-mk-agent_2.4.0p14-1_all.deb"
+        warn "Versione non rilevata, uso fallback: $DEB_URL"
+    fi
 }
 
 # ============================================================================
@@ -591,8 +645,14 @@ main() {
     echo "║  Versione resistente ai major upgrade NethSecurity/OpenWrt    ║"
     echo "╚════════════════════════════════════════════════════════════════╝"
     echo ""
+    log "Configurazione:"
+    log "  CheckMK Server: $CMK_SERVER"
+    log "  Site: $CMK_SITE"
+    log "  Protocol: $CMK_PROTOCOL"
+    echo ""
 
     install_prereqs
+    detect_checkmk_agent_url
     install_agent
     install_agent_service
     
