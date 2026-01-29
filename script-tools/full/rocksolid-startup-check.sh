@@ -115,6 +115,30 @@ else
 fi
 
 # ============================================================================
+# 2.5 VERIFICA E RIPRISTINA QEMU GUEST AGENT (VM ONLY)
+# ============================================================================
+if [ -f "/usr/bin/qemu-ga" ]; then
+    log "[QEMU-GA] Verifica in corso..."
+    
+    if ! pgrep -x qemu-ga >/dev/null 2>&1; then
+        log "[QEMU-GA] Servizio non attivo, avvio..."
+        /etc/init.d/qemu-ga enable 2>/dev/null || true
+        /etc/init.d/qemu-ga start 2>/dev/null || true
+        sleep 2
+        
+        if pgrep -x qemu-ga >/dev/null 2>&1; then
+            log "[QEMU-GA] Servizio riavviato con successo"
+        else
+            log "[QEMU-GA] ERRORE: Impossibile avviare servizio"
+        fi
+    else
+        log "[QEMU-GA] OK - Servizio attivo"
+    fi
+else
+    log "[QEMU-GA] Non installato (opzionale, solo per VM)"
+fi
+
+# ============================================================================
 # 3. VERIFICA E INSTALLA GIT (SE MANCANTE)
 # ============================================================================
 log "[Git] Verifica in corso..."

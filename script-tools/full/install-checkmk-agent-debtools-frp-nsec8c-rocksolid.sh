@@ -475,6 +475,30 @@ else
 fi
 
 # ============================================================================
+# 2.5 VERIFICA E RIPRISTINA QEMU GUEST AGENT (VM ONLY)
+# ============================================================================
+if [ -f "/usr/bin/qemu-ga" ]; then
+    log "[QEMU-GA] Verifica in corso..."
+    
+    if ! pgrep -x qemu-ga >/dev/null 2>&1; then
+        log "[QEMU-GA] Servizio non attivo, avvio..."
+        /etc/init.d/qemu-ga enable 2>/dev/null || true
+        /etc/init.d/qemu-ga start 2>/dev/null || true
+        sleep 2
+        
+        if pgrep -x qemu-ga >/dev/null 2>&1; then
+            log "[QEMU-GA] Servizio riavviato con successo"
+        else
+            log "[QEMU-GA] ERRORE: Impossibile avviare servizio"
+        fi
+    else
+        log "[QEMU-GA] OK - Servizio attivo"
+    fi
+else
+    log "[QEMU-GA] Non installato (opzionale, solo per VM)"
+fi
+
+# ============================================================================
 # 3. VERIFICA PROTEZIONI SYSUPGRADE.CONF
 # ============================================================================
 log "[Protezioni] Verifica sysupgrade.conf..."
@@ -707,6 +731,62 @@ EOF
     fi
 }
 
+# ============================================================================
+# QEMU Guest Agent Installation (per VM Proxmox/KVM)
+# ============================================================================
+install_qemu_ga() {
+    log "Installazione QEMU Guest Agent (opzionale per VM)"
+    
+    # Rileva se siamo su una VM
+    PRODUCT_NAME=$(cat /sys/class/dmi/id/product_name 2>/dev/null || echo "")
+    
+    # Verifica se è una VM (Proxmox usa "Standard PC" o contiene "QEMU")
+    if ! echo "$PRODUCT_NAME" | grep -qi "qemu\|standard pc\|virtual\|kvm"; then
+        log "Sistema non identificato come VM - skip qemu-guest-agent"
+        return 0
+    fi
+    
+    log "VM rilevata: $PRODUCT_NAME - procedo con installazione qemu-guest-agent"
+    
+    # Installa qemu-guest-agent
+    log "Installazione pacchetto qemu-guest-agent..."
+    opkg update >/dev/null 2>&1 || log "Warning: opkg update fallito (continuo comunque)"
+    opkg install qemu-guest-agent 2>/dev/null || {
+        log "Warning: pacchetto qemu-guest-agent non disponibile o già installato"
+    }
+    
+    # Verifica binario
+    if [ ! -f "/usr/bin/qemu-ga" ]; then
+        log "Warning: /usr/bin/qemu-ga non trovato - qemu-guest-agent potrebbe non essere disponibile"
+        return 0
+    fi
+    
+    # Avvia servizio
+    log "Avvio servizio qemu-guest-agent..."
+    /etc/init.d/qemu-ga enable 2>/dev/null || log "Warning: enable qemu-ga fallito"
+    /etc/init.d/qemu-ga start 2>/dev/null || log "Warning: start qemu-ga fallito"
+    
+    # Verifica servizio attivo
+    sleep 2
+    if pgrep -x qemu-ga >/dev/null 2>&1; then
+        log "QEMU Guest Agent installato e attivo"
+    else
+        log "Warning: QEMU Guest Agent non risulta in esecuzione"
+    fi
+    
+    # ROCKSOLID: Proteggi installazione
+    log "ROCKSOLID: Proteggo installazione QEMU Guest Agent da major upgrade"
+    add_to_sysupgrade "/usr/bin/qemu-ga" "QEMU Guest Agent - Binary"
+    add_to_sysupgrade "/etc/init.d/qemu-ga" "QEMU Guest Agent - Init Script"
+    
+    # Se esiste config proteggi anche quello
+    if [ -f "/etc/config/qemu-ga" ]; then
+        add_to_sysupgrade "/etc/config/qemu-ga" "QEMU Guest Agent - Configuration"
+    fi
+    
+    log "Installazione QEMU Guest Agent protetta contro major upgrade"
+}
+
 install_frp() {
     echo ""
     echo "Installazione FRP client (opzionale)"
@@ -917,6 +997,9 @@ main() {
     protect_checkmk_installation
     backup_critical_binaries
     create_post_upgrade_script
+    
+    # QEMU Guest Agent (per VM Proxmox/KVM)
+    install_qemu_ga
     
     install_frp
     
