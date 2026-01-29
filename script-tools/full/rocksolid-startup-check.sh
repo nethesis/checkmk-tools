@@ -18,6 +18,49 @@ log "ROCKSOLID Startup Check - AVVIO"
 log "========================================="
 
 # ============================================================================
+# 0. VERIFICA E RIPARA REPOSITORY OPKG
+# ============================================================================
+log "[Repository] Verifica repository opkg..."
+
+if command -v opkg >/dev/null 2>&1; then
+    # Controlla se repository sono corrotti
+    REPO_STATUS=$(opkg list 2>&1 | grep -c "parse_from_stream_nomalloc" || echo 0)
+    
+    if [ "$REPO_STATUS" -gt 0 ]; then
+        log "[Repository] CORRUZIONE rilevata - riparo repository"
+        
+        # Backup e pulizia cache corrotta
+        rm -rf /var/opkg-lists/*.sig 2>/dev/null || true
+        
+        # Configura repository affidabili
+        log "[Repository] Configuro repository OpenWrt base..."
+        
+        # Assicura che customfeeds.conf esista
+        CUSTOMFEEDS="/etc/opkg/customfeeds.conf"
+        if [ ! -f "$CUSTOMFEEDS" ]; then
+            touch "$CUSTOMFEEDS"
+        fi
+        
+        # Repository OpenWrt stabili (evita NethSecurity corrotti post-upgrade)
+        grep -q "openwrt_packages" "$CUSTOMFEEDS" 2>/dev/null || \
+            echo "src/gz openwrt_packages https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages" >> "$CUSTOMFEEDS"
+        
+        grep -q "openwrt_base" "$CUSTOMFEEDS" 2>/dev/null || \
+            echo "src/gz openwrt_base https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base" >> "$CUSTOMFEEDS"
+        
+        # Update repository
+        log "[Repository] Aggiornamento liste pacchetti..."
+        opkg update >> "$LOG_FILE" 2>&1 || log "[Repository] WARNING: Alcuni repository hanno fallito"
+        
+        log "[Repository] Ripristino repository completato"
+    else
+        log "[Repository] OK - Repository funzionanti"
+    fi
+else
+    log "[Repository] opkg non disponibile (sistema non OpenWrt)"
+fi
+
+# ============================================================================
 # 1. VERIFICA E RIPRISTINA CHECKMK AGENT
 # ============================================================================
 log "[CheckMK Agent] Verifica in corso..."
