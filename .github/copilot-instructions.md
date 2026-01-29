@@ -417,7 +417,6 @@ systemctl reset-failed cmk-agent-ctl-daemon.service
 # VPS CheckMK (chiave: ~/.ssh/checkmk + passphrase)
 checkmk-vps-01    # monitor.nethlab.it (CheckMK 2.4.0p19.cre) - PRODUZIONE
 checkmk-vps-02    # monitor01.nethlab.it - ⚠️ TEST CRITICI / STAGING
-checkmk-vps03     # 143.110.148.110
 
 # Server locali CheckMK (autenticazione password)
 checkmk-z1plus    # 192.168.10.128 (locale)
@@ -430,8 +429,7 @@ nsec8-stable      # 10.155.100.100:22 (root, NethServer Security 8)
                   # Agent CheckMK installato con: install-checkmk-agent-debtools-frp-nsec8c.sh
                   # Path: /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c.sh
 
-# Altri server (chiave: ~/.ssh/sos-openssh)
-sos               # sos.nethesis.it (user: marzio)
+# Altri server
 fwlab             # 192.168.5.117:2222 (root)
 redteam           # redteam.security.nethesis.it (root)
 ```
@@ -452,7 +450,6 @@ redteam           # redteam.security.nethesis.it (root)
 # Da PowerShell → esegui comando su VPS
 wsl -- ssh checkmk-vps-01 "omd version"
 wsl -- ssh checkmk-vps-02 "omd sites"
-wsl -- ssh checkmk-vps03 "systemctl status omd"
 ```
 
 **2. Esecuzione script da GitHub:**
@@ -469,7 +466,6 @@ wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup2
 # Check rapido su tutti i VPS
 wsl -- ssh checkmk-vps-01 "omd status"
 wsl -- ssh checkmk-vps-02 "omd status"
-wsl -- ssh checkmk-vps03 "omd status"
 
 # Verifica backup
 wsl -- ssh checkmk-vps-01 "ls -lh /opt/omd/sites/monitoring/var/check_mk/notify-backup/"
@@ -517,13 +513,11 @@ wsl -- ssh checkmk-vps-01 "df -h && free -h && uptime"
 ```bash
 # WSL paths
 ~/.ssh/checkmk              # Chiave privata VPS (con passphrase)
-~/.ssh/sos-openssh          # Chiave privata altri server
 ~/.ssh/config               # Configurazione SSH
 ~/.ssh/known_hosts          # Host verificati
 
 # Windows paths originali (backup)
 C:\Users\Marzio\.ssh\checkmk
-C:\Users\Marzio\.ssh\sos-openssh
 ```
 
 ---
