@@ -57,7 +57,24 @@ cp file.txt file.txt.backup_2026-01-27_20-30-00
 # 3. Solo dopo OK utente
 rm file.txt
 ```
+8. **Recupero script corrotti o persi**
+   - ✅ **Metodo 1**: Git history - `git log`, `git show`, `git checkout`
+   - ✅ **Metodo 2**: Backup locali - `C:\CheckMK-Backups\<timestamp>\`
+   - ✅ **Metodo 3**: Backup rete - `\\192.168.10.132\usbshare\CheckMK-Backups\<timestamp>\`
+   - ⚠️ Verificare **sempre** disponibilità backup prima di modifiche massive
+   - ✅ Backup automatici eseguiti daily: job00 (locale+rete), ultra-minimal (locale)
 
+**Esempio recupero file:**
+```powershell
+# Da Git (commit precedente)
+git show HEAD~1:script-tools/full/script.sh > script.sh.recovered
+
+# Da backup locale
+Copy-Item "C:\CheckMK-Backups\2026-01-29_03-00-00\script-tools\full\script.sh" -Destination ".\"
+
+# Da backup rete
+Copy-Item "\\192.168.10.132\usbshare\CheckMK-Backups\2026-01-29_00-00-00\script-tools\full\script.sh" -Destination ".\"
+```
 ---
 
 ## �️ NethServer - Gestione Configurazione
