@@ -196,6 +196,7 @@ protect_frp_installation() {
     add_to_sysupgrade "/usr/local/bin/frpc" "FRP Client - Binary"
     add_to_sysupgrade "/etc/frp/frpc.toml" "FRP Client - Configuration (CRITICO: contiene token)"
     add_to_sysupgrade "/etc/init.d/frpc" "FRP Client - Init Script"
+    add_to_sysupgrade "/opt/checkmk-tools/.frp-installed" "FRP Client - Marker file (autocheck detection)"
     
     log "Installazione FRP protetta contro major upgrade"
 }
