@@ -168,7 +168,41 @@ else
 fi
 
 # ============================================================================
-# 6. VERIFICA PROTEZIONI SYSUPGRADE.CONF
+# 6. PULIZIA REPOSITORY CUSTOM (prevenzione conflitti aggiornamenti)
+# ============================================================================
+log "[Repository] Pulizia repository custom OpenWrt..."
+
+CUSTOMFEEDS="/etc/opkg/customfeeds.conf"
+if [ -f "$CUSTOMFEEDS" ]; then
+    # Verifica se contiene repository OpenWrt custom
+    if grep -q "downloads.openwrt.org" "$CUSTOMFEEDS" 2>/dev/null; then
+        log "[Repository] WARN: Repository OpenWrt custom trovati - rimozione in corso"
+        
+        # Backup del file originale (se non esiste già)
+        if [ ! -f "${CUSTOMFEEDS}.backup" ]; then
+            cp "$CUSTOMFEEDS" "${CUSTOMFEEDS}.backup" 2>/dev/null || true
+            log "[Repository] Backup originale salvato in ${CUSTOMFEEDS}.backup"
+        fi
+        
+        # Svuota il file mantenendo solo header
+        cat > "$CUSTOMFEEDS" << 'EOF'
+# add your custom package feeds here
+#
+# src/gz example_feed_name http://www.example.com/path/to/files
+#
+# Repository custom OpenWrt rimossi automaticamente da ROCKSOLID
+# per evitare conflitti con aggiornamenti NethSecurity ufficiali
+EOF
+        log "[Repository] OK - Repository custom rimossi (previene conflitti aggiornamenti)"
+    else
+        log "[Repository] OK - Nessun repository custom non autorizzato"
+    fi
+else
+    log "[Repository] INFO: File customfeeds.conf non presente"
+fi
+
+# ============================================================================
+# 7. VERIFICA PROTEZIONI SYSUPGRADE.CONF
 # ============================================================================
 log "[Protezioni] Verifica sysupgrade.conf..."
 
@@ -180,7 +214,7 @@ if [ "$PROTECTED_COUNT" -lt 5 ]; then
 fi
 
 # ============================================================================
-# 7. RIEPILOGO FINALE
+# 8. RIEPILOGO FINALE
 # ============================================================================
 log "========================================="
 log "RIEPILOGO STATO SERVIZI:"
