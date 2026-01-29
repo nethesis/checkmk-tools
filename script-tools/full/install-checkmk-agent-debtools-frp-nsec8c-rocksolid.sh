@@ -752,6 +752,13 @@ install_frp() {
                 *) ;;
             esac
         fi
+        
+        # Se mantiene config esistente, proteggi subito e esci
+        if [ -n "$EXISTING_CONFIG" ]; then
+            log "Configurazione FRP esistente mantenuta - proteggo installazione"
+            protect_frp_installation
+            return 0
+        fi
     fi
     
     # Se non c'è configurazione esistente o l'utente vuole cambiarla
