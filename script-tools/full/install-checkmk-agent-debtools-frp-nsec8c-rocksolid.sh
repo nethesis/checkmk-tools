@@ -761,6 +761,28 @@ install_qemu_ga() {
         return 0
     fi
     
+    # Configura init script per usare isa-serial (più compatibile)
+    log "Configurazione init script per isa-serial..."
+    cat > /etc/init.d/qemu-ga <<'QEMU_INIT'
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2016 OpenWrt.org
+
+START=99
+USE_PROCD=1
+
+BIN=/usr/bin/qemu-ga
+
+start_service() {
+        procd_open_instance
+        procd_set_param command $BIN -m isa-serial -p /dev/ttyS0
+        procd_set_param respawn
+        procd_set_param stderr 1
+        procd_close_instance
+}
+QEMU_INIT
+    
+    chmod +x /etc/init.d/qemu-ga
+    
     # Avvia servizio
     log "Avvio servizio qemu-guest-agent..."
     /etc/init.d/qemu-ga enable 2>/dev/null || log "Warning: enable qemu-ga fallito"
