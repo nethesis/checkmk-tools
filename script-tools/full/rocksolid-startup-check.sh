@@ -207,7 +207,8 @@ fi
 # ============================================================================
 log "[Protezioni] Verifica sysupgrade.conf..."
 
-PROTECTED_COUNT=$(grep -E 'check_mk|frpc|checkmk-tools|rc.local' "$SYSUPGRADE_CONF" 2>/dev/null | wc -l)
+# Conta tutte le righe non-commento non-vuote (protezioni totali)
+PROTECTED_COUNT=$(grep -v '^#' "$SYSUPGRADE_CONF" 2>/dev/null | grep -v '^$' | grep -E '^\/' | wc -l)
 PROTECTED_COUNT=$(echo "$PROTECTED_COUNT" | tr -d ' \n')
 log "[Protezioni] File protetti: $PROTECTED_COUNT"
 
