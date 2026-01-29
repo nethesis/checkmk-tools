@@ -425,8 +425,23 @@ fi
 # ============================================================================
 log "[FRP Client] Verifica in corso..."
 
-if [ -x /usr/local/bin/frpc ] && [ -f /etc/frp/frpc.toml ]; then
-    if ! pgrep -f frpc >/dev/null 2>&1; then
+FRP_MARKER="/opt/checkmk-tools/.frp-installed"
+
+if [ -f "$FRP_MARKER" ]; then
+    # FRP era installato, deve funzionare
+    if [ ! -x /usr/local/bin/frpc ] || [ ! -f /etc/frp/frpc.toml ] || [ ! -f /etc/init.d/frpc ]; then
+        log "[FRP Client] CRITICO: FRP era installato ma binario/config/init mancante!"
+        log "[FRP Client] Reinstallazione automatica..."
+        
+        # Reinstalla FRP usando script esistente (modalità non-interattiva)
+        if [ -x /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh ]; then
+            export NON_INTERACTIVE=1
+            /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh >> "$LOG_FILE" 2>&1
+            log "[FRP Client] Reinstallazione completata"
+        else
+            log "[FRP Client] ERRORE: Script di installazione non disponibile"
+        fi
+    elif ! pgrep -f frpc >/dev/null 2>&1; then
         log "[FRP Client] Servizio non attivo, avvio..."
         /etc/init.d/frpc enable 2>/dev/null || true
         /etc/init.d/frpc restart 2>/dev/null || true
@@ -440,7 +455,17 @@ if [ -x /usr/local/bin/frpc ] && [ -f /etc/frp/frpc.toml ]; then
         log "[FRP Client] OK - Servizio attivo"
     fi
 else
-    log "[FRP Client] Non configurato o mancante (opzionale)"
+    # FRP non era mai stato installato, è opzionale
+    if [ -x /usr/local/bin/frpc ] && [ -f /etc/frp/frpc.toml ]; then
+        log "[FRP Client] Trovato ma senza marker (installazione manuale?)"
+        if ! pgrep -f frpc >/dev/null 2>&1; then
+            log "[FRP Client] Avvio servizio..."
+            /etc/init.d/frpc enable 2>/dev/null || true
+            /etc/init.d/frpc restart 2>/dev/null || true
+        fi
+    else
+        log "[FRP Client] Non installato (opzionale)"
+    fi
 fi
 
 # ============================================================================
