@@ -13,6 +13,27 @@ if (-not (Test-Path $LOG_PATH)) {
 # Registra inizio esecuzione
 "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Inizio backup automatico..." | Out-File -FilePath $LOG_FILE -Append -Encoding UTF8
 
+# Attendi che la share di rete sia disponibile (max 60 secondi)
+$NETWORK_SHARE = "\\192.168.10.132\usbshare"
+$maxRetries = 12
+$retryDelay = 5
+
+"[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Verifica accessibilità share di rete..." | Out-File -FilePath $LOG_FILE -Append -Encoding UTF8
+
+for ($i = 1; $i -le $maxRetries; $i++) {
+    if (Test-Path $NETWORK_SHARE) {
+        "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Share di rete accessibile (tentativo $i/$maxRetries)" | Out-File -FilePath $LOG_FILE -Append -Encoding UTF8
+        break
+    }
+    
+    if ($i -eq $maxRetries) {
+        "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] ATTENZIONE: Share di rete non raggiungibile dopo $maxRetries tentativi. Continuo solo con backup locale." | Out-File -FilePath $LOG_FILE -Append -Encoding UTF8
+    } else {
+        "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Tentativo $i/$maxRetries fallito, attendo $retryDelay secondi..." | Out-File -FilePath $LOG_FILE -Append -Encoding UTF8
+        Start-Sleep -Seconds $retryDelay
+    }
+}
+
 # Esegui backup
 try {
     & $SCRIPT_PATH -Unattended 2>&1 | Out-File -FilePath $LOG_FILE -Append -Encoding UTF8
