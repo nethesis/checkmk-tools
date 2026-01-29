@@ -75,6 +75,52 @@ Copy-Item "C:\CheckMK-Backups\2026-01-29_03-00-00\script-tools\full\script.sh" -
 # Da backup rete
 Copy-Item "\\192.168.10.132\usbshare\CheckMK-Backups\2026-01-29_00-00-00\script-tools\full\script.sh" -Destination ".\"
 ```
+
+9. **Test-Fix-Validate Loop Automatico**
+   - ✅ Quando modifichiamo uno script E abbiamo accesso a host di test
+   - ✅ **SEMPRE** seguire questo ciclo automatico dopo ogni modifica:
+     1. **Modifica** script
+     2. **Valida** sintassi (`bash -n` o PSParser)
+     3. **Testa** su host remoto (esecuzione reale)
+     4. **Se fallisce** → Fix errore
+     5. **Ri-valida** sintassi
+     6. **Ri-testa** su host
+     7. **Ripeti** finché non funziona o finché utente non ferma
+   - ⚠️ **NON fermarsi** dopo validazione sintassi se test fallisce
+   - ⚠️ **NON aspettare** comando utente per fixare - fallo automaticamente
+   - ✅ **Continuare** a iterare fino a successo completo
+
+**Esempio workflow test-driven:**
+```powershell
+# 1. Modifica script
+# ... edit file ...
+
+# 2. Valida sintassi
+wsl bash -n script.sh  # EXIT CODE: 0 ✓
+
+# 3. Testa su host
+wsl -- ssh nsec8-stable "bash /opt/checkmk-tools/script.sh"
+# Output: ERROR line 45: comando non trovato
+
+# 4. Fix automatico (NON fermarsi!)
+# ... correggi errore linea 45 ...
+
+# 5. Ri-valida
+wsl bash -n script.sh  # EXIT CODE: 0 ✓
+
+# 6. Ri-testa
+wsl -- ssh nsec8-stable "bash /opt/checkmk-tools/script.sh"
+# Output: SUCCESS ✓
+
+# 7. Solo ora committa
+git commit -m "fix: risolto errore comando"
+```
+
+**Host disponibili per test:**
+- `nsec8-stable` (10.155.100.100) - NethSecurity 8 test environment
+- `checkmk-vps-02` (monitor01.nethlab.it) - CheckMK staging/test
+- `checkmk-z1plus` (192.168.10.128) - CheckMK locale test
+
 ---
 
 ## �️ NethServer - Gestione Configurazione
