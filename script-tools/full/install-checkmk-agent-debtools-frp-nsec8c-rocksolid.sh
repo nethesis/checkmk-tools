@@ -525,33 +525,63 @@ install_frp() {
     echo "Installazione FRP client (opzionale)"
     echo "Server remoto: monitor.nethlab.it:7000"
     echo ""
+    
+    # Controlla se esiste già una configurazione FRP
+    EXISTING_CONFIG=""
+    if [ -f "$FRPC_CONF" ]; then
+        log "Configurazione FRP esistente trovata: $FRPC_CONF"
+        EXISTING_CONFIG="yes"
+        
+        # Estrai parametri dalla configurazione esistente
+        SERVER_ADDR=$(grep '^serverAddr' "$FRPC_CONF" | sed 's/.*= *"\(.*\)".*/\1/')
+        SERVER_PORT=$(grep '^serverPort' "$FRPC_CONF" | sed 's/.*= *\([0-9]*\).*/\1/')
+        FRP_TOKEN=$(grep '^auth.token' "$FRPC_CONF" | sed 's/.*= *"\(.*\)".*/\1/')
+        PROXY_NAME=$(grep '^\[\[proxies\]\]' -A 10 "$FRPC_CONF" | grep '^name' | sed 's/.*= *"\(.*\)".*/\1/' | head -1)
+        REMOTE_PORT=$(grep '^\[\[proxies\]\]' -A 10 "$FRPC_CONF" | grep '^remotePort' | sed 's/.*= *\([0-9]*\).*/\1/' | head -1)
+        
+        log "Configurazione recuperata:"
+        log "  Server: $SERVER_ADDR:$SERVER_PORT"
+        log "  Proxy: $PROXY_NAME (porta remota: $REMOTE_PORT)"
+        echo ""
+        
+        printf "Vuoi mantenere questa configurazione? [Y/n]: "
+        read ans || ans=""
+        ans_lc=$(printf "%s" "$ans" | tr '[:upper:]' '[:lower:]')
+        case "$ans_lc" in
+            n|no) EXISTING_CONFIG="" ;;
+            *) ;;
+        esac
+    fi
+    
+    # Se non c'è configurazione esistente o l'utente vuole cambiarla
+    if [ -z "$EXISTING_CONFIG" ]; then
+        printf "Vuoi installare e configurare il client FRP? [y/N]: "
+        read ans || ans=""
+        ans_lc=$(printf "%s" "$ans" | tr '[:upper:]' '[:lower:]')
+        case "$ans_lc" in
+            y|yes|s|si) ;;
+            *) return 0 ;;
+        esac
 
-    printf "Vuoi installare e configurare il client FRP? [y/N]: "
-    read ans || ans=""
-    ans_lc=$(printf "%s" "$ans" | tr '[:upper:]' '[:lower:]')
-    case "$ans_lc" in
-        y|yes|s|si) ;;
-        *) return 0 ;;
-    esac
+        SERVER_ADDR="monitor.nethlab.it"
+        SERVER_PORT="7000"
 
-    SERVER_ADDR="monitor.nethlab.it"
-    SERVER_PORT="7000"
+        while :; do
+            printf "Inserisci la remote_port da assegnare (es. 6020): "
+            read REMOTE_PORT || REMOTE_PORT=""
+            echo "$REMOTE_PORT" | grep -Eq '^[0-9]+$' && break
+            echo "Valore non valido"
+        done
 
-    while :; do
-        printf "Inserisci la remote_port da assegnare (es. 6020): "
-        read REMOTE_PORT || REMOTE_PORT=""
-        echo "$REMOTE_PORT" | grep -Eq '^[0-9]+$' && break
-        echo "Valore non valido"
-    done
+        printf "Inserisci la chiave/token FRP: "
+        read FRP_TOKEN || FRP_TOKEN=""
+        [ -n "$FRP_TOKEN" ] || die "token FRP vuoto"
 
-    printf "Inserisci la chiave/token FRP: "
-    read FRP_TOKEN || FRP_TOKEN=""
-    [ -n "$FRP_TOKEN" ] || die "token FRP vuoto"
-
-    DEFAULT_NAME="$(hostname 2>/dev/null || echo openwrt-host)"
-    printf "Nome proxy FRP (default: %s): " "$DEFAULT_NAME"
-    read PROXY_NAME || PROXY_NAME=""
-    [ -n "$PROXY_NAME" ] || PROXY_NAME="$DEFAULT_NAME"
+        DEFAULT_NAME="$(hostname 2>/dev/null || echo openwrt-host)"
+        printf "Nome proxy FRP (default: %s): " "$DEFAULT_NAME"
+        read PROXY_NAME || PROXY_NAME=""
+        [ -n "$PROXY_NAME" ] || PROXY_NAME="$DEFAULT_NAME"
+    fi
 
     cd /tmp || die "cd /tmp fallito"
     FRP_TGZ="frp_${FRP_VER}_linux_amd64.tar.gz"
