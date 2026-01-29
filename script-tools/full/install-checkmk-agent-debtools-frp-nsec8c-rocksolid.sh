@@ -812,6 +812,9 @@ QEMU_INIT
     add_to_sysupgrade "/usr/bin/qemu-ga" "QEMU Guest Agent - Binary"
     add_to_sysupgrade "/etc/init.d/qemu-ga" "QEMU Guest Agent - Init Script"
     
+    # Proteggi librerie glib2 critiche (dipendenza qemu-ga)
+    add_to_sysupgrade "/usr/lib/libglib-2.0.so*" "QEMU Guest Agent - glib2 library dependency"
+    
     # Se esiste config proteggi anche quello
     if [ -f "/etc/config/qemu-ga" ]; then
         add_to_sysupgrade "/etc/config/qemu-ga" "QEMU Guest Agent - Configuration"
