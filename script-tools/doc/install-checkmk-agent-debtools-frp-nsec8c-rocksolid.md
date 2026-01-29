@@ -118,11 +118,17 @@ bash install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh --uninstall
 
 ### Fase 2: FRP Client (Opzionale)
 
+**NOTA**: FRP è completamente **OPZIONALE**. Se non necessiti di tunnel reverse proxy:
+- Rispondi **NO** al prompt "Vuoi configurare FRP?"
+- Lo script completerà l'installazione solo con CheckMK Agent
+- Nessun marker `/opt/checkmk-tools/.frp-installed` verrà creato
+- Autocheck non tenterà mai di avviare FRP
+- Sistema pienamente funzionante senza FRP
+
 1. **Configurazione interattiva**
    - Prompt per abilitazione FRP
-   - Richiesta token autenticazione
-   - Richiesta porta remota
-   - Richiesta nome proxy
+   - Se **NO**: salta tutta la fase FRP
+   - Se **SI**: richiede token autenticazione, porta remota, nome proxy
 
 2. **Download binario**
    - Scarica `frp_${FRP_VER}_linux_amd64.tar.gz`
@@ -452,7 +458,12 @@ cat /tmp/pre-upgrade.log /tmp/post-upgrade.log
 **A**: Sì, imposta `export CMK_SERVER="tuo-server.com"` prima dell'esecuzione.
 
 ### Q: FRP è obbligatorio?
-**A**: No, è opzionale. Puoi saltare la configurazione FRP durante l'installazione.
+**A**: No, è completamente opzionale. Durante l'installazione ti verrà chiesto se vuoi configurare FRP. Se rispondi NO:
+- Verrà installato solo CheckMK Agent (porta 6556)
+- Nessun marker FRP creato
+- Autocheck funziona normalmente (verifica solo CheckMK Agent)
+- Sistema pienamente operativo senza tunnel
+- Puoi sempre installare FRP successivamente rieseguendo lo script
 
 ### Q: Cosa succede se disabilito FRP dopo l'installazione?
 **A**: Rimuovi il marker: `rm /opt/checkmk-tools/.frp-installed`. Autocheck non tenterà più di riavviarlo.
