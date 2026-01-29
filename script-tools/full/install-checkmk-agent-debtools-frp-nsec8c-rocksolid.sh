@@ -350,6 +350,47 @@ log "ROCKSOLID Startup Check - AVVIO"
 log "========================================="
 
 # ============================================================================
+# 0. RIPRISTINA BINARI CRITICI (se backup disponibile)
+# ============================================================================
+BACKUP_DIR="/opt/checkmk-tools/BACKUP-BINARIES"
+
+if [ -d "$BACKUP_DIR" ]; then
+    log "[Binari Critici] Verifica e ripristino in corso..."
+    
+    for backup in "$BACKUP_DIR"/*.backup; do
+        [ -f "$backup" ] || continue
+        
+        basename_file=$(basename "$backup" .backup)
+        
+        case "$basename_file" in
+            tar-gnu|gzip-gnu|gunzip-gnu|zcat-gnu)
+                dest="/usr/libexec/$basename_file"
+                ;;
+            ar)
+                dest="/usr/bin/$basename_file"
+                ;;
+            libbfd-*.so)
+                dest="/usr/lib/$basename_file"
+                ;;
+            *)
+                continue
+                ;;
+        esac
+        
+        # Ripristina se mancante o corrotto
+        if [ ! -f "$dest" ]; then
+            log "[Binari Critici] RIPRISTINO: $dest (mancante)"
+            cp -p "$backup" "$dest" 2>/dev/null || true
+        elif ! file "$dest" 2>/dev/null | grep -q "ELF"; then
+            log "[Binari Critici] RIPRISTINO: $dest (corrotto)"
+            cp -p "$backup" "$dest" 2>/dev/null || true
+        fi
+    done
+    
+    log "[Binari Critici] Verifica completata"
+fi
+
+# ============================================================================
 # 1. VERIFICA E RIPRISTINA CHECKMK AGENT
 # ============================================================================
 log "[CheckMK Agent] Verifica in corso..."

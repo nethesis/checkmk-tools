@@ -194,6 +194,48 @@ log() { logger -t git-sync-post-upgrade "$*"; echo "[POST-UPGRADE] $*"; }
 
 log "Verifica Git Auto Sync post-upgrade"
 
+# ==========================================================
+# FASE 0: RIPRISTINA BINARI CRITICI (se disponibili)
+# ==========================================================
+BACKUP_DIR="/opt/checkmk-tools/BACKUP-BINARIES"
+
+if [ -d "$BACKUP_DIR" ]; then
+    log "Ripristino binari critici da backup (se necessario)..."
+    
+    for backup in "$BACKUP_DIR"/*.backup; do
+        [ -f "$backup" ] || continue
+        
+        basename_file=$(basename "$backup" .backup)
+        
+        case "$basename_file" in
+            tar-gnu|gzip-gnu|gunzip-gnu|zcat-gnu)
+                dest="/usr/libexec/$basename_file"
+                ;;
+            ar)
+                dest="/usr/bin/$basename_file"
+                ;;
+            libbfd-*.so)
+                dest="/usr/lib/$basename_file"
+                ;;
+            *)
+                continue
+                ;;
+        esac
+        
+        # Ripristina se mancante o corrotto
+        if [ ! -f "$dest" ]; then
+            log "  ⚠ MANCANTE: $dest - ripristino da backup"
+            cp -p "$backup" "$dest" 2>/dev/null && log "  ✓ RIPRISTINATO: $dest"
+        elif ! file "$dest" 2>/dev/null | grep -q "ELF"; then
+            log "  ⚠ CORROTTO: $dest - ripristino da backup"
+            cp -p "$backup" "$dest" 2>/dev/null && log "  ✓ RIPRISTINATO: $dest"
+        fi
+    done
+fi
+
+# ==========================================================
+# FASE 1: VERIFICA GIT AUTO SYNC
+# ==========================================================
 # Verifica script sync
 if [ ! -x /usr/local/bin/git-auto-sync.sh ]; then
     log "ERRORE: Script sync mancante!"
@@ -223,6 +265,44 @@ chmod +x "$POST_UPGRADE"
 add_to_sysupgrade "$POST_UPGRADE" "Git Sync Post-Upgrade Script"
 
 # ============================================================================
+# ROCKSOLID: Ripristina Binari Critici (se backup disponibile)
+# ============================================================================
+restore_critical_binaries() {
+    local BACKUP_DIR="/opt/checkmk-tools/BACKUP-BINARIES"
+    
+    [ -d "$BACKUP_DIR" ] || return 0
+    
+    log "Verifico e ripristino binari critici da backup (se necessario)..."
+    
+    for backup in "$BACKUP_DIR"/*.backup; do
+        [ -f "$backup" ] || continue
+        
+        basename_file=$(basename "$backup" .backup)
+        
+        case "$basename_file" in
+            tar-gnu|gzip-gnu|gunzip-gnu|zcat-gnu)
+                dest="/usr/libexec/$basename_file"
+                ;;
+            ar)
+                dest="/usr/bin/$basename_file"
+                ;;
+            libbfd-*.so)
+                dest="/usr/lib/$basename_file"
+                ;;
+            *)
+                continue
+                ;;
+        esac
+        
+        # Ripristina se mancante o corrotto
+        if [ ! -f "$dest" ] || ! file "$dest" 2>/dev/null | grep -q "ELF"; then
+            log "  → Ripristino: $dest"
+            cp -p "$backup" "$dest" 2>/dev/null || true
+        fi
+    done
+}
+
+# ============================================================================
 # ROCKSOLID: Installa Autocheck all'Avvio
 # ============================================================================
 echo ""
@@ -250,6 +330,47 @@ log() {
 log "========================================="
 log "ROCKSOLID Startup Check - AVVIO"
 log "========================================="
+
+# ============================================================================
+# 0. RIPRISTINA BINARI CRITICI (se backup disponibile)
+# ============================================================================
+BACKUP_DIR="/opt/checkmk-tools/BACKUP-BINARIES"
+
+if [ -d "$BACKUP_DIR" ]; then
+    log "[Binari Critici] Verifica e ripristino in corso..."
+    
+    for backup in "$BACKUP_DIR"/*.backup; do
+        [ -f "$backup" ] || continue
+        
+        basename_file=$(basename "$backup" .backup)
+        
+        case "$basename_file" in
+            tar-gnu|gzip-gnu|gunzip-gnu|zcat-gnu)
+                dest="/usr/libexec/$basename_file"
+                ;;
+            ar)
+                dest="/usr/bin/$basename_file"
+                ;;
+            libbfd-*.so)
+                dest="/usr/lib/$basename_file"
+                ;;
+            *)
+                continue
+                ;;
+        esac
+        
+        # Ripristina se mancante o corrotto
+        if [ ! -f "$dest" ]; then
+            log "[Binari Critici] RIPRISTINO: $dest (mancante)"
+            cp -p "$backup" "$dest" 2>/dev/null || true
+        elif ! file "$dest" 2>/dev/null | grep -q "ELF"; then
+            log "[Binari Critici] RIPRISTINO: $dest (corrotto)"
+            cp -p "$backup" "$dest" 2>/dev/null || true
+        fi
+    done
+    
+    log "[Binari Critici] Verifica completata"
+fi
 
 # ============================================================================
 # 1. VERIFICA E RIPRISTINA CHECKMK AGENT
@@ -465,6 +586,10 @@ log "Autocheck installato e protetto"
 # ============================================================================
 # Test Immediato
 # ============================================================================
+echo ""
+log "Ripristino binari critici (se necessario)..."
+restore_critical_binaries
+
 echo ""
 log "Esecuzione test sync..."
 if "$SYNC_SCRIPT"; then
