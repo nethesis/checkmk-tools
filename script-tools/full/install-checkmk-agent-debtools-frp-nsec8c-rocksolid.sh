@@ -6,6 +6,9 @@ set -eu
 # Install / uninstall Checkmk agent + (opzionale) FRP client su OpenWrt / NethSecurity (init: procd).
 # Output semplice (ASCII-only).
 
+# Modalità non-interattiva (es. boot automatico)
+NON_INTERACTIVE="${NON_INTERACTIVE:-0}"
+
 CUSTOMFEEDS="${CUSTOMFEEDS:-/etc/opkg/customfeeds.conf}"
 TMPDIR="${TMPDIR:-/tmp/checkmk-deb}"
 SYSUPGRADE_CONF="${SYSUPGRADE_CONF:-/etc/sysupgrade.conf}"
@@ -38,6 +41,11 @@ is_root() {
 
 need_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "comando mancante: $1"
+}
+
+# Controlla se siamo in modalità interattiva
+is_interactive() {
+    [ "$NON_INTERACTIVE" -eq 0 ] && [ -t 0 ]
 }
 
 add_repo() {
@@ -544,17 +552,28 @@ install_frp() {
         log "  Proxy: $PROXY_NAME (porta remota: $REMOTE_PORT)"
         echo ""
         
-        printf "Vuoi mantenere questa configurazione? [Y/n]: "
-        read ans || ans=""
-        ans_lc=$(printf "%s" "$ans" | tr '[:upper:]' '[:lower:]')
-        case "$ans_lc" in
-            n|no) EXISTING_CONFIG="" ;;
-            *) ;;
-        esac
+        # Se non-interattivo (boot/auto), mantieni sempre config esistente
+        if ! is_interactive; then
+            log "Modalita non-interattiva: mantengo configurazione esistente"
+        else
+            printf "Vuoi mantenere questa configurazione? [Y/n]: "
+            read ans || ans=""
+            ans_lc=$(printf "%s" "$ans" | tr '[:upper:]' '[:lower:]')
+            case "$ans_lc" in
+                n|no) EXISTING_CONFIG="" ;;
+                *) ;;
+            esac
+        fi
     fi
     
     # Se non c'è configurazione esistente o l'utente vuole cambiarla
     if [ -z "$EXISTING_CONFIG" ]; then
+        # Se non-interattivo senza config esistente, salta FRP
+        if ! is_interactive; then
+            log "Modalita non-interattiva: nessuna config FRP esistente, salto installazione"
+            return 0
+        fi
+        
         printf "Vuoi installare e configurare il client FRP? [y/N]: "
         read ans || ans=""
         ans_lc=$(printf "%s" "$ans" | tr '[:upper:]' '[:lower:]')

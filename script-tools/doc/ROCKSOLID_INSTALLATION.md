@@ -76,7 +76,7 @@ Lo script `rocksolid-startup-check.sh` esegue **automaticamente ad ogni riavvio*
 
 ## 📦 Installazione
 
-### Su NethSecurity/OpenWrt
+### Su NethSecurity/OpenWrt - Modalità Interattiva
 
 ```bash
 # Da repository locale (se disponibile)
@@ -85,6 +85,22 @@ bash /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nse
 # Da GitHub
 curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh | bash
 ```
+
+### Modalità Non-Interattiva (Boot Automatico)
+
+Per esecuzioni automatiche (es. boot, cron, automation):
+
+```bash
+# Mantiene automaticamente configurazione FRP esistente (se presente)
+# Salta prompt interattivi
+NON_INTERACTIVE=1 bash /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh
+```
+
+**Comportamento modalità non-interattiva:**
+- ✅ Se esiste `/etc/frp/frpc.toml` → **mantiene automaticamente** la configurazione
+- ✅ Non chiede conferma per mantenere config FRP
+- ✅ Se FRP non configurato → salta installazione FRP
+- ✅ Ideale per script di avvio, autocheck, automation
 
 ### Output Installazione
 
