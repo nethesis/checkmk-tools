@@ -120,14 +120,46 @@ fi
 if [ -f "/usr/bin/qemu-ga" ]; then
     log "[QEMU-GA] Verifica in corso..."
     
+    # Self-healing: riconfigura init script in base a device disponibile
+    if [ -e "/dev/virtio-ports/org.qemu.guest_agent.0" ]; then
+        # Proxmox con virtio-serial disponibile
+        EXPECTED_MODE="virtio-serial"
+        EXPECTED_PATH="/dev/virtio-ports/org.qemu.guest_agent.0"
+    else
+        # Fallback isa-serial
+        EXPECTED_MODE="isa-serial"
+        EXPECTED_PATH="/dev/ttyS0"
+    fi
+    
+    # Verifica se init script ha configurazione corretta
+    if ! grep -q "$EXPECTED_MODE" /etc/init.d/qemu-ga 2>/dev/null; then
+        log "[QEMU-GA] Riconfigurazione init script per $EXPECTED_MODE..."
+        cat > /etc/init.d/qemu-ga <<QEMU_INIT
+#!/bin/sh /etc/rc.common
+START=99
+USE_PROCD=1
+
+start_service() {
+    procd_open_instance
+    procd_set_param command /usr/bin/qemu-ga -m $EXPECTED_MODE -p $EXPECTED_PATH
+    procd_set_param respawn
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_close_instance
+}
+QEMU_INIT
+        chmod +x /etc/init.d/qemu-ga
+        log "[QEMU-GA] Init script aggiornato per $EXPECTED_MODE"
+    fi
+    
     if ! pgrep qemu-ga >/dev/null 2>&1; then
         log "[QEMU-GA] Servizio non attivo, avvio..."
         /etc/init.d/qemu-ga enable 2>/dev/null || true
-        /etc/init.d/qemu-ga start 2>/dev/null || true
+        /etc/init.d/qemu-ga restart 2>/dev/null || true
         sleep 2
         
         if pgrep qemu-ga >/dev/null 2>&1; then
-            log "[QEMU-GA] Servizio riavviato con successo"
+            log "[QEMU-GA] Servizio riavviato con successo ($EXPECTED_MODE)"
         else
             log "[QEMU-GA] ERRORE: Impossibile avviare servizio"
         fi
