@@ -423,6 +423,9 @@ systemctl reset-failed cmk-agent-ctl-daemon.service
 ```bash
 # VPS CheckMK (chiave: ~/.ssh/checkmk + passphrase)
 checkmk-vps-01    # monitor.nethlab.it (CheckMK 2.4.0p19.cre) - PRODUZIONE
+                  # ⚠️ rclone configurato dentro il site OMD (non root)
+                  # Path: /opt/omd/sites/monitoring/.config/rclone/rclone.conf
+                  # Comandi: omd su monitoring -c "rclone ..."
 checkmk-vps-02    # monitor01.nethlab.it - ⚠️ TEST CRITICI / STAGING
 
 # Server locali CheckMK (autenticazione password)
@@ -435,6 +438,8 @@ rl94ns8           # 10.155.100.70:22 (root, NethServer 8)
 nsec8-stable      # 10.155.100.100:22 (root, NethServer Security 8)
                   # Agent CheckMK installato con: install-checkmk-agent-debtools-frp-nsec8c.sh
                   # Path: /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c.sh
+laboratorio       # 10.155.100.1:2222 (root, NethSecurity 8)
+                  # ROCKSOLID Mode validato - resistente major upgrade
 
 # Altri server
 fwlab             # 192.168.5.117:2222 (root)
@@ -526,6 +531,41 @@ wsl -- ssh checkmk-vps-01 "df -h && free -h && uptime"
 # Windows paths originali (backup)
 C:\Users\Marzio\.ssh\checkmk
 ```
+
+---
+
+## ☁️ Backup Cloud - rclone su CheckMK
+
+**⚠️ IMPORTANTE - Configurazione rclone su checkmk-vps-01:**
+- ✅ rclone è configurato **dentro il site OMD**, NON come utente root
+- ✅ Path config: `/opt/omd/sites/monitoring/.config/rclone/rclone.conf`
+- ✅ Remote configurato: `do-space-backup` (DigitalOcean Spaces)
+- ✅ Bucket: `nethesis-checkmk-backups`
+
+**Comandi corretti per accesso rclone:**
+```bash
+# ❌ SBAGLIATO (root non ha config)
+ssh checkmk-vps-01 'rclone ls do-space-backup:nethesis-checkmk-backups/'
+
+# ✅ CORRETTO (esegui come utente site)
+ssh checkmk-vps-01 'omd su monitoring -c "rclone ls do-space-backup:nethesis-checkmk-backups/"'
+
+# Lista ultimi backup
+ssh checkmk-vps-01 'omd su monitoring -c "rclone ls do-space-backup:nethesis-checkmk-backups/ | tail -20"'
+
+# Verifica spazio bucket
+ssh checkmk-vps-01 'omd su monitoring -c "rclone size do-space-backup:nethesis-checkmk-backups/"'
+
+# Download backup specifico
+ssh checkmk-vps-01 'omd su monitoring -c "rclone copy do-space-backup:nethesis-checkmk-backups/backup-file.tar.gz /tmp/"'
+```
+
+**Script backup automatico:**
+- Script: `/opt/checkmk-tools/script-tools/full/checkmk_rclone_space_dyn.sh`
+- Eseguito da: site monitoring (non root)
+- Cron: Configurato dentro il site OMD
+
+---
 
 ---
 
