@@ -538,19 +538,31 @@ install_frp() {
     EXISTING_CONFIG=""
     if [ -f "$FRPC_CONF" ]; then
         log "Configurazione FRP esistente trovata: $FRPC_CONF"
-        EXISTING_CONFIG="yes"
         
         # Estrai parametri dalla configurazione esistente
-        SERVER_ADDR=$(grep '^serverAddr' "$FRPC_CONF" | sed 's/.*= *"\(.*\)".*/\1/')
-        SERVER_PORT=$(grep '^serverPort' "$FRPC_CONF" | sed 's/.*= *\([0-9]*\).*/\1/')
-        FRP_TOKEN=$(grep '^auth.token' "$FRPC_CONF" | sed 's/.*= *"\(.*\)".*/\1/')
-        PROXY_NAME=$(grep '^\[\[proxies\]\]' -A 10 "$FRPC_CONF" | grep '^name' | sed 's/.*= *"\(.*\)".*/\1/' | head -1)
-        REMOTE_PORT=$(grep '^\[\[proxies\]\]' -A 10 "$FRPC_CONF" | grep '^remotePort' | sed 's/.*= *\([0-9]*\).*/\1/' | head -1)
+        SERVER_ADDR=$(grep '^serverAddr' "$FRPC_CONF" | sed 's/.*= *"\([^"]*\)".*/\1/' | grep -v '^$')
+        SERVER_PORT=$(grep '^serverPort' "$FRPC_CONF" | sed 's/.*= *\([0-9][0-9]*\).*/\1/')
+        FRP_TOKEN=$(grep '^auth.token' "$FRPC_CONF" | sed 's/.*= *"\([^"]*\)".*/\1/' | grep -v '^$')
+        PROXY_NAME=$(grep '^\[\[proxies\]\]' -A 10 "$FRPC_CONF" | grep '^name' | sed 's/.*= *"\([^"]*\)".*/\1/' | grep -v '^$' | head -1)
+        REMOTE_PORT=$(grep '^\[\[proxies\]\]' -A 10 "$FRPC_CONF" | grep '^remotePort' | sed 's/.*= *\([0-9][0-9]*\).*/\1/' | head -1)
         
-        log "Configurazione recuperata:"
-        log "  Server: $SERVER_ADDR:$SERVER_PORT"
-        log "  Proxy: $PROXY_NAME (porta remota: $REMOTE_PORT)"
-        echo ""
+        # Valida configurazione estratta - tutti i valori devono essere non-vuoti
+        if [ -n "$SERVER_ADDR" ] && [ -n "$SERVER_PORT" ] && [ -n "$FRP_TOKEN" ] && [ -n "$PROXY_NAME" ] && [ -n "$REMOTE_PORT" ]; then
+            EXISTING_CONFIG="yes"
+            log "Configurazione recuperata:"
+            log "  Server: $SERVER_ADDR:$SERVER_PORT"
+            log "  Proxy: $PROXY_NAME (porta remota: $REMOTE_PORT)"
+            echo ""
+        else
+            warn "Configurazione FRP esistente incompleta o invalida"
+            warn "  serverAddr: ${SERVER_ADDR:-VUOTO}"
+            warn "  serverPort: ${SERVER_PORT:-VUOTO}"
+            warn "  token: ${FRP_TOKEN:+PRESENTE}${FRP_TOKEN:-VUOTO}"
+            warn "  proxy name: ${PROXY_NAME:-VUOTO}"
+            warn "  remotePort: ${REMOTE_PORT:-VUOTO}"
+            warn "Richiesta nuova configurazione"
+            echo ""
+        fi
         
         # Se non-interattivo (boot/auto), mantieni sempre config esistente
         if ! is_interactive; then
