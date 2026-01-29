@@ -48,6 +48,18 @@ Crea `/etc/checkmk-post-upgrade.sh` che:
 - ✅ Verifica presenza file critici dopo upgrade
 - ✅ Riattiva servizi CheckMK e FRP
 - ✅ Controlla che socat sia in ascolto su porta 6556
+
+### 3️⃣ Autocheck all'Avvio (NUOVO!)
+
+Lo script `rocksolid-startup-check.sh` esegue **automaticamente ad ogni riavvio**:
+- ✅ Verifica e riavvia CheckMK Agent se non attivo
+- ✅ Verifica e riavvia FRP Client se non attivo
+- ✅ **Reinstalla Git automaticamente** se mancante (dopo upgrade)
+- ✅ Verifica e ripristina cron job git-sync
+- ✅ Test sync del repository
+- ✅ Log completo in `/var/log/rocksolid-startup.log`
+
+**Configurazione**: Eseguito automaticamente da `/etc/rc.local` in background.
 - ✅ Logga tutti gli eventi in syslog
 
 ### 3️⃣ Differenze vs Script Originale
@@ -133,25 +145,39 @@ tar czf /tmp/checkmk-backup.tar.gz \
 
 ### Dopo l'Upgrade
 
-1. **IMPORTANTE**: Esegui script post-upgrade:
+1. **AUTOMATICO**: Lo script `rocksolid-startup-check.sh` si avvia automaticamente al boot e:
+   - Riattiva CheckMK Agent e FRP Client
+   - Reinstalla Git se mancante
+   - Ripristina cron job git-sync
+   - Logga tutto in `/var/log/rocksolid-startup.log`
+
+2. **MANUALE (se serve)**: Esegui script post-upgrade:
 ```bash
 /etc/checkmk-post-upgrade.sh
+/etc/git-sync-post-upgrade.sh
 ```
 
-2. Verifica servizi attivi:
+3. **VERIFICA Git**: Se git è mancante, verrà reinstallato automaticamente al boot:
+```bash
+# Lo script esegue automaticamente:
+opkg update
+opkg install git git-http
+```
+
+4. Verifica servizi attivi:
 ```bash
 ps | grep -E 'socat|frpc'
 netstat -tlnp | grep 6556
 ```
 
-3. Test agent:
+5. Test agent:
 ```bash
 nc 127.0.0.1 6556 | head -20
 ```
 
-4. Controlla log:
+6. Controlla log autocheck:
 ```bash
-logread | grep checkmk-post-upgrade
+tail -50 /var/log/rocksolid-startup.log
 ```
 
 ## 🧪 Test Pre-Upgrade (Simulazione)
@@ -176,7 +202,17 @@ mv /tmp/check_mk_agent /usr/bin/
 
 ## 📋 Verifica Installazione ROCKSOLID
 
-Script di verifica completa:
+### Metodo 1: Script Automatico (Consigliato)
+
+```bash
+# Esegue verifica completa con autocheck
+/usr/local/bin/rocksolid-startup-check.sh
+
+# Visualizza log
+tail -50 /var/log/rocksolid-startup.log
+```
+
+### Metodo 2: Script di Verifica Manuale
 
 ```bash
 #!/bin/sh
@@ -201,26 +237,35 @@ ls -ld /etc/frp 2>/dev/null && echo "  ✓ OK" || echo "  ⚠ Non installato"
 echo "6. Script post-upgrade:"
 ls -lh /etc/checkmk-post-upgrade.sh && echo "  ✓ OK" || echo "  ✗ MANCANTE"
 
-echo "7. Protezione sysupgrade.conf:"
+echo "7. Script autocheck avvio:"
+ls -lh /usr/local/bin/rocksolid-startup-check.sh && echo "  ✓ OK" || echo "  ✗ MANCANTE"
+
+echo "8. Configurazione rc.local:"
+grep -q rocksolid-startup-check.sh /etc/rc.local && echo "  ✓ Autocheck attivo" || echo "  ✗ Autocheck non configurato"
+
+echo "9. Protezione sysupgrade.conf:"
 if grep -q check_mk_agent /etc/sysupgrade.conf; then
     echo "  ✓ CheckMK protetto"
 else
     echo "  ✗ CheckMK NON protetto"
 fi
 
-echo "8. Processo socat attivo:"
+echo "10. Processo socat attivo:"
 if pgrep -f "socat TCP-LISTEN:6556" >/dev/null; then
     echo "  ✓ Agent in ascolto"
 else
     echo "  ✗ Agent non attivo"
 fi
 
-echo "9. Porta 6556 in ascolto:"
+echo "11. Porta 6556 in ascolto:"
 netstat -tlnp | grep -q 6556 && echo "  ✓ Porta aperta" || echo "  ✗ Porta chiusa"
 
+echo "12. Git installato:"
+command -v git >/dev/null && echo "  ✓ Git presente: $(git --version)" || echo "  ✗ Git mancante"
+
 echo ""
-echo "=== CONTENUTO sysupgrade.conf (CheckMK/FRP) ==="
-grep -E 'check_mk|frpc|frp/' /etc/sysupgrade.conf || echo "Nessuna entry trovata"
+echo "=== CONTENUTO sysupgrade.conf (ROCKSOLID) ==="
+grep -E 'check_mk|frpc|frp/|git-sync|rocksolid|rc.local' /etc/sysupgrade.conf || echo "Nessuna entry trovata"
 ```
 
 ## 🔧 Troubleshooting
