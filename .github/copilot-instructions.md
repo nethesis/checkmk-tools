@@ -411,6 +411,13 @@ systemctl reset-failed cmk-agent-ctl-daemon.service
 - ✅ SSH Config: `~/.ssh/config` con alias host
 - ✅ SSH ControlMaster: Riutilizzo connessioni (passphrase 1 volta, poi 10 min attiva)
 
+**⚠️ REGOLA CRITICA - Gestione Password SSH:**
+- ❌ **MAI inviare comandi multipli** quando SSH richiede password
+- ✅ **ATTENDERE** che l'utente inserisca la password
+- ✅ **UN COMANDO ALLA VOLTA** per host con autenticazione password
+- ⚠️ Se vedi `password:` nell'output → FERMARSI e attendere conferma utente
+- ✅ SSH session timeout dopo inattività → riconnettersi con comando singolo prima di operazioni multiple
+
 **Host disponibili:**
 
 ```bash
