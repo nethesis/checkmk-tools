@@ -761,21 +761,32 @@ install_qemu_ga() {
         return 0
     fi
     
-    # Configura init script per usare isa-serial (più compatibile)
-    log "Configurazione init script per isa-serial..."
-    cat > /etc/init.d/qemu-ga <<'QEMU_INIT'
+    # Rileva device disponibile e configura di conseguenza
+    if [ -e "/dev/virtio-ports/org.qemu.guest_agent.0" ]; then
+        # Proxmox con QEMU Guest Agent abilitato → virtio-serial (integrazione completa)
+        log "Rilevato virtio-serial device - configurazione per piena integrazione Proxmox..."
+        QEMU_MODE="virtio-serial"
+        QEMU_PATH="/dev/virtio-ports/org.qemu.guest_agent.0"
+    else
+        # Fallback a isa-serial (funzionamento base, compatibile senza config Proxmox)
+        log "Configurazione init script per isa-serial (fallback)..."
+        QEMU_MODE="isa-serial"
+        QEMU_PATH="/dev/ttyS0"
+    fi
+    
+    log "Modalità: $QEMU_MODE su $QEMU_PATH"
+    cat > /etc/init.d/qemu-ga <<QEMU_INIT
 #!/bin/sh /etc/rc.common
 # Copyright (C) 2016 OpenWrt.org
 
 START=99
 USE_PROCD=1
 
-BIN=/usr/bin/qemu-ga
-
 start_service() {
         procd_open_instance
-        procd_set_param command $BIN -m isa-serial -p /dev/ttyS0
+        procd_set_param command /usr/bin/qemu-ga -m $QEMU_MODE -p $QEMU_PATH
         procd_set_param respawn
+        procd_set_param stdout 1
         procd_set_param stderr 1
         procd_close_instance
 }
@@ -790,8 +801,8 @@ QEMU_INIT
     
     # Verifica servizio attivo
     sleep 2
-    if pgrep -x qemu-ga >/dev/null 2>&1; then
-        log "QEMU Guest Agent installato e attivo"
+    if pgrep qemu-ga >/dev/null 2>&1; then
+        log "QEMU Guest Agent installato e attivo ($QEMU_MODE)"
     else
         log "Warning: QEMU Guest Agent non risulta in esecuzione"
     fi
