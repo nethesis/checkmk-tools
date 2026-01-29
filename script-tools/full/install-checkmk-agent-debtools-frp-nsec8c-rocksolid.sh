@@ -437,10 +437,18 @@ install_prereqs() {
 
     log "opkg update"
     opkg update
+    
+    # Verifica e ripara repository corrotti (post-upgrade)
+    if opkg list 2>&1 | grep -q "parse_from_stream_nomalloc"; then
+        warn "Repository corrotti rilevati - riparo"
+        rm -rf /var/opkg-lists/*.sig 2>/dev/null || true
+        opkg update || warn "Alcuni repository hanno fallito (normale post-upgrade)"
+    fi
 
     log "Installo tool necessari (binutils/tar/gzip/wget/socat/ca-certificates)"
-    # ar e' in binutils
-    opkg install binutils tar gzip wget socat ca-certificates || die "opkg install fallito"
+    # ar e' in binutils - ignora errori se già installati
+    opkg install binutils tar gzip wget socat ca-certificates 2>/dev/null || \
+        log "Alcuni pacchetti già installati o non disponibili (continuo comunque)"
 
     need_cmd ar
     need_cmd tar
