@@ -223,6 +223,246 @@ chmod +x "$POST_UPGRADE"
 add_to_sysupgrade "$POST_UPGRADE" "Git Sync Post-Upgrade Script"
 
 # ============================================================================
+# ROCKSOLID: Installa Autocheck all'Avvio
+# ============================================================================
+echo ""
+log "Installazione script autocheck all'avvio..."
+
+AUTOCHECK_SCRIPT="/usr/local/bin/rocksolid-startup-check.sh"
+AUTOCHECK_LOG="/var/log/rocksolid-startup.log"
+
+cat > "$AUTOCHECK_SCRIPT" <<'AUTOCHECK_EOF'
+#!/bin/sh
+# ==========================================================
+# ROCKSOLID Startup Check & Remediation
+# Verifica e ripristina servizi critici ad ogni avvio
+# ==========================================================
+
+LOG_FILE="/var/log/rocksolid-startup.log"
+SYSUPGRADE_CONF="/etc/sysupgrade.conf"
+
+# Funzione log con timestamp
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+    logger -t rocksolid-startup "$*"
+}
+
+log "========================================="
+log "ROCKSOLID Startup Check - AVVIO"
+log "========================================="
+
+# ============================================================================
+# 1. VERIFICA E RIPRISTINA CHECKMK AGENT
+# ============================================================================
+log "[CheckMK Agent] Verifica in corso..."
+
+if [ ! -x /usr/bin/check_mk_agent ]; then
+    log "[CheckMK Agent] ERRORE: Binary mancante!"
+    log "[CheckMK Agent] Eseguo script post-upgrade..."
+    if [ -x /etc/checkmk-post-upgrade.sh ]; then
+        /etc/checkmk-post-upgrade.sh >> "$LOG_FILE" 2>&1
+    else
+        log "[CheckMK Agent] CRITICO: Script post-upgrade mancante!"
+    fi
+else
+    # Binary presente, verifica servizio
+    if ! pgrep -f "socat TCP-LISTEN:6556" >/dev/null 2>&1; then
+        log "[CheckMK Agent] Servizio non attivo, avvio..."
+        /etc/init.d/check_mk_agent enable 2>/dev/null || true
+        /etc/init.d/check_mk_agent restart 2>/dev/null || true
+        sleep 2
+        if pgrep -f "socat TCP-LISTEN:6556" >/dev/null 2>&1; then
+            log "[CheckMK Agent] Servizio riavviato con successo"
+        else
+            log "[CheckMK Agent] ERRORE: Impossibile avviare servizio"
+        fi
+    else
+        log "[CheckMK Agent] OK - Servizio attivo"
+    fi
+fi
+
+# ============================================================================
+# 2. VERIFICA E RIPRISTINA FRP CLIENT
+# ============================================================================
+log "[FRP Client] Verifica in corso..."
+
+if [ -x /usr/local/bin/frpc ] && [ -f /etc/frp/frpc.toml ]; then
+    if ! pgrep -f frpc >/dev/null 2>&1; then
+        log "[FRP Client] Servizio non attivo, avvio..."
+        /etc/init.d/frpc enable 2>/dev/null || true
+        /etc/init.d/frpc restart 2>/dev/null || true
+        sleep 2
+        if pgrep -f frpc >/dev/null 2>&1; then
+            log "[FRP Client] Servizio riavviato con successo"
+        else
+            log "[FRP Client] ERRORE: Impossibile avviare servizio"
+        fi
+    else
+        log "[FRP Client] OK - Servizio attivo"
+    fi
+else
+    log "[FRP Client] Non configurato o mancante (opzionale)"
+fi
+
+# ============================================================================
+# 3. VERIFICA E INSTALLA GIT (SE MANCANTE)
+# ============================================================================
+log "[Git] Verifica in corso..."
+
+if ! command -v git >/dev/null 2>&1; then
+    log "[Git] MANCANTE - Installazione automatica..."
+    
+    if command -v opkg >/dev/null 2>&1; then
+        log "[Git] Aggiornamento repository opkg..."
+        opkg update >> "$LOG_FILE" 2>&1
+        
+        log "[Git] Installazione git + git-http..."
+        if opkg install git git-http >> "$LOG_FILE" 2>&1; then
+            log "[Git] Installato con successo: $(git --version 2>/dev/null || echo 'versione sconosciuta')"
+        else
+            log "[Git] ERRORE: Installazione fallita"
+        fi
+    else
+        log "[Git] ERRORE: opkg non disponibile"
+    fi
+else
+    log "[Git] OK - Presente: $(git --version)"
+fi
+
+# ============================================================================
+# 4. VERIFICA GIT AUTO-SYNC
+# ============================================================================
+log "[Git Auto-Sync] Verifica in corso..."
+
+if [ -x /usr/local/bin/git-auto-sync.sh ]; then
+    # Verifica cron job
+    if grep -q 'git-auto-sync.sh' /etc/crontabs/root 2>/dev/null; then
+        log "[Git Auto-Sync] OK - Cron job configurato"
+        
+        # Test sync se git disponibile
+        if command -v git >/dev/null 2>&1 && [ -d /opt/checkmk-tools/.git ]; then
+            log "[Git Auto-Sync] Test sync manuale..."
+            /usr/local/bin/git-auto-sync.sh >> "$LOG_FILE" 2>&1
+            log "[Git Auto-Sync] Sync completato"
+        fi
+    else
+        log "[Git Auto-Sync] WARN: Cron job mancante, ripristino..."
+        if [ -x /etc/git-sync-post-upgrade.sh ]; then
+            /etc/git-sync-post-upgrade.sh >> "$LOG_FILE" 2>&1
+        else
+            # Aggiungi manualmente
+            echo "* * * * * /usr/local/bin/git-auto-sync.sh" >> /etc/crontabs/root
+            /etc/init.d/cron restart 2>/dev/null || true
+            log "[Git Auto-Sync] Cron job ripristinato"
+        fi
+    fi
+else
+    log "[Git Auto-Sync] Non configurato (opzionale)"
+fi
+
+# ============================================================================
+# 5. VERIFICA REPOSITORY CHECKMK-TOOLS
+# ============================================================================
+log "[Repository] Verifica in corso..."
+
+if [ -d /opt/checkmk-tools/.git ]; then
+    log "[Repository] OK - Presente in /opt/checkmk-tools"
+else
+    log "[Repository] WARN: Repository non trovato in /opt/checkmk-tools"
+fi
+
+# ============================================================================
+# 6. VERIFICA PROTEZIONI SYSUPGRADE.CONF
+# ============================================================================
+log "[Protezioni] Verifica sysupgrade.conf..."
+
+PROTECTED_COUNT=$(grep -c -E 'check_mk|frpc|checkmk-tools|git-auto-sync' "$SYSUPGRADE_CONF" 2>/dev/null || echo "0")
+log "[Protezioni] File protetti: $PROTECTED_COUNT"
+
+if [ "$PROTECTED_COUNT" -lt 5 ]; then
+    log "[Protezioni] WARN: Poche protezioni attive (attese almeno 5)"
+fi
+
+# ============================================================================
+# 7. RIEPILOGO FINALE
+# ============================================================================
+log "========================================="
+log "RIEPILOGO STATO SERVIZI:"
+log "========================================="
+
+# CheckMK Agent
+if pgrep -f "socat TCP-LISTEN:6556" >/dev/null 2>&1; then
+    log "  CheckMK Agent:  [OK]"
+else
+    log "  CheckMK Agent:  [FAIL]"
+fi
+
+# FRP Client
+if pgrep -f frpc >/dev/null 2>&1; then
+    log "  FRP Client:     [OK]"
+else
+    log "  FRP Client:     [N/A]"
+fi
+
+# Git
+if command -v git >/dev/null 2>&1; then
+    log "  Git:            [OK]"
+else
+    log "  Git:            [FAIL]"
+fi
+
+# Git Sync
+if [ -x /usr/local/bin/git-auto-sync.sh ]; then
+    log "  Git Auto-Sync:  [OK]"
+else
+    log "  Git Auto-Sync:  [N/A]"
+fi
+
+log "========================================="
+log "ROCKSOLID Startup Check - COMPLETATO"
+log "========================================="
+
+exit 0
+AUTOCHECK_EOF
+
+chmod +x "$AUTOCHECK_SCRIPT"
+log "Script autocheck creato: $AUTOCHECK_SCRIPT"
+
+# Configura rc.local per esecuzione all'avvio
+RC_LOCAL="/etc/rc.local"
+if [ ! -f "$RC_LOCAL" ]; then
+    log "Creo $RC_LOCAL"
+    cat > "$RC_LOCAL" <<'RCLOCAL'
+#!/bin/sh
+# Put your custom commands here that should be executed once
+# the system init finished. By default this file does nothing.
+
+exit 0
+RCLOCAL
+    chmod +x "$RC_LOCAL"
+fi
+
+# Aggiungi autocheck a rc.local se non presente
+if ! grep -q 'rocksolid-startup-check.sh' "$RC_LOCAL"; then
+    log "Aggiungo autocheck a rc.local"
+    # Rimuovi exit 0 temporaneamente
+    sed -i '/^exit 0/d' "$RC_LOCAL"
+    # Aggiungi script e exit 0
+    echo "$AUTOCHECK_SCRIPT &" >> "$RC_LOCAL"
+    echo "exit 0" >> "$RC_LOCAL"
+    log "Autocheck configurato per esecuzione all'avvio"
+else
+    log "Autocheck già presente in rc.local"
+fi
+
+# Proteggi file autocheck in sysupgrade.conf
+add_to_sysupgrade "$AUTOCHECK_SCRIPT" "ROCKSOLID Startup Autocheck Script"
+add_to_sysupgrade "$RC_LOCAL" "Boot Script (rc.local)"
+add_to_sysupgrade "$AUTOCHECK_LOG" "ROCKSOLID Autocheck Log"
+
+log "Autocheck installato e protetto"
+
+# ============================================================================
 # Test Immediato
 # ============================================================================
 echo ""
@@ -233,6 +473,14 @@ else
     warn "Test sync fallito, verifica log in /var/log/auto-git-sync.log"
 fi
 
+echo ""
+log "Esecuzione test autocheck..."
+if "$AUTOCHECK_SCRIPT"; then
+    log "Test autocheck completato - verifica log in $AUTOCHECK_LOG"
+else
+    warn "Test autocheck fallito"
+fi
+
 # ============================================================================
 # Riepilogo
 # ============================================================================
@@ -241,24 +489,42 @@ echo "╔═══════════════════════�
 echo "║  INSTALLAZIONE COMPLETATA - ROCKSOLID MODE ATTIVO             ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
-echo "Configurazione:"
+echo "Configurazione Git Sync:"
 echo "  ✓ Repository: $REPO_DIR"
 echo "  ✓ Script sync: $SYNC_SCRIPT"
 echo "  ✓ Frequenza: Ogni 1 minuto (cron)"
-echo "  ✓ Log: /var/log/auto-git-sync.log"
+echo "  ✓ Log sync: /var/log/auto-git-sync.log"
+echo ""
+echo "Autocheck all'Avvio:"
+echo "  ✓ Script: $AUTOCHECK_SCRIPT"
+echo "  ✓ Trigger: $RC_LOCAL (esecuzione automatica)"
+echo "  ✓ Log autocheck: $AUTOCHECK_LOG"
+echo "  ✓ Funzioni:"
+echo "      - Verifica e riavvia CheckMK Agent"
+echo "      - Verifica e riavvia FRP Client"
+echo "      - Reinstalla Git se mancante (post-upgrade)"
+echo "      - Ripristina cron git-sync"
+echo "      - Test sync repository"
 echo ""
 echo "Protezioni ROCKSOLID attivate:"
 echo "  ✓ File critici aggiunti a $SYSUPGRADE_CONF"
 echo "  ✓ Script post-upgrade: $POST_UPGRADE"
+echo "  ✓ Script autocheck: $AUTOCHECK_SCRIPT"
 echo "  ✓ Resistente ai major upgrade"
 echo ""
 echo "Comandi utili:"
 echo ""
-echo "  - Log in tempo reale:"
+echo "  - Log sync in tempo reale:"
 echo "    tail -f /var/log/auto-git-sync.log"
+echo ""
+echo "  - Log autocheck:"
+echo "    tail -f $AUTOCHECK_LOG"
 echo ""
 echo "  - Sync manuale:"
 echo "    $SYNC_SCRIPT"
+echo ""
+echo "  - Test autocheck manuale:"
+echo "    $AUTOCHECK_SCRIPT"
 echo ""
 echo "  - Disabilita sync:"
 echo "    sed -i '/git-auto-sync\.sh/d' $CRON_FILE"
@@ -268,9 +534,15 @@ echo "  - Post-upgrade verification:"
 echo "    $POST_UPGRADE"
 echo ""
 echo "File protetti (sysupgrade.conf):"
-grep -E 'checkmk-tools|git-auto-sync|git-sync-post-upgrade' "$SYSUPGRADE_CONF" 2>/dev/null || echo "  (verifica manualmente)"
+grep -E 'checkmk-tools|git-auto-sync|git-sync-post-upgrade|rocksolid-startup-check|rc.local' "$SYSUPGRADE_CONF" 2>/dev/null | sed 's/^/  /' || echo "  (verifica manualmente)"
 echo ""
-echo "IMPORTANTE: Dopo un major upgrade, esegui:"
-echo "  $POST_UPGRADE"
+echo "⚠️  IMPORTANTE POST-UPGRADE:"
+echo "    Il sistema si auto-ripristina al riavvio grazie a:"
+echo "    - $AUTOCHECK_SCRIPT (eseguito da rc.local)"
+echo "    - Git viene reinstallato automaticamente se mancante"
+echo "    - Tutti i servizi vengono riavviati automaticamente"
+echo ""
+echo "    Opzionale: Esegui manualmente dopo upgrade:"
+echo "      $POST_UPGRADE"
 echo ""
 echo "========================================="
