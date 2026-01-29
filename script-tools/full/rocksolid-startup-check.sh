@@ -24,10 +24,10 @@ log "[Repository] Verifica repository opkg..."
 
 if command -v opkg >/dev/null 2>&1; then
     # Controlla se repository sono corrotti
-    REPO_STATUS=$(opkg list 2>&1 | grep -c "parse_from_stream_nomalloc" 2>/dev/null || echo "0")
-    REPO_STATUS=$(echo "$REPO_STATUS" | tr -d ' ')
+    REPO_STATUS=$(opkg list 2>&1 | grep "parse_from_stream_nomalloc" | wc -l)
+    REPO_STATUS=$(echo "$REPO_STATUS" | tr -d ' \n')
     
-    if [ "$REPO_STATUS" -gt 0 ]; then
+    if [ "$REPO_STATUS" -gt 0 ] 2>/dev/null; then
         log "[Repository] CORRUZIONE rilevata - riparo repository"
         
         # Backup e pulizia cache corrotta
@@ -207,11 +207,11 @@ fi
 # ============================================================================
 log "[Protezioni] Verifica sysupgrade.conf..."
 
-PROTECTED_COUNT=$(grep -c -E 'check_mk|frpc|checkmk-tools|rc.local' "$SYSUPGRADE_CONF" 2>/dev/null || echo "0")
-PROTECTED_COUNT=$(echo "$PROTECTED_COUNT" | tr -d ' ')
+PROTECTED_COUNT=$(grep -E 'check_mk|frpc|checkmk-tools|rc.local' "$SYSUPGRADE_CONF" 2>/dev/null | wc -l)
+PROTECTED_COUNT=$(echo "$PROTECTED_COUNT" | tr -d ' \n')
 log "[Protezioni] File protetti: $PROTECTED_COUNT"
 
-if [ "$PROTECTED_COUNT" -lt 5 ]; then
+if [ "$PROTECTED_COUNT" -lt 5 ] 2>/dev/null; then
     log "[Protezioni] WARN: Poche protezioni attive (attese almeno 5)"
 fi
 
