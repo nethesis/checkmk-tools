@@ -125,6 +125,10 @@ if [ -f "/usr/bin/qemu-ga" ]; then
         # Proxmox con virtio-serial disponibile
         EXPECTED_MODE="virtio-serial"
         EXPECTED_PATH="/dev/virtio-ports/org.qemu.guest_agent.0"
+    elif [ -e "/dev/vport2p1" ]; then
+        # Proxmox con device vportXpY diretto
+        EXPECTED_MODE="virtio-serial"
+        EXPECTED_PATH="/dev/vport2p1"
     else
         # Fallback isa-serial
         EXPECTED_MODE="isa-serial"

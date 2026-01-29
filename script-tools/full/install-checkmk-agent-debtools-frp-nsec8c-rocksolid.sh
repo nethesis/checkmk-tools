@@ -485,6 +485,10 @@ if [ -f "/usr/bin/qemu-ga" ]; then
         # Proxmox con virtio-serial disponibile
         EXPECTED_MODE="virtio-serial"
         EXPECTED_PATH="/dev/virtio-ports/org.qemu.guest_agent.0"
+    elif [ -e "/dev/vport2p1" ]; then
+        # Proxmox con device vportXpY diretto
+        EXPECTED_MODE="virtio-serial"
+        EXPECTED_PATH="/dev/vport2p1"
     else
         # Fallback isa-serial
         EXPECTED_MODE="isa-serial"
@@ -799,6 +803,11 @@ install_qemu_ga() {
         log "Rilevato virtio-serial device - configurazione per piena integrazione Proxmox..."
         QEMU_MODE="virtio-serial"
         QEMU_PATH="/dev/virtio-ports/org.qemu.guest_agent.0"
+    elif [ -e "/dev/vport2p1" ]; then
+        # Proxmox senza directory virtio-ports ma con device vportXpY diretto
+        log "Rilevato device /dev/vport2p1 - configurazione virtio-serial diretta..."
+        QEMU_MODE="virtio-serial"
+        QEMU_PATH="/dev/vport2p1"
     else
         # Fallback a isa-serial (funzionamento base, compatibile senza config Proxmox)
         log "Configurazione init script per isa-serial (fallback)..."
