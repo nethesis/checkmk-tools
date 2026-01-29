@@ -120,13 +120,13 @@ fi
 if [ -f "/usr/bin/qemu-ga" ]; then
     log "[QEMU-GA] Verifica in corso..."
     
-    if ! pgrep -x qemu-ga >/dev/null 2>&1; then
+    if ! pgrep qemu-ga >/dev/null 2>&1; then
         log "[QEMU-GA] Servizio non attivo, avvio..."
         /etc/init.d/qemu-ga enable 2>/dev/null || true
         /etc/init.d/qemu-ga start 2>/dev/null || true
         sleep 2
         
-        if pgrep -x qemu-ga >/dev/null 2>&1; then
+        if pgrep qemu-ga >/dev/null 2>&1; then
             log "[QEMU-GA] Servizio riavviato con successo"
         else
             log "[QEMU-GA] ERRORE: Impossibile avviare servizio"
