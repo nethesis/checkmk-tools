@@ -715,12 +715,22 @@ install_frp() {
     if [ -f "$FRPC_CONF" ]; then
         log "Configurazione FRP esistente trovata: $FRPC_CONF"
         
-        # Estrai parametri dalla configurazione esistente
-        SERVER_ADDR=$(grep '^serverAddr' "$FRPC_CONF" | sed 's/.*= *"\([^"]*\)".*/\1/' | grep -v '^$')
-        SERVER_PORT=$(grep '^serverPort' "$FRPC_CONF" | sed 's/.*= *\([0-9][0-9]*\).*/\1/')
-        FRP_TOKEN=$(grep '^auth.token' "$FRPC_CONF" | sed 's/.*= *"\([^"]*\)".*/\1/' | grep -v '^$')
-        PROXY_NAME=$(grep '^\[\[proxies\]\]' -A 10 "$FRPC_CONF" | grep '^name' | sed 's/.*= *"\([^"]*\)".*/\1/' | grep -v '^$' | head -1)
-        REMOTE_PORT=$(grep '^\[\[proxies\]\]' -A 10 "$FRPC_CONF" | grep '^remotePort' | sed 's/.*= *\([0-9][0-9]*\).*/\1/' | head -1)
+        # Estrai parametri dalla configurazione esistente (supporta v0.x e v1.x)
+        # v1.x usa serverAddr/serverPort, v0.x usa server_addr/server_port
+        SERVER_ADDR=$(grep -E '^(serverAddr|server_addr)' "$FRPC_CONF" | sed 's/.*= *"\([^"]*\)".*/\1/' | grep -v '^$' | head -1)
+        SERVER_PORT=$(grep -E '^(serverPort|server_port)' "$FRPC_CONF" | sed 's/.*= *\([0-9][0-9]*\).*/\1/' | head -1)
+        FRP_TOKEN=$(grep 'auth.token' "$FRPC_CONF" | sed 's/.*= *"\([^"]*\)".*/\1/' | grep -v '^$' | head -1)
+        
+        # v1.x: [[proxies]] con name=, v0.x: [proxy-name] come sezione
+        if grep -q '^\[\[proxies\]\]' "$FRPC_CONF"; then
+            # Formato v1.x
+            PROXY_NAME=$(grep '^\[\[proxies\]\]' -A 10 "$FRPC_CONF" | grep '^name' | sed 's/.*= *"\([^"]*\)".*/\1/' | grep -v '^$' | head -1)
+            REMOTE_PORT=$(grep '^\[\[proxies\]\]' -A 10 "$FRPC_CONF" | grep -E '^(remotePort|remote_port)' | sed 's/.*= *\([0-9][0-9]*\).*/\1/' | head -1)
+        else
+            # Formato v0.x: cerca prima sezione dopo [common]
+            PROXY_NAME=$(grep -E '^\[[a-zA-Z0-9_-]+\]' "$FRPC_CONF" | grep -v '\[common\]' | head -1 | tr -d '[]')
+            REMOTE_PORT=$(grep -E '^(remotePort|remote_port)' "$FRPC_CONF" | sed 's/.*= *\([0-9][0-9]*\).*/\1/' | head -1)
+        fi
         
         # Valida configurazione estratta - tutti i valori devono essere non-vuoti
         if [ -n "$SERVER_ADDR" ] && [ -n "$SERVER_PORT" ] && [ -n "$FRP_TOKEN" ] && [ -n "$PROXY_NAME" ] && [ -n "$REMOTE_PORT" ]; then
