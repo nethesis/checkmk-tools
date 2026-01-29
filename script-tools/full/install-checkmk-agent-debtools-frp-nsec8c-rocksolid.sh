@@ -155,6 +155,39 @@ protect_checkmk_installation() {
 }
 
 # ============================================================================
+# ROCKSOLID: Backup Binari Critici
+# Backup di tar/ar/gzip che si corrompono durante major upgrade
+# ============================================================================
+backup_critical_binaries() {
+    local backup_dir="/opt/checkmk-tools/BACKUP-BINARIES"
+    local bins="/usr/libexec/tar-gnu /usr/bin/ar /usr/libexec/gzip-gnu /usr/libexec/gunzip-gnu /usr/lib/libbfd-2.40.so"
+    
+    log "ROCKSOLID: Backup binari critici (protegge da corruzione durante upgrade)..."
+    mkdir -p "$backup_dir" 2>/dev/null || true
+    
+    for bin in $bins; do
+        if [ -f "$bin" ] && file "$bin" 2>/dev/null | grep -q "ELF"; then
+            local backup_file="$backup_dir/$(basename "$bin").backup"
+            cp -p "$bin" "$backup_file" 2>/dev/null && \
+                log "  ✓ Backup: $bin" || \
+                warn "  ✗ Backup fallito: $bin"
+        fi
+    done
+    
+    # Proteggi backup in sysupgrade
+    if ! grep -q "$backup_dir" "$SYSUPGRADE_CONF" 2>/dev/null; then
+        {
+            echo ""
+            echo "# ROCKSOLID: Backup binari critici (tar, ar, gzip)"
+            echo "$backup_dir/"
+        } >> "$SYSUPGRADE_CONF"
+        log "  ✓ Backup protetto in sysupgrade.conf"
+    fi
+    
+    log "Binari critici backuppati in: $backup_dir"
+}
+
+# ============================================================================
 # ROCKSOLID: Proteggi installazione FRP Client
 # ============================================================================
 protect_frp_installation() {
@@ -178,10 +211,69 @@ create_post_upgrade_script() {
     cat > "$script_path" <<'POSTSCRIPT'
 #!/bin/sh
 # Script eseguito automaticamente dopo major upgrade
-# Verifica e ripristina servizi CheckMK se necessario
+# Ripristina binari corrotti e servizi CheckMK
 
 log() { logger -t checkmk-post-upgrade "$*"; echo "[POST-UPGRADE] $*"; }
 
+log "=== POST-UPGRADE: Inizio ripristino ==="
+
+# ==========================================================
+# FASE 1: RIPRISTINA BINARI CRITICI (tar, ar, gzip)
+# Major upgrade spesso corrompe questi binari
+# ==========================================================
+BACKUP_DIR="/opt/checkmk-tools/BACKUP-BINARIES"
+
+if [ -d "$BACKUP_DIR" ]; then
+    log "Ripristino binari critici da backup..."
+    
+    for backup in "$BACKUP_DIR"/*.backup; do
+        [ -f "$backup" ] || continue
+        
+        # Estrai nome originale
+        basename_file=$(basename "$backup" .backup)
+        
+        # Determina path destinazione
+        case "$basename_file" in
+            tar-gnu|gzip-gnu|gunzip-gnu|zcat-gnu)
+                dest="/usr/libexec/$basename_file"
+                ;;
+            ar)
+                dest="/usr/bin/$basename_file"
+                ;;
+            libbfd-*.so)
+                dest="/usr/lib/$basename_file"
+                ;;
+            *)
+                log "  ? SKIP: $basename_file (path sconosciuto)"
+                continue
+                ;;
+        esac
+        
+        # Verifica se destinazione è corrotta (non-ELF)
+        if [ -f "$dest" ]; then
+            if ! file "$dest" 2>/dev/null | grep -q "ELF"; then
+                log "  ⚠ CORROTTO: $dest - ripristino da backup"
+                cp -p "$backup" "$dest" 2>/dev/null && \
+                    log "  ✓ RIPRISTINATO: $dest" || \
+                    log "  ✗ ERRORE ripristino: $dest"
+            else
+                log "  ✓ OK: $dest (già valido)"
+            fi
+        else
+            # File mancante, ripristina
+            log "  ⚠ MANCANTE: $dest - ripristino da backup"
+            cp -p "$backup" "$dest" 2>/dev/null && \
+                log "  ✓ RIPRISTINATO: $dest" || \
+                log "  ✗ ERRORE ripristino: $dest"
+        fi
+    done
+else
+    log "⚠ Backup binari non trovato in $BACKUP_DIR"
+fi
+
+# ==========================================================
+# FASE 2: VERIFICA E RIPRISTINA CHECKMK AGENT
+# ==========================================================
 log "Verifica installazione CheckMK Agent post-upgrade"
 
 # Verifica binario
@@ -727,6 +819,7 @@ main() {
     
     # ROCKSOLID: Proteggi installazione
     protect_checkmk_installation
+    backup_critical_binaries
     create_post_upgrade_script
     
     install_frp
@@ -741,6 +834,7 @@ main() {
     echo ""
     echo "Protezioni attivate:"
     echo "  ✓ File critici aggiunti a $SYSUPGRADE_CONF"
+    echo "  ✓ Binari critici backuppati (tar/ar/gzip protetti da corruzione)"
     echo "  ✓ Script post-upgrade: /etc/checkmk-post-upgrade.sh"
     echo "  ✓ Script autocheck avvio: /usr/local/bin/rocksolid-startup-check.sh"
     echo "  ✓ Installazione resistente ai major upgrade"
