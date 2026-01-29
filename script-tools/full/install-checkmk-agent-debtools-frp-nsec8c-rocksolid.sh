@@ -194,7 +194,7 @@ protect_frp_installation() {
     log "ROCKSOLID: Proteggo installazione FRP da major upgrade"
     
     add_to_sysupgrade "/usr/local/bin/frpc" "FRP Client - Binary"
-    add_to_sysupgrade "/etc/frp/" "FRP Client - Configuration"
+    add_to_sysupgrade "/etc/frp/frpc.toml" "FRP Client - Configuration (CRITICO: contiene token)"
     add_to_sysupgrade "/etc/init.d/frpc" "FRP Client - Init Script"
     
     log "Installazione FRP protetta contro major upgrade"
