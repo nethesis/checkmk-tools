@@ -479,11 +479,14 @@ fi
 # ============================================================================
 log "[Protezioni] Verifica sysupgrade.conf..."
 
-PROTECTED_COUNT=$(grep -c -E 'check_mk|frpc' "$SYSUPGRADE_CONF" 2>/dev/null || echo "0")
+# Conta tutte le righe non-commento non-vuote che iniziano con / (protezioni totali)
+# -a forza trattamento come testo (alcuni sistemi vedono sysupgrade.conf come binario)
+PROTECTED_COUNT=$(grep -a -v '^#' "$SYSUPGRADE_CONF" 2>/dev/null | grep -a -v '^$' | grep -a -E '^/' | wc -l)
+PROTECTED_COUNT=$(echo "$PROTECTED_COUNT" | tr -d ' \n')
 log "[Protezioni] File protetti: $PROTECTED_COUNT"
 
-if [ "$PROTECTED_COUNT" -lt 3 ]; then
-    log "[Protezioni] WARN: Poche protezioni attive (attese almeno 3)"
+if [ "$PROTECTED_COUNT" -lt 5 ] 2>/dev/null; then
+    log "[Protezioni] WARN: Poche protezioni attive (attese almeno 5)"
 fi
 
 # ============================================================================
