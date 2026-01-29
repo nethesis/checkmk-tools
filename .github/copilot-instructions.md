@@ -381,6 +381,8 @@ checkmk-testfrp   # 192.168.10.126 (user: admin_nethesis)
 ns-lab00          # 192.168.10.100:2222 (root)
 rl94ns8           # 10.155.100.70:22 (root, NethServer 8)
 nsec8-stable      # 10.155.100.100:22 (root, NethServer Security 8)
+                  # Agent CheckMK installato con: install-checkmk-agent-debtools-frp-nsec8c.sh
+                  # Path: /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c.sh
 
 # Altri server (chiave: ~/.ssh/sos-openssh)
 sos               # sos.nethesis.it (user: marzio)
