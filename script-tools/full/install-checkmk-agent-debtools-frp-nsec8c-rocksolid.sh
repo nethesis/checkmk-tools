@@ -748,11 +748,11 @@ install_qemu_ga() {
     
     log "VM rilevata: $PRODUCT_NAME - procedo con installazione qemu-guest-agent"
     
-    # Installa qemu-guest-agent
-    log "Installazione pacchetto qemu-guest-agent..."
+    # Installa qemu-guest-agent (pacchetto: qemu-ga)
+    log "Installazione pacchetto qemu-ga..."
     opkg update >/dev/null 2>&1 || log "Warning: opkg update fallito (continuo comunque)"
-    opkg install qemu-guest-agent 2>/dev/null || {
-        log "Warning: pacchetto qemu-guest-agent non disponibile o già installato"
+    opkg install qemu-ga 2>/dev/null || {
+        log "Warning: pacchetto qemu-ga non disponibile o già installato"
     }
     
     # Verifica binario
