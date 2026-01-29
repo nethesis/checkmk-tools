@@ -43,7 +43,15 @@ Collezione completa di script per il monitoraggio e la gestione di infrastruttur
 - **Cache Intelligente**: Sistema di caching con timeout configurabile (60s default)
 - **Fallback Resiliente**: Usa cache obsoleta se GitHub non raggiungibile
 
-### 🚀 Deploy Automatizzato
+### �️ ROCKSOLID Mode - Agent Resistente agli Upgrade
+- **NethSecurity 8**: Installazione agent CheckMK + FRP resistente ai major upgrade
+- **Auto-Recovery**: Script di avvio che ripristina servizi automaticamente
+- **Backup Binari**: Protezione `tar`, `ar`, `gzip` da corruzione
+- **FRP Dual-Format**: Supporto FRP v0.x e v1.x con rilevamento automatico
+- **Protezioni Totali**: 13 file critici protetti in `/etc/sysupgrade.conf`
+- **Validazione Completa**: Testato su NethSecurity 8.7.1 + CheckMK 2.4.0p20
+
+### �🚀 Deploy Automatizzato
 - **Smart Deploy**: Sistema ibrido per deployment multi-host
 - **Backup Automatico**: Snapshot pre-deployment con rollback
 - **Validazione**: Test sintassi e funzionalità pre-deployment
@@ -547,8 +555,43 @@ Installazione e configurazione CheckMK Agent.
 | Script | Descrizione |
 |--------|-------------|
 | `install-agent-interactive.sh` | Installazione agent interattiva |
+| `install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh` | ⭐ **Installer ROCKSOLID** per NethSecurity 8 |
+| `rocksolid-startup-check.sh` | Autocheck boot per protezione post-upgrade |
 | `update-all-scripts.sh` | Aggiornamento script da repository |
 | `update-scripts-from-repo.sh` | Update specifici script |
+
+#### 🛡️ ROCKSOLID Mode - Installazione Resistente agli Upgrade
+
+**Sistema avanzato di protezione per NethSecurity 8** che garantisce la sopravvivenza di CheckMK Agent e FRP Client durante i major upgrade di sistema.
+
+**Caratteristiche**:
+- ✅ **Protezione Totale**: Aggiunge file critici a `/etc/sysupgrade.conf` (sopravvivono agli upgrade)
+- ✅ **Backup Binari**: Backup automatico di `tar`, `ar`, `gzip` (protegge da corruzione durante upgrade)
+- ✅ **Auto-Recovery**: Script di avvio che verifica e ripristina servizi automaticamente
+- ✅ **FRP Integration**: Supporto FRP v0.x e v1.x con rilevamento configurazione esistente
+- ✅ **Marker System**: File marker per rilevamento installazione FRP persistente
+- ✅ **Post-Upgrade Script**: Script automatico di verifica e ripristino post-upgrade
+
+**Validato su**:
+- NethSecurity 8.7.1 (OpenWrt 23.05.0)
+- FRP Client v0.64.0 e legacy v0.x
+- CheckMK Agent 2.4.0p20
+
+**Installazione**:
+```bash
+# Download ed esecuzione diretta
+curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh | bash
+
+# Opzionale: modalità interattiva
+bash install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh
+```
+
+**Post-Upgrade** (dopo major upgrade manuale):
+```bash
+/etc/checkmk-post-upgrade.sh
+```
+
+**Documentazione completa**: [install-checkmk-agent-debtools-frp-nsec8c-rocksolid.md](script-tools/doc/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.md)
 
 ### Automazione Repository
 
@@ -1340,7 +1383,18 @@ Grazie a tutti i contributori che hanno aiutato a migliorare questa collezione!
 
 ## 📅 Changelog
 
-### v2.0.0 (Current - Gennaio 2026)
+### v2.1.0 (Current - Gennaio 2026)
+- ✅ **ROCKSOLID Mode**: Sistema protezione completo per NethSecurity 8 agent CheckMK
+  - Installazione resistente ai major upgrade con 13 file critici protetti
+  - Auto-recovery automatico all'avvio (CheckMK Agent + FRP Client)
+  - Supporto FRP v0.x e v1.x con rilevamento config esistente
+  - Backup binari critici (`tar`, `ar`, `gzip`) protetti da corruzione
+  - Script post-upgrade automatico per verifica e ripristino
+  - Fix grep binary file detection su OpenWrt
+  - Marker system per FRP detection persistente
+  - Validato su NethSecurity 8.7.1 + CheckMK 2.4.0p20
+
+### v2.0.0 (Gennaio 2026)
 - ✅ **Backup Cloud**: Sistema completo backup CheckMK su cloud con rclone (S3/Spaces)
 - ✅ **Auto-Upgrade CheckMK**: Wizard setup upgrade automatico via crontab
 - ✅ **Auto-Sync Enhanced**: Sistema sincronizzazione automatica con .copilot-context.md
