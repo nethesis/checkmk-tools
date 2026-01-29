@@ -539,26 +539,36 @@ C:\Users\Marzio\.ssh\checkmk
 **⚠️ IMPORTANTE - Configurazione rclone su checkmk-vps-01:**
 - ✅ rclone è configurato **dentro il site OMD**, NON come utente root
 - ✅ Path config: `/opt/omd/sites/monitoring/.config/rclone/rclone.conf`
-- ✅ Remote configurato: `do-space-backup` (DigitalOcean Spaces)
-- ✅ Bucket: `nethesis-checkmk-backups`
+- ✅ Remote configurato: `do` (DigitalOcean Spaces)
+- ✅ Bucket: `testmonbck`
+- ✅ Struttura: `checkmk-backups/job00-daily/`, `checkmk-backups/job01-weekly/`, `checkmk-backups/monitoring-minimal/`
 
 **Comandi corretti per accesso rclone:**
 ```bash
-# ❌ SBAGLIATO (root non ha config)
-ssh checkmk-vps-01 'rclone ls do-space-backup:nethesis-checkmk-backups/'
+# ❌ SBAGLIATO (comando errato)
+ssh checkmk-vps-01 'rclone ls do:testmonbck'
+ssh checkmk-vps-01 'omd su monitoring -c "rclone ..."'
 
-# ✅ CORRETTO (esegui come utente site)
-ssh checkmk-vps-01 'omd su monitoring -c "rclone ls do-space-backup:nethesis-checkmk-backups/"'
+# ✅ CORRETTO (su - monitoring -c)
+ssh checkmk-vps-01 'su - monitoring -c "rclone ls do:testmonbck"'
 
 # Lista ultimi backup
-ssh checkmk-vps-01 'omd su monitoring -c "rclone ls do-space-backup:nethesis-checkmk-backups/ | tail -20"'
+ssh checkmk-vps-01 'su - monitoring -c "rclone ls do:testmonbck"' | tail -20
+
+# Lista cartella specifica
+ssh checkmk-vps-01 'su - monitoring -c "rclone ls do:testmonbck/checkmk-backups/job00-daily/"'
 
 # Verifica spazio bucket
-ssh checkmk-vps-01 'omd su monitoring -c "rclone size do-space-backup:nethesis-checkmk-backups/"'
+ssh checkmk-vps-01 'su - monitoring -c "rclone size do:testmonbck"'
 
 # Download backup specifico
-ssh checkmk-vps-01 'omd su monitoring -c "rclone copy do-space-backup:nethesis-checkmk-backups/backup-file.tar.gz /tmp/"'
+ssh checkmk-vps-01 'su - monitoring -c "rclone copy do:testmonbck/checkmk-backups/job00-daily/file.tar.gz /tmp/"'
 ```
+
+**Backup disponibili:**
+- **job00-daily**: Backup daily completi (~1.2 MB)
+- **job01-weekly**: Backup weekly completi con history (~378 MB)
+- **monitoring-minimal**: Backup ultra-minimali (~115 KB)
 
 **Script backup automatico:**
 - Script: `/opt/checkmk-tools/script-tools/full/checkmk_rclone_space_dyn.sh`
