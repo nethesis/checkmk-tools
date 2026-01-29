@@ -165,6 +165,174 @@ POSTSCRIPT
     log "Script post-upgrade creato e protetto"
 }
 
+# ============================================================================
+# ROCKSOLID: Installa script autocheck all'avvio
+# ============================================================================
+install_autocheck() {
+    log "Installazione script autocheck all'avvio"
+    
+    local autocheck_script="/usr/local/bin/rocksolid-startup-check.sh"
+    local autocheck_log="/var/log/rocksolid-startup.log"
+    local rc_local="/etc/rc.local"
+    
+    cat > "$autocheck_script" <<'AUTOCHECK_EOF'
+#!/bin/sh
+# ==========================================================
+# ROCKSOLID Startup Check & Remediation
+# Verifica e ripristina servizi critici ad ogni avvio
+# ==========================================================
+
+LOG_FILE="/var/log/rocksolid-startup.log"
+SYSUPGRADE_CONF="/etc/sysupgrade.conf"
+
+# Funzione log con timestamp
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+    logger -t rocksolid-startup "$*"
+}
+
+log "========================================="
+log "ROCKSOLID Startup Check - AVVIO"
+log "========================================="
+
+# ============================================================================
+# 1. VERIFICA E RIPRISTINA CHECKMK AGENT
+# ============================================================================
+log "[CheckMK Agent] Verifica in corso..."
+
+if [ ! -x /usr/bin/check_mk_agent ]; then
+    log "[CheckMK Agent] ERRORE: Binary mancante!"
+    log "[CheckMK Agent] Eseguo script post-upgrade..."
+    if [ -x /etc/checkmk-post-upgrade.sh ]; then
+        /etc/checkmk-post-upgrade.sh >> "$LOG_FILE" 2>&1
+    else
+        log "[CheckMK Agent] CRITICO: Script post-upgrade mancante!"
+    fi
+else
+    # Binary presente, verifica servizio
+    if ! pgrep -f "socat TCP-LISTEN:6556" >/dev/null 2>&1; then
+        log "[CheckMK Agent] Servizio non attivo, avvio..."
+        /etc/init.d/check_mk_agent enable 2>/dev/null || true
+        /etc/init.d/check_mk_agent restart 2>/dev/null || true
+        sleep 2
+        if pgrep -f "socat TCP-LISTEN:6556" >/dev/null 2>&1; then
+            log "[CheckMK Agent] Servizio riavviato con successo"
+        else
+            log "[CheckMK Agent] ERRORE: Impossibile avviare servizio"
+        fi
+    else
+        log "[CheckMK Agent] OK - Servizio attivo"
+    fi
+fi
+
+# ============================================================================
+# 2. VERIFICA E RIPRISTINA FRP CLIENT
+# ============================================================================
+log "[FRP Client] Verifica in corso..."
+
+if [ -x /usr/local/bin/frpc ] && [ -f /etc/frp/frpc.toml ]; then
+    if ! pgrep -f frpc >/dev/null 2>&1; then
+        log "[FRP Client] Servizio non attivo, avvio..."
+        /etc/init.d/frpc enable 2>/dev/null || true
+        /etc/init.d/frpc restart 2>/dev/null || true
+        sleep 2
+        if pgrep -f frpc >/dev/null 2>&1; then
+            log "[FRP Client] Servizio riavviato con successo"
+        else
+            log "[FRP Client] ERRORE: Impossibile avviare servizio"
+        fi
+    else
+        log "[FRP Client] OK - Servizio attivo"
+    fi
+else
+    log "[FRP Client] Non configurato o mancante (opzionale)"
+fi
+
+# ============================================================================
+# 3. VERIFICA PROTEZIONI SYSUPGRADE.CONF
+# ============================================================================
+log "[Protezioni] Verifica sysupgrade.conf..."
+
+PROTECTED_COUNT=$(grep -c -E 'check_mk|frpc' "$SYSUPGRADE_CONF" 2>/dev/null || echo "0")
+log "[Protezioni] File protetti: $PROTECTED_COUNT"
+
+if [ "$PROTECTED_COUNT" -lt 3 ]; then
+    log "[Protezioni] WARN: Poche protezioni attive (attese almeno 3)"
+fi
+
+# ============================================================================
+# 4. RIEPILOGO FINALE
+# ============================================================================
+log "========================================="
+log "RIEPILOGO STATO SERVIZI:"
+log "========================================="
+
+# CheckMK Agent
+if pgrep -f "socat TCP-LISTEN:6556" >/dev/null 2>&1; then
+    log "  CheckMK Agent:  [OK]"
+else
+    log "  CheckMK Agent:  [FAIL]"
+fi
+
+# FRP Client
+if pgrep -f frpc >/dev/null 2>&1; then
+    log "  FRP Client:     [OK]"
+else
+    log "  FRP Client:     [N/A]"
+fi
+
+log "========================================="
+log "ROCKSOLID Startup Check - COMPLETATO"
+log "========================================="
+
+exit 0
+AUTOCHECK_EOF
+
+    chmod +x "$autocheck_script"
+    log "Script autocheck creato: $autocheck_script"
+    
+    # Configura rc.local per esecuzione all'avvio
+    if [ ! -f "$rc_local" ]; then
+        log "Creo $rc_local"
+        cat > "$rc_local" <<'RCLOCAL'
+#!/bin/sh
+# Put your custom commands here that should be executed once
+# the system init finished. By default this file does nothing.
+
+exit 0
+RCLOCAL
+        chmod +x "$rc_local"
+    fi
+    
+    # Aggiungi autocheck a rc.local se non presente
+    if ! grep -q 'rocksolid-startup-check.sh' "$rc_local"; then
+        log "Aggiungo autocheck a rc.local"
+        # Rimuovi exit 0 temporaneamente
+        sed -i '/^exit 0/d' "$rc_local"
+        # Aggiungi script e exit 0
+        echo "$autocheck_script &" >> "$rc_local"
+        echo "exit 0" >> "$rc_local"
+        log "Autocheck configurato per esecuzione all'avvio"
+    else
+        log "Autocheck già presente in rc.local"
+    fi
+    
+    # Proteggi file autocheck in sysupgrade.conf
+    add_to_sysupgrade "$autocheck_script" "ROCKSOLID Startup Autocheck Script"
+    add_to_sysupgrade "$rc_local" "Boot Script (rc.local)"
+    add_to_sysupgrade "$autocheck_log" "ROCKSOLID Autocheck Log"
+    
+    log "Autocheck installato e protetto"
+    
+    # Test immediato
+    log "Test esecuzione autocheck..."
+    if "$autocheck_script"; then
+        log "Test autocheck completato - verifica log in $autocheck_log"
+    else
+        warn "Test autocheck fallito"
+    fi
+}
+
 uninstall_all() {
     log "Disinstallazione Checkmk Agent + FRP client"
 
@@ -433,6 +601,9 @@ main() {
     create_post_upgrade_script
     
     install_frp
+    
+    # ROCKSOLID: Installa autocheck all'avvio
+    install_autocheck
 
     echo ""
     echo "╔════════════════════════════════════════════════════════════════╗"
@@ -441,8 +612,14 @@ main() {
     echo ""
     echo "Protezioni attivate:"
     echo "  ✓ File critici aggiunti a $SYSUPGRADE_CONF"
-    echo "  ✓ Script post-upgrade creato: /etc/checkmk-post-upgrade.sh"
+    echo "  ✓ Script post-upgrade: /etc/checkmk-post-upgrade.sh"
+    echo "  ✓ Script autocheck avvio: /usr/local/bin/rocksolid-startup-check.sh"
     echo "  ✓ Installazione resistente ai major upgrade"
+    echo ""
+    echo "Autocheck all'avvio:"
+    echo "  ✓ Verifica e riavvia CheckMK Agent automaticamente"
+    echo "  ✓ Verifica e riavvia FRP Client automaticamente"
+    echo "  ✓ Log: /var/log/rocksolid-startup.log"
     echo ""
     echo "Test agent locale: nc 127.0.0.1 6556 | head"
     echo "Config FRP: $FRPC_CONF"
