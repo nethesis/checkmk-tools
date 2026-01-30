@@ -578,6 +578,138 @@ ssh checkmk-vps-01 'su - monitoring -c "rclone copy do:testmonbck/checkmk-backup
 
 ---
 
+## 🚨 INCIDENTI E TROUBLESHOOTING
+
+### 30 Gennaio 2026 - Update Windows + VSCode Crash
+
+**PROBLEMA INIZIALE:**
+- Aggiornamento Microsoft Windows ha causato errori all'avvio di VSCode
+- Errore principale: `EPIPE: broken pipe, write` su processi interni
+- Stack trace mostra crash in `console.value`, `Writable.write`, socket communication
+
+**COSA È STATO FATTO (E PEGGIORATO):**
+1. ❌ Tentato reset cache VSCode
+2. ❌ Tentato riavvio multipli
+3. ❌ **Modificata modalità login in "basic" - QUESTO HA ROTTO TUTTO**
+4. ❌ Modifiche a configurazioni interne
+5. ⚠️ Update Windows rimosso (TARDI)
+6. ❌ Situazione peggiorata invece di migliorare
+7. ❌ **Uninstall approfondito con Revo Uninstaller + Reinstall VSCode** - NON ha risolto
+8. ❌ Reset cache post-reinstall - NON ha risolto
+9. ❌ Riabilitato github.gitAuthentication - NON ha risolto
+10. ❌ Restart Windows Explorer - NON ha risolto
+11. ❌ Ricreato chiavi registro VSCode (Applications\Code.exe, DefaultIcon) - NON ha risolto
+
+**STATO ATTUALE (30/01/2026 ore ~19:00):**
+- VSCode non si avvia o non mostra nulla
+- Ultimo danno non risolto
+- Necessario ripristino completo
+- ⚠️ **PATTERN CRITICO**: 
+  - Start-Process da PowerShell → VSCode SI AVVIA
+  - Click su Code.exe con mouse → NON SI AVVIA
+  - Click su collegamento menu Start → NON SI AVVIA
+  - Comando `code .` da terminale → SI AVVIA
+  - Qualunque azione MANUALE utente → FALLISCE
+  - Qualunque azione via COMANDO → FUNZIONA
+- ✅ **Problema SPECIFICO di VSCode** - altri exe (notepad, ecc.) funzionano normalmente con doppio click
+- ❌ **NON è problema generale Windows** - circoscritto solo a Code.exe
+
+**SOLUZIONE TROVATA (30/01/2026 ore ~19:15):**
+- ✅ VSCode si avvia correttamente con:
+  ```powershell
+  cd C:\Users\Marzio\Desktop\CheckMK\checkmk-tools
+  code .
+  ```
+- ⚠️ Importante fare `cd` nella directory workspace PRIMA di lanciare `code .`
+- ⚠️ Non lanciare `code` senza parametri o da directory diversa
+- ❌ **Collegamento desktop/start menu NON funziona** - lanciare sempre da terminale
+- ❌ **NESSUNA SOLUZIONE TROVATA** per ripristinare funzionamento normale
+- ⚠️ Problema causato da Revo Uninstaller che ha cancellato chiavi registro critiche
+- ⚠️ Ricreare chiavi registro NON ha risolto - problema più profondo
+- ✅ **WORKAROUND TEMPORANEO**: Aprire PowerShell e usare `code .`
+
+**CAUSA ROOT (30/01/2026 ore ~19:45):**
+- 🔍 Diagnostica con `Code.exe --verbose` rivela:
+  ```
+  Sending some foreground love to the running instance: 17752
+  Sent env to running instance. Terminating...
+  ```
+- ⚠️ **VSCode si connette a istanza zombie nascosta/corrotta** invece di aprire nuova finestra
+- Quando lanciato dal collegamento, VSCode rileva istanza esistente (PID 17752) e le invia il comando
+- Ma quella finestra è nascosta o corrotta dall'update Windows
+- `code .` con workspace funziona perché forza apertura in quel contesto specifico
+- Soluzione: killare TUTTI i processi VSCode prima di riaprire dal collegamento
+
+**CAUSA ROOT (30/01/2026 ore ~19:45):**
+- 🔍 Diagnostica con `Code.exe --verbose` rivela:
+  ```
+  Sending some foreground love to the running instance: 17752
+  Sent env to running instance. Terminating...
+  ```
+- ⚠️ **Problema reale: VSCode aperto come ADMINISTRATOR**
+- Windows impedisce apertura multiple istanze Administrator di VSCode
+- Tentativo di aprire da collegamento/menu Start → errore "Another instance of Code is already running as administrator"
+- `code .` da terminale integrato funziona perché usa stessa istanza admin già aperta
+- L'update Windows potrebbe aver forzato VSCode a girare sempre come admin
+- **Soluzione da testare**: Chiudere VSCode admin, riaprire senza privilegi elevati
+
+**LEZIONI APPRESE:**
+- ⚠️ Errori `EPIPE: broken pipe` sono **transitori** - NON richiedono riavvio
+- ⚠️ Stack trace con path `Microsoft%20VS%20Code/resources.../` indicano problemi **interni VSCode**
+- ✅ Prima azione: **rimuovere update Windows SUBITO** (non dopo vari tentativi)
+- ✅ Seconda azione: **reset cache minimale** (non modifiche aggressive)
+- ❌ **MAI** modificare configurazioni interne senza backup completo
+- ✅ Creare **System Restore Point PRIMA** di troubleshooting aggressivo
+
+**PROCEDURE DI RIPRISTINO EMERGENZA VSCode:**
+
+**Step 1 - Reset cache leggero (SEMPRE provare prima):**
+```powershell
+# Chiudi VSCode
+taskkill /F /IM Code.exe
+
+# Cancella solo cache volatile
+Remove-Item -Recurse -Force "$env:APPDATA\Code\Cache\*" -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force "$env:APPDATA\Code\CachedData\*" -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force "$env:APPDATA\Code\logs\*" -ErrorAction SilentlyContinue
+
+# Riavvia
+code
+```
+
+**Step 2 - Reset estensioni (se Step 1 fallisce):**
+```powershell
+# Backup lista estensioni
+code --list-extensions > "$env:USERPROFILE\Desktop\vscode-extensions-backup.txt"
+
+# Disabilita tutte le estensioni
+code --disable-extensions
+```
+
+**Step 3 - Reinstallazione pulita (ultimo resort):**
+```powershell
+# Backup configurazioni utente
+Copy-Item -Recurse "$env:APPDATA\Code\User" "$env:USERPROFILE\Desktop\VSCode-User-Backup"
+
+# Disinstalla VSCode (mantieni dati utente)
+# Reinstalla versione stabile da https://code.visualstudio.com/
+
+# Ripristina configurazioni
+Copy-Item -Recurse "$env:USERPROFILE\Desktop\VSCode-User-Backup\*" "$env:APPDATA\Code\User"
+```
+
+**⚠️ REGOLA CRITICA PER FUTURO:**
+- Errori `EPIPE`, `broken pipe`, socket errors = **IGNORARE E CONTINUARE**
+- Non sono critici, sono comunicazioni IPC interne che si ripristinano da sole
+- Riavvio VSCode window (Ctrl+R) sufficiente se proprio necessario
+- **NON FARE** troubleshooting aggressivo per errori transitori
+
+**BACKUP PATH CRITICI:**
+- Settings: `$env:APPDATA\Code\User\settings.json`
+- Keybindings: `$env:APPDATA\Code\User\keybindings.json`
+- Extensions list: `code --list-extensions`
+- Workspace: `.vscode/` dentro ogni progetto
+
 ---
 
-**Ultimo aggiornamento**: 2026-01-27
+**Ultimo aggiornamento**: 2026-01-30
