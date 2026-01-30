@@ -654,6 +654,95 @@ ssh checkmk-vps-01 'su - monitoring -c "rclone copy do:testmonbck/checkmk-backup
 - L'update Windows potrebbe aver forzato VSCode a girare sempre come admin
 - **Soluzione da testare**: Chiudere VSCode admin, riaprire senza privilegi elevati
 
+**✅ SOLUZIONE DEFINITIVA (30/01/2026 ore ~22:30) - PROBLEMA RISOLTO:**
+
+**Causa ROOT reale:**
+- ⚠️ **Variabile d'ambiente `ELECTRON_RUN_AS_NODE` presente nel sistema**
+- Questa variabile (anche se impostata a "0") causa malfunzionamento di Electron/VSCode
+- L'update Windows potrebbe averla introdotta o riattivata
+- Sintomi: VSCode si avvia da CLI ma NON da GUI (doppio click/menu Start)
+
+**Fix definitivo (persistente):**
+
+**1. Verifica variabile in cmd.exe:**
+```cmd
+set ELECTRON_RUN_AS_NODE
+```
+
+Se mostra qualcosa tipo `ELECTRON_RUN_AS_NODE=0` o altro valore → **va rimossa completamente**
+
+**2A. Rimozione via GUI (consigliato):**
+```
+1. Win + R → esegui: SystemPropertiesAdvanced
+2. Tab "Avanzate" → pulsante "Variabili d'ambiente..."
+3. Cerca ELECTRON_RUN_AS_NODE in:
+   - "Variabili utente" (sezione superiore)
+   - "Variabili di sistema" (sezione inferiore)
+4. Se presente → Seleziona → pulsante "Elimina"
+5. OK su tutte le finestre
+6. Logout/Login Windows (o riavvio)
+```
+
+**2B. Rimozione via CLI (rapido):**
+```cmd
+# Apri cmd.exe come Amministratore ed esegui:
+reg delete "HKCU\Environment" /v ELECTRON_RUN_AS_NODE /f
+reg delete "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v ELECTRON_RUN_AS_NODE /f
+```
+
+Poi **logout/login** (o riavvio) Windows.
+
+**3. Verifica dopo logout/login:**
+```cmd
+set ELECTRON_RUN_AS_NODE
+```
+
+Deve mostrare:
+```
+Environment variable ELECTRON_RUN_AS_NODE not defined
+```
+
+**4. Verifica finale VSCode:**
+```cmd
+"C:\Program Files\Microsoft VS Code\Code.exe" --version
+"C:\Program Files\Microsoft VS Code\Code.exe" --disable-extensions
+```
+
+Atteso:
+- `--version` **NON deve mostrare** output strano tipo "v22.x.x"
+- `--disable-extensions` avvia VSCode correttamente
+- Log "Extension host ... exited with code: 0" è normale con estensioni disabilitate
+
+**5. Avvio normale:**
+```cmd
+"C:\Program Files\Microsoft VS Code\Code.exe"
+```
+
+✅ Doppio click su Code.exe, collegamento menu Start, tutto **funziona correttamente**
+
+**6. Note reinstallazione VSCode (se necessaria):**
+- ✅ Usare sempre: **System Installer x64** → `VSCodeSetup-x64-<versione>.exe`
+- ❌ Evitare: `VSCodeUserSetup-...` (User Installer), soprattutto dopo feature update Windows
+
+**7. Recupero settings (opzionale):**
+Se avevi rinominato `%APPDATA%\Code` (es. `Code.old`):
+```powershell
+# Chiudi VSCode completamente
+# Rinomina per test:
+Rename-Item "$env:APPDATA\Code" "$env:APPDATA\Code.new"
+Rename-Item "$env:APPDATA\Code.old" "$env:APPDATA\Code"
+# Avvia VSCode
+# Se problemi ritornano, rollback:
+# Rename-Item "$env:APPDATA\Code" "$env:APPDATA\Code.problem"
+# Rename-Item "$env:APPDATA\Code.new" "$env:APPDATA\Code"
+```
+
+**⚠️ CHECKPOINT CRITICO:**
+- **Variabile ELECTRON_RUN_AS_NODE = poison** per VSCode/Electron
+- Sempre verificare con `set ELECTRON_RUN_AS_NODE` in caso di problemi VSCode
+- Rimuoverla COMPLETAMENTE (non basta impostarla a "0")
+- Logout/login Windows **obbligatorio** dopo rimozione
+
 **LEZIONI APPRESE:**
 - ⚠️ Errori `EPIPE: broken pipe` sono **transitori** - NON richiedono riavvio
 - ⚠️ Stack trace con path `Microsoft%20VS%20Code/resources.../` indicano problemi **interni VSCode**
