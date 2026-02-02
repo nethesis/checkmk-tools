@@ -1,17 +1,23 @@
 <#
 .SYNOPSIS
-  Installazione interattiva di frpc (FRP client) su Windows come servizio.
+  Installazione interattiva di frpc (FRP client) su Windows come Task Scheduler.
 
 .DESCRIPTION
-  - Abilita esecuzione script (Process=BYPASS, tenta CurrentUser=RemoteSigned)
   - Download frpc v0.64.0 da GitHub
   - Installazione in C:\Program Files\frp
-  - Config frpc.toml stile [common] + [hostname]
-  - Registrazione servizio Windows "frpc"
-  - Avvio automatico e immediato del servizio
+  - Config frpc.toml formato [common] con notazione dotted (auth.method, auth.token, tls.enable)
+  - Registrazione Task Scheduler per avvio automatico
+  - Avvio immediato del processo
 
 .REQUIREMENTS
   PowerShell 5.1+, Windows 64-bit, privilegi amministratore
+
+.USAGE
+  Esegui con bypass ExecutionPolicy:
+  
+  powershell -ExecutionPolicy Bypass -File .\install-frpc-pc.ps1
+  
+  Oppure click destro → "Esegui con PowerShell"
 #>
 
 [CmdletBinding()]
@@ -449,8 +455,8 @@ try {
   Write-Log "" "INFO"
 
   Stop-And-Remove-Service
-  Install-Nssm
-  Install-Frpc
+  Install-Frpc        # Prima crea directory e installa frpc
+  Install-Nssm        # Poi scarica nssm nella directory esistente
   
   # Verifica che Defender non abbia bloccato
   if (-not (Test-DefenderBlocked)) {
