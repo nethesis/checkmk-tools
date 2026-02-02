@@ -147,6 +147,10 @@ protect_checkmk_installation() {
     add_to_sysupgrade "/etc/init.d/check_mk_agent" "CheckMK Agent - Init Script"
     add_to_sysupgrade "/etc/check_mk/" "CheckMK Agent - Configuration"
     
+    # Directory critiche
+    add_to_sysupgrade "/usr/local/bin/" "Script Custom Directory (preserva tutti gli script)"
+    add_to_sysupgrade "/usr/lib/check_mk_agent/local/" "CheckMK Agent Local Checks"
+    
     # Package dependencies (se installati via opkg, sono già protetti)
     # Ma aggiungiamo customfeeds per sicurezza
     add_to_sysupgrade "/etc/opkg/customfeeds.conf" "Custom package repositories"
