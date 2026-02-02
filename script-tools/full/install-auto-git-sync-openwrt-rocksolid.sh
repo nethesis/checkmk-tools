@@ -179,6 +179,8 @@ add_to_sysupgrade "$REPO_DIR/" "CheckMK Tools Repository (Git Sync)"
 add_to_sysupgrade "$SYNC_SCRIPT" "Git Auto Sync Script"
 add_to_sysupgrade "$CRON_FILE" "Cron Jobs (include git sync)"
 add_to_sysupgrade "/var/log/auto-git-sync.log" "Git Sync Log File"
+add_to_sysupgrade "/usr/local/bin/" "Script Custom Directory (preserva tutti gli script)"
+add_to_sysupgrade "/usr/lib/check_mk_agent/local/" "CheckMK Agent Local Checks"
 
 # ============================================================================
 # Crea Script Post-Upgrade
@@ -493,19 +495,40 @@ else
 fi
 
 # ============================================================================
-# 6. VERIFICA PROTEZIONI SYSUPGRADE.CONF
+# 6. VERIFICA DIRECTORY CRITICHE
 # ============================================================================
-log "[Protezioni] Verifica sysupgrade.conf..."
+log "[Directory Critiche] Verifica presenza..."
 
-PROTECTED_COUNT=$(grep -c -E 'check_mk|frpc|checkmk-tools|git-auto-sync' "$SYSUPGRADE_CONF" 2>/dev/null || echo "0")
-log "[Protezioni] File protetti: $PROTECTED_COUNT"
+# Verifica /usr/local/bin
+if [ -d /usr/local/bin ]; then
+    SCRIPT_COUNT=$(find /usr/local/bin -maxdepth 1 -type f -executable 2>/dev/null | wc -l)
+    log "[Directory Critiche] /usr/local/bin: OK ($SCRIPT_COUNT script trovati)"
+else
+    log "[Directory Critiche] WARN: /usr/local/bin mancante"
+fi
 
-if [ "$PROTECTED_COUNT" -lt 5 ]; then
-    log "[Protezioni] WARN: Poche protezioni attive (attese almeno 5)"
+# Verifica /usr/lib/check_mk_agent/local
+if [ -d /usr/lib/check_mk_agent/local ]; then
+    LOCAL_CHECKS=$(find /usr/lib/check_mk_agent/local -maxdepth 1 -type f -executable 2>/dev/null | wc -l)
+    log "[Directory Critiche] /usr/lib/check_mk_agent/local: OK ($LOCAL_CHECKS checks trovati)"
+else
+    log "[Directory Critiche] WARN: /usr/lib/check_mk_agent/local mancante"
 fi
 
 # ============================================================================
-# 7. RIEPILOGO FINALE
+# 7. VERIFICA PROTEZIONI SYSUPGRADE.CONF
+# ============================================================================
+log "[Protezioni] Verifica sysupgrade.conf..."
+
+PROTECTED_COUNT=$(grep -c -E 'check_mk|frpc|checkmk-tools|git-auto-sync|usr/local/bin' "$SYSUPGRADE_CONF" 2>/dev/null || echo "0")
+log "[Protezioni] File protetti: $PROTECTED_COUNT"
+
+if [ "$PROTECTED_COUNT" -lt 7 ]; then
+    log "[Protezioni] WARN: Poche protezioni attive (attese almeno 7)"
+fi
+
+# ============================================================================
+# 8. RIEPILOGO FINALE
 # ============================================================================
 log "========================================="
 log "RIEPILOGO STATO SERVIZI:"
@@ -635,6 +658,9 @@ echo "Protezioni ROCKSOLID attivate:"
 echo "  ✓ File critici aggiunti a $SYSUPGRADE_CONF"
 echo "  ✓ Script post-upgrade: $POST_UPGRADE"
 echo "  ✓ Script autocheck: $AUTOCHECK_SCRIPT"
+echo "  ✓ Directory protette:"
+echo "      - /usr/local/bin/ (script custom)"
+echo "      - /usr/lib/check_mk_agent/local/ (local checks)"
 echo "  ✓ Resistente ai major upgrade"
 echo ""
 echo "Comandi utili:"
@@ -659,7 +685,7 @@ echo "  - Post-upgrade verification:"
 echo "    $POST_UPGRADE"
 echo ""
 echo "File protetti (sysupgrade.conf):"
-grep -E 'checkmk-tools|git-auto-sync|git-sync-post-upgrade|rocksolid-startup-check|rc.local' "$SYSUPGRADE_CONF" 2>/dev/null | sed 's/^/  /' || echo "  (verifica manualmente)"
+grep -E 'checkmk-tools|git-auto-sync|git-sync-post-upgrade|rocksolid-startup-check|rc.local|usr/local/bin|check_mk_agent/local' "$SYSUPGRADE_CONF" 2>/dev/null | sed 's/^/  /' || echo "  (verifica manualmente)"
 echo ""
 echo "⚠️  IMPORTANTE POST-UPGRADE:"
 echo "    Il sistema si auto-ripristina al riavvio grazie a:"
