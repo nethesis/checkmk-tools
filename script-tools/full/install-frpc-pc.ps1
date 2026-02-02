@@ -30,15 +30,12 @@ $ProgressPreference    = "SilentlyContinue"
 # Config fissa
 # ===============================
 $FrpVersion  = "0.64.0"
-$NssmVersion = "2.24"
 $InstallPath = "C:\Program Files\frp"
 $FrpcExePath = Join-Path $InstallPath "frpc.exe"
-$NssmExePath = Join-Path $InstallPath "nssm.exe"
 $ConfigPath  = Join-Path $InstallPath "frpc.toml"
-$ServiceName = "frpc"
+$TaskName    = "frpc-client"
 
 $DownloadUrl = "https://github.com/fatedier/frp/releases/download/v$FrpVersion/frp_${FrpVersion}_windows_amd64.zip"
-$NssmDownloadUrl = "https://nssm.cc/release/nssm-$NssmVersion.zip"
 $TempDir     = Join-Path $env:TEMP ("frp-install-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
 
 # ===============================
@@ -100,12 +97,21 @@ function Read-Int($Prompt) {
   }
 }
 
-function Stop-And-Remove-Service {
-  if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
-    Write-Log "Rimozione servizio esistente '$ServiceName'" "WARN"
-    try { Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue } catch {}
-    & sc.exe delete $ServiceName | Out-Null
+function Stop-And-Remove-Task {
+  # Ferma processo frpc esistente
+  $frpcProcess = Get-Process -Name "frpc" -ErrorAction SilentlyContinue
+  if ($frpcProcess) {
+    Write-Log "Chiusura processo frpc esistente (PID: $($frpcProcess.Id))" "WARN"
+    Stop-Process -Name "frpc" -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
+  }
+  
+  # Rimuovi task esistente
+  $existingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+  if ($existingTask) {
+    Write-Log "Rimozione task esistente '$TaskName'" "WARN"
+    Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1
   }
 }
 
@@ -188,61 +194,6 @@ function Test-DefenderBlocked {
 # ===============================
 # Installazione FRP
 # ===============================
-function Install-Nssm {
-  Write-Log "Download NSSM (Non-Sucking Service Manager) v$NssmVersion" "INFO"
-  
-  # Assicurati che TempDir esista
-  if (-not (Test-Path $TempDir)) {
-    New-Item -Path $TempDir -ItemType Directory -Force | Out-Null
-  }
-  
-  $nssmZip = Join-Path $TempDir "nssm.zip"
-  
-  # URL con fallback
-  $nssmUrls = @(
-    "https://nssm.cc/release/nssm-$NssmVersion.zip",
-    "https://nssm.cc/ci/nssm-$NssmVersion.zip",
-    "https://github.com/kirillkovalenko/nssm/releases/download/$NssmVersion/nssm-$NssmVersion.zip"
-  )
-  
-  $downloaded = $false
-  foreach ($url in $nssmUrls) {
-    try {
-      Write-Log "Tentativo download da: $url" "INFO"
-      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-      Invoke-WebRequest -Uri $url -OutFile $nssmZip -UseBasicParsing -TimeoutSec 30
-      Write-Log "NSSM scaricato: $('{0:N2}' -f ((Get-Item $nssmZip).Length / 1MB)) MB" "OK"
-      $downloaded = $true
-      break
-    } catch {
-      Write-Log "Fallito: $($_.Exception.Message)" "WARN"
-    }
-  }
-  
-  if (-not $downloaded) {
-    throw "Impossibile scaricare NSSM da nessun mirror disponibile"
-  }
-  
-  Write-Log "Estrazione NSSM" "INFO"
-  $nssmExtract = Join-Path $TempDir "nssm-extracted"
-  Expand-Archive -Path $nssmZip -DestinationPath $nssmExtract -Force
-  
-  # Trova nssm.exe (architettura amd64)
-  $nssmExe = Get-ChildItem -Path $nssmExtract -Filter "nssm.exe" -Recurse | Where-Object { $_.FullName -like "*win64*" -or $_.FullName -like "*amd64*" } | Select-Object -First 1
-  
-  if (-not $nssmExe) {
-    # Fallback: prendi qualsiasi nssm.exe
-    $nssmExe = Get-ChildItem -Path $nssmExtract -Filter "nssm.exe" -Recurse | Select-Object -First 1
-  }
-  
-  if (-not $nssmExe) {
-    throw "nssm.exe non trovato nell'archivio"
-  }
-  
-  Copy-Item -Path $nssmExe.FullName -Destination $NssmExePath -Force
-  Write-Log "NSSM installato: $NssmExePath" "OK"
-}
-
 function Install-Frpc {
   Write-Log "Download frpc v$FrpVersion" "INFO"
   New-Item -Path $TempDir -ItemType Directory -Force | Out-Null
@@ -321,111 +272,79 @@ remote_port = $RemotePort
   Write-Log "Configurazione scritta: $ConfigPath" "OK"
 }
 
-function Install-And-Start-Service {
-  # Verifica FINALE critica che exe esista
-  Write-Log "Verifica finale frpc.exe e nssm.exe..." "INFO"
+function Install-And-Start-Task {
+  Write-Log "Verifica finale frpc.exe..." "INFO"
   
   if (-not (Test-Path $FrpcExePath)) {
     throw "frpc.exe non trovato: $FrpcExePath"
   }
   
-  if (-not (Test-Path $NssmExePath)) {
-    throw "nssm.exe non trovato: $NssmExePath"
-  }
-  
   $fileInfo = Get-Item $FrpcExePath
   Write-Log "frpc.exe verificato: $($fileInfo.Length) bytes" "OK"
   
-  Write-Log "Creazione servizio Windows con NSSM '$ServiceName'" "INFO"
+  Write-Log "Creazione Task Scheduler '$TaskName'" "INFO"
   
-  # Usa NSSM per installare il servizio
-  $nssmInstall = & $NssmExePath install $ServiceName "`"$FrpcExePath`"" -c "`"$ConfigPath`"" 2>&1
+  # Crea action: esegui frpc.exe con config
+  $action = New-ScheduledTaskAction -Execute $FrpcExePath -Argument "-c `"$ConfigPath`"" -WorkingDirectory $InstallPath
   
-  if ($LASTEXITCODE -ne 0) {
-    Write-Log "Output NSSM: $nssmInstall" "ERROR"
-    throw "Creazione servizio con NSSM fallita (exit code: $LASTEXITCODE)"
-  }
+  # Crea trigger: all'avvio sistema
+  $trigger = New-ScheduledTaskTrigger -AtStartup
   
-  Write-Log "Servizio creato con NSSM" "OK"
+  # Crea principal: esegui come SYSTEM con privilegi massimi
+  $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
   
-  # Configura servizio
-  & $NssmExePath set $ServiceName DisplayName "Fast Reverse Proxy Client" | Out-Null
-  & $NssmExePath set $ServiceName Description "FRP Client - Fast Reverse Proxy (frpc) - Managed by NSSM" | Out-Null
-  & $NssmExePath set $ServiceName Start SERVICE_AUTO_START | Out-Null
-  & $NssmExePath set $ServiceName AppStdout "`"$InstallPath\frpc-stdout.log`"" | Out-Null
-  & $NssmExePath set $ServiceName AppStderr "`"$InstallPath\frpc-stderr.log`"" | Out-Null
-  & $NssmExePath set $ServiceName AppRotateFiles 1 | Out-Null
-  & $NssmExePath set $ServiceName AppRotateBytes 1048576 | Out-Null
+  # Impostazioni task
+  $settings = New-ScheduledTaskSettingsSet `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries `
+    -StartWhenAvailable `
+    -RestartCount 3 `
+    -RestartInterval (New-TimeSpan -Minutes 1) `
+    -ExecutionTimeLimit (New-TimeSpan -Days 0)
   
-  Write-Log "Configurazione servizio completata" "OK"
-  
-  # Verifica servizio creato
-  Start-Sleep -Milliseconds 500
-  if (-not (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue)) {
-    throw "Servizio '$ServiceName' non trovato dopo creazione"
-  }
-
-  Write-Log "Avvio servizio '$ServiceName'" "INFO"
+  # Registra task
   try {
-    Start-Service -Name $ServiceName -ErrorAction Stop
+    Register-ScheduledTask `
+      -TaskName $TaskName `
+      -Description "FRP Client - Fast Reverse Proxy (frpc)" `
+      -Action $action `
+      -Trigger $trigger `
+      -Principal $principal `
+      -Settings $settings `
+      -Force `
+      -ErrorAction Stop | Out-Null
+    
+    Write-Log "Task Scheduler creato con successo" "OK"
+  } catch {
+    throw "Creazione Task Scheduler fallita: $($_.Exception.Message)"
+  }
+  
+  # Avvia task immediatamente
+  Write-Log "Avvio task '$TaskName'..." "INFO"
+  try {
+    Start-ScheduledTask -TaskName $TaskName -ErrorAction Stop
     Start-Sleep -Seconds 2
-
-    $svc = Get-Service -Name $ServiceName
-    if ($svc.Status -eq "Running") {
-      Write-Log "Servizio avviato con successo. Stato: $($svc.Status)" "OK"
-      return
+    
+    # Verifica processo avviato
+    $frpcProcess = Get-Process -Name "frpc" -ErrorAction SilentlyContinue
+    if ($frpcProcess) {
+      Write-Log "frpc avviato con successo (PID: $($frpcProcess.Id))" "OK"
+      
+      # Verifica log per conferma connessione
+      Start-Sleep -Seconds 2
+      if (Test-Path "$InstallPath\frpc.log") {
+        $lastLog = Get-Content "$InstallPath\frpc.log" -Tail 5 | Out-String
+        if ($lastLog -match "login to server success") {
+          Write-Log "Connessione al server FRP stabilita con successo!" "OK"
+        }
+      }
     } else {
-      Write-Log "Servizio creato ma non in esecuzione. Stato: $($svc.Status)" "WARN"
+      Write-Log "Task avviato ma processo non trovato" "WARN"
+      Write-Log "Verifica log: $InstallPath\frpc.log" "INFO"
     }
   } catch {
-    Write-Log "Primo tentativo avvio fallito: $($_.Exception.Message)" "WARN"
-    
-    # RETRY con whitelist ThreatID esplicito
-    Write-Log "Tentativo whitelist ThreatID e retry avvio..." "INFO"
-    try {
-      # Whitelist ThreatID frpc (se non fatto prima)
-      Add-MpPreference -ThreatIDDefaultAction_Ids 2147939874 -ThreatIDDefaultAction_Actions Allow -Force -ErrorAction SilentlyContinue
-      
-      # Retry avvio
-      Start-Sleep -Seconds 1
-      Start-Service -Name $ServiceName -ErrorAction Stop
-      Start-Sleep -Seconds 2
-      
-      $svc = Get-Service -Name $ServiceName
-      if ($svc.Status -eq "Running") {
-        Write-Log "Servizio avviato con successo dopo whitelist ThreatID!" "OK"
-        return
-      }
-    } catch {
-      # Fallback: istruzioni manuali
-    }
-    
-    Write-Log "" "WARN"
-    Write-Log "============================================" "WARN"
-    Write-Log "SERVIZIO CREATO - Avvio bloccato da Defender" "WARN"
-    Write-Log "============================================" "WARN"
-    Write-Log "" "INFO"
-    Write-Log "INSTALLAZIONE COMPLETATA con successo!" "OK"
-    Write-Log "Il servizio frpc e' stato creato ma non avviato." "INFO"
-    Write-Log "" "INFO"
-    Write-Log "PER AVVIARE IL SERVIZIO:" "WARN"
-    Write-Log "" "INFO"
-    Write-Log "METODO 1: Whitelist ThreatID (consigliato)" "WARN"
-    Write-Log "  Add-MpPreference -ThreatIDDefaultAction_Ids 2147939874 -ThreatIDDefaultAction_Actions Allow -Force" "INFO"
-    Write-Log "  Start-Service frpc" "INFO"
-    Write-Log "" "INFO"
-    Write-Log "METODO 2: Disabilita Real-time protection (temporaneo)" "WARN"
-    Write-Log "  Win + I > Sicurezza di Windows > Protezione da virus e minacce" "INFO"
-    Write-Log "  > Gestisci impostazioni > DISATTIVA 'Protezione in tempo reale'" "INFO"
-    Write-Log "  Start-Service frpc" "INFO"
-    Write-Log "  Poi RIATTIVA protezione" "INFO"
-    Write-Log "" "INFO"
-    Write-Log "Verifica:" "WARN"
-    Write-Log "  Get-Service frpc                                    # Deve essere 'Running'" "INFO"
-    Write-Log "  Get-Content 'C:\\Program Files\\frp\\frpc.log' -Tail 20  # Log connessione" "INFO"
-    Write-Log "" "INFO"
-    Write-Log "Il servizio si avviera' automaticamente ai prossimi riavvii." "OK"
-    Write-Log "" "INFO"
+    Write-Log "Avvio task fallito: $($_.Exception.Message)" "WARN"
+    Write-Log "Il task si avviera' automaticamente al prossimo riavvio" "INFO"
   }
 }
 
@@ -454,16 +373,15 @@ try {
   Add-DefenderExclusion
   Write-Log "" "INFO"
 
-  Stop-And-Remove-Service
-  Install-Frpc        # Prima crea directory e installa frpc
-  Install-Nssm        # Poi scarica nssm nella directory esistente
+  Stop-And-Remove-Task
+  Install-Frpc
   
   # Verifica che Defender non abbia bloccato
   if (-not (Test-DefenderBlocked)) {
     throw "Installazione bloccata da Windows Defender"
   }
   
-  # Test esecuzione PRIMA di creare servizio
+  # Test esecuzione PRIMA di creare task
   Write-Log "" "INFO"
   if (-not (Test-FrpcExecution)) {
     Write-Log "" "ERROR"
@@ -488,21 +406,22 @@ try {
   Write-Log "" "INFO"
   
   Write-FrpcConfig -HostName $hostName -ServerAddr $serverAddr -Token $token -RemotePort $remotePort
-  Install-And-Start-Service
+  Install-And-Start-Task
 
   Write-Log "" "INFO"
   Write-Log "=== INSTALLAZIONE COMPLETATA ===" "OK"
   Write-Log "" "INFO"
   Write-Log "DETTAGLI INSTALLAZIONE:" "INFO"
-  Write-Log "  Eseguibile: $FrpcExePath" "INFO"
-  Write-Log "  Config    : $ConfigPath" "INFO"
-  Write-Log "  Log       : $InstallPath\\frpc.log" "INFO"
-  Write-Log "  Servizio  : $ServiceName (Startup: Automatic)" "INFO"
+  Write-Log "  Eseguibile   : $FrpcExePath" "INFO"
+  Write-Log "  Config       : $ConfigPath" "INFO"
+  Write-Log "  Log          : $InstallPath\\frpc.log" "INFO"
+  Write-Log "  Task Scheduler: $TaskName (Startup: Automatic)" "INFO"
   Write-Log "" "INFO"
   Write-Log "COMANDI UTILI:" "INFO"
-  Write-Log "  Get-Service frpc                                   # Stato servizio" "INFO"
-  Write-Log "  Start-Service frpc                                 # Avvia servizio" "INFO"
-  Write-Log "  Stop-Service frpc                                  # Ferma servizio" "INFO"
+  Write-Log "  Get-Process frpc                                    # Processo attivo" "INFO"
+  Write-Log "  Get-ScheduledTask -TaskName '$TaskName'             # Stato task" "INFO"
+  Write-Log "  Start-ScheduledTask -TaskName '$TaskName'           # Avvia task" "INFO"
+  Write-Log "  Stop-Process -Name frpc -Force                      # Ferma processo" "INFO"
   Write-Log "  Get-Content 'C:\\Program Files\\frp\\frpc.log' -Tail 20 # Ultimi log" "INFO"
   Write-Log "" "OK"
 
