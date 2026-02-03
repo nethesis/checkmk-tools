@@ -278,6 +278,37 @@ if [ "$PROTECTED_COUNT" -lt 5 ] 2>/dev/null; then
 fi
 
 # ============================================================================
+# 7. AUTO-RESTORE LOCAL CHECKS CHECKMK
+# ============================================================================
+log "[Auto-Restore] Verifica local checks CheckMK..."
+
+if [ -d /usr/lib/check_mk_agent/local ]; then
+    if [ -d /opt/checkmk-tools/script-check-nsec8/full ]; then
+        RESTORED=0
+        for script in /opt/checkmk-tools/script-check-nsec8/full/check_*.sh; do
+            [ -f "$script" ] || continue
+            basename_script=$(basename "$script")
+            if [ ! -f "/usr/lib/check_mk_agent/local/$basename_script" ]; then
+                cp "$script" "/usr/lib/check_mk_agent/local/$basename_script"
+                chmod +x "/usr/lib/check_mk_agent/local/$basename_script"
+                log "[Auto-Restore] ✓ Ripristinato: $basename_script"
+                RESTORED=$((RESTORED + 1))
+            fi
+        done
+        
+        if [ $RESTORED -eq 0 ]; then
+            log "[Auto-Restore] OK - Tutti i local checks presenti"
+        else
+            log "[Auto-Restore] Ripristinati $RESTORED local checks"
+        fi
+    else
+        log "[Auto-Restore] WARNING: Repository checkmk-tools non disponibile"
+    fi
+else
+    log "[Auto-Restore] WARNING: Directory local checks non esistente"
+fi
+
+# ============================================================================
 # 8. RIEPILOGO FINALE
 # ============================================================================
 log "========================================="
