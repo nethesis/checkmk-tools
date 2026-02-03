@@ -233,6 +233,9 @@ protect_checkmk_installation() {
     # Backup binari critici (separato da repo)
     add_to_sysupgrade "/opt/checkmk-backups/" "Backup binari critici (tar, ar, gzip)"
     
+    # NGINX - Configurazione Web UI (porta 9090)
+    add_to_sysupgrade "/etc/nginx/" "NGINX configuration (Web UI NethSecurity)"
+    
     # Cron jobs
     add_to_sysupgrade "/etc/cron.d/" "Cron Jobs Directory"
     add_to_sysupgrade "/var/spool/cron/crontabs/" "User Crontabs"
