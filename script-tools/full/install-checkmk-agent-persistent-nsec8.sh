@@ -421,278 +421,21 @@ POSTSCRIPT
 install_autocheck() {
     log "Installazione script autocheck all'avvio"
     
-    local autocheck_script="/usr/local/bin/rocksolid-startup-check.sh"
+    # IMPORTANTE: Esegui direttamente da /opt/checkmk-tools/ (già protetto da sysupgrade)
+    # NON copiare in /usr/local/bin/ - viene cancellato durante upgrade
+    local autocheck_script="/opt/checkmk-tools/script-tools/full/rocksolid-startup-check.sh"
     local autocheck_log="/var/log/rocksolid-startup.log"
     local rc_local="/etc/rc.local"
-    local repo_script="/opt/checkmk-tools/script-tools/full/rocksolid-startup-check.sh"
     
-    # Copia script dal repository a /usr/local/bin/ (indipendente da git)
-    if [ -f "$repo_script" ]; then
-        log "Copio rocksolid script da repository a $autocheck_script"
-        cp "$repo_script" "$autocheck_script"
-        chmod +x "$autocheck_script"
-        log "Script autocheck copiato: $autocheck_script"
-    else
-        warn "ATTENZIONE: Script rocksolid non trovato in $repo_script"
+    # Verifica esistenza script nel repository
+    if [ ! -f "$autocheck_script" ]; then
+        warn "ATTENZIONE: Script rocksolid non trovato in $autocheck_script"
         log "Lo script verrà sincronizzato al prossimo git pull"
-    fi
-#!/bin/sh
-# ==========================================================
-# ROCKSOLID Startup Check & Remediation
-# Verifica e ripristina servizi critici ad ogni avvio
-# ==========================================================
-
-LOG_FILE="/var/log/rocksolid-startup.log"
-SYSUPGRADE_CONF="/etc/sysupgrade.conf"
-
-# Funzione log con timestamp
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
-    logger -t rocksolid-startup "$*"
-}
-
-log "========================================="
-log "ROCKSOLID Startup Check - AVVIO"
-log "========================================="
-
-# ============================================================================
-# 0. RIPRISTINA BINARI CRITICI (se backup disponibile)
-# ============================================================================
-BACKUP_DIR="/opt/checkmk-backups/binaries"
-
-if [ -d "$BACKUP_DIR" ]; then
-    log "[Binari Critici] Verifica e ripristino in corso..."
-    
-    for backup in "$BACKUP_DIR"/*.backup; do
-        [ -f "$backup" ] || continue
-        
-        basename_file=$(basename "$backup" .backup)
-        
-        case "$basename_file" in
-            tar-gnu|gzip-gnu|gunzip-gnu|zcat-gnu)
-                dest="/usr/libexec/$basename_file"
-                ;;
-            ar)
-                dest="/usr/bin/$basename_file"
-                ;;
-            libbfd-*.so)
-                dest="/usr/lib/$basename_file"
-                ;;
-            *)
-                continue
-                ;;
-        esac
-        
-        # Ripristina se mancante o corrotto
-        if [ ! -f "$dest" ]; then
-            log "[Binari Critici] RIPRISTINO: $dest (mancante)"
-            cp -p "$backup" "$dest" 2>/dev/null || true
-        elif ! file "$dest" 2>/dev/null | grep -q "ELF"; then
-            log "[Binari Critici] RIPRISTINO: $dest (corrotto)"
-            cp -p "$backup" "$dest" 2>/dev/null || true
-        fi
-    done
-    
-    log "[Binari Critici] Verifica completata"
-fi
-
-# ============================================================================
-# 1. VERIFICA E RIPRISTINA CHECKMK AGENT
-# ============================================================================
-log "[CheckMK Agent] Verifica in corso..."
-
-if [ ! -x /usr/bin/check_mk_agent ]; then
-    log "[CheckMK Agent] ERRORE: Binary mancante!"
-    log "[CheckMK Agent] Eseguo script post-upgrade..."
-    if [ -x /etc/checkmk-post-upgrade.sh ]; then
-        /etc/checkmk-post-upgrade.sh >> "$LOG_FILE" 2>&1
     else
-        log "[CheckMK Agent] CRITICO: Script post-upgrade mancante!"
-    fi
-else
-    # Binary presente, verifica servizio
-    if ! pgrep -f "socat TCP-LISTEN:6556" >/dev/null 2>&1; then
-        log "[CheckMK Agent] Servizio non attivo, avvio..."
-        /etc/init.d/check_mk_agent enable 2>/dev/null || true
-        /etc/init.d/check_mk_agent restart 2>/dev/null || true
-        sleep 2
-        if pgrep -f "socat TCP-LISTEN:6556" >/dev/null 2>&1; then
-            log "[CheckMK Agent] Servizio riavviato con successo"
-        else
-            log "[CheckMK Agent] ERRORE: Impossibile avviare servizio"
-        fi
-    else
-        log "[CheckMK Agent] OK - Servizio attivo"
-    fi
-fi
-
-# ============================================================================
-# 2. VERIFICA E RIPRISTINA FRP CLIENT
-# ============================================================================
-log "[FRP Client] Verifica in corso..."
-
-FRP_MARKER="/etc/.frp-installed"
-
-if [ -f "$FRP_MARKER" ]; then
-    # FRP era installato, deve funzionare
-    if [ ! -x /usr/local/bin/frpc ] || [ ! -f /etc/frp/frpc.toml ] || [ ! -f /etc/init.d/frpc ]; then
-        log "[FRP Client] CRITICO: FRP era installato ma binario/config/init mancante!"
-        log "[FRP Client] Reinstallazione automatica..."
-        
-        # Reinstalla FRP usando script esistente (modalità non-interattiva)
-        if [ -x /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh ]; then
-            export NON_INTERACTIVE=1
-            /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh >> "$LOG_FILE" 2>&1
-            log "[FRP Client] Reinstallazione completata"
-        else
-            log "[FRP Client] ERRORE: Script di installazione non disponibile"
-        fi
-    elif ! pgrep -f frpc >/dev/null 2>&1; then
-        log "[FRP Client] Servizio non attivo, avvio..."
-        /etc/init.d/frpc enable 2>/dev/null || true
-        /etc/init.d/frpc restart 2>/dev/null || true
-        sleep 2
-        if pgrep -f frpc >/dev/null 2>&1; then
-            log "[FRP Client] Servizio riavviato con successo"
-        else
-            log "[FRP Client] ERRORE: Impossibile avviare servizio"
-        fi
-    else
-        log "[FRP Client] OK - Servizio attivo"
-    fi
-else
-    # FRP non era mai stato installato, è opzionale
-    if [ -x /usr/local/bin/frpc ] && [ -f /etc/frp/frpc.toml ]; then
-        log "[FRP Client] Trovato ma senza marker (installazione manuale?)"
-        if ! pgrep -f frpc >/dev/null 2>&1; then
-            log "[FRP Client] Avvio servizio..."
-            /etc/init.d/frpc enable 2>/dev/null || true
-            /etc/init.d/frpc restart 2>/dev/null || true
-        fi
-    else
-        log "[FRP Client] Non installato (opzionale)"
-    fi
-fi
-
-# ============================================================================
-# 2.5 VERIFICA E RIPRISTINA QEMU GUEST AGENT (VM ONLY)
-# ============================================================================
-if [ -f "/usr/bin/qemu-ga" ]; then
-    log "[QEMU-GA] Verifica in corso..."
-    
-    # Self-healing: riconfigura init script in base a device disponibile
-    if [ -e "/dev/virtio-ports/org.qemu.guest_agent.0" ]; then
-        # Proxmox con virtio-serial disponibile
-        EXPECTED_MODE="virtio-serial"
-        EXPECTED_PATH="/dev/virtio-ports/org.qemu.guest_agent.0"
-    elif [ -e "/dev/vport2p1" ]; then
-        # Proxmox con device vportXpY diretto
-        EXPECTED_MODE="virtio-serial"
-        EXPECTED_PATH="/dev/vport2p1"
-    else
-        # Fallback isa-serial
-        EXPECTED_MODE="isa-serial"
-        EXPECTED_PATH="/dev/ttyS0"
+        log "Script rocksolid trovato: $autocheck_script"
     fi
     
-    # Verifica se init script ha configurazione corretta
-    if ! grep -q "$EXPECTED_MODE" /etc/init.d/qemu-ga 2>/dev/null; then
-        log "[QEMU-GA] Riconfigurazione init script per $EXPECTED_MODE..."
-        cat > /etc/init.d/qemu-ga <<QEMU_INIT
-#!/bin/sh /etc/rc.common
-START=99
-USE_PROCD=1
-
-start_service() {
-    procd_open_instance
-    procd_set_param command /usr/bin/qemu-ga -m $EXPECTED_MODE -p $EXPECTED_PATH
-    procd_set_param respawn
-    procd_set_param stdout 1
-    procd_set_param stderr 1
-    procd_close_instance
-}
-QEMU_INIT
-        chmod +x /etc/init.d/qemu-ga
-        log "[QEMU-GA] Init script aggiornato per $EXPECTED_MODE"
-    fi
-    
-    if ! pgrep qemu-ga >/dev/null 2>&1; then
-        log "[QEMU-GA] Servizio non attivo, avvio..."
-        /etc/init.d/qemu-ga enable 2>/dev/null || true
-        /etc/init.d/qemu-ga restart 2>/dev/null || true
-        sleep 2
-        
-        if pgrep qemu-ga >/dev/null 2>&1; then
-            log "[QEMU-GA] Servizio riavviato con successo ($EXPECTED_MODE)"
-        else
-            log "[QEMU-GA] ERRORE: Impossibile avviare servizio"
-        fi
-    else
-        log "[QEMU-GA] OK - Servizio attivo"
-    fi
-else
-    log "[QEMU-GA] Non installato (opzionale, solo per VM)"
-fi
-
-# ============================================================================
-# 3. VERIFICA PROTEZIONI SYSUPGRADE.CONF
-# ============================================================================
-log "[Protezioni] Verifica sysupgrade.conf..."
-
-# Conta tutte le righe non-commento non-vuote che iniziano con / (protezioni totali)
-# -a forza trattamento come testo (alcuni sistemi vedono sysupgrade.conf come binario)
-PROTECTED_COUNT=$(grep -a -v '^#' "$SYSUPGRADE_CONF" 2>/dev/null | grep -a -v '^$' | grep -a -E '^/' | wc -l)
-PROTECTED_COUNT=$(echo "$PROTECTED_COUNT" | tr -d ' \n')
-log "[Protezioni] File protetti: $PROTECTED_COUNT"
-
-if [ "$PROTECTED_COUNT" -lt 5 ] 2>/dev/null; then
-    log "[Protezioni] WARN: Poche protezioni attive (attese almeno 5)"
-fi
-
-# ============================================================================
-# 4. RIEPILOGO FINALE
-# ============================================================================
-log "========================================="
-log "RIEPILOGO STATO SERVIZI:"
-log "========================================="
-
-# CheckMK Agent
-if pgrep -f "socat TCP-LISTEN:6556" >/dev/null 2>&1; then
-    log "  CheckMK Agent:  [OK]"
-else
-    log "  CheckMK Agent:  [FAIL]"
-fi
-
-# FRP Client
-if pgrep -f frpc >/dev/null 2>&1; then
-    log "  FRP Client:     [OK]"
-else
-    log "  FRP Client:     [N/A]"
-fi
-
-# Auto Git Sync
-if crontab -l 2>/dev/null | grep -q git-auto-sync; then
-    log "  Auto Git Sync:  [OK]"
-else
-    log "  Auto Git Sync:  [N/A]"
-fi
-
-# Local Checks
-local_checks_count=$(find /usr/lib/check_mk_agent/local/ -type f -executable 2>/dev/null | wc -l)
-if [ "$local_checks_count" -gt 0 ]; then
-    log "  Local Checks:   [OK] ($local_checks_count scripts)"
-else
-    log "  Local Checks:   [N/A]"
-fi
-
-# Plugins
-plugins_count=$(find /usr/lib/check_mk_agent/plugins/ -type f -executable 2>/dev/null | wc -l)
-if [ "$plugins_count" -gt 0 ]; then
-    log "  Plugins:        [OK] ($plugins_count plugins)"
-else
-    log "  Plugins:        [N/A]"
-fi
-    
+    # Configura rc.local per esecuzione all'avvio
     # Configura rc.local per esecuzione all'avvio
     if [ ! -f "$rc_local" ]; then
         log "Creo $rc_local"
@@ -706,25 +449,20 @@ RCLOCAL
         chmod +x "$rc_local"
     fi
     
-    # Aggiungi autocheck a rc.local se non presente
-    # Esegue da /usr/local/bin/ (separato da repository git)
-    if ! grep -q 'rocksolid-startup-check' "$rc_local"; then
-        log "Aggiungo autocheck a rc.local (esecuzione da $autocheck_script)"
-        # Rimuovi exit 0 temporaneamente
-        sed -i '/^exit 0/d' "$rc_local"
-        # Aggiungi esecuzione script da /usr/local/bin/
-        echo "# ROCKSOLID Autocheck - esecuzione da /usr/local/bin/ (separato da git)" >> "$rc_local"
-        echo "[ -x $autocheck_script ] && bash $autocheck_script >> /var/log/rocksolid-startup.log 2>&1 &" >> "$rc_local"
-        echo "exit 0" >> "$rc_local"
-        log "Autocheck configurato per esecuzione da $autocheck_script all'avvio"
-    else
-        log "Autocheck già presente in rc.local"
-    fi
+    # Aggiungi autocheck a rc.local - FORZA aggiornamento (rimuovi vecchie entry)
+    # Esegue direttamente da /opt/checkmk-tools/ (upgrade-resistant)
+    log "Configuro autocheck in rc.local (esecuzione da repository)"
+    # Rimuovi vecchie entry rocksolid (qualsiasi path)
+    sed -i '/rocksolid-startup-check/d' "$rc_local"
+    sed -i '/^exit 0/d' "$rc_local"
+    # Aggiungi esecuzione diretta da /opt/checkmk-tools/
+    echo "# ROCKSOLID Autocheck - esecuzione diretta da /opt/checkmk-tools/ (upgrade-resistant)" >> "$rc_local"
+    echo "[ -x $autocheck_script ] && bash $autocheck_script >> /var/log/rocksolid-startup.log 2>&1 &" >> "$rc_local"
+    echo "exit 0" >> "$rc_local"
+    log "Autocheck configurato per esecuzione da $autocheck_script all'avvio"
     
-    # Proteggi file autocheck in sysupgrade.conf
-    add_to_sysupgrade "$autocheck_script" "ROCKSOLID Startup Autocheck Script"
+    # Proteggi solo rc.local (script già protetto in /opt/checkmk-tools/)
     add_to_sysupgrade "$rc_local" "Boot Script (rc.local)"
-    add_to_sysupgrade "$autocheck_log" "ROCKSOLID Autocheck Log"
     
     log "Autocheck installato e protetto"
     
