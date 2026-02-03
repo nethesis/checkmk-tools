@@ -990,6 +990,25 @@ install_frp() {
     FRP_TGZ="frp_${FRP_VER}_linux_amd64.tar.gz"
     FRP_DL="https://github.com/fatedier/frp/releases/download/v${FRP_VER}/${FRP_TGZ}"
 
+    # Verifica se binario esistente è corrotto o versione vecchia
+    if [ -f "$FRPC_BIN" ]; then
+        log "Verifica integrità binario FRP esistente..."
+        if ! "$FRPC_BIN" -v >/dev/null 2>&1; then
+            log "WARN: Binario FRP esistente corrotto - rimuovo e ri-scarico"
+            rm -f "$FRPC_BIN"
+        else
+            CURRENT_VER=$("$FRPC_BIN" -v 2>/dev/null | head -n1 || echo "unknown")
+            log "Versione FRP esistente: $CURRENT_VER (target: $FRP_VER)"
+            if echo "$CURRENT_VER" | grep -q "$FRP_VER"; then
+                log "Versione corretta già installata - skip download"
+                return 0
+            else
+                log "Versione obsoleta - aggiorno a $FRP_VER"
+                rm -f "$FRPC_BIN"
+            fi
+        fi
+    fi
+
     log "Download FRP v$FRP_VER"
     wget -O "$FRP_TGZ" "$FRP_DL" || die "download FRP fallito"
 
@@ -1003,6 +1022,14 @@ install_frp() {
     mkdir -p "$(dirname "$FRPC_BIN")" /etc/frp /var/log
     cp -f "$FRP_DIR/frpc" "$FRPC_BIN"
     chmod +x "$FRPC_BIN"
+
+    # Verifica integrità binario installato
+    if ! "$FRPC_BIN" -v >/dev/null 2>&1; then
+        die "CRITICO: Binario FRP installato risulta corrotto"
+    fi
+    
+    INSTALLED_VER=$("$FRPC_BIN" -v 2>/dev/null | head -n1)
+    log "FRP installato con successo: $INSTALLED_VER"
 
     rm -f "$FRP_TGZ"
     rm -rf "$FRP_DIR"
