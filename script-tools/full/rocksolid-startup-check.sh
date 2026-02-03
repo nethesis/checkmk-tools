@@ -68,11 +68,24 @@ log "[CheckMK Agent] Verifica in corso..."
 
 if [ ! -x /usr/bin/check_mk_agent ]; then
     log "[CheckMK Agent] ERRORE: Binary mancante!"
-    log "[CheckMK Agent] Eseguo script post-upgrade..."
-    if [ -x /etc/checkmk-post-upgrade.sh ]; then
-        /etc/checkmk-post-upgrade.sh >> "$LOG_FILE" 2>&1
+    log "[CheckMK Agent] Reinstallazione automatica con discovery dinamico..."
+    
+    # Usa script installazione da repository locale se disponibile
+    if [ -f /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c.sh ]; then
+        log "[CheckMK Agent] Uso script locale da repository"
+        bash /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c.sh >> "$LOG_FILE" 2>&1 || \
+            log "[CheckMK Agent] ERRORE: Installazione fallita, verificare log"
     else
-        log "[CheckMK Agent] CRITICO: Script post-upgrade mancante!"
+        log "[CheckMK Agent] Download script da GitHub..."
+        curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c.sh | bash >> "$LOG_FILE" 2>&1 || \
+            log "[CheckMK Agent] ERRORE: Installazione da GitHub fallita"
+    fi
+    
+    # Verifica se l'installazione ha funzionato
+    if [ -x /usr/bin/check_mk_agent ]; then
+        log "[CheckMK Agent] ✓ Reinstallazione completata con successo"
+    else
+        log "[CheckMK Agent] CRITICO: Reinstallazione fallita!"
     fi
 else
     # Binary presente, verifica servizio
