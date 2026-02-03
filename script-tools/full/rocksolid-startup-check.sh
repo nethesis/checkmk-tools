@@ -18,56 +18,44 @@ log "ROCKSOLID Startup Check - AVVIO"
 log "========================================="
 
 # ============================================================================
-# 0. VERIFICA E RIPARA REPOSITORY OPKG
+# 0. RIPRISTINA BINARI CRITICI (se backup disponibile)
 # ============================================================================
-log "[Repository] Verifica repository opkg..."
+BACKUP_DIR="/opt/checkmk-backups/binaries"
 
-if command -v opkg >/dev/null 2>&1; then
-    # Controlla se repository sono corrotti
-    REPO_STATUS=$(opkg list 2>&1 | grep "parse_from_stream_nomalloc" | wc -l)
-    REPO_STATUS=$(echo "$REPO_STATUS" | tr -d ' \n')
+if [ -d "$BACKUP_DIR" ]; then
+    log "[Binari Critici] Verifica e ripristino in corso..."
     
-    if [ "$REPO_STATUS" -gt 0 ] 2>/dev/null; then
-        log "[Repository] CORRUZIONE rilevata - riparo repository"
+    for backup in "$BACKUP_DIR"/*.backup; do
+        [ -f "$backup" ] || continue
         
-        # Backup e pulizia cache corrotta
-        rm -rf /var/opkg-lists/*.sig 2>/dev/null || true
+        basename_file=$(basename "$backup" .backup)
         
-        # Configura repository affidabili
-        log "[Repository] Configuro repository OpenWrt base..."
+        case "$basename_file" in
+            tar-gnu|gzip-gnu|gunzip-gnu|zcat-gnu)
+                dest="/usr/libexec/$basename_file"
+                ;;
+            ar)
+                dest="/usr/bin/$basename_file"
+                ;;
+            libbfd-*.so)
+                dest="/usr/lib/$basename_file"
+                ;;
+            *)
+                continue
+                ;;
+        esac
         
-        # Assicura che customfeeds.conf esista
-        CUSTOMFEEDS="/etc/opkg/customfeeds.conf"
-        if [ ! -f "$CUSTOMFEEDS" ]; then
-            touch "$CUSTOMFEEDS"
+        # Ripristina se mancante o corrotto
+        if [ ! -f "$dest" ]; then
+            log "[Binari Critici] RIPRISTINO: $dest (mancante)"
+            cp -p "$backup" "$dest" 2>/dev/null || true
+        elif ! file "$dest" 2>/dev/null | grep -q "ELF"; then
+            log "[Binari Critici] RIPRISTINO: $dest (corrotto)"
+            cp -p "$backup" "$dest" 2>/dev/null || true
         fi
-        
-        # Rileva versione OpenWrt e architettura dinamicamente
-        OPENWRT_VERSION=$(grep '^VERSION=' /etc/os-release 2>/dev/null | cut -d'=' -f2 | tr -d '"' | cut -d' ' -f1)
-        OPENWRT_VERSION="${OPENWRT_VERSION:-23.05.0}"
-        
-        OPENWRT_ARCH=$(opkg print-architecture 2>/dev/null | grep -v 'all' | grep -v 'noarch' | tail -1 | awk '{print $2}')
-        OPENWRT_ARCH="${OPENWRT_ARCH:-x86_64}"
-        
-        log "[Repository] Sistema: OpenWrt $OPENWRT_VERSION ($OPENWRT_ARCH)"
-        
-        # Repository OpenWrt dinamici (compatibili con versione sistema)
-        grep -q "openwrt_packages" "$CUSTOMFEEDS" 2>/dev/null || \
-            echo "src/gz openwrt_packages https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/packages/${OPENWRT_ARCH}/packages" >> "$CUSTOMFEEDS"
-        
-        grep -q "openwrt_base" "$CUSTOMFEEDS" 2>/dev/null || \
-            echo "src/gz openwrt_base https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/packages/${OPENWRT_ARCH}/base" >> "$CUSTOMFEEDS"
-        
-        # Update repository
-        log "[Repository] Aggiornamento liste pacchetti..."
-        opkg update >> "$LOG_FILE" 2>&1 || log "[Repository] WARNING: Alcuni repository hanno fallito"
-        
-        log "[Repository] Ripristino repository completato"
-    else
-        log "[Repository] OK - Repository funzionanti"
-    fi
-else
-    log "[Repository] opkg non disponibile (sistema non OpenWrt)"
+    done
+    
+    log "[Binari Critici] Verifica completata"
 fi
 
 # ============================================================================
@@ -77,24 +65,11 @@ log "[CheckMK Agent] Verifica in corso..."
 
 if [ ! -x /usr/bin/check_mk_agent ]; then
     log "[CheckMK Agent] ERRORE: Binary mancante!"
-    log "[CheckMK Agent] Reinstallazione automatica con discovery dinamico..."
-    
-    # Usa script installazione da repository locale se disponibile
-    if [ -f /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c.sh ]; then
-        log "[CheckMK Agent] Uso script locale da repository"
-        bash /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c.sh >> "$LOG_FILE" 2>&1 || \
-            log "[CheckMK Agent] ERRORE: Installazione fallita, verificare log"
+    log "[CheckMK Agent] Eseguo script post-upgrade..."
+    if [ -x /etc/checkmk-post-upgrade.sh ]; then
+        /etc/checkmk-post-upgrade.sh >> "$LOG_FILE" 2>&1
     else
-        log "[CheckMK Agent] Download script da GitHub..."
-        curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c.sh | bash >> "$LOG_FILE" 2>&1 || \
-            log "[CheckMK Agent] ERRORE: Installazione da GitHub fallita"
-    fi
-    
-    # Verifica se l'installazione ha funzionato
-    if [ -x /usr/bin/check_mk_agent ]; then
-        log "[CheckMK Agent] ✓ Reinstallazione completata con successo"
-    else
-        log "[CheckMK Agent] CRITICO: Reinstallazione fallita!"
+        log "[CheckMK Agent] CRITICO: Script post-upgrade mancante!"
     fi
 else
     # Binary presente, verifica servizio
@@ -114,44 +89,27 @@ else
 fi
 
 # ============================================================================
-# 1.5 VERIFICA DIPENDENZE CRITICHE
-# ============================================================================
-log "[Dipendenze] Verifica pacchetti critici..."
-
-if command -v opkg >/dev/null 2>&1; then
-    DEPS_MISSING=""
-    for pkg in binutils tar gzip wget socat ca-certificates; do
-        if ! opkg list-installed | grep -q "^$pkg "; then
-            DEPS_MISSING="$DEPS_MISSING $pkg"
-        fi
-    done
-    
-    if [ -n "$DEPS_MISSING" ]; then
-        log "[Dipendenze] MANCANTI:$DEPS_MISSING"
-        log "[Dipendenze] Reinstallazione automatica..."
-        opkg update >> "$LOG_FILE" 2>&1
-        opkg install $DEPS_MISSING >> "$LOG_FILE" 2>&1 || \
-            log "[Dipendenze] ERRORE: Installazione fallita"
-        
-        if opkg list-installed | grep -q "socat"; then
-            log "[Dipendenze] ✓ Pacchetti reinstallati con successo"
-        else
-            log "[Dipendenze] CRITICO: Reinstallazione fallita!"
-        fi
-    else
-        log "[Dipendenze] OK - Tutti i pacchetti presenti"
-    fi
-else
-    log "[Dipendenze] opkg non disponibile (non OpenWrt)"
-fi
-
-# ============================================================================
 # 2. VERIFICA E RIPRISTINA FRP CLIENT
 # ============================================================================
 log "[FRP Client] Verifica in corso..."
 
-if [ -x /usr/local/bin/frpc ] && [ -f /etc/frp/frpc.toml ]; then
-    if ! pgrep -f frpc >/dev/null 2>&1; then
+FRP_MARKER="/opt/checkmk-tools/.frp-installed"
+
+if [ -f "$FRP_MARKER" ]; then
+    # FRP era installato, deve funzionare
+    if [ ! -x /usr/local/bin/frpc ] || [ ! -f /etc/frp/frpc.toml ] || [ ! -f /etc/init.d/frpc ]; then
+        log "[FRP Client] CRITICO: FRP era installato ma binario/config/init mancante!"
+        log "[FRP Client] Reinstallazione automatica..."
+        
+        # Reinstalla FRP usando script esistente (modalit├á non-interattiva)
+        if [ -x /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh ]; then
+            export NON_INTERACTIVE=1
+            /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh >> "$LOG_FILE" 2>&1
+            log "[FRP Client] Reinstallazione completata"
+        else
+            log "[FRP Client] ERRORE: Script di installazione non disponibile"
+        fi
+    elif ! pgrep -f frpc >/dev/null 2>&1; then
         log "[FRP Client] Servizio non attivo, avvio..."
         /etc/init.d/frpc enable 2>/dev/null || true
         /etc/init.d/frpc restart 2>/dev/null || true
@@ -165,7 +123,17 @@ if [ -x /usr/local/bin/frpc ] && [ -f /etc/frp/frpc.toml ]; then
         log "[FRP Client] OK - Servizio attivo"
     fi
 else
-    log "[FRP Client] Non configurato o mancante (opzionale)"
+    # FRP non era mai stato installato, ├¿ opzionale
+    if [ -x /usr/local/bin/frpc ] && [ -f /etc/frp/frpc.toml ]; then
+        log "[FRP Client] Trovato ma senza marker (installazione manuale?)"
+        if ! pgrep -f frpc >/dev/null 2>&1; then
+            log "[FRP Client] Avvio servizio..."
+            /etc/init.d/frpc enable 2>/dev/null || true
+            /etc/init.d/frpc restart 2>/dev/null || true
+        fi
+    else
+        log "[FRP Client] Non installato (opzionale)"
+    fi
 fi
 
 # ============================================================================
@@ -229,95 +197,7 @@ else
 fi
 
 # ============================================================================
-# 3. VERIFICA E INSTALLA GIT (SE MANCANTE)
-# ============================================================================
-log "[Git] Verifica in corso..."
-
-if ! command -v git >/dev/null 2>&1; then
-    log "[Git] MANCANTE - Installazione automatica..."
-    
-    if command -v opkg >/dev/null 2>&1; then
-        log "[Git] Aggiornamento repository opkg..."
-        opkg update >> "$LOG_FILE" 2>&1
-        
-        log "[Git] Installazione git + git-http..."
-        if opkg install git git-http >> "$LOG_FILE" 2>&1; then
-            log "[Git] Installato con successo: $(git --version 2>/dev/null || echo 'versione sconosciuta')"
-        else
-            log "[Git] ERRORE: Installazione fallita"
-        fi
-    else
-        log "[Git] ERRORE: opkg non disponibile"
-    fi
-else
-    log "[Git] OK - Presente: $(git --version)"
-fi
-
-# ============================================================================
-# 4. VERIFICA GIT (opzionale)
-# ============================================================================
-# NOTA: Git non più necessario - tutti gli script eseguiti via curl da GitHub
-log "[Git] Verifica in corso..."
-
-if command -v git >/dev/null 2>&1; then
-    GIT_VERSION=$(git --version 2>/dev/null || echo "unknown")
-    log "[Git] OK - Presente: $GIT_VERSION (opzionale)"
-    GIT_STATUS="OK"
-else
-    log "[Git] Non installato (non necessario - script eseguiti via curl da GitHub)"
-    GIT_STATUS="N/A"
-fi
-
-# ============================================================================
-# 5. VERIFICA REPOSITORY CHECKMK-TOOLS
-# ============================================================================
-# NOTA: Repository locale non necessario - tutti gli script vengono eseguiti
-# direttamente da GitHub tramite curl per evitare corruzione file locali
-log "[Repository] Verifica directory backup..."
-
-if [ -d /opt/checkmk-tools/BACKUP-BINARIES ]; then
-    log "[Repository] OK - Directory backup binari presente"
-else
-    log "[Repository] WARN: Directory backup binari non trovata"
-    mkdir -p /opt/checkmk-tools/BACKUP-BINARIES 2>/dev/null || true
-fi
-
-# ============================================================================
-# 6. PULIZIA REPOSITORY CUSTOM (prevenzione conflitti aggiornamenti)
-# ============================================================================
-log "[Repository] Pulizia repository custom OpenWrt..."
-
-CUSTOMFEEDS="/etc/opkg/customfeeds.conf"
-if [ -f "$CUSTOMFEEDS" ]; then
-    # Verifica se contiene repository OpenWrt custom
-    if grep -q "downloads.openwrt.org" "$CUSTOMFEEDS" 2>/dev/null; then
-        log "[Repository] WARN: Repository OpenWrt custom trovati - rimozione in corso"
-        
-        # Backup del file originale (se non esiste già)
-        if [ ! -f "${CUSTOMFEEDS}.backup" ]; then
-            cp "$CUSTOMFEEDS" "${CUSTOMFEEDS}.backup" 2>/dev/null || true
-            log "[Repository] Backup originale salvato in ${CUSTOMFEEDS}.backup"
-        fi
-        
-        # Svuota il file mantenendo solo header
-        cat > "$CUSTOMFEEDS" << 'EOF'
-# add your custom package feeds here
-#
-# src/gz example_feed_name http://www.example.com/path/to/files
-#
-# Repository custom OpenWrt rimossi automaticamente da ROCKSOLID
-# per evitare conflitti con aggiornamenti NethSecurity ufficiali
-EOF
-        log "[Repository] OK - Repository custom rimossi (previene conflitti aggiornamenti)"
-    else
-        log "[Repository] OK - Nessun repository custom non autorizzato"
-    fi
-else
-    log "[Repository] INFO: File customfeeds.conf non presente"
-fi
-
-# ============================================================================
-# 7. VERIFICA PROTEZIONI SYSUPGRADE.CONF
+# 3. VERIFICA PROTEZIONI SYSUPGRADE.CONF
 # ============================================================================
 log "[Protezioni] Verifica sysupgrade.conf..."
 
@@ -332,38 +212,7 @@ if [ "$PROTECTED_COUNT" -lt 5 ] 2>/dev/null; then
 fi
 
 # ============================================================================
-# 7. AUTO-RESTORE LOCAL CHECKS CHECKMK
-# ============================================================================
-log "[Auto-Restore] Verifica local checks CheckMK..."
-
-if [ -d /usr/lib/check_mk_agent/local ]; then
-    if [ -d /opt/checkmk-tools/script-check-nsec8/full ]; then
-        RESTORED=0
-        for script in /opt/checkmk-tools/script-check-nsec8/full/check_*.sh; do
-            [ -f "$script" ] || continue
-            basename_script=$(basename "$script")
-            if [ ! -f "/usr/lib/check_mk_agent/local/$basename_script" ]; then
-                cp "$script" "/usr/lib/check_mk_agent/local/$basename_script"
-                chmod +x "/usr/lib/check_mk_agent/local/$basename_script"
-                log "[Auto-Restore] ✓ Ripristinato: $basename_script"
-                RESTORED=$((RESTORED + 1))
-            fi
-        done
-        
-        if [ $RESTORED -eq 0 ]; then
-            log "[Auto-Restore] OK - Tutti i local checks presenti"
-        else
-            log "[Auto-Restore] Ripristinati $RESTORED local checks"
-        fi
-    else
-        log "[Auto-Restore] WARNING: Repository checkmk-tools non disponibile"
-    fi
-else
-    log "[Auto-Restore] WARNING: Directory local checks non esistente"
-fi
-
-# ============================================================================
-# 8. RIEPILOGO FINALE
+# 4. RIEPILOGO FINALE
 # ============================================================================
 log "========================================="
 log "RIEPILOGO STATO SERVIZI:"
@@ -381,13 +230,6 @@ if pgrep -f frpc >/dev/null 2>&1; then
     log "  FRP Client:     [OK]"
 else
     log "  FRP Client:     [N/A]"
-fi
-
-# Git
-if command -v git >/dev/null 2>&1; then
-    log "  Git:            [$GIT_STATUS]"
-else
-    log "  Git:            [N/A]"
 fi
 
 log "========================================="
