@@ -424,8 +424,18 @@ install_autocheck() {
     local autocheck_script="/usr/local/bin/rocksolid-startup-check.sh"
     local autocheck_log="/var/log/rocksolid-startup.log"
     local rc_local="/etc/rc.local"
+    local repo_script="/opt/checkmk-tools/script-tools/full/rocksolid-startup-check.sh"
     
-    cat > "$autocheck_script" <<'AUTOCHECK_EOF'
+    # Copia script dal repository a /usr/local/bin/ (indipendente da git)
+    if [ -f "$repo_script" ]; then
+        log "Copio rocksolid script da repository a $autocheck_script"
+        cp "$repo_script" "$autocheck_script"
+        chmod +x "$autocheck_script"
+        log "Script autocheck copiato: $autocheck_script"
+    else
+        warn "ATTENZIONE: Script rocksolid non trovato in $repo_script"
+        log "Lo script verrà sincronizzato al prossimo git pull"
+    fi
 #!/bin/sh
 # ==========================================================
 # ROCKSOLID Startup Check & Remediation
@@ -682,16 +692,6 @@ if [ "$plugins_count" -gt 0 ]; then
 else
     log "  Plugins:        [N/A]"
 fi
-
-log "========================================="
-log "ROCKSOLID Startup Check - COMPLETATO"
-log "========================================="
-
-exit 0
-AUTOCHECK_EOF
-
-    chmod +x "$autocheck_script"
-    log "Script autocheck creato: $autocheck_script"
     
     # Configura rc.local per esecuzione all'avvio
     if [ ! -f "$rc_local" ]; then
@@ -707,18 +707,16 @@ RCLOCAL
     fi
     
     # Aggiungi autocheck a rc.local se non presente
-    # Esegue da repository locale (protetto da sysupgrade)
-    local local_autocheck_path="/opt/checkmk-tools/script-tools/full/rocksolid-startup-check.sh"
-    
+    # Esegue da /usr/local/bin/ (separato da repository git)
     if ! grep -q 'rocksolid-startup-check' "$rc_local"; then
-        log "Aggiungo autocheck a rc.local (esecuzione da repository locale)"
+        log "Aggiungo autocheck a rc.local (esecuzione da $autocheck_script)"
         # Rimuovi exit 0 temporaneamente
         sed -i '/^exit 0/d' "$rc_local"
-        # Aggiungi esecuzione script locale
-        echo "# ROCKSOLID Autocheck - esecuzione da repository locale (protetto da sysupgrade)" >> "$rc_local"
-        echo "[ -x $local_autocheck_path ] && bash $local_autocheck_path >> /var/log/rocksolid-startup.log 2>&1 &" >> "$rc_local"
+        # Aggiungi esecuzione script da /usr/local/bin/
+        echo "# ROCKSOLID Autocheck - esecuzione da /usr/local/bin/ (separato da git)" >> "$rc_local"
+        echo "[ -x $autocheck_script ] && bash $autocheck_script >> /var/log/rocksolid-startup.log 2>&1 &" >> "$rc_local"
         echo "exit 0" >> "$rc_local"
-        log "Autocheck configurato per esecuzione da repository locale all'avvio"
+        log "Autocheck configurato per esecuzione da $autocheck_script all'avvio"
     else
         log "Autocheck già presente in rc.local"
     fi
