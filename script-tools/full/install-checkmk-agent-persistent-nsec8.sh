@@ -585,6 +585,29 @@ else
     log "  FRP Client:     [N/A]"
 fi
 
+# Auto Git Sync
+if crontab -l 2>/dev/null | grep -q git-auto-sync; then
+    log "  Auto Git Sync:  [OK]"
+else
+    log "  Auto Git Sync:  [N/A]"
+fi
+
+# Local Checks
+local_checks_count=$(find /usr/lib/check_mk_agent/local/ -type f -executable 2>/dev/null | wc -l)
+if [ "$local_checks_count" -gt 0 ]; then
+    log "  Local Checks:   [OK] ($local_checks_count scripts)"
+else
+    log "  Local Checks:   [N/A]"
+fi
+
+# Plugins
+plugins_count=$(find /usr/lib/check_mk_agent/plugins/ -type f -executable 2>/dev/null | wc -l)
+if [ "$plugins_count" -gt 0 ]; then
+    log "  Plugins:        [OK] ($plugins_count plugins)"
+else
+    log "  Plugins:        [N/A]"
+fi
+
 log "========================================="
 log "ROCKSOLID Startup Check - COMPLETATO"
 log "========================================="
