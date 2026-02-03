@@ -9,7 +9,7 @@ SYSUPGRADE_CONF="/etc/sysupgrade.conf"
 
 # Funzione log con timestamp
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"
     logger -t rocksolid-startup "$*"
 }
 
