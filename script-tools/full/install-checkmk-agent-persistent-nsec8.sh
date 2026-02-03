@@ -1082,6 +1082,7 @@ install_frp() {
     FRP_DL="https://github.com/fatedier/frp/releases/download/v${FRP_VER}/${FRP_TGZ}"
 
     # Verifica se binario esistente è corrotto o versione vecchia
+    SKIP_DOWNLOAD=0
     if [ -f "$FRPC_BIN" ]; then
         log "Verifica integrità binario FRP esistente..."
         if ! "$FRPC_BIN" -v >/dev/null 2>&1; then
@@ -1092,7 +1093,7 @@ install_frp() {
             log "Versione FRP esistente: $CURRENT_VER (target: $FRP_VER)"
             if echo "$CURRENT_VER" | grep -q "$FRP_VER"; then
                 log "Versione corretta già installata - skip download"
-                return 0
+                SKIP_DOWNLOAD=1
             else
                 log "Versione obsoleta - aggiorno a $FRP_VER"
                 rm -f "$FRPC_BIN"
@@ -1100,30 +1101,33 @@ install_frp() {
         fi
     fi
 
-    log "Download FRP v$FRP_VER"
-    wget -O "$FRP_TGZ" "$FRP_DL" || die "download FRP fallito"
+    # Download e installazione binario (solo se necessario)
+    if [ "$SKIP_DOWNLOAD" -eq 0 ]; then
+        log "Download FRP v$FRP_VER"
+        wget -O "$FRP_TGZ" "$FRP_DL" || die "download FRP fallito"
 
-    log "Estrazione FRP"
-    tar -xzf "$FRP_TGZ" || die "tar frp fallito"
-    FRP_DIR="$(tar -tzf "$FRP_TGZ" | head -n1 | cut -d/ -f1)"
+        log "Estrazione FRP"
+        tar -xzf "$FRP_TGZ" || die "tar frp fallito"
+        FRP_DIR="$(tar -tzf "$FRP_TGZ" | head -n1 | cut -d/ -f1)"
 
-    [ -n "$FRP_DIR" ] || die "impossibile determinare directory estratta"
-    [ -f "$FRP_DIR/frpc" ] || die "frpc non trovato nel tarball"
+        [ -n "$FRP_DIR" ] || die "impossibile determinare directory estratta"
+        [ -f "$FRP_DIR/frpc" ] || die "frpc non trovato nel tarball"
 
-    mkdir -p "$(dirname "$FRPC_BIN")" /etc/frp /var/log
-    cp -f "$FRP_DIR/frpc" "$FRPC_BIN"
-    chmod +x "$FRPC_BIN"
+        mkdir -p "$(dirname "$FRPC_BIN")" /etc/frp /var/log
+        cp -f "$FRP_DIR/frpc" "$FRPC_BIN"
+        chmod +x "$FRPC_BIN"
 
-    # Verifica integrità binario installato
-    if ! "$FRPC_BIN" -v >/dev/null 2>&1; then
-        die "CRITICO: Binario FRP installato risulta corrotto"
+        # Verifica integrità binario installato
+        if ! "$FRPC_BIN" -v >/dev/null 2>&1; then
+            die "CRITICO: Binario FRP installato risulta corrotto"
+        fi
+        
+        INSTALLED_VER=$("$FRPC_BIN" -v 2>/dev/null | head -n1)
+        log "FRP installato con successo: $INSTALLED_VER"
+
+        rm -f "$FRP_TGZ"
+        rm -rf "$FRP_DIR"
     fi
-    
-    INSTALLED_VER=$("$FRPC_BIN" -v 2>/dev/null | head -n1)
-    log "FRP installato con successo: $INSTALLED_VER"
-
-    rm -f "$FRP_TGZ"
-    rm -rf "$FRP_DIR"
 
     log "Scrivo configurazione TOML: $FRPC_CONF"
     cat >"$FRPC_CONF" <<EOF
