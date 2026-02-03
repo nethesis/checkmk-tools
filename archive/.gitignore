@@ -1,0 +1,6 @@
+# Archive - Script obsoleti/deprecati
+# Questi file sono ignorati da git
+
+*
+!.gitignore
+!README.md
