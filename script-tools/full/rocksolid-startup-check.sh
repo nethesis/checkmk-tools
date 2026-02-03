@@ -93,7 +93,7 @@ fi
 # ============================================================================
 log "[FRP Client] Verifica in corso..."
 
-FRP_MARKER="/opt/checkmk-tools/.frp-installed"
+FRP_MARKER="/etc/.frp-installed"
 
 if [ -f "$FRP_MARKER" ]; then
     # FRP era installato, deve funzionare
