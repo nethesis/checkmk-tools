@@ -122,7 +122,35 @@ git commit -m "fix: risolto errore comando"
 - `checkmk-z1plus` (192.168.10.128) - CheckMK locale test
 
 ---
+## 📋 NethSecurity 8 - Local Checks CheckMK
 
+### ⚠️ REGOLA DEPLOYMENT - Mantenere estensione .sh
+
+**Local checks devono mantenere l'estensione `.sh` anche quando deployed:**
+
+```bash
+# ✅ CORRETTO - Mantieni estensione
+cp /opt/checkmk-tools/script-check-nsec8/full/check_vpn_tunnels.sh \
+   /usr/lib/check_mk_agent/local/check_vpn_tunnels.sh
+#                                                    ^^^ CON .sh
+
+# ❌ SBAGLIATO - Non rimuovere estensione
+cp script.sh /usr/lib/check_mk_agent/local/script  # NO!
+```
+
+**Motivo preferenza utente:**
+- Coerenza con repository (tutti gli script .sh)
+- Più facile identificare tipo file
+- CheckMK esegue comunque file con estensione
+
+**Auto-restore deve usare nome completo con estensione:**
+```bash
+# In rocksolid-startup-check.sh
+basename_script=$(basename "$script")  # NON rimuovere .sh
+cp "$script" "/usr/lib/check_mk_agent/local/$basename_script"
+```
+
+---
 ## �️ NethServer - Gestione Configurazione
 
 ### ⚠️ REGOLA CRITICA - NON modificare file di configurazione manualmente
