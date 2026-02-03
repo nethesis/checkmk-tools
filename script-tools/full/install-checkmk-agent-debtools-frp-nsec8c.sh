@@ -12,8 +12,11 @@ TMPDIR="${TMPDIR:-/tmp/checkmk-deb}"
 REPO_BASE="${REPO_BASE:-https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base}"
 REPO_PACKAGES="${REPO_PACKAGES:-https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages}"
 
-# URL del .deb dell'agente (da cui estraiamo /usr/bin/check_mk_agent)
-DEB_URL="${DEB_URL:-https://monitoring.nethlab.it/monitoring/check_mk/agents/check-mk-agent_2.4.0p14-1_all.deb}"
+# Server CheckMK per download agent
+CHECKMK_SERVER="${CHECKMK_SERVER:-https://monitoring.nethlab.it/monitoring}"
+
+# URL del .deb dell'agente - verrà rilevato automaticamente
+DEB_URL=""
 
 FRP_VER="${FRP_VER:-0.64.0}"
 FRPC_BIN="${FRPC_BIN:-/usr/local/bin/frpc}"
@@ -90,11 +93,24 @@ install_prereqs() {
 install_agent() {
     log "Installazione Checkmk agent"
 
+    # Rileva versione CheckMK disponibile
+    if [ -z "$DEB_URL" ]; then
+        log "Rilevamento versione CheckMK disponibile..."
+        AGENT_LIST=$(wget -qO- "$CHECKMK_SERVER/check_mk/agents/" 2>/dev/null | grep -o 'check-mk-agent_[0-9.p]*-[0-9]*_all\.deb' | sort -V | tail -1)
+        
+        if [ -z "$AGENT_LIST" ]; then
+            die "Impossibile rilevare versione agent da $CHECKMK_SERVER/check_mk/agents/"
+        fi
+        
+        DEB_URL="$CHECKMK_SERVER/check_mk/agents/$AGENT_LIST"
+        log "Versione rilevata: $AGENT_LIST"
+    fi
+
     rm -rf "$TMPDIR" >/dev/null 2>&1 || true
     mkdir -p "$TMPDIR/data"
     cd "$TMPDIR" || die "cd fallito: $TMPDIR"
 
-    log "Download .deb agente"
+    log "Download .deb agente da: $DEB_URL"
     wget -O check-mk-agent.deb "$DEB_URL" || die "download fallito: $DEB_URL"
 
     log "Estrazione .deb (ar + tar)"
