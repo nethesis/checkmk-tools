@@ -1225,10 +1225,16 @@ install_auto_git_sync() {
     
     # Installa git se non presente
     if ! command -v git >/dev/null 2>&1; then
-        log "Installazione git..."
-        opkg update >/dev/null 2>&1
-        opkg install git git-http >/dev/null 2>&1 || die "Installazione git fallita"
-        log "Git installato: $(git --version)"
+        log "Download git standalone..."
+        # Git non è nei repo NethSecurity - download diretto da OpenWrt
+        wget -q -O /tmp/git.ipk "https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages/git_2.43.2-1_x86_64.ipk" || die "Download git fallito"
+        wget -q -O /tmp/git-http.ipk "https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages/git-http_2.43.2-1_x86_64.ipk" || die "Download git-http fallito"
+        
+        # Installa .ipk direttamente (senza aggiungere repo)
+        opkg install /tmp/git.ipk /tmp/git-http.ipk || die "Installazione git fallita"
+        rm -f /tmp/git.ipk /tmp/git-http.ipk
+        
+        log "Git installato: $(git --version 2>&1 | head -1)"
     else
         log "Git già presente: $(git --version)"
     fi
