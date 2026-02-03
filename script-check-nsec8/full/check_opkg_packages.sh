@@ -34,9 +34,9 @@ recent_installs=0
 recent_removes=0
 
 if [[ -f "$LOG_FILE" ]]; then
-    # Cerca installazioni/rimozioni recenti
-    recent_installs=$(grep -c "opkg.*install" "$LOG_FILE" 2>/dev/null || echo 0)
-    recent_removes=$(grep -c "opkg.*remove" "$LOG_FILE" 2>/dev/null || echo 0)
+    # Cerca installazioni/rimozioni recenti (usa head per evitare output multipli)
+    recent_installs=$(grep "opkg.*install" "$LOG_FILE" 2>/dev/null | wc -l)
+    recent_removes=$(grep "opkg.*remove" "$LOG_FILE" 2>/dev/null | wc -l)
 fi
 
 # Verifica spazio disponibile in /overlay (dove vanno i pacchetti)
