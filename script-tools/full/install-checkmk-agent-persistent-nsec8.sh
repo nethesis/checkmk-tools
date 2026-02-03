@@ -739,6 +739,10 @@ install_agent() {
         cp -rf data/etc/check_mk/* /etc/check_mk/ 2>/dev/null || true
     fi
 
+    log "Crea directory local checks e plugins"
+    mkdir -p /usr/lib/check_mk_agent/local
+    mkdir -p /usr/lib/check_mk_agent/plugins
+
     cd / || true
     rm -rf "$TMPDIR" >/dev/null 2>&1 || true
 
