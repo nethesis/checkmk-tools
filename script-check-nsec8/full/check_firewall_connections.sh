@@ -3,8 +3,10 @@
 # Controlla numero di connessioni attive e limiti
 # Leggi statistiche conntrack
 if [[ -f /proc/sys/net/netfilter/nf_conntrack_count ]]; then
-    current=$(cat /proc/sys/net/netfilter/nf_conntrack_count)    max=$(cat /proc/sys/net/netfilter/nf_conntrack_max)else    
-echo "2 Firewall_Connections - Conntrack non disponibile"
+    current=$(cat /proc/sys/net/netfilter/nf_conntrack_count)
+    max=$(cat /proc/sys/net/netfilter/nf_conntrack_max)
+else    
+    echo "1 Firewall_Connections - Conntrack non disponibile"
     exit 0
 fi # Calcola percentuale utilizzopercent=$((current * 100 / max))
 # Determina stato (warning 80%, critical 90%)
