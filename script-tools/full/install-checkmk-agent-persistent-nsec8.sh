@@ -1059,23 +1059,23 @@ install_frp() {
 
     log "Scrivo configurazione TOML: $FRPC_CONF"
     cat >"$FRPC_CONF" <<EOF
-serverAddr = "$SERVER_ADDR"
-serverPort = $SERVER_PORT
+[common]
+server_addr = "$SERVER_ADDR"
+server_port = $SERVER_PORT
 
 auth.method = "token"
 auth.token = "$FRP_TOKEN"
 
-transport.tls.enable = true
+tls.enable = true
 
 log.to = "$FRPC_LOG"
 log.level = "info"
 
-[[proxies]]
-name = "$PROXY_NAME"
+[$PROXY_NAME]
 type = "tcp"
-localIP = "127.0.0.1"
-localPort = 6556
-remotePort = $REMOTE_PORT
+local_ip = "127.0.0.1"
+local_port = 6556
+remote_port = $REMOTE_PORT
 EOF
 
     log "Creo servizio procd FRP: $FRPC_INIT"
