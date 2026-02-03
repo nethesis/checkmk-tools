@@ -8,9 +8,31 @@ set -eu
 CUSTOMFEEDS="${CUSTOMFEEDS:-/etc/opkg/customfeeds.conf}"
 TMPDIR="${TMPDIR:-/tmp/checkmk-deb}"
 
-# OpenWrt 23.05 x86_64 (come versione originale dello script)
-REPO_BASE="${REPO_BASE:-https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base}"
-REPO_PACKAGES="${REPO_PACKAGES:-https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages}"
+# Rileva automaticamente versione OpenWrt e architettura
+detect_openwrt_params() {
+    # Leggi versione OpenWrt da /etc/os-release
+    if [ -f /etc/os-release ]; then
+        OPENWRT_VERSION=$(grep '^VERSION=' /etc/os-release | cut -d'=' -f2 | tr -d '"' | cut -d' ' -f1)
+    fi
+    
+    # Fallback: prova da /etc/openwrt_release
+    if [ -z "$OPENWRT_VERSION" ] && [ -f /etc/openwrt_release ]; then
+        OPENWRT_VERSION=$(grep DISTRIB_RELEASE /etc/openwrt_release | cut -d"'" -f2)
+    fi
+    
+    # Default se non trovato
+    OPENWRT_VERSION="${OPENWRT_VERSION:-23.05.0}"
+    
+    # Rileva architettura
+    OPENWRT_ARCH=$(opkg print-architecture 2>/dev/null | grep -v 'all' | grep -v 'noarch' | tail -1 | awk '{print $2}')
+    OPENWRT_ARCH="${OPENWRT_ARCH:-x86_64}"
+    
+    log "Sistema: OpenWrt $OPENWRT_VERSION ($OPENWRT_ARCH)"
+}
+
+# Repository verranno impostati dopo detect_openwrt_params()
+REPO_BASE=""
+REPO_PACKAGES=""
 
 # Server CheckMK per download agent
 CHECKMK_SERVER="${CHECKMK_SERVER:-https://monitoring.nethlab.it/monitoring}"
@@ -69,6 +91,13 @@ uninstall_all() {
 
 install_prereqs() {
     need_cmd opkg
+    
+    # Rileva parametri sistema
+    detect_openwrt_params
+    
+    # Imposta repository con versione/arch rilevate
+    REPO_BASE="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/packages/${OPENWRT_ARCH}/base"
+    REPO_PACKAGES="https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/packages/${OPENWRT_ARCH}/packages"
 
     log "Configuro repository (customfeeds)"
     mkdir -p "$(dirname "$CUSTOMFEEDS")" 2>/dev/null || true
@@ -80,9 +109,21 @@ install_prereqs() {
     log "opkg update"
     opkg update
 
-    log "Installo tool necessari (binutils/tar/gzip/wget/socat/ca-certificates)"
-    # ar e' in binutils
-    opkg install binutils tar gzip wget socat ca-certificates || die "opkg install fallito"
+    log "Verifica/installa tool necessari (binutils/tar/gzip/wget/socat/ca-certificates)"
+    # Verifica quali pacchetti sono già installati
+    PKGS_NEEDED=""
+    for pkg in binutils tar gzip wget socat ca-certificates; do
+        if ! opkg list-installed | grep -q "^$pkg "; then
+            PKGS_NEEDED="$PKGS_NEEDED $pkg"
+        fi
+    done
+    
+    if [ -n "$PKGS_NEEDED" ]; then
+        log "Installo pacchetti mancanti:$PKGS_NEEDED"
+        opkg install $PKGS_NEEDED || die "opkg install fallito"
+    else
+        log "Tutti i pacchetti necessari sono già installati"
+    fi
 
     need_cmd ar
     need_cmd tar
@@ -111,7 +152,10 @@ install_agent() {
     cd "$TMPDIR" || die "cd fallito: $TMPDIR"
 
     log "Download .deb agente da: $DEB_URL"
-    wget -O check-mk-agent.deb "$DEB_URL" || die "download fallito: $DEB_URL"
+    if ! wget -O check-mk-agent.deb "$DEB_URL" 2>/dev/null; then
+        warn "Primo tentativo fallito, retry con --no-check-certificate..."
+        wget --no-check-certificate -O check-mk-agent.deb "$DEB_URL" || die "download fallito dopo retry: $DEB_URL (verificare connessione e URL)"
+    fi
 
     log "Estrazione .deb (ar + tar)"
     ar x check-mk-agent.deb || die "ar x fallito"
@@ -184,6 +228,13 @@ EOF
 }
 
 install_frp() {
+    # Skip se non interattivo (curl | bash, script automatico, etc.)
+    if ! [ -t 0 ]; then
+        log "Skip configurazione FRP (esecuzione non-interattiva)"
+        log "Per configurare FRP: eseguire lo script manualmente"
+        return 0
+    fi
+    
     echo ""
     echo "Installazione FRP client (opzionale)"
     echo "Server remoto: monitor.nethlab.it:7000"

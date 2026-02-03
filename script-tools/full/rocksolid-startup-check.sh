@@ -42,12 +42,21 @@ if command -v opkg >/dev/null 2>&1; then
             touch "$CUSTOMFEEDS"
         fi
         
-        # Repository OpenWrt stabili (evita NethSecurity corrotti post-upgrade)
+        # Rileva versione OpenWrt e architettura dinamicamente
+        OPENWRT_VERSION=$(grep '^VERSION=' /etc/os-release 2>/dev/null | cut -d'=' -f2 | tr -d '"' | cut -d' ' -f1)
+        OPENWRT_VERSION="${OPENWRT_VERSION:-23.05.0}"
+        
+        OPENWRT_ARCH=$(opkg print-architecture 2>/dev/null | grep -v 'all' | grep -v 'noarch' | tail -1 | awk '{print $2}')
+        OPENWRT_ARCH="${OPENWRT_ARCH:-x86_64}"
+        
+        log "[Repository] Sistema: OpenWrt $OPENWRT_VERSION ($OPENWRT_ARCH)"
+        
+        # Repository OpenWrt dinamici (compatibili con versione sistema)
         grep -q "openwrt_packages" "$CUSTOMFEEDS" 2>/dev/null || \
-            echo "src/gz openwrt_packages https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages" >> "$CUSTOMFEEDS"
+            echo "src/gz openwrt_packages https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/packages/${OPENWRT_ARCH}/packages" >> "$CUSTOMFEEDS"
         
         grep -q "openwrt_base" "$CUSTOMFEEDS" 2>/dev/null || \
-            echo "src/gz openwrt_base https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base" >> "$CUSTOMFEEDS"
+            echo "src/gz openwrt_base https://downloads.openwrt.org/releases/${OPENWRT_VERSION}/packages/${OPENWRT_ARCH}/base" >> "$CUSTOMFEEDS"
         
         # Update repository
         log "[Repository] Aggiornamento liste pacchetti..."
@@ -102,6 +111,38 @@ else
     else
         log "[CheckMK Agent] OK - Servizio attivo"
     fi
+fi
+
+# ============================================================================
+# 1.5 VERIFICA DIPENDENZE CRITICHE
+# ============================================================================
+log "[Dipendenze] Verifica pacchetti critici..."
+
+if command -v opkg >/dev/null 2>&1; then
+    DEPS_MISSING=""
+    for pkg in binutils tar gzip wget socat ca-certificates; do
+        if ! opkg list-installed | grep -q "^$pkg "; then
+            DEPS_MISSING="$DEPS_MISSING $pkg"
+        fi
+    done
+    
+    if [ -n "$DEPS_MISSING" ]; then
+        log "[Dipendenze] MANCANTI:$DEPS_MISSING"
+        log "[Dipendenze] Reinstallazione automatica..."
+        opkg update >> "$LOG_FILE" 2>&1
+        opkg install $DEPS_MISSING >> "$LOG_FILE" 2>&1 || \
+            log "[Dipendenze] ERRORE: Installazione fallita"
+        
+        if opkg list-installed | grep -q "socat"; then
+            log "[Dipendenze] ✓ Pacchetti reinstallati con successo"
+        else
+            log "[Dipendenze] CRITICO: Reinstallazione fallita!"
+        fi
+    else
+        log "[Dipendenze] OK - Tutti i pacchetti presenti"
+    fi
+else
+    log "[Dipendenze] opkg non disponibile (non OpenWrt)"
 fi
 
 # ============================================================================
