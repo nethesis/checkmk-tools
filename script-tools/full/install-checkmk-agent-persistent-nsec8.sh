@@ -119,6 +119,13 @@ cleanup_temp_repos() {
         log "Rimozione repository temporanei..."
         sed -i '/^src\/gz openwrt_base/d' "$CUSTOMFEEDS" 2>/dev/null || true
         sed -i '/^src\/gz openwrt_packages/d' "$CUSTOMFEEDS" 2>/dev/null || true
+        
+        # CRITICO: Rimuovi anche CACHE opkg dei repository temporanei
+        # Cache mantiene metadata pacchetti (incluso ns-ui 2.8.1 upstream)
+        # Anche dopo rimozione repository, cache causa upgrade indesiderati
+        log "Pulizia cache opkg repository temporanei..."
+        rm -f /var/opkg-lists/openwrt_base* 2>/dev/null || true
+        rm -f /var/opkg-lists/openwrt_packages* 2>/dev/null || true
     fi
 }
 
@@ -787,6 +794,10 @@ install_prereqs() {
     opkg install binutils tar gzip wget socat ca-certificates 2>/dev/null || \
         log "Alcuni pacchetti già installati o non disponibili (continuo comunque)"
 
+    # CRITICO: Rimuovi repository temporanei E cache SUBITO dopo installazione
+    # Non aspettare fine script - cache opkg deve essere pulita ORA
+    cleanup_temp_repos
+
     need_cmd ar
     need_cmd tar
     need_cmd wget
@@ -1346,9 +1357,6 @@ main() {
     echo ""
     echo "IMPORTANTE: Dopo un major upgrade, esegui /etc/checkmk-post-upgrade.sh"
     echo "            per verificare e ripristinare i servizi"
-    
-    # CLEANUP: Rimuove repository temporanei
-    cleanup_temp_repos
 }
 
 main "$@"
