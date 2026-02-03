@@ -59,6 +59,98 @@ if [ -d "$BACKUP_DIR" ]; then
 fi
 
 # ============================================================================
+# 0.5 VERIFICA E RIPRISTINA NODE.JS + NGINX (NethSecurity Web UI)
+# ============================================================================
+log "[Node.js] Verifica in corso..."
+
+# Verifica se node.js è installato
+if ! command -v node >/dev/null 2>&1; then
+    log "[Node.js] MANCANTE - Reinstallazione automatica..."
+    
+    # Node.js non è più nei repository NethSecurity 8.7.1+
+    # Download diretto da OpenWrt
+    NODE_VERSION="v18.20.6-1"
+    NODE_IPK_URL="https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages/node_${NODE_VERSION}_x86_64.ipk"
+    
+    if command -v wget >/dev/null 2>&1; then
+        log "[Node.js] Download da OpenWrt..."
+        cd /tmp || exit 1
+        wget -q -O node.ipk "$NODE_IPK_URL" 2>&1 | tee -a "$LOG_FILE"
+        
+        if [ -f node.ipk ]; then
+            log "[Node.js] Installazione pacchetto..."
+            opkg install node.ipk >> "$LOG_FILE" 2>&1
+            rm -f node.ipk
+            
+            if command -v node >/dev/null 2>&1; then
+                log "[Node.js] RIPRISTINATO: $(node --version)"
+            else
+                log "[Node.js] ERRORE: Installazione fallita"
+            fi
+        else
+            log "[Node.js] ERRORE: Download fallito"
+        fi
+    else
+        log "[Node.js] ERRORE: wget non disponibile"
+    fi
+else
+    log "[Node.js] OK - Presente: $(node --version 2>&1 | head -1)"
+fi
+
+# Verifica nginx.conf esiste
+log "[Nginx] Verifica configurazione..."
+if [ ! -f /etc/nginx/nginx.conf ]; then
+    log "[Nginx] MANCANTE nginx.conf - Rigenerazione..."
+    
+    if command -v nginx-util >/dev/null 2>&1; then
+        nginx-util init_lan >> "$LOG_FILE" 2>&1 || true
+        
+        if [ -f /etc/nginx/nginx.conf ]; then
+            log "[Nginx] Configurazione rigenerata"
+        else
+            log "[Nginx] ERRORE: Impossibile rigenerare nginx.conf"
+        fi
+    else
+        log "[Nginx] ERRORE: nginx-util non disponibile"
+    fi
+fi
+
+# Verifica e riavvia servizi web
+if command -v nginx >/dev/null 2>&1; then
+    if ! pgrep -f "nginx.*master" >/dev/null 2>&1; then
+        log "[Nginx] Servizio non attivo, avvio..."
+        /etc/init.d/nginx enable 2>/dev/null || true
+        /etc/init.d/nginx restart >> "$LOG_FILE" 2>&1 || true
+        sleep 2
+        
+        if pgrep -f "nginx.*master" >/dev/null 2>&1; then
+            log "[Nginx] Servizio riavviato"
+        else
+            log "[Nginx] ERRORE: Impossibile avviare nginx"
+        fi
+    else
+        log "[Nginx] OK - Servizio attivo"
+    fi
+fi
+
+if [ -f /etc/init.d/ns-ui ]; then
+    if ! pgrep -f "ns-ui" >/dev/null 2>&1; then
+        log "[NS-UI] Servizio non attivo, avvio..."
+        /etc/init.d/ns-ui enable 2>/dev/null || true
+        /etc/init.d/ns-ui restart >> "$LOG_FILE" 2>&1 || true
+        sleep 2
+        
+        if pgrep -f "ns-ui" >/dev/null 2>&1; then
+            log "[NS-UI] Servizio riavviato"
+        else
+            log "[NS-UI] ERRORE: Impossibile avviare ns-ui"
+        fi
+    else
+        log "[NS-UI] OK - Servizio attivo"
+    fi
+fi
+
+# ============================================================================
 # 1. VERIFICA E RIPRISTINA CHECKMK AGENT
 # ============================================================================
 log "[CheckMK Agent] Verifica in corso..."
