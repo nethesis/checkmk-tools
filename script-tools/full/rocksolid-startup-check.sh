@@ -197,6 +197,63 @@ else
 fi
 
 # ============================================================================
+# 2.8 AUTO-DEPLOY LOCAL CHECKS E PLUGIN DA REPOSITORY
+# ============================================================================
+if [ -d "/opt/checkmk-tools/script-check-nsec8/full" ]; then
+    log "[Auto-Deploy] Verifica nuovi script locali..."
+    
+    # Deploy local checks (check_*.sh)
+    DEPLOYED_CHECKS=0
+    for script in /opt/checkmk-tools/script-check-nsec8/full/check_*.sh; do
+        [ -f "$script" ] || continue
+        basename_script=$(basename "$script")
+        dest="/usr/lib/check_mk_agent/local/$basename_script"
+        
+        # Copia se mancante o se repository ha versione più recente
+        if [ ! -f "$dest" ] || [ "$script" -nt "$dest" ]; then
+            log "[Auto-Deploy] Deploy: $basename_script"
+            cp -p "$script" "$dest" 2>/dev/null && \
+                chmod +x "$dest" && \
+                DEPLOYED_CHECKS=$((DEPLOYED_CHECKS + 1))
+        fi
+    done
+    
+    if [ "$DEPLOYED_CHECKS" -gt 0 ]; then
+        log "[Auto-Deploy] Deployed $DEPLOYED_CHECKS local check(s)"
+    else
+        log "[Auto-Deploy] Local checks già aggiornati"
+    fi
+fi
+
+# Deploy plugins (se directory esiste)
+if [ -d "/opt/checkmk-tools/script-check-nsec8/plugins" ]; then
+    log "[Auto-Deploy] Verifica nuovi plugin..."
+    
+    DEPLOYED_PLUGINS=0
+    for plugin in /opt/checkmk-tools/script-check-nsec8/plugins/*; do
+        [ -f "$plugin" ] || continue
+        basename_plugin=$(basename "$plugin")
+        dest="/usr/lib/check_mk_agent/plugins/$basename_plugin"
+        
+        # Copia se mancante o se repository ha versione più recente
+        if [ ! -f "$dest" ] || [ "$plugin" -nt "$dest" ]; then
+            log "[Auto-Deploy] Deploy: $basename_plugin (plugin)"
+            cp -p "$plugin" "$dest" 2>/dev/null && \
+                chmod +x "$dest" && \
+                DEPLOYED_PLUGINS=$((DEPLOYED_PLUGINS + 1))
+        fi
+    done
+    
+    if [ "$DEPLOYED_PLUGINS" -gt 0 ]; then
+        log "[Auto-Deploy] Deployed $DEPLOYED_PLUGINS plugin(s)"
+    else
+        log "[Auto-Deploy] Plugin già aggiornati"
+    fi
+else
+    log "[Auto-Deploy] Nessuna directory plugin nel repository"
+fi
+
+# ============================================================================
 # 3. VERIFICA PROTEZIONI SYSUPGRADE.CONF
 # ============================================================================
 log "[Protezioni] Verifica sysupgrade.conf..."
@@ -259,6 +316,13 @@ if [ "$LOCAL_CHECK_COUNT" -gt 0 ] 2>/dev/null; then
     log "  Local Checks:   [OK] ($LOCAL_CHECK_COUNT scripts)"
 else
     log "  Local Checks:   [N/A]"
+fi
+
+# Plugin CheckMK
+PLUGIN_COUNT=$(find /usr/lib/check_mk_agent/plugins/ -type f 2>/dev/null | wc -l)
+PLUGIN_COUNT=$(echo "$PLUGIN_COUNT" | tr -d ' \n')
+if [ "$PLUGIN_COUNT" -gt 0 ] 2>/dev/null; then
+    log "  Plugins:        [OK] ($PLUGIN_COUNT plugins)"
 fi
 
 log "========================================="
