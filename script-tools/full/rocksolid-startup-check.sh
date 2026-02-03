@@ -97,25 +97,8 @@ else
     log "[Node.js] OK - Presente: $(node --version 2>&1 | head -1)"
 fi
 
-# Verifica nginx.conf esiste
-log "[Nginx] Verifica configurazione..."
-if [ ! -f /etc/nginx/nginx.conf ]; then
-    log "[Nginx] MANCANTE nginx.conf - Rigenerazione..."
-    
-    if command -v nginx-util >/dev/null 2>&1; then
-        nginx-util init_lan >> "$LOG_FILE" 2>&1 || true
-        
-        if [ -f /etc/nginx/nginx.conf ]; then
-            log "[Nginx] Configurazione rigenerata"
-        else
-            log "[Nginx] ERRORE: Impossibile rigenerare nginx.conf"
-        fi
-    else
-        log "[Nginx] ERRORE: nginx-util non disponibile"
-    fi
-fi
-
 # Verifica e riavvia servizi web
+log "[Web UI] Verifica servizi..."
 if command -v nginx >/dev/null 2>&1; then
     if ! pgrep -f "nginx.*master" >/dev/null 2>&1; then
         log "[Nginx] Servizio non attivo, avvio..."
