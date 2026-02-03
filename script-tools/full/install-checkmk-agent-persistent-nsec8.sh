@@ -772,36 +772,53 @@ uninstall_all() {
 install_prereqs() {
     need_cmd opkg
 
-    log "Configuro repository (customfeeds)"
-    mkdir -p "$(dirname "$CUSTOMFEEDS")" 2>/dev/null || true
-    [ -f "$CUSTOMFEEDS" ] || : >"$CUSTOMFEEDS"
-
-    add_repo "openwrt_base" "$REPO_BASE"
-    add_repo "openwrt_packages" "$REPO_PACKAGES"
-
-    log "opkg update"
-    opkg update
+    # CRITICO: NON usare repository OpenWrt - causano conflitti di dipendenze
+    # e rimozione di pacchetti critici (node.js, nginx-ssl-util, etc.)
     
-    # Verifica e ripara repository corrotti (post-upgrade)
-    if opkg list 2>&1 | grep -q "parse_from_stream_nomalloc"; then
-        warn "Repository corrotti rilevati - riparo"
-        rm -rf /var/opkg-lists/*.sig 2>/dev/null || true
-        opkg update || warn "Alcuni repository hanno fallito (normale post-upgrade)"
+    log "Installo tool necessari da repository NethSecurity"
+    # Solo wget/socat/ca-certificates sono nei repo NethSecurity - installarli senza conflitti
+    opkg update
+    opkg install wget socat ca-certificates 2>/dev/null || \
+        log "Alcuni pacchetti già installati (continuo comunque)"
+
+    need_cmd wget
+    need_cmd socat
+
+    # Per ar/tar/gzip: usa binari standalone se mancano
+    if ! command -v ar >/dev/null 2>&1 || ! command -v tar >/dev/null 2>&1 || ! command -v gzip >/dev/null 2>&1; then
+        log "Binari ar/tar/gzip mancanti - download versioni standalone"
+        
+        # Download binutils standalone (ar)
+        if ! command -v ar >/dev/null 2>&1; then
+            log "Download ar standalone..."
+            wget -O /tmp/binutils.ipk "https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base/binutils_2.40-1_x86_64.ipk" || die "Download binutils fallito"
+            ( cd /tmp && ar x binutils.ipk && tar -xzf data.tar.gz && cp -f ./usr/bin/ar /usr/local/bin/ ) || die "Estrazione ar fallita"
+            chmod +x /usr/local/bin/ar
+            export PATH="/usr/local/bin:$PATH"
+            rm -f /tmp/binutils.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
+        fi
+        
+        # Download tar standalone
+        if ! command -v tar >/dev/null 2>&1; then
+            log "Download tar standalone..."
+            wget -O /tmp/tar.ipk "https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base/tar_1.34-2_x86_64.ipk" || die "Download tar fallito"
+            ( cd /tmp && /usr/local/bin/ar x tar.ipk && /usr/local/bin/ar x data.tar.gz && cp -f ./usr/libexec/tar-gnu /usr/local/bin/tar ) || die "Estrazione tar fallita"
+            chmod +x /usr/local/bin/tar
+            rm -f /tmp/tar.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
+        fi
+        
+        # Download gzip standalone
+        if ! command -v gzip >/dev/null 2>&1; then
+            log "Download gzip standalone..."
+            wget -O /tmp/gzip.ipk "https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base/gzip_1.12-1_x86_64.ipk" || die "Download gzip fallito"
+            ( cd /tmp && /usr/local/bin/ar x gzip.ipk && /usr/local/bin/tar -xzf data.tar.gz && cp -f ./usr/libexec/gzip-gnu /usr/local/bin/gzip ) || die "Estrazione gzip fallita"
+            chmod +x /usr/local/bin/gzip
+            rm -f /tmp/gzip.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
+        fi
     fi
-
-    log "Installo tool necessari (binutils/tar/gzip/wget/socat/ca-certificates)"
-    # ar e' in binutils - ignora errori se già installati
-    opkg install binutils tar gzip wget socat ca-certificates 2>/dev/null || \
-        log "Alcuni pacchetti già installati o non disponibili (continuo comunque)"
-
-    # CRITICO: Rimuovi repository temporanei E cache SUBITO dopo installazione
-    # Non aspettare fine script - cache opkg deve essere pulita ORA
-    cleanup_temp_repos
 
     need_cmd ar
     need_cmd tar
-    need_cmd wget
-    need_cmd socat
 }
 
 install_agent() {
