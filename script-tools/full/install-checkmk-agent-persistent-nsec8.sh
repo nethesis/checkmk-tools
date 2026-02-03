@@ -424,18 +424,22 @@ POSTSCRIPT
 install_autocheck() {
     log "Installazione script autocheck all'avvio"
     
-    # IMPORTANTE: Esegui direttamente da /opt/checkmk-tools/ (già protetto da sysupgrade)
-    # NON copiare in /usr/local/bin/ - viene cancellato durante upgrade
-    local autocheck_script="/opt/checkmk-tools/script-tools/full/rocksolid-startup-check.sh"
+    # IMPORTANTE: Copia in /opt/checkmk-backups/ (già protetto, non dipende da git)
+    # /opt/checkmk-tools/ dipende da git che viene cancellato durante upgrade
+    local autocheck_source="/opt/checkmk-tools/script-tools/full/rocksolid-startup-check.sh"
+    local autocheck_script="/opt/checkmk-backups/rocksolid-startup-check.sh"
     local autocheck_log="/var/log/rocksolid-startup.log"
     local rc_local="/etc/rc.local"
     
-    # Verifica esistenza script nel repository
-    if [ ! -f "$autocheck_script" ]; then
-        warn "ATTENZIONE: Script rocksolid non trovato in $autocheck_script"
-        log "Lo script verrà sincronizzato al prossimo git pull"
+    # Copia script in directory protetta
+    if [ -f "$autocheck_source" ]; then
+        log "Copio rocksolid in $autocheck_script (protetto da upgrade)"
+        mkdir -p "$(dirname "$autocheck_script")" 2>/dev/null || true
+        cp -f "$autocheck_source" "$autocheck_script" 2>/dev/null || true
+        chmod +x "$autocheck_script" 2>/dev/null || true
+        log "Script rocksolid installato: $autocheck_script"
     else
-        log "Script rocksolid trovato: $autocheck_script"
+        warn "ATTENZIONE: Script rocksolid source non trovato in $autocheck_source"
     fi
     
     # Configura rc.local per esecuzione all'avvio
@@ -453,18 +457,18 @@ RCLOCAL
     fi
     
     # Aggiungi autocheck a rc.local - FORZA aggiornamento (rimuovi vecchie entry)
-    # Esegue direttamente da /opt/checkmk-tools/ (upgrade-resistant)
-    log "Configuro autocheck in rc.local (esecuzione da repository)"
+    # Esegue da /opt/checkmk-backups/ (upgrade-resistant, no git dependency)
+    log "Configuro autocheck in rc.local (esecuzione da $autocheck_script)"
     # Rimuovi vecchie entry rocksolid (qualsiasi path)
     sed -i '/rocksolid-startup-check/d' "$rc_local"
     sed -i '/^exit 0/d' "$rc_local"
-    # Aggiungi esecuzione diretta da /opt/checkmk-tools/
-    echo "# ROCKSOLID Autocheck - esecuzione diretta da /opt/checkmk-tools/ (upgrade-resistant)" >> "$rc_local"
+    # Aggiungi esecuzione da /opt/checkmk-backups/ (non dipende da git)
+    echo "# ROCKSOLID Autocheck - esecuzione da /opt/checkmk-backups/ (upgrade-resistant, no git)" >> "$rc_local"
     echo "[ -x $autocheck_script ] && bash $autocheck_script >> /var/log/rocksolid-startup.log 2>&1 &" >> "$rc_local"
     echo "exit 0" >> "$rc_local"
     log "Autocheck configurato per esecuzione da $autocheck_script all'avvio"
     
-    # Proteggi solo rc.local (script già protetto in /opt/checkmk-tools/)
+    # Proteggi rc.local e directory checkmk-backups (script già dentro)
     add_to_sysupgrade "$rc_local" "Boot Script (rc.local)"
     
     log "Autocheck installato e protetto"
