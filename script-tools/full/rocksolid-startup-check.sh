@@ -241,9 +241,13 @@ if [ -f "/usr/bin/qemu-ga" ]; then
     fi
 fi
 
-# Auto Git Sync
-if [ -f "/etc/crontabs/root" ] && grep -q "git -C /opt/checkmk-tools pull" /etc/crontabs/root 2>/dev/null; then
-    log "  Auto Git Sync:  [OK]"
+# Auto Git Sync (controlla sia script wrapper che comando diretto)
+if [ -f "/etc/crontabs/root" ]; then
+    if grep -qE "git-auto-sync\.sh|git.*checkmk-tools.*pull" /etc/crontabs/root 2>/dev/null; then
+        log "  Auto Git Sync:  [OK]"
+    else
+        log "  Auto Git Sync:  [N/A]"
+    fi
 else
     log "  Auto Git Sync:  [N/A]"
 fi
