@@ -244,6 +244,62 @@ signal-event nethserver-fail2ban-save
 
 ---
 
+## 🔧 NethSecurity 8 - NGINX Web UI Major Upgrade Issue
+
+### ⚠️ PROBLEMA CRITICO - Symlink /etc/nginx/uci.conf cancellato durante upgrade
+
+**Sintomo:**
+- Post major upgrade: nginx non parte, Web UI (porta 9090) non disponibile
+- Log error: `open() "/etc/nginx/nginx.conf" failed (2: No such file or directory)`
+- Directory `/etc/nginx/` esiste e protetta, ma manca symlink
+
+**Causa ROOT:**
+- NethSecurity usa `/var/lib/nginx/uci.conf` come configurazione nginx principale
+- `/etc/nginx/uci.conf` è un **symlink** → `/var/lib/nginx/uci.conf`
+- Durante major upgrade: symlink cancellato anche se `/etc/nginx/` è protetto in sysupgrade.conf
+- Nginx cerca `uci.conf` ma non lo trova → fallisce avvio
+
+**Soluzione implementata (commit 6107753 + 1986623):**
+
+1. **Protezione directory** (`install-checkmk-agent-persistent-nsec8.sh`):
+```bash
+# In protect_checkmk_installation()
+add_to_sysupgrade "/etc/nginx/" "NGINX configuration (Web UI NethSecurity)"
+```
+
+2. **Ripristino automatico symlink** (`rocksolid-startup-check.sh`):
+```bash
+# Prima di verificare nginx
+if [ ! -L /etc/nginx/uci.conf ] && [ -f /var/lib/nginx/uci.conf ]; then
+    log "[Nginx] Ripristino symlink uci.conf..."
+    ln -sf /var/lib/nginx/uci.conf /etc/nginx/uci.conf 2>/dev/null || true
+fi
+```
+
+**Fix manuale emergenza:**
+```bash
+# Su sistema già upgradato con nginx rotto
+ln -sf /var/lib/nginx/uci.conf /etc/nginx/uci.conf
+/etc/init.d/nginx restart
+# Web UI torna disponibile su porta 9090
+```
+
+**Verifica soluzione:**
+```bash
+# Dopo upgrade/reboot
+ls -la /etc/nginx/uci.conf  # Deve essere symlink
+/etc/init.d/nginx status    # Deve essere "running"
+netstat -tlnp | grep :9090  # Deve mostrare nginx in ascolto
+```
+
+**Note tecniche:**
+- `/var/lib/nginx/uci.conf` generato dinamicamente da nginx-ssl-util
+- Contiene configurazioni server blocks per porte 80/443/9090
+- Symlink necessario perché nginx include `/etc/nginx/uci.conf` nel main config
+- Backup laboratorio disponibile: `C:\Users\Marzio\Desktop\CheckMK\nginx-backup-laboratorio.tar.gz`
+
+---
+
 ## �🔧 Strumenti di Controllo Qualità
 
 ### check-integrity.ps1 - Controllo Integrità Repository
