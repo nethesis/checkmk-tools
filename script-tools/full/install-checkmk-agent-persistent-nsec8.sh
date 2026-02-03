@@ -112,6 +112,15 @@ add_repo() {
     grep -q "$url" "$CUSTOMFEEDS" 2>/dev/null || echo "src/gz $name $url" >>"$CUSTOMFEEDS"
 }
 
+cleanup_temp_repos() {
+    # Rimuove i repository temporanei OpenWrt aggiunti per l'installazione
+    if [ -f "$CUSTOMFEEDS" ]; then
+        log "Rimozione repository temporanei..."
+        sed -i '/^src\/gz openwrt_base/d' "$CUSTOMFEEDS" 2>/dev/null || true
+        sed -i '/^src\/gz openwrt_packages/d' "$CUSTOMFEEDS" 2>/dev/null || true
+    fi
+}
+
 # ============================================================================
 # Rileva versione CheckMK e costruisce URL .deb dinamicamente
 # ============================================================================
@@ -1332,6 +1341,9 @@ main() {
     echo ""
     echo "IMPORTANTE: Dopo un major upgrade, esegui /etc/checkmk-post-upgrade.sh"
     echo "            per verificare e ripristinare i servizi"
+    
+    # CLEANUP: Rimuove repository temporanei
+    cleanup_temp_repos
 }
 
 main "$@"
