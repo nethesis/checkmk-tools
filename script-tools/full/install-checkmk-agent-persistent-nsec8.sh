@@ -1090,6 +1090,100 @@ EOF
     protect_frp_installation
 }
 
+# ========================================================================
+# ROCKSOLID: Auto Git Sync Installation
+# ========================================================================
+install_auto_git_sync() {
+    local repo_dir="/opt/checkmk-tools"
+    local repo_url="https://github.com/Coverup20/checkmk-tools.git"
+    local sync_script="/usr/local/bin/git-auto-sync.sh"
+    local cron_file="/etc/crontabs/root"
+    
+    echo ""
+    echo "Installazione Auto Git Sync Service"
+    echo ""
+    
+    # Installa git se non presente
+    if ! command -v git >/dev/null 2>&1; then
+        log "Installazione git..."
+        opkg update >/dev/null 2>&1
+        opkg install git git-http >/dev/null 2>&1 || die "Installazione git fallita"
+        log "Git installato: $(git --version)"
+    else
+        log "Git già presente: $(git --version)"
+    fi
+    
+    # Clona o aggiorna repository
+    if [ -d "$repo_dir/.git" ]; then
+        log "Repository già presente in $repo_dir"
+        cd "$repo_dir" || die "cd $repo_dir fallito"
+        log "Aggiornamento repository..."
+        git pull >/dev/null 2>&1 || warn "Git pull fallito"
+    else
+        log "Clonazione repository in $repo_dir..."
+        mkdir -p "$(dirname "$repo_dir")"
+        git clone "$repo_url" "$repo_dir" >/dev/null 2>&1 || die "Clonazione repository fallita"
+        log "Repository clonato con successo"
+    fi
+    
+    # Crea script di sync
+    log "Creazione script di sync: $sync_script"
+    cat > "$sync_script" <<'SYNCSCRIPT'
+#!/bin/sh
+# Auto Git Sync Worker Script
+
+REPO_DIR="/opt/checkmk-tools"
+LOG_FILE="/var/log/auto-git-sync.log"
+MAX_LOG_SIZE=1048576  # 1MB
+
+# Rotazione log se troppo grande
+if [ -f "$LOG_FILE" ] && [ "$(stat -c%s "$LOG_FILE" 2>/dev/null || echo 0)" -gt "$MAX_LOG_SIZE" ]; then
+    mv "$LOG_FILE" "$LOG_FILE.old" 2>/dev/null || true
+fi
+
+# Timestamp
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Auto sync started" >> "$LOG_FILE"
+
+# Verifica repository
+if [ ! -d "$REPO_DIR/.git" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Repository not found" >> "$LOG_FILE"
+    exit 1
+fi
+
+cd "$REPO_DIR" || exit 1
+
+# Git pull
+if git pull origin main >> "$LOG_FILE" 2>&1; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Sync completed" >> "$LOG_FILE"
+else
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Git pull failed" >> "$LOG_FILE"
+fi
+SYNCSCRIPT
+    
+    chmod +x "$sync_script"
+    log "Script di sync creato"
+    
+    # Configura cron
+    log "Configurazione cron job (ogni minuto)..."
+    if [ -f "$cron_file" ]; then
+        sed -i '/git-auto-sync\.sh/d' "$cron_file" 2>/dev/null || true
+    fi
+    echo "* * * * * $sync_script" >> "$cron_file"
+    
+    # Riavvia cron
+    /etc/init.d/cron restart >/dev/null 2>&1 || true
+    log "Cron job configurato"
+    
+    # ROCKSOLID: Proteggi installazione
+    log "ROCKSOLID: Proteggo installazione Auto Git Sync da major upgrade"
+    add_to_sysupgrade "$repo_dir/" "CheckMK Tools Repository (Git Sync)"
+    add_to_sysupgrade "$sync_script" "Git Auto Sync Script"
+    add_to_sysupgrade "$cron_file" "Cron Jobs (include git sync)"
+    add_to_sysupgrade "/var/log/auto-git-sync.log" "Git Sync Log File"
+    log "Installazione Auto Git Sync protetta contro major upgrade"
+    echo ""
+}
+
 main() {
     if [ "${1:-}" = "--uninstall" ]; then
         is_root || die "eseguire come root"
@@ -1126,6 +1220,9 @@ main() {
     
     install_frp
     
+    # ROCKSOLID: Auto Git Sync
+    install_auto_git_sync
+    
     # ROCKSOLID: Installa autocheck all'avvio
     install_autocheck
 
@@ -1145,6 +1242,11 @@ main() {
     echo "  ✓ Verifica e riavvia CheckMK Agent automaticamente"
     echo "  ✓ Verifica e riavvia FRP Client automaticamente"
     echo "  ✓ Log: /var/log/rocksolid-startup.log"
+    echo ""
+    echo "Auto Git Sync:"
+    echo "  ✓ Repository: /opt/checkmk-tools"
+    echo "  ✓ Sync automatico ogni minuto"
+    echo "  ✓ Log: /var/log/auto-git-sync.log"
     echo ""
     echo "Test agent locale: nc 127.0.0.1 6556 | head"
     echo "Config FRP: $FRPC_CONF"
