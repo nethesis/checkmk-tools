@@ -103,7 +103,8 @@ need_cmd() {
 
 # Controlla se siamo in modalità interattiva
 is_interactive() {
-    [ "$NON_INTERACTIVE" -eq 0 ] && [ -t 0 ]
+    # Se --interactive esplicito, forza modalità interattiva anche senza TTY
+    [ "$NON_INTERACTIVE" -eq 0 ]
 }
 
 add_repo() {
