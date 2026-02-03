@@ -25,6 +25,24 @@ BACKUP_DIR="/opt/checkmk-backups/binaries"
 if [ -d "$BACKUP_DIR" ]; then
     log "[Binari Critici] Verifica e ripristino in corso..."
     
+    # Verifica se binari critici sono corrotti
+    BINARIES_CORRUPTED=0
+    if [ -x /usr/bin/ar ]; then
+        if ! /usr/bin/ar --version >/dev/null 2>&1; then
+            log "[Binari Critici] ar corrotto - reinstallo dipendenze"
+            BINARIES_CORRUPTED=1
+        fi
+    fi
+    
+    # Se corrotti, reinstalla binutils per dipendenze (libsframe, ecc.)
+    if [ $BINARIES_CORRUPTED -eq 1 ]; then
+        if command -v opkg >/dev/null 2>&1; then
+            log "[Binari Critici] Reinstallo binutils per dipendenze..."
+            opkg update >/dev/null 2>&1
+            opkg install --force-reinstall binutils >/dev/null 2>&1
+        fi
+    fi
+    
     for backup in "$BACKUP_DIR"/*.backup; do
         [ -f "$backup" ] || continue
         
