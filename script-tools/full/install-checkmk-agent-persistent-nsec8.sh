@@ -210,13 +210,13 @@ protect_frp_installation() {
     
     # Crea marker file per autocheck detection
     mkdir -p /opt/checkmk-tools
-    echo "FRP installed on $(date '+%Y-%m-%d %H:%M:%S')" > /opt/checkmk-tools/.frp-installed
-    log "Marker FRP creato: /opt/checkmk-tools/.frp-installed"
+    echo "FRP installed on $(date '+%Y-%m-%d %H:%M:%S')" > /etc/.frp-installed
+    log "Marker FRP creato: /etc/.frp-installed"
     
     add_to_sysupgrade "/usr/local/bin/frpc" "FRP Client - Binary"
     add_to_sysupgrade "/etc/frp/frpc.toml" "FRP Client - Configuration (CRITICO: contiene token)"
     add_to_sysupgrade "/etc/init.d/frpc" "FRP Client - Init Script"
-    add_to_sysupgrade "/opt/checkmk-tools/.frp-installed" "FRP Client - Marker file (autocheck detection)"
+    add_to_sysupgrade "/etc/.frp-installed" "FRP Client - Marker file (autocheck detection)"
     
     log "Installazione FRP protetta contro major upgrade"
 }
@@ -446,7 +446,7 @@ fi
 # ============================================================================
 log "[FRP Client] Verifica in corso..."
 
-FRP_MARKER="/opt/checkmk-tools/.frp-installed"
+FRP_MARKER="/etc/.frp-installed"
 
 if [ -f "$FRP_MARKER" ]; then
     # FRP era installato, deve funzionare
