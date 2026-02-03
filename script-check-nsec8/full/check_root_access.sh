@@ -18,8 +18,13 @@ successful_logins=0
 failed_logins=0
 recent_ips=()
 
-# Controlla sessioni root attive
-active_sessions=$(who | grep -c "^root")
+# Controlla sessioni root attive (usa ps se who non disponibile)
+if command -v who >/dev/null 2>&1; then
+    active_sessions=$(who | grep -c "^root" || echo 0)
+else
+    # Conta processi bash/sh con UID 0 (root)
+    active_sessions=$(ps | grep -E "(bash|sh|dropbear)" | grep -v grep | wc -l)
+fi
 
 # Analizza log recenti (ultimi 60 minuti)
 if [[ -f "$LOG_FILE" ]]; then
