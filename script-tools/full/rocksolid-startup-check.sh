@@ -114,22 +114,27 @@ if command -v nginx >/dev/null 2>&1; then
     else
         log "[Nginx] OK - Servizio attivo"
     fi
-fi
-
-if [ -f /etc/init.d/ns-ui ]; then
-    if ! pgrep -f "ns-ui" >/dev/null 2>&1; then
-        log "[NS-UI] Servizio non attivo, avvio..."
-        /etc/init.d/ns-ui enable 2>/dev/null || true
-        /etc/init.d/ns-ui restart >> "$LOG_FILE" 2>&1 || true
-        sleep 2
+    
+    # Verifica porta 9090 (Web UI NethSecurity)
+    if ! netstat -tlnp 2>/dev/null | grep -q ":9090.*LISTEN"; then
+        log "[Web UI] Porta 9090 non attiva, riconfigurazione..."
         
-        if pgrep -f "ns-ui" >/dev/null 2>&1; then
-            log "[NS-UI] Servizio riavviato"
+        # Esegui script ns-ui per riconfigurare nginx
+        if [ -x /usr/sbin/ns-ui ]; then
+            /usr/sbin/ns-ui >> "$LOG_FILE" 2>&1 || true
+            /etc/init.d/nginx restart >> "$LOG_FILE" 2>&1 || true
+            sleep 2
+            
+            if netstat -tlnp 2>/dev/null | grep -q ":9090.*LISTEN"; then
+                log "[Web UI] Porta 9090 attiva dopo riconfigurazione"
+            else
+                log "[Web UI] ERRORE: Porta 9090 non disponibile"
+            fi
         else
-            log "[NS-UI] ERRORE: Impossibile avviare ns-ui"
+            log "[Web UI] ERRORE: /usr/sbin/ns-ui non disponibile"
         fi
     else
-        log "[NS-UI] OK - Servizio attivo"
+        log "[Web UI] OK - Porta 9090 attiva"
     fi
 fi
 
