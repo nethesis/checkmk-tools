@@ -107,6 +107,12 @@ fi
 # Verifica e riavvia servizi web
 log "[Web UI] Verifica servizi..."
 if command -v nginx >/dev/null 2>&1; then
+    # Ripristina symlink uci.conf se mancante (cancellato durante upgrade)
+    if [ ! -L /etc/nginx/uci.conf ] && [ -f /var/lib/nginx/uci.conf ]; then
+        log "[Nginx] Ripristino symlink uci.conf..."
+        ln -sf /var/lib/nginx/uci.conf /etc/nginx/uci.conf 2>/dev/null || true
+    fi
+    
     if ! pgrep -f "nginx.*master" >/dev/null 2>&1; then
         log "[Nginx] Servizio non attivo, avvio..."
         /etc/init.d/nginx enable 2>/dev/null || true
