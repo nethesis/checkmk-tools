@@ -242,7 +242,7 @@ log "=== POST-UPGRADE: Inizio ripristino ==="
 # FASE 1: RIPRISTINA BINARI CRITICI (tar, ar, gzip)
 # Major upgrade spesso corrompe questi binari
 # ==========================================================
-BACKUP_DIR="/opt/checkmk-tools/BACKUP-BINARIES"
+BACKUP_DIR="/opt/checkmk-backups/binaries"
 
 if [ -d "$BACKUP_DIR" ]; then
     log "Ripristino binari critici da backup..."
