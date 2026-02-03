@@ -121,6 +121,47 @@ git commit -m "fix: risolto errore comando"
 - `checkmk-vps-02` (monitor01.nethlab.it) - CheckMK staging/test
 - `checkmk-z1plus` (192.168.10.128) - CheckMK locale test
 
+10. **Script eseguibili - Verifica SEMPRE permessi Git**
+   - ⚠️ **Windows (NTFS) NON preserva il bit eseguibile Unix**
+   - ✅ **SEMPRE** quando crei/modifichi script bash/shell (.sh):
+     1. Crea/modifica il file
+     2. Verifica permessi: `git ls-files -s script.sh` 
+     3. Se mostra `100644` (NON eseguibile) → FIX:
+        ```bash
+        git update-index --chmod=+x script.sh
+        ```
+     4. Verifica: `git ls-files -s script.sh` → deve mostrare `100755`
+     5. Committo e push normalmente
+   - ✅ **Controllo batch** su directory:
+     ```bash
+     # Trova script NON eseguibili
+     git ls-files -s script-tools/full/*.sh | Select-String "100644"
+     
+     # Rendi tutti eseguibili
+     git update-index --chmod=+x script-tools/full/*.sh
+     ```
+   - ⚠️ **NON fare affidamento** su `wsl -- test -x` su Windows → usa `git ls-files -s`
+   - ✅ Quando proponi nuovi script bash → renderli subito eseguibili con git update-index
+
+**Esempio workflow creazione script:**
+```powershell
+# 1. Crea script
+New-Item script-tools/full/nuovo-script.sh
+
+# 2. Scrivi contenuto
+# ... edit file ...
+
+# 3. OBBLIGATORIO: Rendi eseguibile
+git add script-tools/full/nuovo-script.sh
+git update-index --chmod=+x script-tools/full/nuovo-script.sh
+
+# 4. Verifica (deve mostrare 100755)
+git ls-files -s script-tools/full/nuovo-script.sh
+
+# 5. Commit
+git commit -m "feat: nuovo script"
+```
+
 ---
 ## 📋 NethSecurity 8 - Local Checks CheckMK
 
