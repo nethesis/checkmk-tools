@@ -149,7 +149,18 @@ protect_checkmk_installation() {
     
     # Directory critiche
     add_to_sysupgrade "/usr/local/bin/" "Script Custom Directory (preserva tutti gli script)"
-    add_to_sysupgrade "/usr/lib/check_mk_agent/local/" "CheckMK Agent Local Checks"
+    add_to_sysupgrade "/usr/lib/check_mk_agent/local/" "CheckMK Agent Local Checks (eseguiti ad ogni check)"
+    add_to_sysupgrade "/usr/lib/check_mk_agent/plugins/" "CheckMK Agent Plugins (eseguiti ad intervalli)"
+    
+    # Repository checkmk-tools (script persistenti)
+    add_to_sysupgrade "/opt/checkmk-tools/" "Repository checkmk-tools (git + script)"
+    
+    # Backup binari critici (separato da repo)
+    add_to_sysupgrade "/opt/checkmk-backups/" "Backup binari critici (tar, ar, gzip)"
+    
+    # Cron jobs
+    add_to_sysupgrade "/etc/cron.d/" "Cron Jobs Directory"
+    add_to_sysupgrade "/var/spool/cron/crontabs/" "User Crontabs"
     
     # Package dependencies (se installati via opkg, sono già protetti)
     # Ma aggiungiamo customfeeds per sicurezza
@@ -163,7 +174,7 @@ protect_checkmk_installation() {
 # Backup di tar/ar/gzip che si corrompono durante major upgrade
 # ============================================================================
 backup_critical_binaries() {
-    local backup_dir="/opt/checkmk-tools/BACKUP-BINARIES"
+    local backup_dir="/opt/checkmk-backups/binaries"
     local bins="/usr/libexec/tar-gnu /usr/bin/ar /usr/libexec/gzip-gnu /usr/libexec/gunzip-gnu /usr/lib/libbfd-2.40.so"
     
     log "ROCKSOLID: Backup binari critici (protegge da corruzione durante upgrade)..."
@@ -362,7 +373,7 @@ log "========================================="
 # ============================================================================
 # 0. RIPRISTINA BINARI CRITICI (se backup disponibile)
 # ============================================================================
-BACKUP_DIR="/opt/checkmk-tools/BACKUP-BINARIES"
+BACKUP_DIR="/opt/checkmk-backups/binaries"
 
 if [ -d "$BACKUP_DIR" ]; then
     log "[Binari Critici] Verifica e ripristino in corso..."
