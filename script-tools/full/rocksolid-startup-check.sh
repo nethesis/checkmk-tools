@@ -190,19 +190,36 @@ FRP_MARKER="/etc/.frp-installed"
 
 if [ -f "$FRP_MARKER" ]; then
     # FRP era installato, deve funzionare
-    if [ ! -x /usr/local/bin/frpc ] || [ ! -f /etc/frp/frpc.toml ] || [ ! -f /etc/init.d/frpc ]; then
-        log "[FRP Client] CRITICO: FRP era installato ma binario/config/init mancante!"
+    
+    # Verifica corruzione binario frpc (problema comune dopo upgrade)
+    FRPC_CORRUPTED=0
+    if [ -x /usr/local/bin/frpc ]; then
+        if ! /usr/local/bin/frpc -v >/dev/null 2>&1; then
+            log "[FRP Client] CRITICO: Binario corrotto (upgrade ha danneggiato file)"
+            FRPC_CORRUPTED=1
+        fi
+    fi
+    
+    if [ ! -x /usr/local/bin/frpc ] || [ ! -f /etc/frp/frpc.toml ] || [ ! -f /etc/init.d/frpc ] || [ $FRPC_CORRUPTED -eq 1 ]; then
         log "[FRP Client] Reinstallazione automatica..."
         
-        # Reinstalla FRP usando script esistente (modalit├á non-interattiva)
-        if [ -x /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh ]; then
-            export NON_INTERACTIVE=1
-            /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh >> "$LOG_FILE" 2>&1
-            log "[FRP Client] Reinstallazione completata"
-        else
-            log "[FRP Client] ERRORE: Script di installazione non disponibile"
+        # Download e reinstalla frpc v0.64.0 da GitHub
+        cd /tmp || true
+        if command -v wget >/dev/null 2>&1; then
+            wget -q https://github.com/fatedier/frp/releases/download/v0.64.0/frp_0.64.0_linux_amd64.tar.gz 2>/dev/null || true
+            if [ -f frp_0.64.0_linux_amd64.tar.gz ]; then
+                tar -xzf frp_0.64.0_linux_amd64.tar.gz 2>/dev/null || true
+                if [ -f frp_0.64.0_linux_amd64/frpc ]; then
+                    cp -f frp_0.64.0_linux_amd64/frpc /usr/local/bin/frpc 2>/dev/null || true
+                    chmod +x /usr/local/bin/frpc 2>/dev/null || true
+                    rm -rf frp_* 2>/dev/null || true
+                    log "[FRP Client] Binario reinstallato v0.64.0"
+                fi
+            fi
         fi
-    elif ! pgrep -f frpc >/dev/null 2>&1; then
+    fi
+    
+    if ! pgrep -f frpc >/dev/null 2>&1; then
         log "[FRP Client] Servizio non attivo, avvio..."
         /etc/init.d/frpc enable 2>/dev/null || true
         /etc/init.d/frpc restart 2>/dev/null || true
