@@ -424,22 +424,34 @@ POSTSCRIPT
 install_autocheck() {
     log "Installazione script autocheck all'avvio"
     
-    # IMPORTANTE: Copia in /opt/checkmk-backups/ (già protetto, non dipende da git)
-    # /opt/checkmk-tools/ dipende da git che viene cancellato durante upgrade
-    local autocheck_source="/opt/checkmk-tools/script-tools/full/rocksolid-startup-check.sh"
+    # IMPORTANTE: Scarica da GitHub e copia in /opt/checkmk-backups/ (protetto, no git dependency)
     local autocheck_script="/opt/checkmk-backups/rocksolid-startup-check.sh"
+    local autocheck_url="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/rocksolid-startup-check.sh"
     local autocheck_log="/var/log/rocksolid-startup.log"
     local rc_local="/etc/rc.local"
     
-    # Copia script in directory protetta
-    if [ -f "$autocheck_source" ]; then
-        log "Copio rocksolid in $autocheck_script (protetto da upgrade)"
-        mkdir -p "$(dirname "$autocheck_script")" 2>/dev/null || true
-        cp -f "$autocheck_source" "$autocheck_script" 2>/dev/null || true
+    # Download da GitHub (sempre ultima versione, no git dependency)
+    log "Download rocksolid da GitHub (ultima versione)..."
+    mkdir -p "$(dirname "$autocheck_script")" 2>/dev/null || true
+    
+    if command -v wget >/dev/null 2>&1; then
+        wget -q -O "$autocheck_script" "$autocheck_url" 2>/dev/null || {
+            warn "Download da GitHub fallito, provo repository locale"
+            if [ -f "/opt/checkmk-tools/script-tools/full/rocksolid-startup-check.sh" ]; then
+                cp -f "/opt/checkmk-tools/script-tools/full/rocksolid-startup-check.sh" "$autocheck_script"
+            fi
+        }
         chmod +x "$autocheck_script" 2>/dev/null || true
         log "Script rocksolid installato: $autocheck_script"
     else
-        warn "ATTENZIONE: Script rocksolid source non trovato in $autocheck_source"
+        warn "wget non disponibile - fallback a repository locale"
+        if [ -f "/opt/checkmk-tools/script-tools/full/rocksolid-startup-check.sh" ]; then
+            cp -f "/opt/checkmk-tools/script-tools/full/rocksolid-startup-check.sh" "$autocheck_script"
+            chmod +x "$autocheck_script"
+            log "Script rocksolid copiato da repository locale"
+        else
+            warn "ATTENZIONE: Script rocksolid non disponibile"
+        fi
     fi
     
     # Configura rc.local per esecuzione all'avvio
