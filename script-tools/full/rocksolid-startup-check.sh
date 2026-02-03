@@ -73,6 +73,13 @@ if ! command -v node >/dev/null 2>&1; then
     NODE_IPK_URL="https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages/node_${NODE_VERSION}_x86_64.ipk"
     
     if command -v wget >/dev/null 2>&1; then
+        # Verifica e installa libcares (dipendenza node.js)
+        if ! opkg list-installed | grep -q "^libcares "; then
+            log "[Node.js] Installazione dipendenza libcares..."
+            opkg update >> "$LOG_FILE" 2>&1
+            opkg install libcares >> "$LOG_FILE" 2>&1 || log "[Node.js] WARNING: Installazione libcares fallita"
+        fi
+        
         log "[Node.js] Download da OpenWrt..."
         cd /tmp || exit 1
         wget -q -O node.ipk "$NODE_IPK_URL" 2>&1 | tee -a "$LOG_FILE"

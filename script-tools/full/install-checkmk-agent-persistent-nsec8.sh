@@ -707,18 +707,18 @@ RCLOCAL
     fi
     
     # Aggiungi autocheck a rc.local se non presente
-    # Esegue direttamente da GitHub per evitare corruzione file locale
-    local github_autocheck_url="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/rocksolid-startup-check.sh"
+    # Esegue da repository locale (protetto da sysupgrade)
+    local local_autocheck_path="/opt/checkmk-tools/script-tools/full/rocksolid-startup-check.sh"
     
     if ! grep -q 'rocksolid-startup-check' "$rc_local"; then
-        log "Aggiungo autocheck a rc.local (esecuzione diretta da GitHub)"
+        log "Aggiungo autocheck a rc.local (esecuzione da repository locale)"
         # Rimuovi exit 0 temporaneamente
         sed -i '/^exit 0/d' "$rc_local"
-        # Aggiungi curl diretto a GitHub
-        echo "# ROCKSOLID Autocheck - esecuzione diretta da GitHub (evita corruzione file locale)" >> "$rc_local"
-        echo "curl -fsSL $github_autocheck_url | bash >> /var/log/rocksolid-startup.log 2>&1 &" >> "$rc_local"
+        # Aggiungi esecuzione script locale
+        echo "# ROCKSOLID Autocheck - esecuzione da repository locale (protetto da sysupgrade)" >> "$rc_local"
+        echo "[ -x $local_autocheck_path ] && bash $local_autocheck_path >> /var/log/rocksolid-startup.log 2>&1 &" >> "$rc_local"
         echo "exit 0" >> "$rc_local"
-        log "Autocheck configurato per esecuzione diretta da GitHub all'avvio"
+        log "Autocheck configurato per esecuzione da repository locale all'avvio"
     else
         log "Autocheck già presente in rc.local"
     fi
