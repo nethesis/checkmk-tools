@@ -232,6 +232,31 @@ else
     log "  FRP Client:     [N/A]"
 fi
 
+# QEMU Guest Agent
+if [ -f "/usr/bin/qemu-ga" ]; then
+    if pgrep qemu-ga >/dev/null 2>&1; then
+        log "  QEMU-GA:        [OK]"
+    else
+        log "  QEMU-GA:        [FAIL]"
+    fi
+fi
+
+# Auto Git Sync
+if [ -f "/etc/crontabs/root" ] && grep -q "git -C /opt/checkmk-tools pull" /etc/crontabs/root 2>/dev/null; then
+    log "  Auto Git Sync:  [OK]"
+else
+    log "  Auto Git Sync:  [N/A]"
+fi
+
+# Local Check Scripts
+LOCAL_CHECK_COUNT=$(find /usr/lib/check_mk_agent/local/ -type f -name "check_*.sh" 2>/dev/null | wc -l)
+LOCAL_CHECK_COUNT=$(echo "$LOCAL_CHECK_COUNT" | tr -d ' \n')
+if [ "$LOCAL_CHECK_COUNT" -gt 0 ] 2>/dev/null; then
+    log "  Local Checks:   [OK] ($LOCAL_CHECK_COUNT scripts)"
+else
+    log "  Local Checks:   [N/A]"
+fi
+
 log "========================================="
 log "ROCKSOLID Startup Check - COMPLETATO"
 log "========================================="
