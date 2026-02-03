@@ -323,6 +323,8 @@ PLUGIN_COUNT=$(find /usr/lib/check_mk_agent/plugins/ -type f 2>/dev/null | wc -l
 PLUGIN_COUNT=$(echo "$PLUGIN_COUNT" | tr -d ' \n')
 if [ "$PLUGIN_COUNT" -gt 0 ] 2>/dev/null; then
     log "  Plugins:        [OK] ($PLUGIN_COUNT plugins)"
+else
+    log "  Plugins:        [N/A]"
 fi
 
 log "========================================="
