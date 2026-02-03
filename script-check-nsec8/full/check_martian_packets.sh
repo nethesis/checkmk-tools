@@ -39,7 +39,7 @@ fi
 
 # Verifica anche dmesg (buffer kernel)
 if command -v dmesg >/dev/null 2>&1; then
-    dmesg_martians=$(dmesg 2>/dev/null | grep -ic "martian" || echo 0)
+    dmesg_martians=$(dmesg 2>/dev/null | grep -i "martian" | wc -l)
     if [[ $dmesg_martians -gt 0 ]]; then
         martian_count=$((martian_count + dmesg_martians))
     fi
