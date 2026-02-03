@@ -1,7 +1,7 @@
 #!/bin/bash
 # CheckMK plugin - Monitoraggio regole firewall
 # Conta regole attive e verifica firewall running
-echo "<<<firewall_rules>>>"
+
 # Verifica che iptables sia running
 if ! command -v iptables >/dev/null 2>&1; then
     echo "2 Firewall_Rules - iptables non trovato"

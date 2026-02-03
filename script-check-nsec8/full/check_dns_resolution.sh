@@ -2,8 +2,6 @@
 # CheckMK plugin - Test risoluzione DNS
 # Verifica che il DNS locale risponda correttamente
 
-echo "<<<dns_resolution>>>"
-
 # Domini da testare
 test_domains=("google.com" "cloudflare.com" "dns.google")
 dns_server="127.0.0.1"

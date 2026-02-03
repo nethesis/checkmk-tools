@@ -14,5 +14,4 @@ elif [[ $percent -ge 80 ]]; then
     status=1    status_text="WARNING"
 else    status=0    status_text="OK"
 fi # Output CheckMK con perfdata
-echo "<<<firewall_connections>>>"
 echo "$status Firewall_Connections connections=${current};$((max * 80 / 100));$((max * 90 / 100));0;${max} Connessioni attive: $current/$max (${percent}%) - Status: $status_text | current=$current max=$max percent=$percent"

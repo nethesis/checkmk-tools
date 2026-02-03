@@ -1,6 +1,6 @@
 #!/bin/bash
 # CheckMK plugin - Uptime e load average firewall
-echo "<<<firewall_uptime>>>"
+
 # Leggi uptime in secondi
 if [[ -f /proc/uptime ]]; then
     uptime_seconds=$(cut -d. -f1 /proc/uptime)

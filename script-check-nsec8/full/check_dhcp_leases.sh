@@ -5,7 +5,6 @@
 LEASE_FILE="/tmp/dhcp.leases"
 
 if [[ ! -f "$LEASE_FILE" ]]; then
-    echo "<<<dhcp_leases>>>"
     echo "1 DHCP_Leases - File leases non trovato"
     exit 0
 fi
@@ -50,5 +49,4 @@ else
     status_text="OK"
 fi
 
-echo "<<<dhcp_leases>>>"
 echo "$status DHCP_Leases active=${active_leases};$((max_leases * 80 / 100));$((max_leases * 90 / 100));0;${max_leases} Lease attivi: $active_leases/$max_leases (${percent}%) - $status_text | active=$active_leases expired=$expired_leases total=$total_leases max=$max_leases percent=$percent"

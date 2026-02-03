@@ -2,8 +2,6 @@
 # CheckMK plugin - Monitoraggio traffico interfacce firewall
 # Mostra RX/TX bytes per interfaccia WAN e LAN
 
-echo "<<<firewall_traffic>>>"
-
 # Trova interfacce WAN e LAN
 wan_ifaces=$(ubus list | grep '^network\.interface\.' | sed 's/network\.interface\.//' | grep -E '^(wan|wwan)')
 lan_ifaces=$(ubus list | grep '^network\.interface\.' | sed 's/network\.interface\.//' | grep -E '^(lan|br-lan)')

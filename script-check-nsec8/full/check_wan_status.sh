@@ -48,7 +48,6 @@ find_wan_interfaces() {
 }
 
 # Main
-echo "<<<wan_status>>>"
 wan_interfaces=$(find_wan_interfaces)
 
 if [[ -z "$wan_interfaces" ]]; then
@@ -122,5 +121,4 @@ wan_up=$(echo "${status_messages[@]}" | grep -o "=OK" | wc -l)
 wan_down=$(echo "${status_messages[@]}" | grep -o "=DOWN" | wc -l)
 wan_degraded=$(echo "${status_messages[@]}" | grep -o "=DEGRADED" | wc -l)
 
-echo "<<<wan_metrics>>>"
 echo "0 WAN_Metrics - Total=$wan_count Up=$wan_up Down=$wan_down Degraded=$wan_degraded | total=$wan_count up=$wan_up down=$wan_down degraded=$wan_degraded"
