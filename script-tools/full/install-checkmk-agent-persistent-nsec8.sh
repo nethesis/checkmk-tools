@@ -9,6 +9,64 @@ set -eu
 # Modalità non-interattiva (es. boot automatico)
 NON_INTERACTIVE="${NON_INTERACTIVE:-0}"
 
+# Parsing parametri CLI
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --interactive|-i)
+            NON_INTERACTIVE=0
+            shift
+            ;;
+        --non-interactive)
+            NON_INTERACTIVE=1
+            shift
+            ;;
+        --frp-server)
+            SERVER_ADDR="$2"
+            shift 2
+            ;;
+        --frp-port)
+            SERVER_PORT="$2"
+            shift 2
+            ;;
+        --frp-token)
+            FRP_TOKEN="$2"
+            shift 2
+            ;;
+        --frp-proxy)
+            PROXY_NAME="$2"
+            shift 2
+            ;;
+        --frp-remote-port)
+            REMOTE_PORT="$2"
+            shift 2
+            ;;
+        --uninstall)
+            UNINSTALL=1
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --interactive, -i           Forza modalità interattiva (chiede conferme)"
+            echo "  --non-interactive           Forza modalità non-interattiva"
+            echo "  --frp-server ADDR           Server FRP (es: monitor.nethlab.it)"
+            echo "  --frp-port PORT             Porta FRP (default: 7000)"
+            echo "  --frp-token TOKEN           Token autenticazione FRP"
+            echo "  --frp-proxy NAME            Nome proxy FRP (es: nsec8-stable)"
+            echo "  --frp-remote-port PORT      Porta remota tunnel FRP"
+            echo "  --uninstall                 Disinstalla tutti i componenti"
+            echo "  --help, -h                  Mostra questo help"
+            exit 0
+            ;;
+        *)
+            echo "Parametro sconosciuto: $1"
+            echo "Usa --help per vedere le opzioni disponibili"
+            exit 1
+            ;;
+    esac
+done
+
 CUSTOMFEEDS="${CUSTOMFEEDS:-/etc/opkg/customfeeds.conf}"
 TMPDIR="${TMPDIR:-/tmp/checkmk-deb}"
 SYSUPGRADE_CONF="${SYSUPGRADE_CONF:-/etc/sysupgrade.conf}"
