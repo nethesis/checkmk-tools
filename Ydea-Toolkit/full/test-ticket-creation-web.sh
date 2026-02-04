@@ -43,8 +43,9 @@ login_ydea() {
     
     echo "   Token CSRF: ${CSRF_TOKEN:0:20}..."
     
-    # POST login
-    LOGIN_RESPONSE=$(curl -s -b "$COOKIE_FILE" -c "$COOKIE_FILE" \
+    # POST login (con verbose per debug)
+    HTTP_CODE=$(curl -w "%{http_code}" -o /tmp/login_response.html \
+        -b "$COOKIE_FILE" -c "$COOKIE_FILE" \
         -X POST "${YDEA_BASE_URL}/login_check" \
         -H "Content-Type: application/x-www-form-urlencoded" \
         -d "_username=${YDEA_USERNAME}" \
@@ -52,12 +53,27 @@ login_ydea() {
         -d "_csrf_token=${CSRF_TOKEN}" \
         -L)
     
-    # Verifica login riuscito (controlla redirect o presenza nome utente)
-    if echo "$LOGIN_RESPONSE" | grep -q "logout\|Esci\|Log out"; then
+    LOGIN_RESPONSE=$(cat /tmp/login_response.html)
+    
+    echo "   HTTP Code: $HTTP_CODE"
+    
+    # Debug: salva risposta per analisi
+    if [[ "$HTTP_CODE" != "200" ]]; then
+        echo "⚠️  Risposta salvata in /tmp/login_response.html per debug"
+    fi
+    
+    # Verifica login riuscito - pattern multipli
+    if echo "$LOGIN_RESPONSE" | grep -qi "logout\|esci\|dashboard\|/ticket/new\|benvenuto"; then
         echo "✅ Login riuscito!"
         return 0
+    elif echo "$LOGIN_RESPONSE" | grep -qi "invalid\|credenziali\|password\|errato"; then
+        echo "❌ Login fallito - Credenziali non valide"
+        echo "   Verifica username/password in credentials.sh"
+        return 1
     else
-        echo "❌ Login fallito"
+        echo "❌ Login fallito - Risposta inattesa"
+        echo "   Primi 500 caratteri della risposta:"
+        echo "$LOGIN_RESPONSE" | head -c 500
         return 1
     fi
 }
