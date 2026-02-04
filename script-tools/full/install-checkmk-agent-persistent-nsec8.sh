@@ -587,27 +587,39 @@ install_prereqs() {
     if ! command -v ar >/dev/null 2>&1 || ! command -v tar >/dev/null 2>&1 || ! command -v gzip >/dev/null 2>&1; then
         log "Binari ar/tar/gzip mancanti - installazione via opkg"
         
-        # Download binutils (ar) - dinamico
+        # Download binutils (ar) - dinamico con catena dipendenze
         if ! command -v ar >/dev/null 2>&1; then
-            log "Installazione binutils (ar) via opkg..."
+            log "Installazione binutils dependencies chain (libbfd → ar → objdump → binutils)..."
             
+            # STEP 1: Install libbfd (base library)
+            if download_openwrt_package "libbfd" "$REPO_BASE" "/tmp/libbfd.ipk"; then
+                opkg install --force-depends /tmp/libbfd.ipk 2>/dev/null || warn "libbfd install fallito (ignoro)"
+                rm -f /tmp/libbfd.ipk
+            fi
+            
+            # STEP 2: Install ar (uses libbfd)
+            if download_openwrt_package "ar" "$REPO_BASE" "/tmp/ar.ipk"; then
+                opkg install --force-depends /tmp/ar.ipk 2>/dev/null || warn "ar install fallito (ignoro)"
+                rm -f /tmp/ar.ipk
+            fi
+            
+            # STEP 3: Install objdump (uses libbfd)
+            if download_openwrt_package "objdump" "$REPO_BASE" "/tmp/objdump.ipk"; then
+                opkg install --force-depends /tmp/objdump.ipk 2>/dev/null || warn "objdump install fallito (ignoro)"
+                rm -f /tmp/objdump.ipk
+            fi
+            
+            # STEP 4: Install binutils (meta-package, should work now)
             if download_openwrt_package "binutils" "$REPO_BASE" "/tmp/binutils.ipk"; then
-                # Usa opkg install con --force-depends (ignora dipendenze mancanti)
-                # Necessario perché binutils richiede ar/objdump come dipendenze (chicken-and-egg)
                 if opkg install --force-depends /tmp/binutils.ipk 2>/dev/null; then
                     log "binutils installato con successo via opkg"
                     rm -f /tmp/binutils.ipk
                 else
-                    warn "opkg install fallito, provo estrazione manuale..."
-                    # Fallback: estrazione manuale solo se opkg fallisce
-                    if command -v ar >/dev/null 2>&1; then
-                        ( cd /tmp && ar x binutils.ipk && tar -xzf data.tar.gz && cp -f ./usr/bin/ar /usr/local/bin/ ) || die "Estrazione ar fallita"
-                        chmod +x /usr/local/bin/ar
-                        export PATH="/usr/local/bin:$PATH"
-                        rm -f /tmp/binutils.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
-                        log "ar installato con successo (estrazione manuale)"
-                    else
-                        die "Impossibile installare ar - opkg fallito e ar non disponibile per estrazione manuale"
+                    warn "binutils opkg install fallito - verifica manuale ar"
+                    rm -f /tmp/binutils.ipk
+                    # Verifica se ar funziona comunque dopo install dependencies
+                    if ! command -v ar >/dev/null 2>&1; then
+                        die "ar non disponibile dopo install dependencies chain"
                     fi
                 fi
             else
