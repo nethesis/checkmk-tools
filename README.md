@@ -4,7 +4,7 @@
 [![CheckMK](https://img.shields.io/badge/CheckMK-Compatible-green.svg)](https://checkmk.com/)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-blue.svg)](https://github.com/PowerShell/PowerShell)
 [![Bash](https://img.shields.io/badge/Bash-4.0+-green.svg)](https://www.gnu.org/software/bash/)
-[![Language](https://img.shields.io/badge/Lingua-Italiano%20🇮🇹-green.svg)](#)
+[![Language](https://img.shields.io/badge/Lingua-Italiano%20🇮🇹-green.svg)](https://github.com/Coverup20/checkmk-tools)
 
 Collezione completa di script per il monitoraggio e la gestione di infrastrutture con CheckMK. Include script di check per diverse piattaforme, sistemi di notifica personalizzati, tool di deployment automatizzato, backup cloud, e automazione completa.
 
@@ -14,36 +14,39 @@ Collezione completa di script per il monitoraggio e la gestione di infrastruttur
 
 ## 📋 Indice
 
-- [Caratteristiche Principali](#-caratteristiche-principali)
-- [Struttura Repository](#-struttura-repository)
-- [Script di Check](#-script-di-check)
-  - [Windows](#windows)
-  - [NethServer 7](#nethserver-7)
-  - [NethServer 8](#nethserver-8)
-  - [Ubuntu/Linux](#ubuntulinux)
-  - [Proxmox](#proxmox)
-- [Script di Notifica](#-script-di-notifica)
-- [Tool di Deploy](#-tool-di-deploy)
-- [Automazione e Backup](#-automazione-e-backup)
-- [Installazione](#-installazione)
-- [Documentazione](#-documentazione)
-- [Contributi](#-contributi)
+- **Caratteristiche Principali**
+- **Struttura Repository**
+- **Script di Check**
+  - Windows
+  - NethServer 7
+  - NethServer 8
+  - Ubuntu/Linux
+  - Proxmox
+- **Script di Notifica**
+- **Tool di Deploy**
+- **Automazione e Backup**
+- **Installazione**
+- **Documentazione**
+- **Contributi**
 
 ---
 
 ## 🎯 Caratteristiche Principali
 
 ### ✨ Multi-Piattaforma
+
 - **Windows**: PowerShell scripts per Windows Server (AD, IIS, Ransomware Detection)
 - **Linux**: Bash scripts per NethServer, Ubuntu, Proxmox
 - **Container**: Monitoraggio Podman/Docker su NethServer 8
 
 ### 🔄 Auto-Update Pattern
+
 - **Remote Wrappers**: Script che si auto-aggiornano da GitHub
 - **Cache Intelligente**: Sistema di caching con timeout configurabile (60s default)
 - **Fallback Resiliente**: Usa cache obsoleta se GitHub non raggiungibile
 
 ### �️ ROCKSOLID Mode - Agent Resistente agli Upgrade
+
 - **NethSecurity 8**: Installazione agent CheckMK + FRP resistente ai major upgrade
 - **Auto-Recovery**: Script di avvio che ripristina servizi automaticamente
 - **Backup Binari**: Protezione `tar`, `ar`, `gzip` da corruzione
@@ -52,12 +55,14 @@ Collezione completa di script per il monitoraggio e la gestione di infrastruttur
 - **Validazione Completa**: Testato su NethSecurity 8.7.1 + CheckMK 2.4.0p20
 
 ### �🚀 Deploy Automatizzato
+
 - **Smart Deploy**: Sistema ibrido per deployment multi-host
 - **Backup Automatico**: Snapshot pre-deployment con rollback
 - **Validazione**: Test sintassi e funzionalità pre-deployment
 - **Interactive Menu**: Deploy interattivo con selezione script per OS
 
 ### ☁️ Backup Cloud Automatizzato
+
 - **rclone Integration**: Backup CheckMK su cloud storage (S3, DigitalOcean Spaces, ecc.)
 - **Retention Intelligente**: Gestione automatica retention locale e remota
 - **Rename Automatico**: Timestamp automatico per backup completati
@@ -65,12 +70,14 @@ Collezione completa di script per il monitoraggio e la gestione di infrastruttur
 - **Auto-Install Dipendenze**: Installazione automatica rclone e dipendenze
 
 ### 🔄 Auto-Upgrade CheckMK
+
 - **Upgrade Automatico**: Setup wizard per upgrade CheckMK via crontab
 - **Always Latest**: Scarica sempre ultima versione script da GitHub
 - **Compatibilità Universale**: Supporto bash 3.2+ con metodo download-to-temp
 - **Configurazione Interattiva**: Wizard step-by-step per configurazione completa
 
 ### 📧 Notifiche Avanzate
+
 - **Email Real IP**: Notifiche con IP reale anche dietro proxy FRP
 - **Telegram Integration**: Notifiche Telegram con detection automatica scenario
 - **HTML + Grafici**: Email HTML con grafici performance inclusi
@@ -79,7 +86,8 @@ Collezione completa di script per il monitoraggio e la gestione di infrastruttur
 
 ## 📁 Struttura Repository
 
-```
+```text
+
 checkmk-tools/
 ├── script-check-windows/          # Script check per Windows
 │   ├── nopolling/
@@ -185,7 +193,8 @@ checkmk-tools/
     ├── update-deployed-launchers.sh  # Aggiorna launcher deployati
     ├── distributed-monitoring-setup.sh  # Setup monitoring distribuito
     └── .copilot-context.md        # ⭐ Context file per AI (auto-sync, preferenze)
-```
+
+```text
 
 > 📝 **Nota importante**: Il file `.copilot-context.md` contiene informazioni critiche sull'architettura del sistema auto-sync e preferenze per assistenti AI. Leggerlo prima di modificare file o eseguire comandi.
 
@@ -198,6 +207,7 @@ checkmk-tools/
 **Directory**: `script-check-windows/`
 
 #### ⭐ Ransomware Detection
+
 Script avanzato per rilevamento tempestivo attività ransomware su share di rete.
 
 **Features**:
@@ -216,6 +226,7 @@ Script avanzato per rilevamento tempestivo attività ransomware su share di rete
 **Documentazione**: [README-Ransomware-Detection.md](script-check-windows/README-Ransomware-Detection.md)
 
 **Quick Start**:
+
 ```powershell
 # Deploy su Windows Server
 Copy-Item check_ransomware_activity.ps1, ransomware_config.json `
@@ -226,7 +237,8 @@ notepad C:\ProgramData\checkmk\agent\local\ransomware_config.json
 
 # Test manuale
 .\check_ransomware_activity.ps1 -VerboseLog
-```
+
+```text
 
 ---
 
@@ -323,10 +335,12 @@ Script check generici per distribuzioni Ubuntu/Debian.
 | `mk_logwatch` | Monitoraggio log | Log parsing |
 
 **Deploy Quick Start**:
+
 ```bash
 # Deploy automatico check SSH
 ./deploy-ssh-checks.sh
-```
+
+```text
 
 ---
 
@@ -384,15 +398,19 @@ Sistema avanzato di notifiche CheckMK con supporto FRP (Fast Reverse Proxy) e in
 ### Features Principali
 
 #### 🌐 Real IP Detection
+
 Estrae IP reale anche dietro proxy FRP per notifiche accurate:
+
 ```python
 # Detection automatica scenario
 if 'NOTIFY_HOSTLABEL_real_ip' in os.environ:
     real_ip = os.environ['NOTIFY_HOSTLABEL_real_ip']
     # Usa real_ip invece di HOSTADDRESS
-```
+
+```text
 
 #### 📊 Grafici Integrati
+
 Email HTML con grafici performance inclusi automaticamente:
 - CPU usage
 - Memory utilization  
@@ -400,6 +418,7 @@ Email HTML con grafici performance inclusi automaticamente:
 - Network traffic
 
 #### 🔔 Multi-Channel
+
 - **Email**: `mail_realip*` - Varie versioni (HTML, hybrid, safe)
 - **Telegram**: `telegram_realip` - Bot Telegram con formattazione
 
@@ -434,7 +453,8 @@ Email HTML con grafici performance inclusi automaticamente:
 # 4. Verifica
 su - $(cat /etc/omd/site)
 ls -la local/share/check_mk/notifications/
-```
+
+```text
 
 **Documentazione**: [TESTING_GUIDE.md](script-notify-checkmk/TESTING_GUIDE.md)
 
@@ -465,20 +485,26 @@ Script interattivo per deployment selettivo di monitoring scripts su host remoti
 - 🔄 Usa repository locale `/opt/checkmk-tools`
 
 **Installazione one-liner**:
+
 ```bash
 # Download ed esecuzione diretta
 curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/deploy-monitoring-scripts.sh -o /tmp/deploy.sh && bash /tmp/deploy.sh
-```
+
+```text
 
 **Uso manuale**:
+
 ```bash
 # Se hai già il repository clonato
 cd /opt/checkmk-tools
 ./script-tools/full/deploy-monitoring-scripts.sh
-```
+
+```text
 
 **Esempio output**:
-```
+
+```text
+
 ========================================
   Deploy Monitoring Scripts
 ========================================
@@ -493,7 +519,8 @@ Script disponibili:
   [...]
   
 Selezione (numeri separati da spazi, 'a' per tutti, 'q' per uscire): 1 3 5
-```
+
+```text
 
 ---
 
@@ -514,13 +541,15 @@ Sistema intelligente per deployment multi-host con auto-update.
 - `README-Smart-Deploy-Enhanced.md` - Funzionalità avanzate
 
 **Esempio**:
+
 ```bash
 # Deploy script su host remoto
 ./smart-deploy-hybrid.sh \
     --host ns7-server.local \
     --scripts check_cockpit_sessions,check_dovecot_status \
     --github-repo Coverup20/checkmk-tools
-```
+
+```text
 
 ### Deploy Agent CheckMK
 
@@ -578,18 +607,22 @@ Installazione e configurazione CheckMK Agent.
 - CheckMK Agent 2.4.0p20
 
 **Installazione**:
+
 ```bash
 # Download ed esecuzione diretta
 curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh | bash
 
 # Opzionale: modalità interattiva
 bash install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh
-```
+
+```text
 
 **Post-Upgrade** (dopo major upgrade manuale):
+
 ```bash
 /etc/checkmk-post-upgrade.sh
-```
+
+```text
 
 **Documentazione completa**: [install-checkmk-agent-debtools-frp-nsec8c-rocksolid.md](script-tools/doc/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.md)
 
@@ -634,6 +667,7 @@ Integrazione completa tra CheckMK e sistema di ticketing Ydea per creazione auto
 ### Features Principali
 
 #### 🎯 Funzionalità Core
+
 - 🎫 **Creazione ticket automatica** da eventi CheckMK
 - 🔍 **Discovery SLA** automatico da contratti
 - 📊 **Monitoring ticket** aperti e in corso
@@ -643,6 +677,7 @@ Integrazione completa tra CheckMK e sistema di ticketing Ydea per creazione auto
 ### Script Disponibili
 
 #### Integrazione CheckMK
+
 | Script | Descrizione |
 |--------|-------------|
 | `ydea-monitoring-integration.sh` | ⭐ Integrazione completa CheckMK-Ydea |
@@ -651,6 +686,7 @@ Integrazione completa tra CheckMK e sistema di ticketing Ydea per creazione auto
 | `ydea-ticket-monitor.sh` | Monitor ticket aperti |
 
 #### Gestione Ticket
+
 | Script | Descrizione |
 |--------|-------------|
 | `create-monitoring-ticket.sh` | Creazione ticket da eventi |
@@ -660,6 +696,7 @@ Integrazione completa tra CheckMK e sistema di ticketing Ydea per creazione auto
 | `search-ticket-by-code.sh` | Ricerca ticket per codice |
 
 #### Discovery e Analisi
+
 | Script | Descrizione |
 |--------|-------------|
 | `ydea-discover-sla-ids.sh` | Discovery automatico SLA da contratti |
@@ -668,6 +705,7 @@ Integrazione completa tra CheckMK e sistema di ticketing Ydea per creazione auto
 | `analyze-ticket-data.sh` | Analisi dati ticket |
 
 #### API e Testing
+
 | Script | Descrizione |
 |--------|-------------|
 | `ydea-toolkit.sh` | ⭐ Toolkit principale API Ydea |
@@ -700,7 +738,8 @@ vim .env
 
 # 5. Monitor health integrazione
 ./ydea-health-monitor.sh
-```
+
+```text
 
 ### Documentazione
 
@@ -716,11 +755,13 @@ vim .env
 - `premium-mon-config.json` - Mapping Premium_Mon (contratto + SLA)
 
 **Variabili ambiente**:
+
 ```bash
 YDEA_ID="il_tuo_id_azienda"
 YDEA_API_KEY="la_tua_api_key"
 YDEA_CONTRATTO_ID="171734"  # Contratto che applica SLA automaticamente
-```
+
+```text
 
 **SLA Contract-Based**: Dal Febbraio 2026, il sistema usa `contrattoId` per applicare automaticamente SLA Premium_Mon. Non serve più specificare esplicitamente `serviceLevelAgreement` - il contratto gestisce tutto.
 
@@ -820,6 +861,7 @@ Sistema automatizzato per backup e sync del repository.
 | `git-credential-fix.ps1` | Fix credenziali Git generiche |
 
 **Quick Start Automazione**:
+
 ```powershell
 # 1. Setup backup automatico
 .\setup-automation.ps1
@@ -835,7 +877,8 @@ Sistema automatizzato per backup e sync del repository.
 
 # 3. Test manuale
 .\quick-backup.ps1
-```
+
+```text
 
 ---
 
@@ -844,11 +887,13 @@ Sistema automatizzato per backup e sync del repository.
 ### Requisiti Base
 
 #### Windows
+
 - PowerShell 5.1 o superiore
 - CheckMK Agent Windows installato
 - .NET Framework 4.5+
 
 #### Linux
+
 - Bash 4.0+
 - CheckMK Agent installato
 - `curl`, `jq` (per alcuni script)
@@ -874,7 +919,8 @@ Copy-Item "$scriptPath\ransomware_config.json" `
 # 3. Test
 & "C:\Program Files (x86)\checkmk\service\check_mk_agent.exe" test | 
     Select-String -Pattern "Ransomware"
-```
+
+```text
 
 #### Linux (NethServer / Ubuntu)
 
@@ -897,7 +943,8 @@ sudo chmod +x /usr/lib/check_mk_agent/local/rcheck_cockpit_sessions.sh
 
 # 3. Test
 check_mk_agent | grep -A5 "cockpit"
-```
+
+```text
 
 ### Installazione Script Notifica
 
@@ -918,7 +965,8 @@ omd start
 
 # Configura in Web GUI
 # Setup -> Notifications -> New Rule -> Notification Method: mail_realip_hybrid
-```
+
+```text
 
 ---
 
@@ -963,7 +1011,8 @@ cd script-check-windows\nopolling\ransomware_detection
 
 # Test via CheckMK Agent
 & "C:\Program Files (x86)\checkmk\service\check_mk_agent.exe" test
-```
+
+```text
 
 ### Test Linux
 
@@ -976,7 +1025,8 @@ check_mk_agent | head -50
 
 # Test con debug
 bash -x /usr/lib/check_mk_agent/local/rcheck_cockpit_sessions.sh
-```
+
+```text
 
 ### Test Notifiche
 
@@ -989,7 +1039,8 @@ os.environ['NOTIFY_HOSTLABEL_real_ip'] = '192.168.1.100'
 os.environ['NOTIFY_HOSTADDRESS'] = '127.0.0.1:5000'
 exec(open('mail_realip_hybrid').read())
 "
-```
+
+```text
 
 ---
 
@@ -1006,6 +1057,7 @@ exec(open('mail_realip_hybrid').read())
 ### Standard Codice
 
 #### PowerShell
+
 - Usa `CmdletBinding()` per script avanzati
 - Parameter validation con `[Parameter()]`
 - Help comments con `.SYNOPSIS`, `.DESCRIPTION`, `.EXAMPLE`
@@ -1013,6 +1065,7 @@ exec(open('mail_realip_hybrid').read())
 - Output CheckMK format: `<<<local>>>` + status lines
 
 #### Bash
+
 - Usa `#!/bin/bash` shebang
 - Set `-euo pipefail` per error handling
 - Funzioni con naming chiaro
@@ -1085,6 +1138,7 @@ exec(open('mail_realip_hybrid').read())
 ### Windows
 
 **Problema**: Script non appare in CheckMK
+
 ```powershell
 # Verifica permessi
 Get-Acl "C:\ProgramData\checkmk\agent\local\*.ps1"
@@ -1094,22 +1148,28 @@ Get-ExecutionPolicy
 
 # Test manuale
 & "C:\Program Files (x86)\checkmk\service\check_mk_agent.exe" test
-```
+
+```text
 
 **Problema**: Errore timeout share di rete
+
 ```powershell
 # Check ransomware_config.json
 # Aumenta timeout se necessario (default 30s)
-```
+
+```text
 
 ### Linux
 
 **Problema**: Script non eseguibile
+
 ```bash
 sudo chmod +x /usr/lib/check_mk_agent/local/*.sh
-```
+
+```text
 
 **Problema**: Cache script non aggiorna
+
 ```bash
 # Rimuovi cache manuale
 rm -f /var/cache/checkmk-scripts/*
@@ -1117,9 +1177,11 @@ rm -f /tmp/*_cache.sh
 
 # Forza re-download
 /usr/lib/check_mk_agent/local/rcheck_script.sh
-```
+
+```text
 
 **Problema**: Script notifica non funziona
+
 ```bash
 # Verifica permessi
 ls -la /omd/sites/SITENAME/local/share/check_mk/notifications/
@@ -1128,7 +1190,8 @@ ls -la /omd/sites/SITENAME/local/share/check_mk/notifications/
 su - SITENAME
 cd local/share/check_mk/notifications
 python3 -c "exec(open('./mail_realip_hybrid').read())"
-```
+
+```text
 
 ---
 
@@ -1147,22 +1210,27 @@ python3 -c "exec(open('./mail_realip_hybrid').read())"
 ### Credenziali
 
 File `.gitignore` include:
-```
+
+```text
+
 *.json
 *.config
 *.key
 *.token
 *_password.txt
-```
+
+```text
 
 Usare sempre:
+
 ```bash
 # Linux
 export API_TOKEN="your-token"
 
 # Windows
 $env:API_TOKEN = "your-token"
-```
+
+```text
 
 ---
 
@@ -1172,13 +1240,15 @@ Il repository utilizza un sistema di **sincronizzazione automatica** sui server 
 
 ### Architettura
 
-```
+```text
+
 GitHub (Coverup20/checkmk-tools)
     ↓ [auto-git-sync.service - ogni 5-15 minuti]
 /opt/checkmk-tools/ (sui server)
     ↓ [esecuzione script]
 Produzione
-```
+
+```text
 
 ### Workflow Modifiche
 
@@ -1201,7 +1271,8 @@ sudo journalctl -u auto-git-sync.service -n 50
 
 # Forzare sync manuale
 sudo bash /opt/checkmk-tools/script-tools/full/auto-git-sync.sh
-```
+
+```text
 
 **Documentazione completa**: [.copilot-context.md](.copilot-context.md)
 
@@ -1239,7 +1310,8 @@ cd /opt/checkmk-tools/script-tools/full
 # Check status
 systemctl status checkmk-cloud-backup-push@monitoring.timer
 journalctl -u checkmk-cloud-backup-push@monitoring.service -n 50
-```
+
+```text
 
 ### Configurazione rclone
 
@@ -1251,7 +1323,8 @@ rclone config
 # Provider: DigitalOcean Spaces
 # Endpoint: ams3.digitaloceanspaces.com
 # Remote name: do
-```
+
+```text
 
 **File**: `script-tools/full/checkmk_rclone_space_dyn.sh` (794 righe)
 
@@ -1285,7 +1358,8 @@ cd /opt/checkmk-tools/script-tools/full
 
 # Verifica crontab
 crontab -l
-```
+
+```text
 
 **File**: `script-tools/full/setup-auto-upgrade-checkmk.sh` (270 righe)
 
@@ -1383,6 +1457,7 @@ Grazie a tutti i contributori che hanno aiutato a migliorare questa collezione!
 ## 📅 Changelog
 
 ### v2.2.0 (Current - Febbraio 2026)
+
 - ✅ **Ydea Toolkit Enhanced**: Sistema SLA contract-based con campo `contrattoId`
   - Applicazione automatica SLA "Premium_Mon" da contratto 171734
   - Eliminato bisogno di specificare esplicitamente `serviceLevelAgreement`
@@ -1401,6 +1476,7 @@ Grazie a tutti i contributori che hanno aiutato a migliorare questa collezione!
   - Zero URL statici/hardcoded negli script
 
 ### v2.1.0 (Gennaio 2026)
+
 - ✅ **ROCKSOLID Mode**: Sistema protezione completo per NethSecurity 8 agent CheckMK
   - Installazione resistente ai major upgrade con 13 file critici protetti
   - Auto-recovery automatico all'avvio (CheckMK Agent + FRP Client)
@@ -1412,6 +1488,7 @@ Grazie a tutti i contributori che hanno aiutato a migliorare questa collezione!
   - Validato su NethSecurity 8.7.1 + CheckMK 2.4.0p20
 
 ### v2.0.0 (Gennaio 2026)
+
 - ✅ **Backup Cloud**: Sistema completo backup CheckMK su cloud con rclone (S3/Spaces)
 - ✅ **Auto-Upgrade CheckMK**: Wizard setup upgrade automatico via crontab
 - ✅ **Auto-Sync Enhanced**: Sistema sincronizzazione automatica con .copilot-context.md
@@ -1429,32 +1506,38 @@ Grazie a tutti i contributori che hanno aiutato a migliorare questa collezione!
 - ✅ **Documentazione completa**: 15+ README specifici
 
 ### v1.5.0
+
 - ✅ Aggiunto ransomware detection per Windows
 - ✅ Ridotto cache timeout wrapper (60s)
 - ✅ Migliorato error handling script notifica
 - ✅ Aggiornata documentazione completa
 
 ### v1.4.0
+
 - ✅ Sistema smart deploy enhanced
 - ✅ Pattern CheckMK ufficiali integrati
 - ✅ Remote wrappers per tutti gli script
 
 ### v1.3.0
+
 - ✅ Script notifica con Real IP + Grafici
 - ✅ Backup automatico pre-deployment
 - ✅ Testing guide completa
 
 ### v1.2.0
+
 - ✅ Monitoraggio NethServer 8 (Podman)
 - ✅ Script Proxmox VE
 - ✅ Deploy tools automatizzati
 
 ### v1.1.0
+
 - ✅ Collezione completa script NethServer 7
 - ✅ Sistema backup automatico
 - ✅ Setup automazione Windows
 
 ### v1.0.0
+
 - ✅ Release iniziale
 - ✅ Script base per CheckMK
 
