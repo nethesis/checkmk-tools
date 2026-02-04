@@ -549,7 +549,7 @@ download_openwrt_package() {
     
     # Estrai filename del pacchetto dall'index
     # Pattern: "Filename: package_name_version_arch.ipk" (no slash before package name)
-    local package_file=$(gunzip -c /tmp/Packages.gz 2>/dev/null | grep "^Filename:" | grep "${package_name}_" | head -1 | awk '{print $2}')
+    local package_file=$(gunzip -c /tmp/Packages.gz | grep "^Filename:" | grep "${package_name}_" | head -1 | awk '{print $2}')
     rm -f /tmp/Packages.gz
     
     if [ -z "$package_file" ]; then
