@@ -74,36 +74,7 @@ BACKUP_DIR="/opt/checkmk-backups/binaries"
 if [ -d "$BACKUP_DIR" ]; then
     log "[Binari Critici] Verifica e ripristino in corso..."
     
-    # Verifica se binari critici sono corrotti
-    BINARIES_CORRUPTED=0
-    if [ -x /usr/bin/ar ]; then
-        if ! /usr/bin/ar --version >/dev/null 2>&1; then
-            log "[Binari Critici] ar corrotto - reinstallo dipendenze"
-            BINARIES_CORRUPTED=1
-        fi
-    fi
-    
-    # Se corrotti, reinstalla dependencies chain (libbfd → ar → objdump)
-    if [ $BINARIES_CORRUPTED -eq 1 ]; then
-        if command -v opkg >/dev/null 2>&1 && command -v wget >/dev/null 2>&1; then
-            log "[Binari Critici] Reinstallo dependencies chain (libbfd → ar)..."
-            REPO_BASE="https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base"
-            
-            # STEP 1: Install libbfd (base library)
-            if download_openwrt_package "libbfd" "$REPO_BASE" "/tmp/libbfd.ipk"; then
-                opkg install --force-depends /tmp/libbfd.ipk >/dev/null 2>&1 || true
-                rm -f /tmp/libbfd.ipk
-            fi
-            
-            # STEP 2: Install ar (uses libbfd)
-            if download_openwrt_package "ar" "$REPO_BASE" "/tmp/ar.ipk"; then
-                opkg install --force-depends /tmp/ar.ipk >/dev/null 2>&1 || true
-                rm -f /tmp/ar.ipk
-                log "[Binari Critici] ar reinstallato con successo"
-            fi
-        fi
-    fi
-    
+    # STEP 1: Ripristina backup binari se mancanti
     for backup in "$BACKUP_DIR"/*.backup; do
         [ -f "$backup" ] || continue
         
@@ -133,6 +104,47 @@ if [ -d "$BACKUP_DIR" ]; then
             cp -p "$backup" "$dest" 2>/dev/null || true
         fi
     done
+    
+    # STEP 2: Verifica se ar funziona DOPO ripristino backup
+    BINARIES_CORRUPTED=0
+    if [ -x /usr/bin/ar ]; then
+        if ! /usr/bin/ar --version >/dev/null 2>&1; then
+            log "[Binari Critici] ar corrotto dopo ripristino - mancano shared libraries"
+            BINARIES_CORRUPTED=1
+        fi
+    else
+        log "[Binari Critici] ar non eseguibile dopo ripristino"
+        BINARIES_CORRUPTED=1
+    fi
+    
+    # STEP 3: Se ancora corrotto, reinstalla dependencies chain (libbfd → ar)
+    if [ $BINARIES_CORRUPTED -eq 1 ]; then
+        if command -v opkg >/dev/null 2>&1 && command -v wget >/dev/null 2>&1; then
+            log "[Binari Critici] Reinstallo dependencies chain (libbfd → ar)..."
+            REPO_BASE="https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base"
+            
+            # Install libbfd (base library)
+            if download_openwrt_package "libbfd" "$REPO_BASE" "/tmp/libbfd.ipk"; then
+                opkg install --force-depends /tmp/libbfd.ipk >/dev/null 2>&1 || true
+                rm -f /tmp/libbfd.ipk
+            fi
+            
+            # Install ar (uses libbfd)
+            if download_openwrt_package "ar" "$REPO_BASE" "/tmp/ar.ipk"; then
+                opkg install --force-depends /tmp/ar.ipk >/dev/null 2>&1 || true
+                rm -f /tmp/ar.ipk
+                
+                # Verifica finale
+                if /usr/bin/ar --version >/dev/null 2>&1; then
+                    log "[Binari Critici] ar reinstallato e funzionante"
+                else
+                    log "[Binari Critici] ERRORE: ar ancora non funzionante"
+                fi
+            fi
+        fi
+    else
+        log "[Binari Critici] ar funzionante dopo ripristino backup"
+    fi
     
     log "[Binari Critici] Verifica completata"
 fi
