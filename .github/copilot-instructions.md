@@ -108,7 +108,45 @@ cp file.txt file.txt.backup_2026-01-27_20-30-00
 # 3. Solo dopo OK utente
 rm file.txt
 ```
-8. **Recupero script corrotti o persi**
+11. **⚠️ MARKDOWN QUALITY - Prevenzione Errori Markdownlint**
+   - ✅ **SEMPRE** seguire best practices markdownlint quando crei/modifici file .md
+   - ✅ **Regole obbligatorie da rispettare:**
+     - **Heading spacing**: Riga vuota SEMPRE dopo heading `###`
+     - **List spacing**: Riga vuota dopo ultima voce lista prima di paragrafo/heading
+     - **Code block spacing**: Riga vuota prima E dopo blocchi ` ``` `
+     - **Code language**: Specificare SEMPRE linguaggio nei code block (bash, powershell, python, json, text)
+     - **No empty links**: Mai `[text](#)` → usare URL valido o rimuovere link
+     - **Link fragments**: Se usi TOC con emoji negli heading, usa testo bold invece di link
+   - ✅ **Esempi corretti:**
+     ```markdown
+     ### Heading Corretto
+     
+     - Lista voce 1
+     - Lista voce 2
+     
+     Paragrafo dopo lista.
+     
+     ```bash
+     # Code block con linguaggio
+     echo "hello"
+     ```
+     
+     Testo dopo code block.
+     ```
+   - ❌ **Esempi SBAGLIATI:**
+     ```markdown
+     ### Heading Sbagliato
+     - Lista senza spazio sopra
+     
+     ``` 
+     Code block senza linguaggio
+     ```
+     Testo attaccato a code block
+     ```
+   - ✅ Dopo creazione/modifica file .md → `get_errors()` per validazione immediata
+   - ✅ Preferire TOC senza link se heading hanno emoji (usa **testo bold** invece)
+
+12. **Recupero script corrotti o persi**
    - ✅ **Metodo 1**: Git history - `git log`, `git show`, `git checkout`
    - ✅ **Metodo 2**: Backup locali - `C:\CheckMK-Backups\<timestamp>\`
    - ✅ **Metodo 3**: Backup rete - `\\192.168.10.132\usbshare\CheckMK-Backups\<timestamp>\`
