@@ -535,7 +535,7 @@ download_openwrt_package() {
     log "Download dinamico pacchetto: $package_name"
     
     # Scarica lista pacchetti OpenWrt
-    if ! wget -q -O /tmp/Packages.gz "${repo_url}/Packages.gz" 2>/dev/null; then
+    if ! wget -q -O /tmp/Packages.gz "${repo_url}/Packages.gz"; then
         warn "Download Packages.gz fallito - impossibile rilevare versione dinamica"
         return 1
     fi
