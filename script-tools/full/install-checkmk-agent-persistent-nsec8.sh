@@ -592,9 +592,9 @@ install_prereqs() {
             log "Installazione binutils (ar) via opkg..."
             
             if download_openwrt_package "binutils" "$REPO_BASE" "/tmp/binutils.ipk"; then
-                # Usa opkg install invece di estrazione manuale
-                # Questo installa anche dipendenze (libsframe, libbfd, etc.)
-                if opkg install /tmp/binutils.ipk 2>/dev/null; then
+                # Usa opkg install con --force-depends (ignora dipendenze mancanti)
+                # Necessario perché binutils richiede ar/objdump come dipendenze (chicken-and-egg)
+                if opkg install --force-depends /tmp/binutils.ipk 2>/dev/null; then
                     log "binutils installato con successo via opkg"
                     rm -f /tmp/binutils.ipk
                 else
@@ -620,7 +620,7 @@ install_prereqs() {
             log "Installazione tar via opkg..."
             
             if download_openwrt_package "tar" "$REPO_BASE" "/tmp/tar.ipk"; then
-                if opkg install /tmp/tar.ipk 2>/dev/null; then
+                if opkg install --force-depends /tmp/tar.ipk 2>/dev/null; then
                     log "tar installato con successo via opkg"
                     rm -f /tmp/tar.ipk
                 else
@@ -641,7 +641,7 @@ install_prereqs() {
             log "Installazione gzip via opkg..."
             
             if download_openwrt_package "gzip" "$REPO_BASE" "/tmp/gzip.ipk"; then
-                if opkg install /tmp/gzip.ipk 2>/dev/null; then
+                if opkg install --force-depends /tmp/gzip.ipk 2>/dev/null; then
                     log "gzip installato con successo via opkg"
                     rm -f /tmp/gzip.ipk
                 else
