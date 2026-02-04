@@ -1071,4 +1071,170 @@ Copy-Item -Recurse "$env:USERPROFILE\Desktop\VSCode-User-Backup\*" "$env:APPDATA
 
 ---
 
-**Ultimo aggiornamento**: 2026-01-30
+## 🚀 CHECKPOINT - Sistema ROCKSOLID NethSecurity 8
+
+### ✅ Implementazione Completata (2026-02-04)
+
+**Obiettivo raggiunto:**
+- ✅ Eliminazione di TUTTI gli URL statici/hardcoded dagli script di installazione
+- ✅ Download dinamico dei pacchetti da repository OpenWrt/NethSecurity
+- ✅ Sistema auto-riparante post major-upgrade
+- ✅ Validazione completa su host production
+
+**Script validati e production-ready:**
+
+1. **install-checkmk-agent-persistent-nsec8.sh** (commit b29a2cf)
+   - Path: [script-tools/full/install-checkmk-agent-persistent-nsec8.sh](script-tools/full/install-checkmk-agent-persistent-nsec8.sh)
+   - Funzione: Installazione completa CheckMK Agent + FRP Client + QEMU-GA + Auto Git Sync
+   - Fix implementati:
+     - ✅ Dynamic package download via `download_openwrt_package()`
+     - ✅ Pattern fix: `grep "${package_name}_"` (corregge rilevamento pacchetti)
+     - ✅ Dependencies chain: libbfd → ar → objdump → binutils con `--force-depends`
+     - ✅ Gestione corruzione binari (ar corrotto durante upgrade)
+   - Test: ✅ nsec8-stable, ✅ laboratorio (da GitHub)
+
+2. **rocksolid-startup-check.sh** (commit ea67364)
+   - Path: [script-tools/full/rocksolid-startup-check.sh](script-tools/full/rocksolid-startup-check.sh)
+   - Funzione: Verifica e auto-remediation all'avvio sistema
+   - Fix implementati:
+     - ✅ Logic reordering: backup restore → corruption check → dependencies install
+     - ✅ Git auto-install: download git + git-http da OpenWrt se mancante
+     - ✅ Pattern fix identico a install script
+     - ✅ Verifica DOPO ripristino backup (non prima)
+   - Test: ✅ nsec8-stable, ✅ laboratorio (da GitHub)
+
+**Host validati (production):**
+
+| Host | IP | OS | Status | Packages |
+|------|----|----|--------|----------|
+| **nsec8-stable** | 10.155.100.100:22 | NethSecurity 8.7.1 | ✅ ROCKSOLID | ar 2.40-1, git 2.43.2-1, libbfd 2.40-1 |
+| **laboratorio** | 10.155.100.1:2222 | NethSecurity 8.7.1 | ✅ ROCKSOLID | ar 2.40-1, git 2.43.2-1, libbfd 2.40-1 |
+
+**Componenti attivi:**
+- ✅ CheckMK Agent 2.4.0p20 (porta 6556)
+- ✅ FRP Client (tunnel verso monitor.nethlab.it:7000)
+- ✅ Auto Git Sync (cron ogni minuto, /opt/checkmk-tools)
+- ✅ Rocksolid startup check (rc.local, log: /var/log/rocksolid-startup.log)
+- ✅ 12 local checks deployed
+
+**Protezioni major upgrade:**
+- ✅ File critici in `/etc/sysupgrade.conf`
+- ✅ Binari backuppati in `/opt/checkmk-backups/binaries/`
+- ✅ Nginx configuration (`/etc/nginx/`) protetta
+- ✅ Script auto-ripristino: `/etc/checkmk-post-upgrade.sh`
+
+### 🔧 Dettagli Tecnici
+
+**Dynamic Package Download:**
+```bash
+download_openwrt_package() {
+    local package_name="$1"
+    local repo_url="$2"
+    local output_path="$3"
+    
+    # Download Packages.gz index
+    wget -q -O /tmp/Packages.gz "$repo_url/Packages.gz"
+    
+    # Parse package filename (fix: grep "${package_name}_" non "/$package_name")
+    local package_file=$(gunzip -c /tmp/Packages.gz | grep "^Filename:" | grep "${package_name}_" | head -1 | awk '{print $2}')
+    
+    # Download package
+    wget -q -O "$output_path" "$repo_url/$package_file"
+}
+```
+
+**Dependencies Chain (circular dependency fix):**
+```bash
+# Order matters: libbfd first (shared library), then ar (uses libbfd)
+opkg install --force-depends /tmp/libbfd.ipk
+opkg install --force-depends /tmp/ar.ipk
+opkg install --force-depends /tmp/objdump.ipk
+opkg install --force-depends /tmp/binutils.ipk
+```
+
+**Rocksolid Logic (fixed order):**
+```bash
+# STEP 1: Restore backups FIRST
+for backup in /opt/checkmk-backups/binaries/*.backup; do
+    cp -p "$backup" "$dest" 2>/dev/null || true
+done
+
+# STEP 2: Check corruption AFTER restore (not before!)
+if [ -x /usr/bin/ar ]; then
+    if ! /usr/bin/ar --version >/dev/null 2>&1; then
+        BINARIES_CORRUPTED=1
+    fi
+fi
+
+# STEP 3: Install dependencies if still corrupted
+if [ $BINARIES_CORRUPTED -eq 1 ]; then
+    download_openwrt_package "libbfd" "$REPO_BASE" "/tmp/libbfd.ipk"
+    opkg install --force-depends /tmp/libbfd.ipk
+    download_openwrt_package "ar" "$REPO_BASE" "/tmp/ar.ipk"
+    opkg install --force-depends /tmp/ar.ipk
+fi
+```
+
+### 📋 Testing Workflow Validato
+
+**Workflow obbligatorio seguito:**
+1. ✅ Modifica script (dynamic download, pattern fix, logic reorder, git auto-install)
+2. ✅ Test sintassi: `wsl bash -n script.sh` (exit code 0)
+3. ✅ Verifica eseguibilità: `git ls-files -s` (100755)
+4. ✅ Commit + push: b29a2cf, ea67364, 68661c1, 67f3cbc
+5. ✅ Test su nsec8-stable: `curl -fsSL https://raw.githubusercontent.com/.../script.sh | bash`
+6. ✅ Test su laboratorio: `curl -fsSL https://raw.githubusercontent.com/.../script.sh | bash`
+7. ✅ Validazione output: ar/git/libbfd versioni corrette installate
+
+**Test reali eseguiti:**
+- ✅ Post major upgrade scenario (ar corrotto, git mancante)
+- ✅ Fresh install su sistema pulito
+- ✅ Re-install su sistema già configurato (idempotenza)
+- ✅ Esecuzione da GitHub (non repo locale)
+
+### 🎯 Lessons Learned
+
+**Pattern Matching:**
+- ❌ `grep "/$package_name"` → Non trova "package_name_version.ipk"
+- ✅ `grep "${package_name}_"` → Corretto per formato Packages.gz
+
+**Circular Dependencies:**
+- ❌ `opkg install binutils` → "cannot find dependency ar"
+- ✅ Install chain: libbfd → ar → objdump → binutils con `--force-depends`
+
+**Backup Restore Timing:**
+- ❌ Check corruption BEFORE backup restore → Binari mancanti post-upgrade mai rilevati
+- ✅ Restore backups FIRST, THEN check corruption → Rileva problemi anche se binario presente ma corrotto
+
+**Testing:**
+- ❌ Test solo 1 script di 3 modificati → Script non testati falliscono in production
+- ✅ Test TUTTI gli script modificati nella sessione → 100% coverage
+- ❌ Test da repo locale → Potrebbe essere stale
+- ✅ Test da GitHub raw URL → Garantisce production source
+
+**Git Auto-Install:**
+- ⚠️ Git può essere rimosso durante major upgrade
+- ✅ Auto-sync repository richiede git funzionante
+- ✅ Rocksolid deve auto-installare git se mancante
+- ✅ Necessari: git + git-http (dipendenza)
+
+### 🚀 Sistema Production-Ready
+
+**Status finale:**
+- ✅ Entrambi gli host (nsec8-stable, laboratorio) ROCKSOLID mode attivo
+- ✅ Tutti i binari critici protetti e auto-riparabili
+- ✅ CheckMK Agent, FRP Client, QEMU-GA operativi
+- ✅ Auto Git Sync funzionante (repository aggiornato ogni minuto)
+- ✅ Sistema resiliente a major upgrade NethSecurity/OpenWrt
+- ✅ Zero hardcoded URLs - tutto dinamico da repository upstream
+
+**Prossimi major upgrade:**
+- Sistema auto-ripristina binari corrotti (ar, tar, gzip, libbfd)
+- Sistema auto-installa git se rimosso
+- Sistema verifica e riavvia servizi critici (CheckMK, FRP)
+- Log dettagliato in `/var/log/rocksolid-startup.log`
+- **Zero intervento manuale richiesto**
+
+---
+
+**Ultimo aggiornamento**: 2026-02-04
