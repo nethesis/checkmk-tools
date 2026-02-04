@@ -68,8 +68,9 @@
    - ✅ Test esecuzione: eseguire su host remoto (nsec8-stable, laboratorio, etc.)
    - ✅ Verificare output/log per confermare funzionamento
    - ❌ Non dare per scontato che "se uno funziona, funzionano tutti"
-   
+
 **Esempio workflow test CORRETTO:**
+
 ```bash
 # Modificati: install-script.sh, rocksolid-startup.sh, altro-script.sh
 
@@ -84,9 +85,11 @@ wsl -- ssh nsec8-stable "curl -fsSL .../rocksolid-startup.sh | bash"   # ✅ Tes
 wsl -- ssh nsec8-stable "curl -fsSL .../altro-script.sh | bash"        # ✅ Test 3
 
 # SOLO ORA puoi dire "test completato"
-```
+
+```text
 
 **Esempio workflow test SBAGLIATO:**
+
 ```bash
 # Modificati: install-script.sh, rocksolid-startup.sh
 
@@ -95,9 +98,11 @@ wsl -- ssh nsec8-stable "rocksolid-startup.sh"  # ✅ Test 1
 # ❌ NON testato install-script.sh!
 
 # ❌ ERRORE: Dici "test completato" senza testare install-script.sh
-```
+
+```text
 
 **Esempio workflow corretto:**
+
 ```bash
 # 1. Backup
 cp file.txt file.txt.backup_2026-01-27_20-30-00
@@ -107,42 +112,35 @@ cp file.txt file.txt.backup_2026-01-27_20-30-00
 
 # 3. Solo dopo OK utente
 rm file.txt
-```
+
+```text
+
 11. **⚠️ MARKDOWN QUALITY - Prevenzione Errori Markdownlint**
-   - ✅ **SEMPRE** seguire best practices markdownlint quando crei/modifici file .md
+   - ✅ **WORKFLOW OBBLIGATORIO per OGNI file .md creato/modificato:**
+     1. **PRIMA**: Segui best practices markdownlint (vedi sotto)
+     2. **SUBITO DOPO modifica**: Esegui `markdownlint file.md` (exit code 0=OK)
+     3. **SE ERRORI**: Fix immediato e ri-esegui `markdownlint`
+     4. **RIPETI**: Finché non ottieni exit code 0
+     5. **OPZIONALE**: `get_errors()` per check VSCode (file path errors)
+     6. **SOLO ALLORA**: Considera task completato
    - ✅ **Regole obbligatorie da rispettare:**
      - **Heading spacing**: Riga vuota SEMPRE dopo heading `###`
+
      - **List spacing**: Riga vuota dopo ultima voce lista prima di paragrafo/heading
      - **Code block spacing**: Riga vuota prima E dopo blocchi ` ``` `
      - **Code language**: Specificare SEMPRE linguaggio nei code block (bash, powershell, python, json, text)
-     - **No empty links**: Mai `[text](#)` → usare URL valido o rimuovere link
+     - **No empty links**: Mai usare link vuoti con anchor #, usare URL valido o rimuovere link
      - **Link fragments**: Se usi TOC con emoji negli heading, usa testo bold invece di link
    - ✅ **Esempi corretti:**
-     ```markdown
-     ### Heading Corretto
-     
-     - Lista voce 1
-     - Lista voce 2
-     
-     Paragrafo dopo lista.
-     
-     ```bash
-     # Code block con linguaggio
-     echo "hello"
-     ```
-     
-     Testo dopo code block.
-     ```
+     - Heading con riga vuota sotto
+     - Lista con riga vuota dopo ultima voce
+     - Code block con linguaggio specificato (bash/powershell/json)
+     - Code block con righe vuote prima e dopo
    - ❌ **Esempi SBAGLIATI:**
-     ```markdown
-     ### Heading Sbagliato
-     - Lista senza spazio sopra
-     
-     ``` 
-     Code block senza linguaggio
-     ```
-     Testo attaccato a code block
-     ```
+     - Heading senza riga vuota sotto
+     - Lista senza riga vuota prima di paragrafo/heading
+     - Code block senza linguaggio specificato
+     - Code block senza righe vuote intorno
    - ✅ Dopo creazione/modifica file .md → `get_errors()` per validazione immediata
    - ✅ Preferire TOC senza link se heading hanno emoji (usa **testo bold** invece)
 
@@ -154,6 +152,7 @@ rm file.txt
    - ✅ Backup automatici eseguiti daily: job00 (locale+rete), ultra-minimal (locale)
 
 **Esempio recupero file:**
+
 ```powershell
 # Da Git (commit precedente)
 git show HEAD~1:script-tools/full/script.sh > script.sh.recovered
@@ -163,7 +162,8 @@ Copy-Item "C:\CheckMK-Backups\2026-01-29_03-00-00\script-tools\full\script.sh" -
 
 # Da backup rete
 Copy-Item "\\192.168.10.132\usbshare\CheckMK-Backups\2026-01-29_00-00-00\script-tools\full\script.sh" -Destination ".\"
-```
+
+```text
 
 9. **Test-Fix-Validate Loop Automatico**
    - ✅ Quando modifichiamo uno script E abbiamo accesso a host di test
@@ -180,6 +180,7 @@ Copy-Item "\\192.168.10.132\usbshare\CheckMK-Backups\2026-01-29_00-00-00\script-
    - ✅ **Continuare** a iterare fino a successo completo
 
 **Esempio workflow test-driven:**
+
 ```powershell
 # 1. Modifica script
 # ... edit file ...
@@ -203,7 +204,8 @@ wsl -- ssh nsec8-stable "bash /opt/checkmk-tools/script.sh"
 
 # 7. Solo ora committa
 git commit -m "fix: risolto errore comando"
-```
+
+```text
 
 **Host disponibili per test:**
 - `nsec8-stable` (10.155.100.100) - NethSecurity 8 test environment
@@ -214,10 +216,11 @@ git commit -m "fix: risolto errore comando"
    - ✅ **SEMPRE seguire questo workflow completo** per modifiche a script bash/shell
    - ❌ **MAI** saltare step o dichiarare "completato" senza test reale
    - 🔄 **LOOP finché non funziona tutto** - non uscire fino a successo completo
-   
+
 **WORKFLOW OBBLIGATORIO (da seguire SEMPRE):**
 
-```
+```text
+
 ┌─────────────────────────────────────────────────────────┐
 │ 1. MODIFICA/SCRITTURA SCRIPT                            │
 │    - Implementa funzionalità richiesta                  │
@@ -275,7 +278,8 @@ git commit -m "fix: risolto errore comando"
     │ TORNA A 1.   │    │ ✅ ESCI DAL LOOP     │
     │ FIX + RITEST │    │ Task completato!     │
     └──────────────┘    └──────────────────────┘
-```
+
+```text
 
 **⚠️ REGOLE CRITICHE:**
 - ❌ **MAI** dire "test completato" senza test REALE su host remoto
@@ -285,6 +289,7 @@ git commit -m "fix: risolto errore comando"
 - 🔄 **LOOP infinito** finché non funziona o utente ferma
 
 **Esempio completo:**
+
 ```bash
 # 1. Modifica
 vi install-script.sh
@@ -314,31 +319,35 @@ curl -fsSL .../install-script.sh | bash
 # Fix errore linea 45, ricommit, ritest...
 
 # ✅ OK → Test completato, ESCI DAL LOOP
-```
+
+```text
 
 11. **Script eseguibili - Verifica SEMPRE permessi Git**
    - ⚠️ **Windows (NTFS) NON preserva il bit eseguibile Unix**
    - ✅ **SEMPRE** quando crei/modifichi script bash/shell (.sh):
      1. Crea/modifica il file
-     2. Verifica permessi: `git ls-files -s script.sh` 
+     2. Verifica permessi: `git ls-files -s script.sh`
      3. Se mostra `100644` (NON eseguibile) → FIX:
         ```bash
         git update-index --chmod=+x script.sh
         ```
+
      4. Verifica: `git ls-files -s script.sh` → deve mostrare `100755`
      5. Committo e push normalmente
    - ✅ **Controllo batch** su directory:
      ```bash
      # Trova script NON eseguibili
      git ls-files -s script-tools/full/*.sh | Select-String "100644"
-     
+
      # Rendi tutti eseguibili
      git update-index --chmod=+x script-tools/full/*.sh
      ```
+
    - ⚠️ **NON fare affidamento** su `wsl -- test -x` su Windows → usa `git ls-files -s`
    - ✅ Quando proponi nuovi script bash → renderli subito eseguibili con git update-index
 
 **Esempio workflow creazione script:**
+
 ```powershell
 # 1. Crea script
 New-Item script-tools/full/nuovo-script.sh
@@ -355,7 +364,8 @@ git ls-files -s script-tools/full/nuovo-script.sh
 
 # 5. Commit
 git commit -m "feat: nuovo script"
-```
+
+```text
 
 ---
 ## 📋 NethSecurity 8 - Local Checks CheckMK
@@ -372,7 +382,8 @@ cp /opt/checkmk-tools/script-check-nsec8/full/check_vpn_tunnels.sh \
 
 # ❌ SBAGLIATO - Non rimuovere estensione
 cp script.sh /usr/lib/check_mk_agent/local/script  # NO!
-```
+
+```text
 
 **Motivo preferenza utente:**
 - Coerenza con repository (tutti gli script .sh)
@@ -380,11 +391,13 @@ cp script.sh /usr/lib/check_mk_agent/local/script  # NO!
 - CheckMK esegue comunque file con estensione
 
 **Auto-restore deve usare nome completo con estensione:**
+
 ```bash
 # In rocksolid-startup-check.sh
 basename_script=$(basename "$script")  # NON rimuovere .sh
 cp "$script" "/usr/lib/check_mk_agent/local/$basename_script"
-```
+
+```text
 
 ---
 ## �️ NethServer - Gestione Configurazione
@@ -397,13 +410,15 @@ cp "$script" "/usr/lib/check_mk_agent/local/$basename_script"
 - ⚠️ Modifiche manuali ai file = **perse al prossimo `signal-event`**
 
 **Esempio configurazioni gestite da template:**
+
 ```bash
 /etc/fail2ban/fail2ban.conf          # Gestito da templates
 /etc/fail2ban/jail.conf              # Gestito da templates
 /etc/httpd/conf.d/*                  # Gestito da templates
 /etc/postfix/main.cf                 # Gestito da templates
 /etc/shorewall/*                     # Gestito da templates
-```
+
+```text
 
 **Metodi corretti per modificare configurazioni:**
 
@@ -412,6 +427,7 @@ cp "$script" "/usr/lib/check_mk_agent/local/$basename_script"
    - Modifiche persistenti e validate
 
 2. **Via comandi config (CLI)**
+
 ```bash
 # Visualizza configurazione
 config show fail2ban
@@ -422,13 +438,16 @@ config setprop fail2ban DbPurgeAge 30d
 
 # Applica modifiche
 signal-event nethserver-fail2ban-save
-```
+
+```text
 
 3. **Via template custom** (avanzato)
+
 ```bash
 # Crea template custom in /etc/e-smith/templates-custom/
 # Le modifiche sopravvivono ai signal-event
-```
+
+```text
 
 **⚠️ Conseguenze modifiche manuali:**
 - `signal-event nethserver-<servizio>-save` → configurazione ripristinata
@@ -457,35 +476,43 @@ signal-event nethserver-fail2ban-save
 **Soluzione implementata (commit 6107753 + 1986623):**
 
 1. **Protezione directory** (`install-checkmk-agent-persistent-nsec8.sh`):
+
 ```bash
 # In protect_checkmk_installation()
 add_to_sysupgrade "/etc/nginx/" "NGINX configuration (Web UI NethSecurity)"
-```
+
+```text
 
 2. **Ripristino automatico symlink** (`rocksolid-startup-check.sh`):
+
 ```bash
 # Prima di verificare nginx
 if [ ! -L /etc/nginx/uci.conf ] && [ -f /var/lib/nginx/uci.conf ]; then
     log "[Nginx] Ripristino symlink uci.conf..."
     ln -sf /var/lib/nginx/uci.conf /etc/nginx/uci.conf 2>/dev/null || true
 fi
-```
+
+```text
 
 **Fix manuale emergenza:**
+
 ```bash
 # Su sistema già upgradato con nginx rotto
 ln -sf /var/lib/nginx/uci.conf /etc/nginx/uci.conf
 /etc/init.d/nginx restart
 # Web UI torna disponibile su porta 9090
-```
+
+```text
 
 **Verifica soluzione:**
+
 ```bash
 # Dopo upgrade/reboot
 ls -la /etc/nginx/uci.conf  # Deve essere symlink
 /etc/init.d/nginx status    # Deve essere "running"
 netstat -tlnp | grep :9090  # Deve mostrare nginx in ascolto
-```
+
+```text
 
 **Note tecniche:**
 - `/var/lib/nginx/uci.conf` generato dinamicamente da nginx-ssl-util
@@ -519,7 +546,8 @@ netstat -tlnp | grep :9090  # Deve mostrare nginx in ascolto
 
 # Cambia soglia di corruzione (default: 15%)
 .\check-integrity.ps1 -Threshold 20
-```
+
+```text
 
 **Funzionalità:**
 - ✅ Verifica sintassi **PowerShell** tramite `[System.Management.Automation.Language.Parser]::ParseFile()`
@@ -534,7 +562,9 @@ netstat -tlnp | grep :9090  # Deve mostrare nginx in ascolto
 - Le email di backup includono report dettagliato degli errori rilevati
 
 **Struttura Repository Verificata:**
-```
+
+```text
+
 checkmk-tools/
 ├── script-check-ns7/full/         # Script NethServer 7
 ├── script-check-ns8/full/         # Script NethServer 8
@@ -543,10 +573,13 @@ checkmk-tools/
 ├── script-tools/full/             # Tools vari
 ├── script-notify-checkmk/full/    # Notifiche CheckMK
 └── Ydea-Toolkit/full/             # Integrazione Ydea
-```
+
+```text
 
 **Output Esempio:**
-```
+
+```text
+
 ================================================================
     RISULTATI VERIFICA INTEGRITÀ
 ================================================================
@@ -565,7 +598,8 @@ DETTAGLIO PER TIPO:
     Errori:      64 (15.4%)
 
 [STATO] WARNING - Errori rilevati ma sotto soglia
-```
+
+```text
 
 ---
 
@@ -574,21 +608,25 @@ DETTAGLIO PER TIPO:
 ### ⚠️ REGOLA OBBLIGATORIA - Validazione Script
 
 #### Bash/Shell Script
+
 **SEMPRE quando crei o modifichi uno script Bash/Shell:**
-1. ✅ Testa con `wsl bash -n <file_path>` 
+1. ✅ Testa con `wsl bash -n <file_path>`
 2. ✅ Verifica che `$LASTEXITCODE -eq 0`
 3. ✅ Se exit code ≠ 0, correggi gli errori e ritesta
 4. ✅ Ripeti finché non ottieni exit code 0
 5. ✅ Solo allora considera il file completato
 
 **Comando PowerShell da usare:**
+
 ```powershell
 wsl bash -n "path/to/script.sh"; echo "EXIT CODE: $LASTEXITCODE"
-```
+
+```text
 
 **Non procedere mai senza exit code 0!**
 
 #### PowerShell Script (.ps1)
+
 **SEMPRE quando crei o modifichi uno script PowerShell:**
 1. ✅ Valida con PSParser
 2. ✅ Verifica che errori count = 0
@@ -597,9 +635,11 @@ wsl bash -n "path/to/script.sh"; echo "EXIT CODE: $LASTEXITCODE"
 5. ✅ Solo allora considera il file completato
 
 **Comando validazione da usare:**
+
 ```powershell
 $errors = $null; $null = [System.Management.Automation.PSParser]::Tokenize((Get-Content "path/to/script.ps1" -Raw), [ref]$errors); if ($errors.Count -eq 0) { Write-Host "Sintassi OK" -ForegroundColor Green } else { Write-Host "ERRORI:" -ForegroundColor Red; $errors }; Write-Host "EXIT CODE: $LASTEXITCODE"
-```
+
+```text
 
 **Errori comuni PowerShell:**
 - ❌ Carattere `%` non escaped in stringhe → Usare `$($variabile)%`
@@ -607,6 +647,7 @@ $errors = $null; $null = [System.Management.Automation.PSParser]::Tokenize((Get-
 - ❌ Apici/virgolette non chiuse correttamente
 
 **Non procedere mai se PSParser riporta errori!**
+
 ### 📂 REGOLA DEPLOYMENT - Path Script Repository
 
 **⚠️ IMPORTANTE: Repository già clonato su tutte le macchine**
@@ -623,6 +664,7 @@ $errors = $null; $null = [System.Management.Automation.PSParser]::Tokenize((Get-
 2. **GitHub raw**: `https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/...` (funziona ugualmente bene)
 
 **Esempi esecuzione locale:**
+
 ```bash
 # Esecuzione diretta da repo locale
 /opt/checkmk-tools/script-tools/full/install-agent-interactive.sh
@@ -632,16 +674,19 @@ $errors = $null; $null = [System.Management.Automation.PSParser]::Tokenize((Get-
 
 # Con bash esplicito
 bash /opt/checkmk-tools/script-tools/full/script-name.sh
-```
+
+```text
 
 **Esempi esecuzione da GitHub (fallback o host remoti):**
+
 ```bash
 # Cron job - esecuzione diretta da GitHub
 0 3 * * * curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh | bash >> /var/log/script.log 2>&1
 
 # Esecuzione manuale remota
 curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/script-name.sh | bash
-```
+
+```text
 
 **Vantaggi path locale:**
 - ✅ Più veloce (no download)
@@ -659,17 +704,21 @@ curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script
 - ✅ Git pull automatico distribuisce a tutti i server
 - ❌ **MAI modificare file in `/opt/checkmk-tools/` sui server remoti**
 - ❌ Modifiche locali vengono perse al prossimo git pull
+
 ### Prima di ogni commit importante:
+
 1. Eseguire `.\check-integrity.ps1` per verificare lo stato
 2. Se errori >15%, indagare prima di committare
 3. Verificare che tutti gli script .sh siano eseguibili
 
 ### Dopo modifiche massive:
+
 1. Eseguire `.\check-integrity.ps1 -Detailed` per vedere tutti gli errori
 2. Valutare se è necessario riparare script corrotti
 3. Usare `.\repair-corrupted-scripts.ps1` se disponibile
 
 ### Monitoraggio periodico:
+
 - **Settimanale**: `.\check-integrity.ps1 -ExportReport` per storico
 - **Mensile**: Analizzare trend corruzione nel tempo
 
@@ -688,15 +737,18 @@ curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script
 **⚠️ IMPORTANTE: Usare sempre lo script dedicato per agent CheckMK**
 
 ### Script da usare:
+
 ```bash
 # Su server remoti CheckMK
 /opt/checkmk-tools/script-tools/full/install-agent-interactive.sh
 
 # Da GitHub (se repo non clonato)
 curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/install-agent-interactive.sh | bash
-```
+
+```text
 
 ### Cosa fa lo script:
+
 - ✅ Rileva OS automaticamente (Debian/Ubuntu/RHEL/OpenWrt)
 - ✅ Scarica agent corretto dalla versione CheckMK server
 - ✅ **Disabilita automaticamente `cmk-agent-ctl-daemon.service`** (causa conflitti porta 6556)
@@ -705,19 +757,22 @@ curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script
 - ✅ Opzionale: configura FRPC per tunnel
 
 ### Problema comune:
+
 **NON usare solo `dpkg -i check-mk-agent.deb`** perché:
 - ❌ Lascia attivo `cmk-agent-ctl-daemon` che va in conflitto
 - ❌ Non configura correttamente il socket TCP
 - ❌ Causa errore "Address in use (os error 98)"
 
 ### Fix se già installato manualmente:
+
 ```bash
 # Disabilita daemon problematico
 systemctl disable --now cmk-agent-ctl-daemon.service
 systemctl reset-failed cmk-agent-ctl-daemon.service
 
 # L'agent continua a funzionare via check-mk-agent.socket
-```
+
+```text
 
 ---
 
@@ -766,7 +821,8 @@ laboratorio       # 10.155.100.1:2222 (root, NethSecurity 8)
 # Altri server
 fwlab             # 192.168.5.117:2222 (root)
 redteam           # redteam.security.nethesis.it (root)
-```
+
+```text
 
 ### 🚀 Workflow Accesso Remoto
 
@@ -780,22 +836,27 @@ redteam           # redteam.security.nethesis.it (root)
 - **NON testare direttamente su vps-01 (produzione)**
 
 **1. Comando singolo SSH:**
+
 ```powershell
 # Da PowerShell → esegui comando su VPS
 wsl -- ssh checkmk-vps-01 "omd version"
 wsl -- ssh checkmk-vps-02 "omd sites"
-```
+
+```text
 
 **2. Esecuzione script da GitHub:**
+
 ```powershell
 # Download ed esecuzione diretta script dal repository
 wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh | bash"
 
 # Con parametri
 wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/script.sh | bash -s -- arg1 arg2"
-```
+
+```text
 
 **3. Verifica stato CheckMK remoto:**
+
 ```powershell
 # Check rapido su tutti i VPS
 wsl -- ssh checkmk-vps-01 "omd status"
@@ -803,23 +864,26 @@ wsl -- ssh checkmk-vps-02 "omd status"
 
 # Verifica backup
 wsl -- ssh checkmk-vps-01 "ls -lh /opt/omd/sites/monitoring/var/check_mk/notify-backup/"
-```
+
+```text
 
 **4. Deploy script su VPS:**
+
 ```powershell
 # NON copiare file, eseguire sempre da GitHub!
 # ❌ SBAGLIATO: scp script.sh checkmk-vps-01:/usr/local/bin/
 # ✅ CORRETTO: esegui da GitHub con curl
 
 wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh | bash"
-```
+
+```text
 
 ### 🔐 Note Sicurezza
 
 - **Passphrase**: Le chiavi richiedono passphrase ad ogni comando
   - Non è un problema: inserire passphrase quando richiesta
   - Protegge accesso non autorizzato
-  
+
 - **StrictHostKeyChecking no**: Disabilitato per automazione
   - OK per ambiente lab/interno
   - Valutare riabilitazione per produzione
@@ -827,20 +891,26 @@ wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup2
 ### 🎯 Use Cases Comuni
 
 **Controllo integrità remoto:**
+
 ```powershell
 # Esegui check-integrity su VPS
 wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh | bash -n"
-```
+
+```text
 
 **Verifica logs:**
+
 ```powershell
 wsl -- ssh checkmk-vps-01 "tail -100 /omd/sites/monitoring/var/log/notify.log"
-```
+
+```text
 
 **Raccolta info sistema:**
+
 ```powershell
 wsl -- ssh checkmk-vps-01 "df -h && free -h && uptime"
-```
+
+```text
 
 ### ⚙️ Path Chiavi e Config
 
@@ -852,7 +922,8 @@ wsl -- ssh checkmk-vps-01 "df -h && free -h && uptime"
 
 # Windows paths originali (backup)
 C:\Users\Marzio\.ssh\checkmk
-```
+
+```text
 
 ---
 
@@ -866,6 +937,7 @@ C:\Users\Marzio\.ssh\checkmk
 - ✅ Struttura: `checkmk-backups/job00-daily/`, `checkmk-backups/job01-weekly/`, `checkmk-backups/monitoring-minimal/`
 
 **Comandi corretti per accesso rclone:**
+
 ```bash
 # ❌ SBAGLIATO (comando errato)
 ssh checkmk-vps-01 'rclone ls do:testmonbck'
@@ -885,7 +957,8 @@ ssh checkmk-vps-01 'su - monitoring -c "rclone size do:testmonbck"'
 
 # Download backup specifico
 ssh checkmk-vps-01 'su - monitoring -c "rclone copy do:testmonbck/checkmk-backups/job00-daily/file.tar.gz /tmp/"'
-```
+
+```text
 
 **Backup disponibili:**
 - **job00-daily**: Backup daily completi (~1.2 MB)
@@ -925,7 +998,7 @@ ssh checkmk-vps-01 'su - monitoring -c "rclone copy do:testmonbck/checkmk-backup
 - VSCode non si avvia o non mostra nulla
 - Ultimo danno non risolto
 - Necessario ripristino completo
-- ⚠️ **PATTERN CRITICO**: 
+- ⚠️ **PATTERN CRITICO**:
   - Start-Process da PowerShell → VSCode SI AVVIA
   - Click su Code.exe con mouse → NON SI AVVIA
   - Click su collegamento menu Start → NON SI AVVIA
@@ -941,6 +1014,7 @@ ssh checkmk-vps-01 'su - monitoring -c "rclone copy do:testmonbck/checkmk-backup
   cd C:\Users\Marzio\Desktop\CheckMK\checkmk-tools
   code .
   ```
+
 - ⚠️ Importante fare `cd` nella directory workspace PRIMA di lanciare `code .`
 - ⚠️ Non lanciare `code` senza parametri o da directory diversa
 - ❌ **Collegamento desktop/start menu NON funziona** - lanciare sempre da terminale
@@ -950,11 +1024,14 @@ ssh checkmk-vps-01 'su - monitoring -c "rclone copy do:testmonbck/checkmk-backup
 - ✅ **WORKAROUND TEMPORANEO**: Aprire PowerShell e usare `code .`
 
 **CAUSA ROOT (30/01/2026 ore ~19:45):**
+
 - 🔍 Diagnostica con `Code.exe --verbose` rivela:
-  ```
+
+  ```text
   Sending some foreground love to the running instance: 17752
   Sent env to running instance. Terminating...
   ```
+
 - ⚠️ **VSCode si connette a istanza zombie nascosta/corrotta** invece di aprire nuova finestra
 - Quando lanciato dal collegamento, VSCode rileva istanza esistente (PID 17752) e le invia il comando
 - Ma quella finestra è nascosta o corrotta dall'update Windows
@@ -962,11 +1039,14 @@ ssh checkmk-vps-01 'su - monitoring -c "rclone copy do:testmonbck/checkmk-backup
 - Soluzione: killare TUTTI i processi VSCode prima di riaprire dal collegamento
 
 **CAUSA ROOT (30/01/2026 ore ~19:45):**
+
 - 🔍 Diagnostica con `Code.exe --verbose` rivela:
-  ```
+
+  ```text
   Sending some foreground love to the running instance: 17752
   Sent env to running instance. Terminating...
   ```
+
 - ⚠️ **Problema reale: VSCode aperto come ADMINISTRATOR**
 - Windows impedisce apertura multiple istanze Administrator di VSCode
 - Tentativo di aprire da collegamento/menu Start → errore "Another instance of Code is already running as administrator"
@@ -977,6 +1057,9 @@ ssh checkmk-vps-01 'su - monitoring -c "rclone copy do:testmonbck/checkmk-backup
 **✅ SOLUZIONE DEFINITIVA (30/01/2026 ore ~22:30) - PROBLEMA RISOLTO:**
 
 **Causa ROOT reale:**
+
+- ⚠️ **Variabile d'ambiente `ELECTRON_RUN_AS_NODE` presente nel sistema**
+
 - ⚠️ **Variabile d'ambiente `ELECTRON_RUN_AS_NODE` presente nel sistema**
 - Questa variabile (anche se impostata a "0") causa malfunzionamento di Electron/VSCode
 - L'update Windows potrebbe averla introdotta o riattivata
@@ -985,14 +1068,18 @@ ssh checkmk-vps-01 'su - monitoring -c "rclone copy do:testmonbck/checkmk-backup
 **Fix definitivo (persistente):**
 
 **1. Verifica variabile in cmd.exe:**
+
 ```cmd
 set ELECTRON_RUN_AS_NODE
-```
+
+```text
 
 Se mostra qualcosa tipo `ELECTRON_RUN_AS_NODE=0` o altro valore → **va rimossa completamente**
 
 **2A. Rimozione via GUI (consigliato):**
-```
+
+```text
+
 1. Win + R → esegui: SystemPropertiesAdvanced
 2. Tab "Avanzate" → pulsante "Variabili d'ambiente..."
 3. Cerca ELECTRON_RUN_AS_NODE in:
@@ -1001,32 +1088,42 @@ Se mostra qualcosa tipo `ELECTRON_RUN_AS_NODE=0` o altro valore → **va rimossa
 4. Se presente → Seleziona → pulsante "Elimina"
 5. OK su tutte le finestre
 6. Logout/Login Windows (o riavvio)
-```
+
+```text
 
 **2B. Rimozione via CLI (rapido):**
+
 ```cmd
 # Apri cmd.exe come Amministratore ed esegui:
 reg delete "HKCU\Environment" /v ELECTRON_RUN_AS_NODE /f
 reg delete "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v ELECTRON_RUN_AS_NODE /f
-```
+
+```text
 
 Poi **logout/login** (o riavvio) Windows.
 
 **3. Verifica dopo logout/login:**
+
 ```cmd
 set ELECTRON_RUN_AS_NODE
-```
+
+```text
 
 Deve mostrare:
-```
+
+```text
+
 Environment variable ELECTRON_RUN_AS_NODE not defined
-```
+
+```text
 
 **4. Verifica finale VSCode:**
+
 ```cmd
 "C:\Program Files\Microsoft VS Code\Code.exe" --version
 "C:\Program Files\Microsoft VS Code\Code.exe" --disable-extensions
-```
+
+```text
 
 Atteso:
 - `--version` **NON deve mostrare** output strano tipo "v22.x.x"
@@ -1034,9 +1131,11 @@ Atteso:
 - Log "Extension host ... exited with code: 0" è normale con estensioni disabilitate
 
 **5. Avvio normale:**
+
 ```cmd
 "C:\Program Files\Microsoft VS Code\Code.exe"
-```
+
+```text
 
 ✅ Doppio click su Code.exe, collegamento menu Start, tutto **funziona correttamente**
 
@@ -1046,6 +1145,7 @@ Atteso:
 
 **7. Recupero settings (opzionale):**
 Se avevi rinominato `%APPDATA%\Code` (es. `Code.old`):
+
 ```powershell
 # Chiudi VSCode completamente
 # Rinomina per test:
@@ -1055,7 +1155,8 @@ Rename-Item "$env:APPDATA\Code.old" "$env:APPDATA\Code"
 # Se problemi ritornano, rollback:
 # Rename-Item "$env:APPDATA\Code" "$env:APPDATA\Code.problem"
 # Rename-Item "$env:APPDATA\Code.new" "$env:APPDATA\Code"
-```
+
+```text
 
 **⚠️ CHECKPOINT CRITICO:**
 - **Variabile ELECTRON_RUN_AS_NODE = poison** per VSCode/Electron
@@ -1074,6 +1175,7 @@ Rename-Item "$env:APPDATA\Code.old" "$env:APPDATA\Code"
 **PROCEDURE DI RIPRISTINO EMERGENZA VSCode:**
 
 **Step 1 - Reset cache leggero (SEMPRE provare prima):**
+
 ```powershell
 # Chiudi VSCode
 taskkill /F /IM Code.exe
@@ -1085,18 +1187,22 @@ Remove-Item -Recurse -Force "$env:APPDATA\Code\logs\*" -ErrorAction SilentlyCont
 
 # Riavvia
 code
-```
+
+```text
 
 **Step 2 - Reset estensioni (se Step 1 fallisce):**
+
 ```powershell
 # Backup lista estensioni
 code --list-extensions > "$env:USERPROFILE\Desktop\vscode-extensions-backup.txt"
 
 # Disabilita tutte le estensioni
 code --disable-extensions
-```
+
+```text
 
 **Step 3 - Reinstallazione pulita (ultimo resort):**
+
 ```powershell
 # Backup configurazioni utente
 Copy-Item -Recurse "$env:APPDATA\Code\User" "$env:USERPROFILE\Desktop\VSCode-User-Backup"
@@ -1106,7 +1212,8 @@ Copy-Item -Recurse "$env:APPDATA\Code\User" "$env:USERPROFILE\Desktop\VSCode-Use
 
 # Ripristina configurazioni
 Copy-Item -Recurse "$env:USERPROFILE\Desktop\VSCode-User-Backup\*" "$env:APPDATA\Code\User"
-```
+
+```text
 
 **⚠️ REGOLA CRITICA PER FUTURO:**
 - Errori `EPIPE`, `broken pipe`, socket errors = **IGNORARE E CONTINUARE**
@@ -1177,33 +1284,38 @@ Copy-Item -Recurse "$env:USERPROFILE\Desktop\VSCode-User-Backup\*" "$env:APPDATA
 ### 🔧 Dettagli Tecnici
 
 **Dynamic Package Download:**
+
 ```bash
 download_openwrt_package() {
     local package_name="$1"
     local repo_url="$2"
     local output_path="$3"
-    
+
     # Download Packages.gz index
     wget -q -O /tmp/Packages.gz "$repo_url/Packages.gz"
-    
+
     # Parse package filename (fix: grep "${package_name}_" non "/$package_name")
     local package_file=$(gunzip -c /tmp/Packages.gz | grep "^Filename:" | grep "${package_name}_" | head -1 | awk '{print $2}')
-    
+
     # Download package
     wget -q -O "$output_path" "$repo_url/$package_file"
 }
-```
+
+```text
 
 **Dependencies Chain (circular dependency fix):**
+
 ```bash
 # Order matters: libbfd first (shared library), then ar (uses libbfd)
 opkg install --force-depends /tmp/libbfd.ipk
 opkg install --force-depends /tmp/ar.ipk
 opkg install --force-depends /tmp/objdump.ipk
 opkg install --force-depends /tmp/binutils.ipk
-```
+
+```text
 
 **Rocksolid Logic (fixed order):**
+
 ```bash
 # STEP 1: Restore backups FIRST
 for backup in /opt/checkmk-backups/binaries/*.backup; do
@@ -1224,7 +1336,8 @@ if [ $BINARIES_CORRUPTED -eq 1 ]; then
     download_openwrt_package "ar" "$REPO_BASE" "/tmp/ar.ipk"
     opkg install --force-depends /tmp/ar.ipk
 fi
-```
+
+```text
 
 ### 📋 Testing Workflow Validato
 
