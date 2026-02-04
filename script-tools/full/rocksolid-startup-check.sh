@@ -7,10 +7,58 @@
 LOG_FILE="/var/log/rocksolid-startup.log"
 SYSUPGRADE_CONF="/etc/sysupgrade.conf"
 
+# Repository OpenWrt per download dinamico
+REPO_PACKAGES="${REPO_PACKAGES:-https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages}"
+
+# Versione FRP (configurabile)
+FRP_VER="${FRP_VER:-0.64.0}"
+
 # Funzione log con timestamp
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"
     logger -t rocksolid-startup "$*"
+}
+
+# Download dinamico pacchetti OpenWrt (evita URL statici fragili)
+download_openwrt_package() {
+    local package_name="$1"
+    local repo_url="$2"
+    local output_file="$3"
+    
+    log "[Download] Ricerca dinamica pacchetto: $package_name"
+    
+    # Scarica lista pacchetti OpenWrt
+    if ! wget -q -O /tmp/Packages.gz "${repo_url}/Packages.gz" 2>/dev/null; then
+        log "[Download] WARN: Download Packages.gz fallito"
+        return 1
+    fi
+    
+    # Verifica gzip/gunzip disponibile
+    if ! command -v gunzip >/dev/null 2>&1 && ! command -v gzip >/dev/null 2>&1; then
+        log "[Download] WARN: gzip/gunzip non disponibile"
+        rm -f /tmp/Packages.gz
+        return 1
+    fi
+    
+    # Estrai filename del pacchetto dall'index
+    local package_file=$(gunzip -c /tmp/Packages.gz 2>/dev/null | grep "^Filename:" | grep "/$package_name" | head -1 | awk '{print $2}')
+    rm -f /tmp/Packages.gz
+    
+    if [ -z "$package_file" ]; then
+        log "[Download] WARN: Pacchetto $package_name non trovato nell'index"
+        return 1
+    fi
+    
+    log "[Download] Trovato: $package_file"
+    
+    # Download pacchetto
+    if wget -q -O "$output_file" "${repo_url}/${package_file}" 2>/dev/null; then
+        log "[Download] Completato: $package_file"
+        return 0
+    else
+        log "[Download] ERRORE: Download fallito"
+        return 1
+    fi
 }
 
 log "========================================="
@@ -85,11 +133,6 @@ log "[Node.js] Verifica in corso..."
 if ! command -v node >/dev/null 2>&1; then
     log "[Node.js] MANCANTE - Reinstallazione automatica..."
     
-    # Node.js non è più nei repository NethSecurity 8.7.1+
-    # Download diretto da OpenWrt
-    NODE_VERSION="v18.20.6-1"
-    NODE_IPK_URL="https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages/node_${NODE_VERSION}_x86_64.ipk"
-    
     if command -v wget >/dev/null 2>&1; then
         # Verifica e installa libcares (dipendenza node.js)
         if ! opkg list-installed | grep -q "^libcares "; then
@@ -98,11 +141,11 @@ if ! command -v node >/dev/null 2>&1; then
             opkg install libcares >> "$LOG_FILE" 2>&1 || log "[Node.js] WARNING: Installazione libcares fallita"
         fi
         
-        log "[Node.js] Download da OpenWrt..."
+        log "[Node.js] Download dinamico da OpenWrt..."
         cd /tmp || exit 1
-        wget -q -O node.ipk "$NODE_IPK_URL" 2>&1 | tee -a "$LOG_FILE"
         
-        if [ -f node.ipk ]; then
+        # Download dinamico node.js (trova versione corrente automaticamente)
+        if download_openwrt_package "node" "$REPO_PACKAGES" "/tmp/node.ipk"; then
             log "[Node.js] Installazione pacchetto..."
             opkg install node.ipk >> "$LOG_FILE" 2>&1
             rm -f node.ipk
@@ -113,7 +156,7 @@ if ! command -v node >/dev/null 2>&1; then
                 log "[Node.js] ERRORE: Installazione fallita"
             fi
         else
-            log "[Node.js] ERRORE: Download fallito"
+            log "[Node.js] ERRORE: Download dinamico fallito"
         fi
     else
         log "[Node.js] ERRORE: wget non disponibile"
@@ -221,18 +264,27 @@ if [ -f "$FRP_MARKER" ]; then
     if [ ! -x /usr/local/bin/frpc ] || [ ! -f /etc/frp/frpc.toml ] || [ ! -f /etc/init.d/frpc ] || [ $FRPC_CORRUPTED -eq 1 ]; then
         log "[FRP Client] Reinstallazione automatica..."
         
-        # Download e reinstalla frpc v0.64.0 da GitHub
+        # Download e reinstalla frpc da GitHub (versione configurabile)
         cd /tmp || true
         if command -v wget >/dev/null 2>&1; then
-            wget -q https://github.com/fatedier/frp/releases/download/v0.64.0/frp_0.64.0_linux_amd64.tar.gz 2>/dev/null || true
-            if [ -f frp_0.64.0_linux_amd64.tar.gz ]; then
-                tar -xzf frp_0.64.0_linux_amd64.tar.gz 2>/dev/null || true
-                if [ -f frp_0.64.0_linux_amd64/frpc ]; then
-                    cp -f frp_0.64.0_linux_amd64/frpc /usr/local/bin/frpc 2>/dev/null || true
+            FRP_TGZ="frp_${FRP_VER}_linux_amd64.tar.gz"
+            FRP_URL="https://github.com/fatedier/frp/releases/download/v${FRP_VER}/${FRP_TGZ}"
+            
+            log "[FRP Client] Download v${FRP_VER} da GitHub..."
+            wget -q "$FRP_URL" 2>/dev/null || true
+            
+            if [ -f "$FRP_TGZ" ]; then
+                tar -xzf "$FRP_TGZ" 2>/dev/null || true
+                FRP_DIR="frp_${FRP_VER}_linux_amd64"
+                
+                if [ -f "$FRP_DIR/frpc" ]; then
+                    cp -f "$FRP_DIR/frpc" /usr/local/bin/frpc 2>/dev/null || true
                     chmod +x /usr/local/bin/frpc 2>/dev/null || true
                     rm -rf frp_* 2>/dev/null || true
-                    log "[FRP Client] Binario reinstallato v0.64.0"
+                    log "[FRP Client] Binario reinstallato v${FRP_VER}"
                 fi
+            else
+                log "[FRP Client] ERRORE: Download v${FRP_VER} fallito"
             fi
         fi
     fi

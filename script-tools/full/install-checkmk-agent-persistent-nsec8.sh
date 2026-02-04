@@ -524,6 +524,50 @@ uninstall_all() {
     warn "Per rimuoverle manualmente, modifica $SYSUPGRADE_CONF"
 }
 
+# ============================================================================
+# Download dinamico pacchetti OpenWrt (evita URL statici fragili)
+# ============================================================================
+download_openwrt_package() {
+    local package_name="$1"
+    local repo_url="$2"  # es. https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base
+    local output_file="$3"
+    
+    log "Download dinamico pacchetto: $package_name"
+    
+    # Scarica lista pacchetti OpenWrt
+    if ! wget -q -O /tmp/Packages.gz "${repo_url}/Packages.gz" 2>/dev/null; then
+        warn "Download Packages.gz fallito - impossibile rilevare versione dinamica"
+        return 1
+    fi
+    
+    # Verifica gzip disponibile per decompressione
+    if ! command -v gunzip >/dev/null 2>&1 && ! command -v gzip >/dev/null 2>&1; then
+        warn "gzip/gunzip non disponibile - fallback a ricerca diretta"
+        rm -f /tmp/Packages.gz
+        return 1
+    fi
+    
+    # Estrai filename del pacchetto dall'index
+    local package_file=$(gunzip -c /tmp/Packages.gz 2>/dev/null | grep "^Filename:" | grep "/$package_name" | head -1 | awk '{print $2}')
+    rm -f /tmp/Packages.gz
+    
+    if [ -z "$package_file" ]; then
+        warn "Pacchetto $package_name non trovato nell'index OpenWrt"
+        return 1
+    fi
+    
+    log "Trovato nell'index: $package_file"
+    
+    # Download pacchetto
+    if wget -O "$output_file" "${repo_url}/${package_file}" 2>/dev/null; then
+        log "Download completato: $package_file"
+        return 0
+    else
+        warn "Download fallito: ${repo_url}/${package_file}"
+        return 1
+    fi
+}
+
 install_prereqs() {
     need_cmd opkg
 
@@ -543,32 +587,47 @@ install_prereqs() {
     if ! command -v ar >/dev/null 2>&1 || ! command -v tar >/dev/null 2>&1 || ! command -v gzip >/dev/null 2>&1; then
         log "Binari ar/tar/gzip mancanti - download versioni standalone"
         
-        # Download binutils standalone (ar)
+        # Download binutils standalone (ar) - dinamico
         if ! command -v ar >/dev/null 2>&1; then
-            log "Download ar standalone..."
-            wget -O /tmp/binutils.ipk "https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base/binutils_2.40-1_x86_64.ipk" || die "Download binutils fallito"
-            ( cd /tmp && ar x binutils.ipk && tar -xzf data.tar.gz && cp -f ./usr/bin/ar /usr/local/bin/ ) || die "Estrazione ar fallita"
-            chmod +x /usr/local/bin/ar
-            export PATH="/usr/local/bin:$PATH"
-            rm -f /tmp/binutils.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
+            log "Download ar standalone (dinamico da OpenWrt repo)..."
+            
+            if download_openwrt_package "binutils" "$REPO_BASE" "/tmp/binutils.ipk"; then
+                ( cd /tmp && ar x binutils.ipk && tar -xzf data.tar.gz && cp -f ./usr/bin/ar /usr/local/bin/ ) || die "Estrazione ar fallita"
+                chmod +x /usr/local/bin/ar
+                export PATH="/usr/local/bin:$PATH"
+                rm -f /tmp/binutils.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
+                log "ar installato con successo"
+            else
+                die "Download binutils fallito - impossibile proseguire senza ar"
+            fi
         fi
         
-        # Download tar standalone
+        # Download tar standalone - dinamico
         if ! command -v tar >/dev/null 2>&1; then
-            log "Download tar standalone..."
-            wget -O /tmp/tar.ipk "https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base/tar_1.34-2_x86_64.ipk" || die "Download tar fallito"
-            ( cd /tmp && /usr/local/bin/ar x tar.ipk && /usr/local/bin/ar x data.tar.gz && cp -f ./usr/libexec/tar-gnu /usr/local/bin/tar ) || die "Estrazione tar fallita"
-            chmod +x /usr/local/bin/tar
-            rm -f /tmp/tar.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
+            log "Download tar standalone (dinamico da OpenWrt repo)..."
+            
+            if download_openwrt_package "tar" "$REPO_BASE" "/tmp/tar.ipk"; then
+                ( cd /tmp && /usr/local/bin/ar x tar.ipk && /usr/local/bin/ar x data.tar.gz && cp -f ./usr/libexec/tar-gnu /usr/local/bin/tar ) || die "Estrazione tar fallita"
+                chmod +x /usr/local/bin/tar
+                rm -f /tmp/tar.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
+                log "tar installato con successo"
+            else
+                die "Download tar fallito - impossibile proseguire senza tar"
+            fi
         fi
         
-        # Download gzip standalone
+        # Download gzip standalone - dinamico
         if ! command -v gzip >/dev/null 2>&1; then
-            log "Download gzip standalone..."
-            wget -O /tmp/gzip.ipk "https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base/gzip_1.12-1_x86_64.ipk" || die "Download gzip fallito"
-            ( cd /tmp && /usr/local/bin/ar x gzip.ipk && /usr/local/bin/tar -xzf data.tar.gz && cp -f ./usr/libexec/gzip-gnu /usr/local/bin/gzip ) || die "Estrazione gzip fallita"
-            chmod +x /usr/local/bin/gzip
-            rm -f /tmp/gzip.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
+            log "Download gzip standalone (dinamico da OpenWrt repo)..."
+            
+            if download_openwrt_package "gzip" "$REPO_BASE" "/tmp/gzip.ipk"; then
+                ( cd /tmp && /usr/local/bin/ar x gzip.ipk && /usr/local/bin/tar -xzf data.tar.gz && cp -f ./usr/libexec/gzip-gnu /usr/local/bin/gzip ) || die "Estrazione gzip fallita"
+                chmod +x /usr/local/bin/gzip
+                rm -f /tmp/gzip.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
+                log "gzip installato con successo"
+            else
+                die "Download gzip fallito - impossibile proseguire senza gzip"
+            fi
         fi
     fi
 
@@ -980,16 +1039,23 @@ install_auto_git_sync() {
     
     # Installa git se non presente
     if ! command -v git >/dev/null 2>&1; then
-        log "Download git standalone..."
-        # Git non è nei repo NethSecurity - download diretto da OpenWrt
-        wget -q -O /tmp/git.ipk "https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages/git_2.43.2-1_x86_64.ipk" || die "Download git fallito"
-        wget -q -O /tmp/git-http.ipk "https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/packages/git-http_2.43.2-1_x86_64.ipk" || die "Download git-http fallito"
+        log "Download git standalone (dinamico da OpenWrt repo)..."
         
-        # Installa .ipk direttamente (senza aggiungere repo)
-        opkg install /tmp/git.ipk /tmp/git-http.ipk || die "Installazione git fallita"
-        rm -f /tmp/git.ipk /tmp/git-http.ipk
-        
-        log "Git installato: $(git --version 2>&1 | head -1)"
+        # Download dinamico git e git-http
+        if download_openwrt_package "git" "$REPO_PACKAGES" "/tmp/git.ipk"; then
+            log "Download git-http..."
+            if download_openwrt_package "git-http" "$REPO_PACKAGES" "/tmp/git-http.ipk"; then
+                # Installa .ipk direttamente (senza aggiungere repo)
+                opkg install /tmp/git.ipk /tmp/git-http.ipk || die "Installazione git fallita"
+                rm -f /tmp/git.ipk /tmp/git-http.ipk
+                log "Git installato: $(git --version 2>&1 | head -1)"
+            else
+                rm -f /tmp/git.ipk
+                die "Download git-http fallito - impossibile proseguire"
+            fi
+        else
+            die "Download git fallito - impossibile proseguire"
+        fi
     else
         log "Git già presente: $(git --version)"
     fi
