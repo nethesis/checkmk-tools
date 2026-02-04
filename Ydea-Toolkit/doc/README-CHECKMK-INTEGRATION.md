@@ -19,7 +19,6 @@ Sistema completo per la gestione automatica di ticket Ydea da alert CheckMK con 
 
 Questo sistema automatizza la gestione dei ticket Ydea per alert CheckMK con le seguenti funzionalità:
 
-
 ### Alert CheckMK → Ydea Ticket
 
 - ✅ **Nuovo alert CRITICAL/DOWN** → Crea ticket automatico
@@ -53,7 +52,6 @@ Script di notifica CheckMK che gestisce alert e crea/aggiorna ticket Ydea.
 
 ### 2. `ydea-health-monitor.sh` (in `Ydea-Toolkit/`)
 
-
 Monitor periodico della disponibilità Ydea API.
 
 **Funzionalità:**
@@ -65,7 +63,6 @@ Monitor periodico della disponibilità Ydea API.
 - State: `/tmp/ydea_health_state.json`
 
 ### 3. `mail_ydea_down` (in `script-notify-checkmk/`)
-
 
 Script notifica email per Ydea offline.
 
@@ -363,7 +360,6 @@ tail -f /tmp/ydea_health.log
 
 **Causa:** Cache corrotta o non accessibile
 
-
 **Soluzione:**
 
 ```bash
@@ -379,7 +375,6 @@ sudo chmod 666 /tmp/ydea_checkmk_tickets.json
 ### Problema: Flapping non rilevato
 
 **Verifica soglie:**
-
 
 ```bash
 # In ydea_realip, controlla:
