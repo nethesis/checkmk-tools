@@ -46,7 +46,20 @@
    - ✅ Email include: lista file corrotti, percentuale errori, dettagli
    - ✅ Non inviare email se tutto OK (solo output console)
 
-8. **⚠️ TEST OBBLIGATORIO - TUTTI GLI SCRIPT MODIFICATI**
+8. **⚠️ CONTROLLO PROBLEMS OBBLIGATORIO**
+   - ✅ **SEMPRE** controllare pannello PROBLEMS prima di considerare completato un task
+   - ✅ Eseguire `get_errors()` dopo modifiche a file markdown/script
+   - ✅ Priorità correzione errori:
+     - **MD051** (link fragments invalidi) → Fix OBBLIGATORIO
+     - **MD042** (empty links) → Rimuovere link o renderli validi
+     - **MD022/MD031/MD032** (spacing) → Fix per qualità codice
+     - **MD060** (table style) → Fix se facile, altrimenti ignorare
+     - **MD024** (duplicate headings) → Valutare caso per caso
+   - ⚠️ Se >50 errori: fixare batch con `multi_replace_string_in_file`
+   - ✅ Confermare "0 errors" prima di dichiarare task completato
+   - ❌ **NON** ignorare problemi senza consultare utente
+
+9. **⚠️ TEST OBBLIGATORIO - TUTTI GLI SCRIPT MODIFICATI**
    - ❌ **MAI** dire "test completato" senza testare TUTTI gli script modificati
    - ✅ **SEMPRE** testare OGNI script modificato nella sessione corrente
    - ✅ Lista script modificati → test CIASCUNO separatamente
