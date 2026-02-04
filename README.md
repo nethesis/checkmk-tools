@@ -705,25 +705,24 @@ vim .env
 ### Documentazione
 
 - 📖 **[README.md](Ydea-Toolkit/README.md)** - Guida principale
-- 📖 **[README-FULL.md](Ydea-Toolkit/README-FULL.md)** - Documentazione completa
-- 📖 **[README-REMOTE.md](Ydea-Toolkit/README-REMOTE.md)** - Remote wrapper
-- 📖 **[README-CHECKMK-INTEGRATION.md](Ydea-Toolkit/README-CHECKMK-INTEGRATION.md)** - Guida integrazione
-- 📖 **[README-MONITORING-TICKETS.md](Ydea-Toolkit/README-MONITORING-TICKETS.md)** - Gestione ticket monitoraggio
-- 📖 **[README-SLA-DISCOVERY.md](Ydea-Toolkit/README-SLA-DISCOVERY.md)** - Discovery SLA
-- 📖 **[RICERCA-SLA-API.md](Ydea-Toolkit/RICERCA-SLA-API.md)** - Ricerca SLA via API
+- 📖 **[README-CHECKMK-INTEGRATION.md](Ydea-Toolkit/doc/README-CHECKMK-INTEGRATION.md)** - Guida integrazione completa CheckMK-Ydea
+
+> 📋 **Nota**: Documentazione consolidata da 17 a 2 file essenziali per facilità navigazione (Febbraio 2026)
 
 ### Configurazione
 
 **File richiesti**:
-- `.env` - Credenziali API Ydea
-- `sla-premium-mon-ids.example.json` - Template mapping SLA-ID
+- `.env` - Credenziali API Ydea e configurazione SLA
+- `premium-mon-config.json` - Mapping Premium_Mon (contratto + SLA)
 
 **Variabili ambiente**:
 ```bash
-YDEA_API_URL="https://api.ydea.it"
-YDEA_API_KEY="your-api-key"
-YDEA_API_SECRET="your-secret"
+YDEA_ID="il_tuo_id_azienda"
+YDEA_API_KEY="la_tua_api_key"
+YDEA_CONTRATTO_ID="171734"  # Contratto che applica SLA automaticamente
 ```
+
+**SLA Contract-Based**: Dal Febbraio 2026, il sistema usa `contrattoId` per applicare automaticamente SLA Premium_Mon. Non serve più specificare esplicitamente `serviceLevelAgreement` - il contratto gestisce tutto.
 
 ---
 
@@ -1383,7 +1382,25 @@ Grazie a tutti i contributori che hanno aiutato a migliorare questa collezione!
 
 ## 📅 Changelog
 
-### v2.1.0 (Current - Gennaio 2026)
+### v2.2.0 (Current - Febbraio 2026)
+- ✅ **Ydea Toolkit Enhanced**: Sistema SLA contract-based con campo `contrattoId`
+  - Applicazione automatica SLA "Premium_Mon" da contratto 171734
+  - Eliminato bisogno di specificare esplicitamente `serviceLevelAgreement`
+  - Testing completo con 6 ticket validati (tutti con SLA Premium_Mon)
+  - Configurazione multi-utente (Alessandro Gaggiano, Lorenzo Angelini)
+- ✅ **Documentazione Consolidata**: Ydea-Toolkit da 17 a 2 file essenziali
+  - README.md principale (overview e quick start)
+  - README-CHECKMK-INTEGRATION.md (guida completa integrazione)
+  - Rimossi file ridondanti e frammentati
+  - Fix 61 warning markdownlint per qualità codice
+- ✅ **ROCKSOLID Mode Production**: Sistema completato e validato
+  - Testato su 2 host production (nsec8-stable, laboratorio)
+  - Dynamic package download da repository OpenWrt
+  - Auto-recovery post major-upgrade funzionante
+  - Git auto-install se rimosso durante upgrade
+  - Zero URL statici/hardcoded negli script
+
+### v2.1.0 (Gennaio 2026)
 - ✅ **ROCKSOLID Mode**: Sistema protezione completo per NethSecurity 8 agent CheckMK
   - Installazione resistente ai major upgrade con 13 file critici protetti
   - Auto-recovery automatico all'avvio (CheckMK Agent + FRP Client)
