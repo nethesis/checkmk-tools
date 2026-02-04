@@ -583,48 +583,75 @@ install_prereqs() {
     need_cmd wget
     need_cmd socat
 
-    # Per ar/tar/gzip: usa binari standalone se mancano
+    # Per ar/tar/gzip: usa opkg install (robusto, gestisce dipendenze)
     if ! command -v ar >/dev/null 2>&1 || ! command -v tar >/dev/null 2>&1 || ! command -v gzip >/dev/null 2>&1; then
-        log "Binari ar/tar/gzip mancanti - download versioni standalone"
+        log "Binari ar/tar/gzip mancanti - installazione via opkg"
         
-        # Download binutils standalone (ar) - dinamico
+        # Download binutils (ar) - dinamico
         if ! command -v ar >/dev/null 2>&1; then
-            log "Download ar standalone (dinamico da OpenWrt repo)..."
+            log "Installazione binutils (ar) via opkg..."
             
             if download_openwrt_package "binutils" "$REPO_BASE" "/tmp/binutils.ipk"; then
-                ( cd /tmp && ar x binutils.ipk && tar -xzf data.tar.gz && cp -f ./usr/bin/ar /usr/local/bin/ ) || die "Estrazione ar fallita"
-                chmod +x /usr/local/bin/ar
-                export PATH="/usr/local/bin:$PATH"
-                rm -f /tmp/binutils.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
-                log "ar installato con successo"
+                # Usa opkg install invece di estrazione manuale
+                # Questo installa anche dipendenze (libsframe, libbfd, etc.)
+                if opkg install /tmp/binutils.ipk 2>/dev/null; then
+                    log "binutils installato con successo via opkg"
+                    rm -f /tmp/binutils.ipk
+                else
+                    warn "opkg install fallito, provo estrazione manuale..."
+                    # Fallback: estrazione manuale solo se opkg fallisce
+                    if command -v ar >/dev/null 2>&1; then
+                        ( cd /tmp && ar x binutils.ipk && tar -xzf data.tar.gz && cp -f ./usr/bin/ar /usr/local/bin/ ) || die "Estrazione ar fallita"
+                        chmod +x /usr/local/bin/ar
+                        export PATH="/usr/local/bin:$PATH"
+                        rm -f /tmp/binutils.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
+                        log "ar installato con successo (estrazione manuale)"
+                    else
+                        die "Impossibile installare ar - opkg fallito e ar non disponibile per estrazione manuale"
+                    fi
+                fi
             else
                 die "Download binutils fallito - impossibile proseguire senza ar"
             fi
         fi
         
-        # Download tar standalone - dinamico
+        # Download tar - dinamico
         if ! command -v tar >/dev/null 2>&1; then
-            log "Download tar standalone (dinamico da OpenWrt repo)..."
+            log "Installazione tar via opkg..."
             
             if download_openwrt_package "tar" "$REPO_BASE" "/tmp/tar.ipk"; then
-                ( cd /tmp && /usr/local/bin/ar x tar.ipk && /usr/local/bin/ar x data.tar.gz && cp -f ./usr/libexec/tar-gnu /usr/local/bin/tar ) || die "Estrazione tar fallita"
-                chmod +x /usr/local/bin/tar
-                rm -f /tmp/tar.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
-                log "tar installato con successo"
+                if opkg install /tmp/tar.ipk 2>/dev/null; then
+                    log "tar installato con successo via opkg"
+                    rm -f /tmp/tar.ipk
+                else
+                    warn "opkg install fallito, provo estrazione manuale..."
+                    ( cd /tmp && ar x tar.ipk && tar -xzf data.tar.gz && cp -f ./usr/libexec/tar-gnu /usr/local/bin/tar ) || die "Estrazione tar fallita"
+                    chmod +x /usr/local/bin/tar
+                    export PATH="/usr/local/bin:$PATH"
+                    rm -f /tmp/tar.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
+                    log "tar installato con successo (estrazione manuale)"
+                fi
             else
                 die "Download tar fallito - impossibile proseguire senza tar"
             fi
         fi
         
-        # Download gzip standalone - dinamico
+        # Download gzip - dinamico
         if ! command -v gzip >/dev/null 2>&1; then
-            log "Download gzip standalone (dinamico da OpenWrt repo)..."
+            log "Installazione gzip via opkg..."
             
             if download_openwrt_package "gzip" "$REPO_BASE" "/tmp/gzip.ipk"; then
-                ( cd /tmp && /usr/local/bin/ar x gzip.ipk && /usr/local/bin/tar -xzf data.tar.gz && cp -f ./usr/libexec/gzip-gnu /usr/local/bin/gzip ) || die "Estrazione gzip fallita"
-                chmod +x /usr/local/bin/gzip
-                rm -f /tmp/gzip.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
-                log "gzip installato con successo"
+                if opkg install /tmp/gzip.ipk 2>/dev/null; then
+                    log "gzip installato con successo via opkg"
+                    rm -f /tmp/gzip.ipk
+                else
+                    warn "opkg install fallito, provo estrazione manuale..."
+                    ( cd /tmp && ar x gzip.ipk && tar -xzf data.tar.gz && cp -f ./usr/libexec/gzip-gnu /usr/local/bin/gzip ) || die "Estrazione gzip fallita"
+                    chmod +x /usr/local/bin/gzip
+                    export PATH="/usr/local/bin:$PATH"
+                    rm -f /tmp/gzip.ipk /tmp/data.tar.gz /tmp/control.tar.gz /tmp/debian-binary
+                    log "gzip installato con successo (estrazione manuale)"
+                fi
             else
                 die "Download gzip fallito - impossibile proseguire senza gzip"
             fi

@@ -159,7 +159,113 @@ git commit -m "fix: risolto errore comando"
 - `checkmk-vps-02` (monitor01.nethlab.it) - CheckMK staging/test
 - `checkmk-z1plus` (192.168.10.128) - CheckMK locale test
 
-10. **Script eseguibili - Verifica SEMPRE permessi Git**
+10. **⚠️ WORKFLOW OBBLIGATORIO - Sviluppo e Test Script**
+   - ✅ **SEMPRE seguire questo workflow completo** per modifiche a script bash/shell
+   - ❌ **MAI** saltare step o dichiarare "completato" senza test reale
+   - 🔄 **LOOP finché non funziona tutto** - non uscire fino a successo completo
+   
+**WORKFLOW OBBLIGATORIO (da seguire SEMPRE):**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ 1. MODIFICA/SCRITTURA SCRIPT                            │
+│    - Implementa funzionalità richiesta                  │
+│    - Segui best practices bash/PowerShell               │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│ 2. TEST SINTASSI                                        │
+│    Bash: wsl bash -n script.sh                          │
+│    PowerShell: PSParser validation                      │
+│    ✓ Exit code DEVE essere 0                            │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│ 3. VERIFICA ESEGUIBILITÀ                                │
+│    git ls-files -s script.sh                            │
+│    ✓ DEVE mostrare 100755 (eseguibile)                  │
+│    Se 100644 → git update-index --chmod=+x script.sh    │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│ 4. ALLINEA REPO E COMMIT                                │
+│    git add script.sh                                    │
+│    git commit -m "descriptive message"                  │
+│    git push                                             │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│ 5. CHIEDI HOST PER TEST                                 │
+│    "Su quale host vuoi testare?"                        │
+│    Host disponibili: nsec8-stable, laboratorio, etc.    │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│ 6. COLLEGATI WSL                                        │
+│    wsl -- ssh <host>                                    │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│ 7. TEST FUNZIONAMENTO COMPLETO                          │
+│    - Esegui script da GitHub raw                        │
+│    - Verifica output/log                                │
+│    - Controlla exit code                                │
+│    - Valida risultato atteso                            │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+              ┌──────────────────┐
+              │ FUNZIONA TUTTO?  │
+              └──────────────────┘
+                    /    \
+                   /      \
+              NO ↙        ↘ SI
+                /          \
+    ┌──────────────┐    ┌──────────────────────┐
+    │ TORNA A 1.   │    │ ✅ ESCI DAL LOOP     │
+    │ FIX + RITEST │    │ Task completato!     │
+    └──────────────┘    └──────────────────────┘
+```
+
+**⚠️ REGOLE CRITICHE:**
+- ❌ **MAI** dire "test completato" senza test REALE su host remoto
+- ❌ **MAI** uscire dal loop se ci sono errori
+- ✅ **SEMPRE** fixare errori e ri-testare automaticamente
+- ✅ **SEMPRE** testare TUTTI gli script modificati nella sessione
+- 🔄 **LOOP infinito** finché non funziona o utente ferma
+
+**Esempio completo:**
+```bash
+# 1. Modifica
+vi install-script.sh
+
+# 2. Test sintassi
+wsl bash -n install-script.sh  # Exit: 0 ✓
+
+# 3. Verifica eseguibilità
+git ls-files -s install-script.sh  # 100755 ✓
+
+# 4. Commit
+git add install-script.sh
+git commit -m "fix: correzione download dinamico"
+git push
+
+# 5. Chiedi host
+"Su quale host testo? [nsec8-stable]"
+
+# 6. Collegati
+wsl -- ssh nsec8-stable
+
+# 7. Test
+curl -fsSL .../install-script.sh | bash
+# Output: ERRORE linea 45
+
+# ❌ ERRORE → TORNA A 1 (fix + ritest)
+# Fix errore linea 45, ricommit, ritest...
+
+# ✅ OK → Test completato, ESCI DAL LOOP
+```
+
+11. **Script eseguibili - Verifica SEMPRE permessi Git**
    - ⚠️ **Windows (NTFS) NON preserva il bit eseguibile Unix**
    - ✅ **SEMPRE** quando crei/modifichi script bash/shell (.sh):
      1. Crea/modifica il file
