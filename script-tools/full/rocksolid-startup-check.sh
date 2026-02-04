@@ -83,12 +83,24 @@ if [ -d "$BACKUP_DIR" ]; then
         fi
     fi
     
-    # Se corrotti, reinstalla binutils per dipendenze (libsframe, ecc.)
+    # Se corrotti, reinstalla dependencies chain (libbfd → ar → objdump)
     if [ $BINARIES_CORRUPTED -eq 1 ]; then
-        if command -v opkg >/dev/null 2>&1; then
-            log "[Binari Critici] Reinstallo binutils per dipendenze..."
-            opkg update >/dev/null 2>&1
-            opkg install --force-reinstall binutils >/dev/null 2>&1
+        if command -v opkg >/dev/null 2>&1 && command -v wget >/dev/null 2>&1; then
+            log "[Binari Critici] Reinstallo dependencies chain (libbfd → ar)..."
+            REPO_BASE="https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base"
+            
+            # STEP 1: Install libbfd (base library)
+            if download_openwrt_package "libbfd" "$REPO_BASE" "/tmp/libbfd.ipk"; then
+                opkg install --force-depends /tmp/libbfd.ipk >/dev/null 2>&1 || true
+                rm -f /tmp/libbfd.ipk
+            fi
+            
+            # STEP 2: Install ar (uses libbfd)
+            if download_openwrt_package "ar" "$REPO_BASE" "/tmp/ar.ipk"; then
+                opkg install --force-depends /tmp/ar.ipk >/dev/null 2>&1 || true
+                rm -f /tmp/ar.ipk
+                log "[Binari Critici] ar reinstallato con successo"
+            fi
         fi
     fi
     
@@ -375,6 +387,39 @@ QEMU_INIT
     fi
 else
     log "[QEMU-GA] Non installato (opzionale, solo per VM)"
+fi
+
+# ============================================================================
+# 2.7 VERIFICA E RIPRISTINA GIT (per Auto-Sync Repository)
+# ============================================================================
+log "[Git] Verifica in corso..."
+
+if ! command -v git >/dev/null 2>&1; then
+    log "[Git] Non trovato - installazione automatica per Auto-Sync..."
+    
+    if command -v opkg >/dev/null 2>&1 && command -v wget >/dev/null 2>&1; then
+        # Download dinamico git e git-http da OpenWrt
+        if download_openwrt_package "git" "$REPO_PACKAGES" "/tmp/git.ipk"; then
+            if download_openwrt_package "git-http" "$REPO_PACKAGES" "/tmp/git-http.ipk"; then
+                opkg install /tmp/git.ipk /tmp/git-http.ipk >/dev/null 2>&1
+                rm -f /tmp/git.ipk /tmp/git-http.ipk
+                
+                if command -v git >/dev/null 2>&1; then
+                    log "[Git] Installato con successo: $(git --version 2>&1 | head -1)"
+                else
+                    log "[Git] ERRORE: Installazione fallita"
+                fi
+            else
+                log "[Git] ERRORE: Download git-http fallito"
+            fi
+        else
+            log "[Git] ERRORE: Download git fallito"
+        fi
+    else
+        log "[Git] ERRORE: opkg o wget non disponibili"
+    fi
+else
+    log "[Git] OK - Presente: $(git --version 2>&1 | head -1)"
 fi
 
 # ============================================================================
