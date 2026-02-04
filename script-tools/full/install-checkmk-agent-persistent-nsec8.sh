@@ -532,15 +532,13 @@ download_openwrt_package() {
     local repo_url="$2"  # es. https://downloads.openwrt.org/releases/23.05.0/packages/x86_64/base
     local output_file="$3"
     
-    log "Download dinamico pacchetto: $package_name da $repo_url"
+    log "Download dinamico pacchetto: $package_name"
     
     # Scarica lista pacchetti OpenWrt
-    log "  Downloading Packages.gz..."
     if ! wget -q -O /tmp/Packages.gz "${repo_url}/Packages.gz"; then
         warn "Download Packages.gz fallito - impossibile rilevare versione dinamica"
         return 1
     fi
-    log "  Packages.gz scaricato OK"
     
     # Verifica gzip disponibile per decompressione
     if ! command -v gunzip >/dev/null 2>&1 && ! command -v gzip >/dev/null 2>&1; then
@@ -548,13 +546,10 @@ download_openwrt_package() {
         rm -f /tmp/Packages.gz
         return 1
     fi
-    log "  gunzip disponibile OK"
     
     # Estrai filename del pacchetto dall'index
     # Pattern: "Filename: package_name_version_arch.ipk" (no slash before package name)
-    log "  Parsing Packages.gz per ${package_name}_..."
     local package_file=$(gunzip -c /tmp/Packages.gz | grep "^Filename:" | grep "${package_name}_" | head -1 | awk '{print $2}')
-    log "  Trovato: [$package_file]"
     rm -f /tmp/Packages.gz
     
     if [ -z "$package_file" ]; then
