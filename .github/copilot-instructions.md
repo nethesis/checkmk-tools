@@ -46,6 +46,44 @@
    - ✅ Email include: lista file corrotti, percentuale errori, dettagli
    - ✅ Non inviare email se tutto OK (solo output console)
 
+8. **⚠️ TEST OBBLIGATORIO - TUTTI GLI SCRIPT MODIFICATI**
+   - ❌ **MAI** dire "test completato" senza testare TUTTI gli script modificati
+   - ✅ **SEMPRE** testare OGNI script modificato nella sessione corrente
+   - ✅ Lista script modificati → test CIASCUNO separatamente
+   - ⚠️ **CRITICO**: Se modifichi 3 script → testa tutti e 3, non solo 1!
+   - ✅ Validare sintassi bash: `wsl bash -n script.sh`
+   - ✅ Test esecuzione: eseguire su host remoto (nsec8-stable, laboratorio, etc.)
+   - ✅ Verificare output/log per confermare funzionamento
+   - ❌ Non dare per scontato che "se uno funziona, funzionano tutti"
+   
+**Esempio workflow test CORRETTO:**
+```bash
+# Modificati: install-script.sh, rocksolid-startup.sh, altro-script.sh
+
+# OBBLIGATORIO: Testa TUTTI E 3 separatamente
+wsl bash -n install-script.sh          # ✅ Validazione 1
+wsl bash -n rocksolid-startup.sh       # ✅ Validazione 2
+wsl bash -n altro-script.sh            # ✅ Validazione 3
+
+# Test esecuzione TUTTI E 3 su host remoto
+wsl -- ssh nsec8-stable "curl -fsSL .../install-script.sh | bash"      # ✅ Test 1
+wsl -- ssh nsec8-stable "curl -fsSL .../rocksolid-startup.sh | bash"   # ✅ Test 2
+wsl -- ssh nsec8-stable "curl -fsSL .../altro-script.sh | bash"        # ✅ Test 3
+
+# SOLO ORA puoi dire "test completato"
+```
+
+**Esempio workflow test SBAGLIATO:**
+```bash
+# Modificati: install-script.sh, rocksolid-startup.sh
+
+# Test solo rocksolid
+wsl -- ssh nsec8-stable "rocksolid-startup.sh"  # ✅ Test 1
+# ❌ NON testato install-script.sh!
+
+# ❌ ERRORE: Dici "test completato" senza testare install-script.sh
+```
+
 **Esempio workflow corretto:**
 ```bash
 # 1. Backup
