@@ -1084,7 +1084,7 @@ Copy-Item -Recurse "$env:USERPROFILE\Desktop\VSCode-User-Backup\*" "$env:APPDATA
 **Script validati e production-ready:**
 
 1. **install-checkmk-agent-persistent-nsec8.sh** (commit b29a2cf)
-   - Path: [script-tools/full/install-checkmk-agent-persistent-nsec8.sh](../script-tools/full/install-checkmk-agent-persistent-nsec8.sh)
+   - Path: `script-tools/full/install-checkmk-agent-persistent-nsec8.sh`
    - Funzione: Installazione completa CheckMK Agent + FRP Client + QEMU-GA + Auto Git Sync
    - Fix implementati:
      - ✅ Dynamic package download via `download_openwrt_package()`
@@ -1094,7 +1094,7 @@ Copy-Item -Recurse "$env:USERPROFILE\Desktop\VSCode-User-Backup\*" "$env:APPDATA
    - Test: ✅ nsec8-stable, ✅ laboratorio (da GitHub)
 
 2. **rocksolid-startup-check.sh** (commit ea67364)
-   - Path: [script-tools/full/rocksolid-startup-check.sh](../script-tools/full/rocksolid-startup-check.sh)
+   - Path: `script-tools/full/rocksolid-startup-check.sh`
    - Funzione: Verifica e auto-remediation all'avvio sistema
    - Fix implementati:
      - ✅ Logic reordering: backup restore → corruption check → dependencies install
