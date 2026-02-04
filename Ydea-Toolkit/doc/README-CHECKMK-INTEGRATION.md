@@ -4,14 +4,14 @@ Sistema completo per la gestione automatica di ticket Ydea da alert CheckMK con 
 
 ## 📋 Indice
 
-- [Panoramica](#panoramica)
-- [Componenti](#componenti)
-- [Installazione](#installazione)
-- [Configurazione CheckMK](#configurazione-checkmk)
-- [Configurazione Cron](#configurazione-cron)
-- [Test e Verifica](#test-e-verifica)
-- [Troubleshooting](#troubleshooting)
-- [FAQ](#faq)
+- [Panoramica](#-panoramica)
+- [Componenti](#-componenti)
+- [Installazione](#-installazione)
+- [Configurazione CheckMK](#%EF%B8%8F-configurazione-checkmk)
+- [Configurazione Cron](#-configurazione-cron)
+- [Test e Verifica](#-test-e-verifica)
+- [Troubleshooting](#-troubleshooting)
+- [FAQ](#-faq)
 
 ---
 
@@ -19,14 +19,17 @@ Sistema completo per la gestione automatica di ticket Ydea da alert CheckMK con 
 
 Questo sistema automatizza la gestione dei ticket Ydea per alert CheckMK con le seguenti funzionalità:
 
-### **Alert CheckMK → Ydea Ticket**
+
+### Alert CheckMK → Ydea Ticket
+
 - ✅ **Nuovo alert CRITICAL/DOWN** → Crea ticket automatico
 - ✅ **Cambio stato** → Aggiunge nota privata (non visibile al cliente)
 - ✅ **Rilevamento flapping** → Alert se servizio cambia stato frequentemente
 - ✅ **Prevenzione duplicati** → Cache intelligente per evitare ticket multipli
 - ✅ **Note sintetiche** → Tracking completo dei cambi stato
 
-### **Monitoraggio Ydea**
+### Monitoraggio Ydea
+
 - ✅ **Check periodico** (ogni 15 min) della disponibilità API Ydea
 - ✅ **Notifica email** se Ydea non è raggiungibile
 - ✅ **Recovery notification** quando servizio torna online
@@ -35,10 +38,12 @@ Questo sistema automatizza la gestione dei ticket Ydea per alert CheckMK con le 
 
 ## 📦 Componenti
 
-### 1. **`ydea_realip`** (in `script-notify-checkmk/`)
+### 1. `ydea_realip` (in `script-notify-checkmk/`)
+
 Script di notifica CheckMK che gestisce alert e crea/aggiorna ticket Ydea.
 
 **Funzionalità:**
+
 - Riceve variabili ambiente da CheckMK (`NOTIFY_*`)
 - Identifica ticket univoco per IP/Hostname + Servizio
 - Crea ticket su alert CRITICAL/DOWN
@@ -46,20 +51,26 @@ Script di notifica CheckMK che gestisce alert e crea/aggiorna ticket Ydea.
 - Rileva flapping (5+ cambi in 10 minuti)
 - Cache: `/tmp/ydea_checkmk_tickets.json`
 
-### 2. **`ydea-health-monitor.sh`** (in `Ydea-Toolkit/`)
+### 2. `ydea-health-monitor.sh` (in `Ydea-Toolkit/`)
+
+
 Monitor periodico della disponibilità Ydea API.
 
 **Funzionalità:**
+
 - Testa login Ydea ogni 15 minuti (via cron)
 - Soglia 3 fallimenti prima di notificare
 - Email alert se Ydea down
 - Email recovery quando torna up
 - State: `/tmp/ydea_health_state.json`
 
-### 3. **`mail_ydea_down`** (in `script-notify-checkmk/`)
+### 3. `mail_ydea_down` (in `script-notify-checkmk/`)
+
+
 Script notifica email per Ydea offline.
 
 **Funzionalità:**
+
 - Email HTML professionale con dettagli
 - Informazioni su impatto e azioni
 - Usato da `ydea-health-monitor.sh`
@@ -68,13 +79,13 @@ Script notifica email per Ydea offline.
 
 ## 🚀 Installazione
 
-### **Prerequisiti**
+### Prerequisiti
 
 1. **CheckMK** già installato e funzionante
 2. **Ydea Toolkit** configurato in `/opt/ydea-toolkit/`
 3. **Credenziali Ydea** (ID e API Key)
 
-### **Passo 1: Copia Script**
+### Passo 1: Copia Script
 
 ```bash
 # Dal repository su server CheckMK
@@ -104,13 +115,14 @@ sudo nano /opt/ydea-toolkit/.env
 ```
 
 Inserisci:
+
 ```bash
 export YDEA_ID="il_tuo_id_azienda"
 export YDEA_API_KEY="la_tua_api_key"
 export YDEA_ALERT_EMAIL="massimo.palazzetti@nethesis.it"
 ```
 
-### **Passo 3: Test Iniziale**
+### Passo 3: Test Iniziale
 
 ```bash
 # Test login Ydea
@@ -128,7 +140,7 @@ source .env
 
 ## ⚙️ Configurazione CheckMK
 
-### **Setup Notifica Rule**
+### Setup Notifica Rule
 
 1. **Accedi a CheckMK** → **Setup** → **Notifications**
 
@@ -152,7 +164,7 @@ source .env
 
 4. **Salva** e **Activate Changes**
 
-### **Esempio Configurazione Avanzata**
+### Esempio Configurazione Avanzata
 
 ```python
 # In WATO Rules → Notifications
@@ -179,7 +191,7 @@ source .env
 
 ## ⏰ Configurazione Cron
 
-### **Setup Cron Job per Health Monitor**
+### Setup Cron Job per Health Monitor
 
 ```bash
 # Edita crontab del sito CheckMK
@@ -188,12 +200,14 @@ crontab -e
 ```
 
 Aggiungi:
+
 ```cron
 # Ydea Health Monitor - ogni 15 minuti
 */15 * * * * /opt/ydea-toolkit/ydea-health-monitor.sh >> /tmp/ydea_health.log 2>&1
 ```
 
 Oppure come utente root:
+
 ```bash
 sudo crontab -e
 ```
@@ -202,7 +216,7 @@ sudo crontab -e
 */15 * * * * /opt/ydea-toolkit/ydea-health-monitor.sh >> /var/log/ydea_health.log 2>&1
 ```
 
-### **Verifica Cron**
+### Verifica Cron
 
 ```bash
 # Lista cron jobs
@@ -216,7 +230,7 @@ tail -f /tmp/ydea_health.log
 
 ## 🧪 Test e Verifica
 
-### **Test 1: Notifica Manuale CheckMK**
+### Test 1: Notifica Manuale CheckMK
 
 ```bash
 # Simula notifica SERVICE CRITICAL
@@ -235,12 +249,13 @@ export NOTIFY_SERVICESTATETYPE="HARD"
 ```
 
 **Output atteso:**
-```
+
+```text
 [2025-11-13 14:30:00] SERVICE Alert: test-server (192.168.1.100) - CPU Load | OK -> CRIT
 [2025-11-13 14:30:01] ✅ Ticket creato: #12345 per 192.168.1.100:CPU Load
 ```
 
-### **Test 2: Cambio Stato (Nota Privata)**
+### Test 2: Cambio Stato (Nota Privata)
 
 ```bash
 # Simula rientro alert (CRIT → OK)
@@ -252,13 +267,14 @@ export NOTIFY_SERVICEOUTPUT="CPU load normal at 35%"
 ```
 
 **Output atteso:**
-```
+
+```text
 [2025-11-13 14:35:00] SERVICE Alert: test-server (192.168.1.100) - CPU Load | CRIT -> OK
 [2025-11-13 14:35:01] Ticket esistente trovato: #12345
 [2025-11-13 14:35:02] Nota privata aggiunta al ticket #12345
 ```
 
-### **Test 3: Health Monitor**
+### Test 3: Health Monitor
 
 ```bash
 # Esegui manualmente
@@ -268,13 +284,15 @@ export NOTIFY_SERVICEOUTPUT="CPU load normal at 35%"
 cat /tmp/ydea_health_state.json
 ```
 
-### **Test 4: Verifica Cache**
+### Test 4: Verifica Cache
 
 ```bash
 # Mostra ticket in cache
 cat /tmp/ydea_checkmk_tickets.json | jq .
 
 # Esempio output:
+
+```json
 {
   "192.168.1.100:CPU Load": {
     "ticket_id": "12345",
@@ -289,27 +307,31 @@ cat /tmp/ydea_checkmk_tickets.json | jq .
 
 ## 🔧 Troubleshooting
 
-### **Problema: Ticket non viene creato**
+### Problema: Ticket non viene creato
 
-**Verifica 1: Log CheckMK**
+Verifica 1: Log CheckMK
+
 ```bash
 tail -f /omd/sites/monitoring/var/log/notify.log
 ```
 
-**Verifica 2: Permessi script**
+Verifica 2: Permessi script
+
 ```bash
 ls -la /omd/sites/monitoring/local/share/check_mk/notifications/ydea_realip
 # Deve essere: -rwxr-xr-x (eseguibile)
 ```
 
-**Verifica 3: Credenziali Ydea**
+Verifica 3: Credenziali Ydea
+
 ```bash
 cd /opt/ydea-toolkit
 source .env
 ./ydea-toolkit.sh login
 ```
 
-**Verifica 4: Debug mode**
+Verifica 4: Debug mode
+
 ```bash
 # Abilita debug in .env
 export DEBUG_YDEA=1
@@ -317,28 +339,33 @@ export DEBUG_YDEA=1
 # Riesegui notifica e controlla output
 ```
 
-### **Problema: Email Ydea down non arriva**
+### Problema: Email Ydea down non arriva
 
-**Verifica 1: Sendmail configurato**
+Verifica 1: Sendmail configurato
+
 ```bash
 echo "Test mail" | mail -s "Test" massimo.palazzetti@nethesis.it
 ```
 
-**Verifica 2: Percorso script email**
+Verifica 2: Percorso script email
+
 ```bash
 ls -la /omd/sites/monitoring/local/share/check_mk/notifications/mail_ydea_down
 ```
 
-**Verifica 3: Log health monitor**
+Verifica 3: Log health monitor
+
 ```bash
 tail -f /tmp/ydea_health.log
 ```
 
-### **Problema: Troppi ticket duplicati**
+### Problema: Troppi ticket duplicati
 
 **Causa:** Cache corrotta o non accessibile
 
+
 **Soluzione:**
+
 ```bash
 # Ripulisci cache
 sudo rm /tmp/ydea_checkmk_tickets.json
@@ -349,9 +376,11 @@ sudo touch /tmp/ydea_checkmk_tickets.json
 sudo chmod 666 /tmp/ydea_checkmk_tickets.json
 ```
 
-### **Problema: Flapping non rilevato**
+### Problema: Flapping non rilevato
 
 **Verifica soglie:**
+
+
 ```bash
 # In ydea_realip, controlla:
 FLAPPING_THRESHOLD=5  # Numero cambi stato
@@ -359,6 +388,7 @@ FLAPPING_WINDOW=600   # Finestra 10 minuti
 ```
 
 **Verifica cache flapping:**
+
 ```bash
 cat /tmp/ydea_checkmk_flapping.json | jq .
 ```
@@ -367,40 +397,49 @@ cat /tmp/ydea_checkmk_flapping.json | jq .
 
 ## ❓ FAQ
 
-### **Q: Posso cambiare il formato delle note private?**
+### Q: Posso cambiare il formato delle note private?
+
 **A:** Sì, modifica la sezione `NOTE=` nello script `ydea_realip` (circa linea 280-290).
 
-### **Q: Come chiudo automaticamente i ticket quando l'alert rientra?**
+### Q: Come chiudo automaticamente i ticket quando l'alert rientra?
+
 **A:** Attualmente i ticket restano aperti con nota privata. Per chiusura automatica, modifica lo script aggiungendo:
+
 ```bash
 if [[ "$STATE" == "OK" ]]; then
   "$YDEA_TOOLKIT" close "$TICKET_ID" "Alert rientrato automaticamente"
 fi
 ```
 
-### **Q: Posso filtrare quali servizi creano ticket?**
+### Q: Posso filtrare quali servizi creano ticket?
+
 **A:** Sì, in CheckMK notification rule aggiungi condizioni su service name o labels.
 
-### **Q: Come cambio l'intervallo del health monitor?**
+### Q: Come cambio l'intervallo del health monitor?
+
 **A:** Modifica il cron job (es: `*/5 * * * *` per ogni 5 minuti).
 
-### **Q: Come vedo tutti i ticket creati automaticamente?**
-**A:** 
+### Q: Come vedo tutti i ticket creati automaticamente?
+
+**A:**
+
 ```bash
 cat /tmp/ydea_checkmk_tickets.json | jq 'to_entries | .[] | {service: .key, ticket: .value.ticket_id}'
 ```
 
-### **Q: Il sistema funziona con CheckMK Raw Edition?**
+### Q: Il sistema funziona con CheckMK Raw Edition?
+
 **A:** Sì, compatibile con tutte le edizioni CheckMK (Raw, Enterprise, Cloud).
 
-### **Q: Posso usare Telegram invece di email per Ydea down?**
+### Q: Posso usare Telegram invece di email per Ydea down?
+
 **A:** Sì, modifica `ydea-health-monitor.sh` per chiamare uno script Telegram invece di `mail_ydea_down`.
 
 ---
 
 ## 📊 Manutenzione
 
-### **Pulizia Periodica Cache**
+### Pulizia Periodica Cache
 
 ```bash
 # Script di pulizia (esegui settimanalmente)
@@ -420,7 +459,7 @@ jq --arg now "$NOW" --arg max "$MAX_AGE" '
 mv /tmp/ydea_checkmk_tickets.json.tmp /tmp/ydea_checkmk_tickets.json
 ```
 
-### **Backup Configurazione**
+### Backup Configurazione
 
 ```bash
 # Backup settimanale
@@ -436,6 +475,7 @@ tar czf ydea-integration-backup-$(date +%Y%m%d).tar.gz \
 ## 📞 Supporto
 
 Per problemi o domande:
+
 1. Controlla i log: `/omd/sites/monitoring/var/log/notify.log`
 2. Verifica cache: `/tmp/ydea_checkmk_tickets.json`
 3. Test manuale degli script come mostrato sopra
@@ -445,6 +485,7 @@ Per problemi o domande:
 ## 🔄 Changelog
 
 ### v1.0.0 (2025-11-13)
+
 - ✅ Prima release integrazione CheckMK → Ydea
 - ✅ Gestione automatica ticket con note private
 - ✅ Flapping detection
