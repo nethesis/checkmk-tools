@@ -363,6 +363,7 @@ create_ticket() {
 # Valori predefiniti da variabili ambiente o fallback
   local azienda="${YDEA_AZIENDA:-2339268}"
   local contatto="${YDEA_CONTATTO:-773763}"
+  local contratto_id="${YDEA_CONTRATTO_ID:-}"
   
   
 # Costruisci body base
@@ -389,8 +390,14 @@ create_ticket() {
   )
   
   
-# Aggiungi sla_id se fornito (campo opzionale)
-  if [[ -n "$sla_id" ]]; then
+# Aggiungi contrattoId se disponibile (applica automaticamente lo SLA dal contratto)
+  if [[ -n "$contratto_id" ]]; then
+    body=$(echo "$body" | jq --argjson cid "$contratto_id" '. + {contrattoId: $cid}')
+  fi
+  
+  
+# Aggiungi sla_id se fornito E contratto non specificato (campo opzionale/legacy)
+  if [[ -n "$sla_id" && -z "$contratto_id" ]]; then
     body=$(echo "$body" | jq --argjson sid "$sla_id" '. + {sla_id: $sid}')
   fi
   
