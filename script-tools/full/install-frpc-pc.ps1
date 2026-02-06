@@ -62,7 +62,7 @@ function Test-Administrator {
   return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-function Ensure-ExecutionPolicy {
+function Set-ExecutionPolicyBypass {
   try {
     Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
     Write-Log "ExecutionPolicy Process=BYPASS (solo questa sessione)" "OK"
@@ -352,7 +352,7 @@ function Install-And-Start-Task {
 # MAIN
 # ===============================
 try {
-  Ensure-ExecutionPolicy
+  Set-ExecutionPolicyBypass
 
   if (-not (Test-Administrator)) { throw "Esegui PowerShell come Amministratore" }
   if (-not [Environment]::Is64BitOperatingSystem) { throw "Richiesto Windows 64-bit" }
