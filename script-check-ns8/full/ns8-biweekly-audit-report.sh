@@ -298,12 +298,39 @@ collect_webtop_sharing() {
                 if [[ -n "$webtop_db" ]]; then
                     log_info "  Database WebTop: $webtop_db"
                     
-                    # Query condivisioni mailbox
-                    local sharing_query="SELECT * FROM core.shares WHERE context='mail' ORDER BY user_uid, resource_id;"
+                    # Query condivisioni mailbox (con JOIN per ottenere permessi da shares_data)
+                    # service_id per mail è tipicamente 'com.sonicle.webtop.mail'
+                    local sharing_query="
+                        SELECT 
+                            s.share_id, 
+                            s.user_uid AS owner, 
+                            s.service_id, 
+                            s.key AS mailbox_path, 
+                            s.instance,
+                            sd.user_uid AS shared_with,
+                            sd.value AS permissions
+                        FROM core.shares s
+                        LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id
+                        WHERE s.service_id LIKE '%mail%'
+                        ORDER BY s.user_uid, s.share_id, sd.user_uid;
+                    "
+                    
+                    local webtop_output="$output_dir/webtop_mail_shares.txt"
                     if runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
-                        psql -U postgres -d "$webtop_db" -c "$sharing_query" > "$output_dir/webtop_mail_shares.txt" 2>/dev/null; then
-                        log_success "  WebTop condivisioni raccolte"
-                        has_data=1
+                        psql -U postgres -d "$webtop_db" -c "$sharing_query" > "$webtop_output" 2>/dev/null; then
+                        
+                        # Verifica se ci sono dati (più di 2 righe = header + almeno 1 record)
+                        local line_count=$(wc -l < "$webtop_output" 2>/dev/null || echo "0")
+                        if [[ "$line_count" -gt 2 ]]; then
+                            log_success "  WebTop condivisioni raccolte ($((line_count - 2)) records)"
+                            has_data=1
+                        else
+                            log_warn "  WebTop: Nessuna condivisione mail configurata"
+                            echo "No mail sharing configured in WebTop" > "$webtop_output"
+                        fi
+                    else
+                        log_warn "  WebTop: Query fallita"
+                        echo "WebTop query failed" > "$webtop_output"
                     fi
                 fi
             else
