@@ -811,7 +811,9 @@ checkmk-testfrp   # 192.168.10.126 (user: admin_nethesis)
 nodo-proxmox      # 10.155.100.20:22 (root, Proxmox VE)
 ns-lab00          # 192.168.10.100:2222 (root)
 box-lab00         # 192.168.10.132:22 (root) - Host share \\192.168.10.132\usbshare
-rl94ns8           # 10.155.100.70:22 (root, NethServer 8)
+rl94ns8           # 10.155.100.40:22 (root, NethServer 8)
+                  # Moduli: samba1, webtop1
+                  # Nodo per test report quindicinale NS8
 nsec8-stable      # 10.155.100.100:22 (root, NethServer Security 8)
                   # Agent CheckMK installato con: install-checkmk-agent-debtools-frp-nsec8c.sh
                   # Path: /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c.sh
