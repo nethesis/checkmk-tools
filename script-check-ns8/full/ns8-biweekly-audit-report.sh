@@ -552,51 +552,36 @@ EOF
             
             local acl_path="$OUTPUT_DIR/03_shares/acls/$acl_file"
             if [[ -f "$acl_path" ]]; then
-                # Estrai owner e group
-                local owner=$(grep "^# owner:" "$acl_path" | cut -d: -f2 | xargs | sed 's/BUILTIN\\\\administrators/Amministratori/; s/BUILTIN\\\\server\\040operators/Operatori Server/; s/NT\\040Authority\\\\system/SYSTEM/; s/NT\\040Authority\\\\authenticated\\040users/Utenti Autenticati/')
-                local group=$(grep "^# group:" "$acl_path" | cut -d: -f2 | xargs | sed 's/BUILTIN\\\\administrators/Amministratori/; s/BUILTIN\\\\server\\040operators/Operatori Server/; s/NT\\040Authority\\\\system/SYSTEM/; s/NT\\040Authority\\\\authenticated\\040users/Utenti Autenticati/')
-                
-                echo "   Proprietario: $owner" >> "$summary_file"
-                echo "   Gruppo: $group" >> "$summary_file"
-                echo "" >> "$summary_file"
-                
                 # Estrai permessi utenti specifici
                 local user_acls=$(grep "^user:" "$acl_path" | grep -v "^user::") 
+                
                 if [[ -n "$user_acls" ]]; then
-                    echo "   👤 Permessi Utenti:" >> "$summary_file"
+                    echo "   Permessi specifici per utente:" >> "$summary_file"
                     while IFS= read -r acl_line; do
                         local username=$(echo "$acl_line" | cut -d: -f2 | sed 's/BUILTIN\\\\administrators/Amministratori/; s/BUILTIN\\\\server\\040operators/Operatori Server/; s/NT\\040Authority\\\\system/SYSTEM/; s/NT\\040Authority\\\\authenticated\\040users/Utenti Autenticati/')
                         local perms=$(echo "$acl_line" | cut -d: -f3)
                         local perm_desc=""
-                        [[ "$perms" == "rwx" ]] && perm_desc="Controllo Totale"
-                        [[ "$perms" == "r-x" ]] && perm_desc="Lettura ed Esecuzione"
+                        [[ "$perms" == "rwx" ]] && perm_desc="Lettura, Scrittura ed Esecuzione"
                         [[ "$perms" == "rw-" ]] && perm_desc="Lettura e Scrittura"
+                        [[ "$perms" == "r-x" ]] && perm_desc="Solo Lettura"
                         [[ "$perms" == "r--" ]] && perm_desc="Solo Lettura"
                         [[ -z "$perm_desc" ]] && perm_desc=$(echo "$perms" | sed 's/r/Lettura /g; s/w/Scrittura /g; s/x/Esecuzione /g; s/-//g' | sed 's/  */ /g')
                         echo "      • $username: $perm_desc" >> "$summary_file"
                     done <<< "$user_acls"
                 else
-                    echo "   👤 Permessi Utenti: Nessun permesso specifico" >> "$summary_file"
-                fi
-                echo "" >> "$summary_file"
-                
-                # Estrai permessi gruppi specifici
-                local group_acls=$(grep "^group:" "$acl_path" | grep -v "^group::")
-                if [[ -n "$group_acls" ]]; then
-                    echo "   👥 Permessi Gruppi:" >> "$summary_file"
-                    while IFS= read -r acl_line; do
-                        local groupname=$(echo "$acl_line" | cut -d: -f2 | sed 's/BUILTIN\\\\administrators/Amministratori/; s/BUILTIN\\\\server\\040operators/Operatori Server/; s/NT\\040Authority\\\\system/SYSTEM/; s/NT\\040Authority\\\\authenticated\\040users/Utenti Autenticati/')
-                        local perms=$(echo "$acl_line" | cut -d: -f3)
-                        local perm_desc=""
-                        [[ "$perms" == "rwx" ]] && perm_desc="Controllo Totale"
-                        [[ "$perms" == "r-x" ]] && perm_desc="Lettura ed Esecuzione"
-                        [[ "$perms" == "rw-" ]] && perm_desc="Lettura e Scrittura"
-                        [[ "$perms" == "r--" ]] && perm_desc="Solo Lettura"
-                        [[ -z "$perm_desc" ]] && perm_desc=$(echo "$perms" | sed 's/r/Lettura /g; s/w/Scrittura /g; s/x/Esecuzione /g; s/-//g' | sed 's/  */ /g')
-                        echo "      • $groupname: $perm_desc" >> "$summary_file"
-                    done <<< "$group_acls"
-                else
-                    echo "   👥 Permessi Gruppi: Nessun permesso specifico" >> "$summary_file"
+                    # Mostra permessi base gruppo
+                    local group=$(grep "^# group:" "$acl_path" | cut -d: -f2 | head -1 | xargs)
+                    local group_perms=$(grep "^group::" "$acl_path" | head -1 | cut -d: -f3)
+                    
+                    echo "   ⚠️  Nessun permesso specifico per utente configurato" >> "$summary_file"
+                    echo "   Tutti gli utenti del gruppo '$group' hanno: " >> "$summary_file"
+                    
+                    local perm_desc=""
+                    [[ "$group_perms" == "rwx" ]] && perm_desc="Lettura, Scrittura ed Esecuzione"
+                    [[ "$group_perms" == "rw-" ]] && perm_desc="Lettura e Scrittura"
+                    [[ "$group_perms" == "r-x" ]] && perm_desc="Solo Lettura"
+                    
+                    echo "      → $perm_desc" >> "$summary_file"
                 fi
             else
                 echo "   ⚠️  File permessi non trovato" >> "$summary_file"
