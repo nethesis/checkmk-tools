@@ -571,7 +571,7 @@ EOF
                     echo "   Permessi configurati:" >> "$summary_file"
                     while IFS= read -r acl_line; do
                         # Format: ACL:DOMAIN\username:ALLOWED/OI|CI/PERMS
-                        local username=$(echo "$acl_line" | cut -d: -f2 | sed 's/.*\\//')
+                        local entity_name=$(echo "$acl_line" | cut -d: -f2 | sed 's/.*\\//')
                         local perms=$(echo "$acl_line" | cut -d/ -f3)
                         
                         local perm_desc=""
@@ -584,7 +584,19 @@ EOF
                             *) perm_desc="$perms" ;;
                         esac
                         
-                        echo "      • $username: $perm_desc" >> "$summary_file"
+                        # Verifica se è un gruppo AD e espandi membri
+                        local group_members=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group listmembers "$entity_name" 2>/dev/null || true)
+                        
+                        if [[ -n "$group_members" ]]; then
+                            # È un gruppo - mostra membri
+                            while IFS= read -r member; do
+                                [[ -z "$member" ]] && continue
+                                echo "      • $member: $perm_desc" >> "$summary_file"
+                            done <<< "$group_members"
+                        else
+                            # Non è un gruppo (o è utente singolo)
+                            echo "      • $entity_name: $perm_desc" >> "$summary_file"
+                        fi
                     done <<< "$user_acls"
                 else
                     echo "   ⚠️  Solo permessi di sistema configurati (Everyone/Administrators)" >> "$summary_file"
