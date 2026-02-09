@@ -271,6 +271,31 @@ collect_samba_shares() {
         
     done < "$share_list"
     
+    # Espandi membri gruppi trovati negli ACL
+    log_info "Espansione gruppi AD in utenti..."
+    local group_expansion_file="$output_dir/group_members.map"
+    > "$group_expansion_file"  # Crea file vuoto
+    
+    # Trova tutti i nomi entità negli ACL Windows
+    local all_entities=$(grep "^ACL:" "$acl_dir"/*_smbacl.txt 2>/dev/null | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)" | cut -d: -f2 | sed 's/.*\\//' | sort -u)
+    
+    while IFS= read -r entity_name; do
+        [[ -z "$entity_name" ]] && continue
+        [[ "$entity_name" == "Everyone" ]] && continue
+        
+        # Prova a ottenere membri del gruppo
+        local members=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group listmembers "$entity_name" 2>/dev/null || true)
+        
+        if [[ -n "$members" ]]; then
+            # È un gruppo - salva mapping gruppo→utenti
+            while IFS= read -r member; do
+                [[ -z "$member" ]] && continue
+                echo "$entity_name:$member" >> "$group_expansion_file"
+            done <<< "$members"
+            log_info "  $entity_name: gruppo con $(echo "$members" | wc -l) membri"
+        fi
+    done <<< "$all_entities"
+    
     rm -f "$testparm_output"
     log_success "Share report completato → 03_shares/"
     return 0
@@ -584,8 +609,13 @@ EOF
                             *) perm_desc="$perms" ;;
                         esac
                         
-                        # Verifica se è un gruppo AD e espandi membri
-                        local group_members=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group listmembers "$entity_name" 2>/dev/null || true)
+                        # Verifica se è un gruppo usando file precompilato
+                        local group_map_file="$OUTPUT_DIR/03_shares/group_members.map"
+                        local group_members=""
+                        
+                        if [[ -f "$group_map_file" ]]; then
+                            group_members=$(grep "^${entity_name}:" "$group_map_file" | cut -d: -f2)
+                        fi
                         
                         if [[ -n "$group_members" ]]; then
                             # È un gruppo - mostra membri
