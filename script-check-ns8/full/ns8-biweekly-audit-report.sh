@@ -124,17 +124,24 @@ collect_password_expiry() {
     local user_count=0
     local success_count=0
     
+    # DISABILITA set -e solo per questo loop
+    set +e
+    
     while IFS= read -r username; do
         [[ -z "$username" ]] && continue
         ((user_count++))
+        
+        log_info "  Elaborazione: $username"
         
         # Ottieni pwdLastSet via samba-tool user show
         local pwd_last_set=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc \
             samba-tool user show "$username" 2>/dev/null \
             | grep "^pwdLastSet:" | awk '{print $2}' || echo "0")
         
+        log_info "    pwdLastSet raw: $pwd_last_set"
+        
         if [[ -z "$pwd_last_set" ]] || [[ "$pwd_last_set" == "0" ]]; then
-            log_warn "  $username: pwdLastSet non disponibile"
+            log_warn "    pwdLastSet non disponibile"
             echo -e "$username\t0\t0\tN/A\t0\tN/A\tN/A" >> "$output_file"
             continue
         fi
@@ -143,8 +150,18 @@ collect_password_expiry() {
         # Formula: unix = (filetime - 116444736000000000) / 10000000
         local unix_time=$(python3 -c "print(int(($pwd_last_set - 116444736000000000) / 10000000))" 2>/dev/null || echo "0")
         
+        log_info "    unix_time: $unix_time"
+        
+        if [[ "$unix_time" == "0" ]]; then
+            log_warn "    Conversione fallita"
+            echo -e "$username\t$pwd_last_set\t0\tN/A\t0\tN/A\tN/A" >> "$output_file"
+            continue
+        fi
+        
         # Data ISO formattata
         local iso_date=$(date -d "@$unix_time" +"%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "N/A")
+        
+        log_info "    iso_date: $iso_date"
         
         # Calcola scadenza (pwdLastSet + maxPwdAge)
         local expires_unix=$((unix_time + MAX_PWD_AGE_DAYS * 86400))
@@ -158,6 +175,9 @@ collect_password_expiry() {
         ((success_count++))
         
     done < "$OUTPUT_DIR/01_users.txt"
+    
+    # Riabilita set -e
+    set -e
     
     log_success "Scadenze password elaborate: $success_count/$user_count → $(basename "$output_file")"
     rm -f "$temp_file"
