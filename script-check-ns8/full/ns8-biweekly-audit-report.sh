@@ -128,9 +128,9 @@ collect_password_expiry() {
         [[ -z "$username" ]] && continue
         ((user_count++))
         
-        # Ottieni pwdLastSet via ldapsearch
+        # Ottieni pwdLastSet via samba-tool user show
         local pwd_last_set=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-            ldapsearch -LLL -b "dc=ad,dc=local" "(sAMAccountName=$username)" pwdLastSet 2>/dev/null \
+            samba-tool user show "$username" 2>/dev/null \
             | grep "^pwdLastSet:" | awk '{print $2}' || echo "0")
         
         if [[ -z "$pwd_last_set" ]] || [[ "$pwd_last_set" == "0" ]]; then
