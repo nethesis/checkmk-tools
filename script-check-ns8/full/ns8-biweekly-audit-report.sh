@@ -141,7 +141,7 @@ collect_password_expiry() {
         
         # Conversione FILETIME → Unix epoch
         # Formula: unix = (filetime - 116444736000000000) / 10000000
-        local unix_time=$(awk "BEGIN {printf \"%.0f\", ($pwd_last_set - 116444736000000000) / 10000000}")
+        local unix_time=$(echo "($pwd_last_set - 116444736000000000) / 10000000" | bc)
         
         # Data ISO formattata
         local iso_date=$(date -d "@$unix_time" +"%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "N/A")
