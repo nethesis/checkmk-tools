@@ -279,6 +279,8 @@ collect_samba_shares() {
     # Trova tutti i nomi entità negli ACL Windows (usa -h per nascondere filename)
     local all_entities_raw=$(grep -h "^ACL:" "$acl_dir"/*_smbacl.txt 2>/dev/null | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)" | cut -d: -f2 | sort -u)
     
+    log_info "  Entità trovate: $(echo "$all_entities_raw" | wc -l)"
+    
     while IFS= read -r entity_full; do
         [[ -z "$entity_full" ]] && continue
         
@@ -286,6 +288,8 @@ collect_samba_shares() {
         local entity_name="${entity_full##*\\}"
         [[ -z "$entity_name" ]] && continue
         [[ "$entity_name" == "Everyone" ]] && continue
+        
+        log_info "  Verifica $entity_name (da: $entity_full)..."
         
         # Prova a ottenere membri del gruppo
         local members=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group listmembers "$entity_name" 2>/dev/null || true)
@@ -298,7 +302,9 @@ collect_samba_shares() {
                 echo "$entity_name:$member" >> "$group_expansion_file"
                 ((member_count++))
             done <<< "$members"
-            log_info "  $entity_name: gruppo con $member_count membri"
+            log_info "    → $entity_name: gruppo con $member_count membri"
+        else
+            log_info "    → $entity_name: non è un gruppo o nessun membro"
         fi
     done <<< "$all_entities_raw"
     
