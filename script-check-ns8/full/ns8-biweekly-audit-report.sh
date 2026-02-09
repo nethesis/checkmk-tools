@@ -396,6 +396,82 @@ EOF
         echo "" >> "$summary_file"
         echo "Share Details:" >> "$summary_file"
         column -t -s$'\t' "$OUTPUT_DIR/03_shares/shares_report.tsv" >> "$summary_file"
+        echo "" >> "$summary_file"
+        echo "Detailed Permissions by Share:" >> "$summary_file"
+        echo "" >> "$summary_file"
+        
+        # Analizza ACL per ogni share
+        while IFS=$'\t' read -r share_name path acl_collected acl_file; do
+            [[ "$share_name" == "share_name" ]] && continue  # Skip header
+            [[ "$acl_collected" != "YES" ]] && continue
+            
+            echo "  Share: $share_name" >> "$summary_file"
+            echo "  Path: $path" >> "$summary_file"
+            echo "  ---" >> "$summary_file"
+            
+            local acl_path="$OUTPUT_DIR/03_shares/acls/$acl_file"
+            if [[ -f "$acl_path" ]]; then
+                # Estrai owner e group
+                local owner=$(grep "^# owner:" "$acl_path" | cut -d: -f2 | xargs)
+                local group=$(grep "^# group:" "$acl_path" | cut -d: -f2 | xargs)
+                
+                echo "  Owner: $owner" >> "$summary_file"
+                echo "  Group: $group" >> "$summary_file"
+                echo "" >> "$summary_file"
+                
+                # Estrai permessi utenti specifici
+                local user_acls=$(grep "^user:" "$acl_path" | grep -v "^user::") 
+                if [[ -n "$user_acls" ]]; then
+                    echo "  User Permissions:" >> "$summary_file"
+                    while IFS= read -r acl_line; do
+                        local username=$(echo "$acl_line" | cut -d: -f2)
+                        local perms=$(echo "$acl_line" | cut -d: -f3)
+                        local perm_desc=""
+                        [[ "$perms" == *r* ]] && perm_desc="${perm_desc}Read "
+                        [[ "$perms" == *w* ]] && perm_desc="${perm_desc}Write "
+                        [[ "$perms" == *x* ]] && perm_desc="${perm_desc}Execute"
+                        [[ -z "$perm_desc" ]] && perm_desc="None"
+                        echo "    - $username: $perm_desc ($perms)" >> "$summary_file"
+                    done <<< "$user_acls"
+                else
+                    echo "  User Permissions: None (no specific user ACLs)" >> "$summary_file"
+                fi
+                echo "" >> "$summary_file"
+                
+                # Estrai permessi gruppi specifici
+                local group_acls=$(grep "^group:" "$acl_path" | grep -v "^group::")
+                if [[ -n "$group_acls" ]]; then
+                    echo "  Group Permissions:" >> "$summary_file"
+                    while IFS= read -r acl_line; do
+                        local groupname=$(echo "$acl_line" | cut -d: -f2)
+                        local perms=$(echo "$acl_line" | cut -d: -f3)
+                        local perm_desc=""
+                        [[ "$perms" == *r* ]] && perm_desc="${perm_desc}Read "
+                        [[ "$perms" == *w* ]] && perm_desc="${perm_desc}Write "
+                        [[ "$perms" == *x* ]] && perm_desc="${perm_desc}Execute"
+                        [[ -z "$perm_desc" ]] && perm_desc="None"
+                        echo "    - $groupname: $perm_desc ($perms)" >> "$summary_file"
+                    done <<< "$group_acls"
+                else
+                    echo "  Group Permissions: None (no specific group ACLs)" >> "$summary_file"
+                fi
+                echo "" >> "$summary_file"
+                
+                # Mostra permessi base
+                local owner_perms=$(grep "^user::" "$acl_path" | cut -d: -f3)
+                local group_perms=$(grep "^group::" "$acl_path" | cut -d: -f3)
+                local other_perms=$(grep "^other::" "$acl_path" | cut -d: -f3)
+                echo "  Base Permissions (Unix):" >> "$summary_file"
+                echo "    Owner ($owner): $owner_perms" >> "$summary_file"
+                echo "    Group ($group): $group_perms" >> "$summary_file"
+                echo "    Others: $other_perms" >> "$summary_file"
+            else
+                echo "  ERROR: ACL file not found" >> "$summary_file"
+            fi
+            echo "" >> "$summary_file"
+            echo "  ========================================" >> "$summary_file"
+            echo "" >> "$summary_file"
+        done < "$OUTPUT_DIR/03_shares/shares_report.tsv"
     else
         echo "ERROR: Share data not available" >> "$summary_file"
     fi
