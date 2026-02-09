@@ -64,8 +64,8 @@ check_prerequisites() {
     fi
     
     # Verifica moduli NS8 disponibili
-    SAMBA_MODULES=$(runagent list-modules 2>/dev/null | grep -E '^samba[0-9]+$' || true)
-    WEBTOP_MODULES=$(runagent list-modules 2>/dev/null | grep -E '^webtop[0-9]+$' || true)
+    SAMBA_MODULES=$(runagent --list-modules 2>/dev/null | grep -E '^samba[0-9]+$' || true)
+    WEBTOP_MODULES=$(runagent --list-modules 2>/dev/null | grep -E '^webtop[0-9]+$' || true)
     
     if [[ -z "$SAMBA_MODULES" ]]; then
         log_error "Nessun modulo Samba trovato"
