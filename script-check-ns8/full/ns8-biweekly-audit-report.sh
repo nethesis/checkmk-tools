@@ -249,15 +249,24 @@ collect_samba_shares() {
             continue
         fi
         
-        # Raccogli ACL del path (dentro il container)
-        local acl_file="$acl_dir/${share_name}.acl"
-        if runagent -m "$SAMBA_MODULE" podman exec samba-dc getfacl "$share_path" > "$acl_file" 2>/dev/null; then
-            log_success "  $share_name: $share_path [ACL OK]"
-            echo -e "$share_name\t$share_path\tYES\t$(basename "$acl_file")" >> "$share_report"
+        # Raccogli ACL Windows-style (smbcacls) - mostra permessi configurati in NS8 UI
+        local smbacl_file="$acl_dir/${share_name}_smbacl.txt"
+        local admin_pass="Nethesis,1234"  # Password di default NS8
+        
+        if runagent -m "$SAMBA_MODULE" podman exec samba-dc smbcacls "//localhost/$share_name" / -U "administrator%$admin_pass" > "$smbacl_file" 2>/dev/null; then
+            log_success "  $share_name: $share_path [ACL Windows OK]"
+            echo -e "$share_name\t$share_path\tYES\t$(basename "$smbacl_file")" >> "$share_report"
         else
-            log_warn "  $share_name: ACL non disponibile per $share_path"
-            echo "ERROR: Unable to get ACL for $share_path" > "$acl_file"
-            echo -e "$share_name\t$share_path\tNO\t$(basename "$acl_file")" >> "$share_report"
+            # Fallback: usa getfacl (ACL filesystem POSIX) se smbcacls fallisce
+            local acl_file="$acl_dir/${share_name}.acl"
+            if runagent -m "$SAMBA_MODULE" podman exec samba-dc getfacl "$share_path" > "$acl_file" 2>/dev/null; then
+                log_success "  $share_name: $share_path [ACL POSIX OK]"
+                echo -e "$share_name\t$share_path\tYES\t$(basename "$acl_file")" >> "$share_report"
+            else
+                log_warn "  $share_name: ACL non disponibile per $share_path"
+                echo "ERROR: Unable to get ACL for $share_path" > "$acl_file"
+                echo -e "$share_name\t$share_path\tNO\t$(basename "$acl_file")" >> "$share_report"
+            fi
         fi
         
     done < "$share_list"
@@ -550,9 +559,39 @@ EOF
             echo "   Percorso: $path" >> "$summary_file"
             echo "" >> "$summary_file"
             
+            # Prova prima con ACL Windows-style (smbcacls)
+            local smbacl_path="$OUTPUT_DIR/03_shares/acls/${share_name}_smbacl.txt"
             local acl_path="$OUTPUT_DIR/03_shares/acls/$acl_file"
-            if [[ -f "$acl_path" ]]; then
-                # Estrai permessi utenti specifici
+            
+            if [[ -f "$smbacl_path" ]]; then
+                # Parse ACL Windows (formato: ACL:DOMAIN\username:ALLOWED/flags/permissions)
+                local user_acls=$(grep "^ACL:" "$smbacl_path" | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)")
+                
+                if [[ -n "$user_acls" ]]; then
+                    echo "   Permessi configurati:" >> "$summary_file"
+                    while IFS= read -r acl_line; do
+                        # Format: ACL:DOMAIN\username:ALLOWED/OI|CI/PERMS
+                        local username=$(echo "$acl_line" | cut -d: -f2 | sed 's/.*\\//')
+                        local perms=$(echo "$acl_line" | cut -d/ -f3)
+                        
+                        local perm_desc=""
+                        case "$perms" in
+                            FULL) perm_desc="Controllo Totale" ;;
+                            RWXD) perm_desc="Lettura e Scrittura" ;;
+                            READ) perm_desc="Solo Lettura" ;;
+                            RWX) perm_desc="Lettura, Scrittura ed Esecuzione" ;;
+                            RX) perm_desc="Solo Lettura" ;;
+                            *) perm_desc="$perms" ;;
+                        esac
+                        
+                        echo "      • $username: $perm_desc" >> "$summary_file"
+                    done <<< "$user_acls"
+                else
+                    echo "   ⚠️  Solo permessi di sistema configurati (Everyone/Administrators)" >> "$summary_file"
+                fi
+                
+            elif [[ -f "$acl_path" ]]; then
+                # Fallback: ACL POSIX (getfacl)
                 local user_acls=$(grep "^user:" "$acl_path" | grep -v "^user::") 
                 
                 if [[ -n "$user_acls" ]]; then
