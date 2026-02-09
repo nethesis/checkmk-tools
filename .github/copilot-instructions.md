@@ -812,8 +812,8 @@ nodo-proxmox      # 10.155.100.20:22 (root, Proxmox VE)
 ns-lab00          # 192.168.10.100:2222 (root)
 box-lab00         # 192.168.10.132:22 (root) - Host share \\192.168.10.132\usbshare
 rl94ns8           # 10.155.100.40:22 (root, NethServer 8)
-                  # Moduli: samba1, mail2
-                  # Nodo per test report quindicinale NS8
+                  # Moduli: samba1, mail2, webtop1, webtop3
+                  # Nodo completo per test report quindicinale NS8 (AD + Mail + WebTop)
 rl94ns81          # 10.155.100.41:22 (root, NethServer 8)
                   # Moduli: webtop1 (con Postgres attivo)
                   # Nodo WebTop per test condivisioni email
