@@ -283,57 +283,12 @@ collect_samba_shares() {
     local entity_count=$(wc -l < "$entities_temp")
     log_info "  Entità trovate: $entity_count"
     
-    # CRITICO: Usa array + for loop invece di while < file (evita conflitto stdin)
-    log_info "  Pre-fetch membri gruppi..."
-    local groups_temp_dir=$(mktemp -d)
-    
-    # Leggi file in array (mapfile/readarray)
-    local -a entities_array
-    mapfile -t entities_array < "$entities_temp"
-    
-    # STEP 1: PRE-FETCH con for loop (no stdin sharing)
-    for entity_full in "${entities_array[@]}"; do
-        [[ -z "$entity_full" ]] && continue
-        
-        # Rimuovi dominio
-        local entity_name=$(echo "$entity_full" | awk -F'\\' '{print $NF}')
-        [[ -z "$entity_name" ]] && continue
-        [[ "$entity_name" == "Everyone" ]] && continue
-        
-        log_info "    Query gruppo: $entity_name"
-        
-        # Query gruppo e salva in file (timeout 5 secondi per query singola)
-        local group_file="$groups_temp_dir/${entity_name}.members"
-        timeout 5 runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group listmembers "$entity_name" > "$group_file" 2>/dev/null || rm -f "$group_file"
-    done
-    
-    # STEP 2: ELABORA risultati pre-fetch
-    log_info "  Elaborazione risultati..."
-    for entity_full in "${entities_array[@]}"; do
-        [[ -z "$entity_full" ]] && continue
-        
-        local entity_name=$(echo "$entity_full" | awk -F'\\' '{print $NF}')
-        [[ -z "$entity_name" ]] && continue
-        [[ "$entity_name" == "Everyone" ]] && continue
-        
-        local group_file="$groups_temp_dir/${entity_name}.members"
-        
-        if [[ -f "$group_file" ]] && [[ -s "$group_file" ]]; then
-            # File esiste e non è vuoto → è un gruppo con membri
-            local member_count=0
-            while IFS= read -r member; do
-                [[ -z "$member" ]] && continue
-                echo "$entity_name:$member" >> "$group_expansion_file"
-                ((member_count++))
-            done < "$group_file"
-            log_info "    → $entity_name: gruppo con $member_count membri"
-        else
-            log_info "    → $entity_name: non è un gruppo o nessun membro"
-        fi
-    done
+    # WORKAROUND: Salta espansione gruppi per ora (troppo complesso con subprocess nesting)
+    log_warn "  Espansione gruppi AD non disponibile (limitazione tecnica)"
+    log_warn "  I report mostreranno i nomi dei gruppi invece degli utenti individuali"
+    log_warn "  Per vedere i membri: runagent -m samba1 podman exec samba-dc samba-tool group listmembers NOME_GRUPPO"
     
     # Cleanup
-    rm -rf "$groups_temp_dir"
     rm -f "$entities_temp"
     
     rm -f "$testparm_output"
