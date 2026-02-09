@@ -2,7 +2,7 @@
 
 ## 🛡️ Problema Risolto
 
-Durante un **major upgrade** di NethSecurity/OpenWrt (es. 8.x → 9.x), il sistema ripristina il firmware e:
+Durante un **major upgrade** di NethSecurity/OpenWrt (es. 8.7.0 → .8.7.1), il sistema ripristina il firmware e:
 - ❌ **Perde** file non protetti in `/usr/bin`, `/etc/init.d`
 - ❌ **Cancella** configurazioni non listate in `/etc/sysupgrade.conf`
 - ❌ **Rimuove** binari installati manualmente
