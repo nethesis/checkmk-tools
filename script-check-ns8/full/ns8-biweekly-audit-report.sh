@@ -295,7 +295,8 @@ collect_samba_shares() {
         log_info "  Verifica $entity_name (da: $entity_full)..."
         
         # Prova a ottenere membri del gruppo (con timeout 10 secondi)
-        local members=$(timeout 10 runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group listmembers "$entity_name" 2>/dev/null || true)
+        # CRITICO: stdin < /dev/null previene hang quando chiamato dentro while loop
+        local members=$(timeout 10 runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group listmembers "$entity_name" < /dev/null 2>/dev/null || true)
         
         if [[ -n "$members" ]]; then
             # È un gruppo - salva mapping gruppo→utenti
