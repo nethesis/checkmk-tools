@@ -283,11 +283,16 @@ collect_samba_shares() {
     local entity_count=$(wc -l < "$entities_temp")
     log_info "  Entità trovate: $entity_count"
     
-    # STEP 1: PRE-FETCH gruppi FUORI dal while loop (evita hang da subprocess nesting)
+    # CRITICO: Usa array + for loop invece di while < file (evita conflitto stdin)
     log_info "  Pre-fetch membri gruppi..."
     local groups_temp_dir=$(mktemp -d)
     
-    while IFS= read -r entity_full; do
+    # Leggi file in array (mapfile/readarray)
+    local -a entities_array
+    mapfile -t entities_array < "$entities_temp"
+    
+    # STEP 1: PRE-FETCH con for loop (no stdin sharing)
+    for entity_full in "${entities_array[@]}"; do
         [[ -z "$entity_full" ]] && continue
         
         # Rimuovi dominio
@@ -295,14 +300,16 @@ collect_samba_shares() {
         [[ -z "$entity_name" ]] && continue
         [[ "$entity_name" == "Everyone" ]] && continue
         
+        log_info "    Query gruppo: $entity_name"
+        
         # Query gruppo e salva in file (timeout 5 secondi per query singola)
         local group_file="$groups_temp_dir/${entity_name}.members"
         timeout 5 runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group listmembers "$entity_name" > "$group_file" 2>/dev/null || rm -f "$group_file"
-    done < "$entities_temp"
+    done
     
-    # STEP 2: ELABORA risultati pre-fetch (lettura semplice da file, no subprocess)
+    # STEP 2: ELABORA risultati pre-fetch
     log_info "  Elaborazione risultati..."
-    while IFS= read -r entity_full; do
+    for entity_full in "${entities_array[@]}"; do
         [[ -z "$entity_full" ]] && continue
         
         local entity_name=$(echo "$entity_full" | awk -F'\\' '{print $NF}')
@@ -323,7 +330,7 @@ collect_samba_shares() {
         else
             log_info "    → $entity_name: non è un gruppo o nessun membro"
         fi
-    done < "$entities_temp"
+    done
     
     # Cleanup
     rm -rf "$groups_temp_dir"
