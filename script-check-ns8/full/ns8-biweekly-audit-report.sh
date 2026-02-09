@@ -283,35 +283,50 @@ collect_samba_shares() {
     local entity_count=$(wc -l < "$entities_temp")
     log_info "  Entità trovate: $entity_count"
     
-    # Usa while con -r per evitare interpretazione backslash come escape
+    # STEP 1: PRE-FETCH gruppi FUORI dal while loop (evita hang da subprocess nesting)
+    log_info "  Pre-fetch membri gruppi..."
+    local groups_temp_dir=$(mktemp -d)
+    
     while IFS= read -r entity_full; do
         [[ -z "$entity_full" ]] && continue
         
-        # Rimuovi dominio (es. "NLABNS8\test1" → "test1") 
+        # Rimuovi dominio
         local entity_name=$(echo "$entity_full" | awk -F'\\' '{print $NF}')
         [[ -z "$entity_name" ]] && continue
         [[ "$entity_name" == "Everyone" ]] && continue
         
-        log_info "  Verifica $entity_name (da: $entity_full)..."
+        # Query gruppo e salva in file (timeout 5 secondi per query singola)
+        local group_file="$groups_temp_dir/${entity_name}.members"
+        timeout 5 runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group listmembers "$entity_name" > "$group_file" 2>/dev/null || rm -f "$group_file"
+    done < "$entities_temp"
+    
+    # STEP 2: ELABORA risultati pre-fetch (lettura semplice da file, no subprocess)
+    log_info "  Elaborazione risultati..."
+    while IFS= read -r entity_full; do
+        [[ -z "$entity_full" ]] && continue
         
-        # Prova a ottenere membri del gruppo (con timeout 10 secondi)
-        # CRITICO: stdin < /dev/null previene hang quando chiamato dentro while loop
-        local members=$(timeout 10 runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group listmembers "$entity_name" < /dev/null 2>/dev/null || true)
+        local entity_name=$(echo "$entity_full" | awk -F'\\' '{print $NF}')
+        [[ -z "$entity_name" ]] && continue
+        [[ "$entity_name" == "Everyone" ]] && continue
         
-        if [[ -n "$members" ]]; then
-            # È un gruppo - salva mapping gruppo→utenti
+        local group_file="$groups_temp_dir/${entity_name}.members"
+        
+        if [[ -f "$group_file" ]] && [[ -s "$group_file" ]]; then
+            # File esiste e non è vuoto → è un gruppo con membri
             local member_count=0
             while IFS= read -r member; do
                 [[ -z "$member" ]] && continue
                 echo "$entity_name:$member" >> "$group_expansion_file"
                 ((member_count++))
-            done <<< "$members"
+            done < "$group_file"
             log_info "    → $entity_name: gruppo con $member_count membri"
         else
             log_info "    → $entity_name: non è un gruppo o nessun membro"
         fi
     done < "$entities_temp"
     
+    # Cleanup
+    rm -rf "$groups_temp_dir"
     rm -f "$entities_temp"
     
     rm -f "$testparm_output"
