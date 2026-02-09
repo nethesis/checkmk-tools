@@ -652,12 +652,45 @@ EOF
             if [[ $share_count -gt 0 ]]; then
                 echo "Condivisioni account Webtop trovate:" >> "$summary_file"
                 echo "" >> "$summary_file"
-                # Estrai utenti unici (senza duplicati)
-                grep "^Mailbox Owner:" "$dovecot_shares" | cut -d: -f2 | xargs | tr ' ' '\n' | sort -u | while read -r owner; do
-                    [[ -z "$owner" ]] && continue
-                    echo "  📬 $owner" >> "$summary_file"
-                    echo "" >> "$summary_file"
-                done
+                
+                # Estrai lista owner→user e rimuovi duplicati
+                local temp_mapping=$(mktemp)
+                local current_owner=""
+                
+                while IFS= read -r line; do
+                    if [[ "$line" =~ ^Mailbox\ Owner: ]]; then
+                        current_owner="${line#Mailbox Owner: }"
+                        current_owner=$(echo "$current_owner" | xargs)
+                    elif [[ "$line" =~ ^[[:space:]]*-[[:space:]]*User: ]]; then
+                        local shared_user=$(echo "$line" | sed 's/.*User: //' | xargs)
+                        if [[ -n "$current_owner" ]] && [[ -n "$shared_user" ]]; then
+                            echo "$current_owner|$shared_user" >> "$temp_mapping"
+                        fi
+                    fi
+                done < "$dovecot_shares"
+                
+                # Rimuovi duplicati e raggruppa per owner
+                if [[ -s "$temp_mapping" ]]; then
+                    sort -u "$temp_mapping" | awk -F'|' '{
+                        if (owner != $1 && owner != "") {
+                            printf "  📬 %s → condiviso con %s\n", owner, users
+                            users = ""
+                        }
+                        owner = $1
+                        if (users == "") {
+                            users = $2
+                        } else {
+                            users = users ", " $2
+                        }
+                    } END {
+                        if (owner != "") {
+                            printf "  📬 %s → condiviso con %s\n", owner, users
+                        }
+                    }' >> "$summary_file"
+                fi
+                
+                rm -f "$temp_mapping"
+                echo "" >> "$summary_file"
             else
                 echo "Nessuna casella email condivisa" >> "$summary_file"
             fi
