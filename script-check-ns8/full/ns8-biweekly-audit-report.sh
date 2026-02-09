@@ -254,71 +254,161 @@ collect_samba_shares() {
     return 0
 }
 
-# Funzione 4: Raccolta condivisioni WebTop
+# Funzione 4: Raccolta condivisioni email
 collect_webtop_sharing() {
-    log_info "Raccolta condivisioni posta WebTop..."
+    log_info "Raccolta condivisioni email (WebTop e Dovecot)..."
     
-    local output_dir="$OUTPUT_DIR/04_webtop"
+    local output_dir="$OUTPUT_DIR/04_mail_sharing"
     mkdir -p "$output_dir"
     
-    if [[ -z "$WEBTOP_MODULE" ]]; then
-        log_warn "WebTop non disponibile, skip"
-        echo "WebTop module not running on this node" > "$output_dir/status.txt"
-        return 0
+    local has_data=0
+    
+    # === PARTE 1: WebTop (se disponibile) ===
+    if [[ -n "$WEBTOP_MODULE" ]]; then
+        log_info "  Verifica WebTop..."
+        
+        # Verifica presenza container Postgres
+        local postgres_container=$(runagent -m "$WEBTOP_MODULE" podman ps --format '{{.Names}}' 2>/dev/null | grep -i postgres || true)
+        
+        if [[ -n "$postgres_container" ]]; then
+            log_info "  Container Postgres: $postgres_container"
+            
+            # Estrai lista database
+            local db_list=$(mktemp)
+            if runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
+                psql -U postgres -t -c '\l' > "$db_list" 2>/dev/null; then
+                
+                # Cerca database webtop
+                local webtop_db=$(grep -iE 'webtop' "$db_list" | awk '{print $1}' | head -1 || true)
+                rm -f "$db_list"
+                
+                if [[ -n "$webtop_db" ]]; then
+                    log_info "  Database WebTop: $webtop_db"
+                    
+                    # Query condivisioni mailbox
+                    local sharing_query="SELECT * FROM core.shares WHERE context='mail' ORDER BY user_uid, resource_id;"
+                    if runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
+                        psql -U postgres -d "$webtop_db" -c "$sharing_query" > "$output_dir/webtop_mail_shares.txt" 2>/dev/null; then
+                        log_success "  WebTop condivisioni raccolte"
+                        has_data=1
+                    fi
+                fi
+            else
+                rm -f "$db_list"
+            fi
+        else
+            log_warn "  WebTop container Postgres non trovato"
+            echo "WebTop: Postgres container not found" > "$output_dir/webtop_status.txt"
+        fi
     fi
     
-    # Verifica presenza container Postgres
-    local postgres_container=$(runagent -m "$WEBTOP_MODULE" podman ps --format '{{.Names}}' 2>/dev/null | grep -i postgres || true)
+    # === PARTE 2: Dovecot Shared Mailboxes ===
+    log_info "  Verifica Dovecot shared mailboxes..."
     
-    if [[ -z "$postgres_container" ]]; then
-        log_warn "Container Postgres non trovato in $WEBTOP_MODULE"
-        echo "Postgres container not found" > "$output_dir/status.txt"
-        return 0
+    # Cerca moduli mail
+    local mail_modules=$(runagent --list-modules 2>/dev/null | grep -E '^mail[0-9]+$' || true)
+    
+    if [[ -n "$mail_modules" ]]; then
+        local mail_module=$(echo "$mail_modules" | head -1)
+        log_info "  Modulo Mail: $mail_module"
+        
+        # Verifica container dovecot
+        local dovecot_container=$(runagent -m "$mail_module" podman ps --format '{{.Names}}' 2>/dev/null | grep -i dovecot || true)
+        
+        if [[ -n "$dovecot_container" ]]; then
+            log_info "  Container Dovecot: $dovecot_container"
+            
+            local dovecot_report="$output_dir/dovecot_shared_mailboxes.txt"
+            echo "=== Dovecot Shared Mailboxes Report ===" > "$dovecot_report"
+            echo "Generated: $(date)" >> "$dovecot_report"
+            echo "" >> "$dovecot_report"
+            
+            # Trova tutti gli utenti con mailbox
+            local vmail_users=$(runagent -m "$mail_module" podman exec "$dovecot_container" \
+                ls -1 /var/lib/vmail/ 2>/dev/null | grep -v '^\.' || true)
+            
+            local share_found=0
+            
+            while IFS= read -r user; do
+                [[ -z "$user" ]] && continue
+                
+                # Cerca file ACL in tutte le sottodirectory dell'utente
+                local acl_files=$(runagent -m "$mail_module" podman exec "$dovecot_container" \
+                    find "/var/lib/vmail/$user" -type f -name 'dovecot-acl' 2>/dev/null || true)
+                
+                if [[ -n "$acl_files" ]]; then
+                    while IFS= read -r acl_file; do
+                        [[ -z "$acl_file" ]] && continue
+                        
+                        # Leggi contenuto ACL
+                        local acl_content=$(runagent -m "$mail_module" podman exec "$dovecot_container" \
+                            cat "$acl_file" 2>/dev/null || true)
+                        
+                        if [[ -n "$acl_content" ]]; then
+                            # Estrai folder name dal path
+                            local folder=$(echo "$acl_file" | sed "s|/var/lib/vmail/$user/Maildir/||" | sed 's|/dovecot-acl||')
+                            [[ -z "$folder" ]] && folder="INBOX"
+                            
+                            echo "Mailbox Owner: $user" >> "$dovecot_report"
+                            echo "Shared Folder: $folder" >> "$dovecot_report"
+                            echo "ACL File: $acl_file" >> "$dovecot_report"
+                            echo "Permissions:" >> "$dovecot_report"
+                            
+                            # Parse ACL lines (format: user=username lrwstipekxa)
+                            while IFS= read -r acl_line; do
+                                [[ -z "$acl_line" ]] && continue
+                                [[ "$acl_line" =~ ^# ]] && continue  # Skip comments
+                                
+                                local acl_user=$(echo "$acl_line" | awk '{print $1}' | cut -d= -f2)
+                                local acl_perms=$(echo "$acl_line" | awk '{print $2}')
+                                
+                                # Decodifica permessi Dovecot
+                                local perm_desc=""
+                                [[ "$acl_perms" == *l* ]] && perm_desc="${perm_desc}Lookup "
+                                [[ "$acl_perms" == *r* ]] && perm_desc="${perm_desc}Read "
+                                [[ "$acl_perms" == *w* ]] && perm_desc="${perm_desc}Write "
+                                [[ "$acl_perms" == *s* ]] && perm_desc="${perm_desc}Seen "
+                                [[ "$acl_perms" == *t* ]] && perm_desc="${perm_desc}DeleteMsg "
+                                [[ "$acl_perms" == *i* ]] && perm_desc="${perm_desc}Insert "
+                                [[ "$acl_perms" == *p* ]] && perm_desc="${perm_desc}Post "
+                                [[ "$acl_perms" == *e* ]] && perm_desc="${perm_desc}Expunge "
+                                [[ "$acl_perms" == *k* ]] && perm_desc="${perm_desc}CreateSubfolder "
+                                [[ "$acl_perms" == *x* ]] && perm_desc="${perm_desc}DeleteFolder "
+                                [[ "$acl_perms" == *a* ]] && perm_desc="${perm_desc}Admin "
+                                
+                                echo "  - User: $acl_user" >> "$dovecot_report"
+                                echo "    Permissions: $perm_desc($acl_perms)" >> "$dovecot_report"
+                                
+                            done <<< "$acl_content"
+                            
+                            echo "" >> "$dovecot_report"
+                            share_found=1
+                        fi
+                    done <<< "$acl_files"
+                fi
+            done <<< "$vmail_users"
+            
+            if [[ $share_found -eq 0 ]]; then
+                echo "No shared mailboxes found" >> "$dovecot_report"
+                log_info "  Nessuna mailbox condivisa trovata"
+            else
+                log_success "  Dovecot shared mailboxes raccolte"
+                has_data=1
+            fi
+        else
+            log_warn "  Container Dovecot non trovato"
+            echo "Dovecot: container not found" > "$output_dir/dovecot_status.txt"
+        fi
+    else
+        log_warn "  Nessun modulo mail trovato"
+        echo "No mail module found" > "$output_dir/mail_module_status.txt"
     fi
     
-    log_info "Container Postgres: $postgres_container"
-    
-    # Estrai lista database
-    local db_list=$(mktemp)
-    if ! runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
-        psql -U postgres -t -c '\l' > "$db_list" 2>/dev/null; then
-        log_error "Fallita connessione Postgres"
-        echo "Unable to connect to Postgres" > "$output_dir/status.txt"
-        rm -f "$db_list"
-        return 1
+    if [[ $has_data -eq 0 ]]; then
+        echo "No mail sharing data available (WebTop not active, Dovecot no shares)" > "$output_dir/summary.txt"
     fi
     
-    # Cerca database webtop (pattern: webtop, webtop5, etc)
-    local webtop_db=$(grep -iE 'webtop' "$db_list" | awk '{print $1}' | head -1 || true)
-    rm -f "$db_list"
-    
-    if [[ -z "$webtop_db" ]]; then
-        log_warn "Database WebTop non trovato"
-        echo "WebTop database not found" > "$output_dir/status.txt"
-        return 0
-    fi
-    
-    log_info "Database WebTop: $webtop_db"
-    
-    # Query tabelle rilevanti
-    local tables_file="$output_dir/tables.txt"
-    runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
-        psql -U postgres -d "$webtop_db" -t -c "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;" \
-        > "$tables_file" 2>/dev/null || true
-    
-    # Cerca tabelle sharing/delegation
-    local sharing_tables=$(grep -iE '(shar|deleg|grant|permiss)' "$tables_file" || echo "No sharing tables found")
-    echo "$sharing_tables" > "$output_dir/sharing_tables.txt"
-    
-    # Estrai identità mail (tabella core.identities se esiste)
-    if grep -q "core.identities" "$tables_file" 2>/dev/null; then
-        log_info "Estrazione identità mail..."
-        runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
-            psql -U postgres -d "$webtop_db" -c "SELECT * FROM core.identities LIMIT 100;" \
-            > "$output_dir/identities.txt" 2>/dev/null || echo "Query failed" > "$output_dir/identities.txt"
-    fi
-    
-    log_success "WebTop data raccolti → 04_webtop/"
+    log_success "Raccolta condivisioni email completata → 04_mail_sharing/"
     return 0
 }
 
@@ -479,19 +569,48 @@ EOF
     cat >> "$summary_file" << EOF
 
 ================================================================================
-4. WEBTOP MAIL SHARING
+4. EMAIL SHARING (WEBTOP & DOVECOT)
 ================================================================================
 EOF
     
-    # Analisi WebTop
-    if [[ -f "$OUTPUT_DIR/04_webtop/status.txt" ]]; then
-        cat "$OUTPUT_DIR/04_webtop/status.txt" >> "$summary_file"
-    elif [[ -f "$OUTPUT_DIR/04_webtop/sharing_tables.txt" ]]; then
-        echo "WebTop module active, data collected:" >> "$summary_file"
-        echo "Database tables found:" >> "$summary_file"
-        cat "$OUTPUT_DIR/04_webtop/sharing_tables.txt" >> "$summary_file"
+    # Analisi condivisioni email
+    if [[ -d "$OUTPUT_DIR/04_mail_sharing" ]]; then
+        local webtop_shares="$OUTPUT_DIR/04_mail_sharing/webtop_mail_shares.txt"
+        local dovecot_shares="$OUTPUT_DIR/04_mail_sharing/dovecot_shared_mailboxes.txt"
+        
+        # WebTop shares
+        if [[ -f "$webtop_shares" ]] && [[ -s "$webtop_shares" ]]; then
+            echo "WebTop Mail Sharing:" >> "$summary_file"
+            echo "" >> "$summary_file"
+            cat "$webtop_shares" >> "$summary_file"
+            echo "" >> "$summary_file"
+        elif [[ -f "$OUTPUT_DIR/04_mail_sharing/webtop_status.txt" ]]; then
+            echo "WebTop: $(cat "$OUTPUT_DIR/04_mail_sharing/webtop_status.txt")" >> "$summary_file"
+            echo "" >> "$summary_file"
+        fi
+        
+        # Dovecot shared mailboxes
+        if [[ -f "$dovecot_shares" ]]; then
+            local share_count=$(grep -c "^Mailbox Owner:" "$dovecot_shares" 2>/dev/null || echo "0")
+            
+            if [[ $share_count -gt 0 ]]; then
+                echo "Dovecot Shared Mailboxes: $share_count shares found" >> "$summary_file"
+                echo "" >> "$summary_file"
+                cat "$dovecot_shares" >> "$summary_file"
+            else
+                echo "Dovecot: No shared mailboxes configured" >> "$summary_file"
+            fi
+        elif [[ -f "$OUTPUT_DIR/04_mail_sharing/dovecot_status.txt" ]]; then
+            echo "Dovecot: $(cat "$OUTPUT_DIR/04_mail_sharing/dovecot_status.txt")" >> "$summary_file"
+        fi
+        
+        # Summary generale
+        if [[ -f "$OUTPUT_DIR/04_mail_sharing/summary.txt" ]]; then
+            echo "" >> "$summary_file"
+            cat "$OUTPUT_DIR/04_mail_sharing/summary.txt" >> "$summary_file"
+        fi
     else
-        echo "WebTop: No data available" >> "$summary_file"
+        echo "ERROR: Mail sharing data not available" >> "$summary_file"
     fi
     
     cat >> "$summary_file" << EOF
