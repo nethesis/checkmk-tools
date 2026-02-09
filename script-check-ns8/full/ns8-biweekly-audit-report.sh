@@ -447,34 +447,35 @@ generate_summary_report() {
     local summary_file="$OUTPUT_DIR/REPORT_SUMMARY.txt"
     
     cat > "$summary_file" << EOF
-================================================================================
-NS8 BIWEEKLY AUDIT REPORT
-================================================================================
-Generated: $(date +"%Y-%m-%d %H:%M:%S")
-Node: $(hostname)
-Output Directory: $OUTPUT_DIR
+╔════════════════════════════════════════════════════════════════════════════╗
+║                     REPORT AUDIT QUINDICINALE NS8                          ║
+╚════════════════════════════════════════════════════════════════════════════╝
 
-================================================================================
-1. ACTIVE DIRECTORY USERS
-================================================================================
+Data generazione: $(date +"%d/%m/%Y alle %H:%M")
+Server: $(hostname)
+Cartella dati completi: $OUTPUT_DIR
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 UTENTI DEL DOMINIO (Active Directory)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
     
     # Analisi utenti
     if [[ -f "$OUTPUT_DIR/01_users.txt" ]]; then
         local user_count=$(grep -v "^ERROR" "$OUTPUT_DIR/01_users.txt" | wc -l)
-        echo "Total AD Users: $user_count" >> "$summary_file"
+        echo "Numero totale utenti: $user_count" >> "$summary_file"
         echo "" >> "$summary_file"
-        echo "User List:" >> "$summary_file"
-        cat "$OUTPUT_DIR/01_users.txt" >> "$summary_file"
+        echo "Elenco utenti:" >> "$summary_file"
+        grep -v "^ERROR" "$OUTPUT_DIR/01_users.txt" | sed 's/^/  • /' >> "$summary_file"
     else
-        echo "ERROR: User data not available" >> "$summary_file"
+        echo "⚠️  Dati utenti non disponibili" >> "$summary_file"
     fi
     
     cat >> "$summary_file" << EOF
 
-================================================================================
-2. PASSWORD EXPIRY STATUS
-================================================================================
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔐 SCADENZA PASSWORD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
     
     # Analisi scadenze password
@@ -483,25 +484,40 @@ EOF
         local expiring_soon=$(tail -n +2 "$OUTPUT_DIR/02_password_expiry.tsv" | awk -F'\t' '$7 != "N/A" && $7 < 7 {count++} END {print count+0}')
         local expired=$(tail -n +2 "$OUTPUT_DIR/02_password_expiry.tsv" | awk -F'\t' '$7 != "N/A" && $7 < 0 {count++} END {print count+0}')
         
-        echo "Total Users Analyzed: $total_users" >> "$summary_file"
-        echo "Passwords Expiring Soon (<7 days): $expiring_soon" >> "$summary_file"
-        echo "Passwords Already Expired: $expired" >> "$summary_file"
-        echo "Max Password Age Policy: $MAX_PWD_AGE_DAYS days" >> "$summary_file"
+        echo "Utenti analizzati: $total_users" >> "$summary_file"
+        echo "Password in scadenza (< 7 giorni): $expiring_soon" >> "$summary_file"
+        echo "Password già scadute: $expired" >> "$summary_file"
+        echo "Durata massima password (policy dominio): $MAX_PWD_AGE_DAYS giorni" >> "$summary_file"
         echo "" >> "$summary_file"
         
         if [[ $expiring_soon -gt 0 ]] || [[ $expired -gt 0 ]]; then
-            echo "ATTENTION REQUIRED - Users with expiring/expired passwords:" >> "$summary_file"
-            tail -n +2 "$OUTPUT_DIR/02_password_expiry.tsv" | awk -F'\t' '$7 != "N/A" && $7 < 7 {print "  " $1 " - expires in " $7 " days (" $6 ")"}' >> "$summary_file"
+            echo "⚠️  ATTENZIONE - Utenti con password in scadenza o scadute:" >> "$summary_file"
+            echo "" >> "$summary_file"
+            tail -n +2 "$OUTPUT_DIR/02_password_expiry.tsv" | awk -F'\t' '$7 != "N/A" && $7 < 7 {
+                split($6, date_parts, " ");
+                split(date_parts[1], ymd, "-");
+                italian_date = ymd[3]"/"ymd[2]"/"ymd[1];
+                if ($7 < 0) {
+                    days = -$7;
+                    printf "  • %s - SCADUTA da %d giorni (il %s)\n", $1, days, italian_date
+                } else if ($7 == 0) {
+                    printf "  • %s - SCADE OGGI (il %s)\n", $1, italian_date
+                } else {
+                    printf "  • %s - scade tra %d giorni (il %s)\n", $1, $7, italian_date
+                }
+            }' >> "$summary_file"
+        else
+            echo "✅ Tutte le password sono valide" >> "$summary_file"
         fi
     else
-        echo "ERROR: Password expiry data not available" >> "$summary_file"
+        echo "⚠️  Dati scadenze password non disponibili" >> "$summary_file"
     fi
     
     cat >> "$summary_file" << EOF
 
-================================================================================
-3. SAMBA SHARES AND PERMISSIONS
-================================================================================
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📁 CARTELLE CONDIVISE E PERMESSI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
     
     # Analisi share
@@ -509,13 +525,20 @@ EOF
         local share_count=$(tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | wc -l)
         local acl_collected=$(tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | awk -F'\t' '$3 == "YES" {count++} END {print count+0}')
         
-        echo "Total Shares: $share_count" >> "$summary_file"
-        echo "ACLs Collected: $acl_collected/$share_count" >> "$summary_file"
+        echo "Numero cartelle condivise: $share_count" >> "$summary_file"
+        echo "Permessi raccolti: $acl_collected/$share_count" >> "$summary_file"
         echo "" >> "$summary_file"
-        echo "Share Details:" >> "$summary_file"
-        column -t -s$'\t' "$OUTPUT_DIR/03_shares/shares_report.tsv" >> "$summary_file"
+        echo "Riepilogo cartelle:" >> "$summary_file"
         echo "" >> "$summary_file"
-        echo "Detailed Permissions by Share:" >> "$summary_file"
+        tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r name path acl file; do
+            echo "  📂 $name" >> "$summary_file"
+            echo "     Percorso: $path" >> "$summary_file"
+            [[ "$acl" == "YES" ]] && echo "     ✅ Permessi dettagliati disponibili" >> "$summary_file" || echo "     ⚠️  Permessi non disponibili" >> "$summary_file"
+            echo "" >> "$summary_file"
+        done
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >> "$summary_file"
+        echo "DETTAGLIO PERMESSI PER OGNI CARTELLA" >> "$summary_file"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >> "$summary_file"
         echo "" >> "$summary_file"
         
         # Analizza ACL per ogni share
@@ -523,82 +546,74 @@ EOF
             [[ "$share_name" == "share_name" ]] && continue  # Skip header
             [[ "$acl_collected" != "YES" ]] && continue
             
-            echo "  Share: $share_name" >> "$summary_file"
-            echo "  Path: $path" >> "$summary_file"
-            echo "  ---" >> "$summary_file"
+            echo "📂 CARTELLA: $share_name" >> "$summary_file"
+            echo "   Percorso: $path" >> "$summary_file"
+            echo "" >> "$summary_file"
             
             local acl_path="$OUTPUT_DIR/03_shares/acls/$acl_file"
             if [[ -f "$acl_path" ]]; then
                 # Estrai owner e group
-                local owner=$(grep "^# owner:" "$acl_path" | cut -d: -f2 | xargs)
-                local group=$(grep "^# group:" "$acl_path" | cut -d: -f2 | xargs)
+                local owner=$(grep "^# owner:" "$acl_path" | cut -d: -f2 | xargs | sed 's/BUILTIN\\\\administrators/Amministratori/; s/BUILTIN\\\\server\\040operators/Operatori Server/; s/NT\\040Authority\\\\system/SYSTEM/; s/NT\\040Authority\\\\authenticated\\040users/Utenti Autenticati/')
+                local group=$(grep "^# group:" "$acl_path" | cut -d: -f2 | xargs | sed 's/BUILTIN\\\\administrators/Amministratori/; s/BUILTIN\\\\server\\040operators/Operatori Server/; s/NT\\040Authority\\\\system/SYSTEM/; s/NT\\040Authority\\\\authenticated\\040users/Utenti Autenticati/')
                 
-                echo "  Owner: $owner" >> "$summary_file"
-                echo "  Group: $group" >> "$summary_file"
+                echo "   Proprietario: $owner" >> "$summary_file"
+                echo "   Gruppo: $group" >> "$summary_file"
                 echo "" >> "$summary_file"
                 
                 # Estrai permessi utenti specifici
                 local user_acls=$(grep "^user:" "$acl_path" | grep -v "^user::") 
                 if [[ -n "$user_acls" ]]; then
-                    echo "  User Permissions:" >> "$summary_file"
+                    echo "   👤 Permessi Utenti:" >> "$summary_file"
                     while IFS= read -r acl_line; do
-                        local username=$(echo "$acl_line" | cut -d: -f2)
+                        local username=$(echo "$acl_line" | cut -d: -f2 | sed 's/BUILTIN\\\\administrators/Amministratori/; s/BUILTIN\\\\server\\040operators/Operatori Server/; s/NT\\040Authority\\\\system/SYSTEM/; s/NT\\040Authority\\\\authenticated\\040users/Utenti Autenticati/')
                         local perms=$(echo "$acl_line" | cut -d: -f3)
                         local perm_desc=""
-                        [[ "$perms" == *r* ]] && perm_desc="${perm_desc}Read "
-                        [[ "$perms" == *w* ]] && perm_desc="${perm_desc}Write "
-                        [[ "$perms" == *x* ]] && perm_desc="${perm_desc}Execute"
-                        [[ -z "$perm_desc" ]] && perm_desc="None"
-                        echo "    - $username: $perm_desc ($perms)" >> "$summary_file"
+                        [[ "$perms" == "rwx" ]] && perm_desc="Controllo Totale"
+                        [[ "$perms" == "r-x" ]] && perm_desc="Lettura ed Esecuzione"
+                        [[ "$perms" == "rw-" ]] && perm_desc="Lettura e Scrittura"
+                        [[ "$perms" == "r--" ]] && perm_desc="Solo Lettura"
+                        [[ -z "$perm_desc" ]] && perm_desc=$(echo "$perms" | sed 's/r/Lettura /g; s/w/Scrittura /g; s/x/Esecuzione /g; s/-//g' | sed 's/  */ /g')
+                        echo "      • $username: $perm_desc" >> "$summary_file"
                     done <<< "$user_acls"
                 else
-                    echo "  User Permissions: None (no specific user ACLs)" >> "$summary_file"
+                    echo "   👤 Permessi Utenti: Nessun permesso specifico" >> "$summary_file"
                 fi
                 echo "" >> "$summary_file"
                 
                 # Estrai permessi gruppi specifici
                 local group_acls=$(grep "^group:" "$acl_path" | grep -v "^group::")
                 if [[ -n "$group_acls" ]]; then
-                    echo "  Group Permissions:" >> "$summary_file"
+                    echo "   👥 Permessi Gruppi:" >> "$summary_file"
                     while IFS= read -r acl_line; do
-                        local groupname=$(echo "$acl_line" | cut -d: -f2)
+                        local groupname=$(echo "$acl_line" | cut -d: -f2 | sed 's/BUILTIN\\\\administrators/Amministratori/; s/BUILTIN\\\\server\\040operators/Operatori Server/; s/NT\\040Authority\\\\system/SYSTEM/; s/NT\\040Authority\\\\authenticated\\040users/Utenti Autenticati/')
                         local perms=$(echo "$acl_line" | cut -d: -f3)
                         local perm_desc=""
-                        [[ "$perms" == *r* ]] && perm_desc="${perm_desc}Read "
-                        [[ "$perms" == *w* ]] && perm_desc="${perm_desc}Write "
-                        [[ "$perms" == *x* ]] && perm_desc="${perm_desc}Execute"
-                        [[ -z "$perm_desc" ]] && perm_desc="None"
-                        echo "    - $groupname: $perm_desc ($perms)" >> "$summary_file"
+                        [[ "$perms" == "rwx" ]] && perm_desc="Controllo Totale"
+                        [[ "$perms" == "r-x" ]] && perm_desc="Lettura ed Esecuzione"
+                        [[ "$perms" == "rw-" ]] && perm_desc="Lettura e Scrittura"
+                        [[ "$perms" == "r--" ]] && perm_desc="Solo Lettura"
+                        [[ -z "$perm_desc" ]] && perm_desc=$(echo "$perms" | sed 's/r/Lettura /g; s/w/Scrittura /g; s/x/Esecuzione /g; s/-//g' | sed 's/  */ /g')
+                        echo "      • $groupname: $perm_desc" >> "$summary_file"
                     done <<< "$group_acls"
                 else
-                    echo "  Group Permissions: None (no specific group ACLs)" >> "$summary_file"
+                    echo "   👥 Permessi Gruppi: Nessun permesso specifico" >> "$summary_file"
                 fi
-                echo "" >> "$summary_file"
-                
-                # Mostra permessi base
-                local owner_perms=$(grep "^user::" "$acl_path" | cut -d: -f3)
-                local group_perms=$(grep "^group::" "$acl_path" | cut -d: -f3)
-                local other_perms=$(grep "^other::" "$acl_path" | cut -d: -f3)
-                echo "  Base Permissions (Unix):" >> "$summary_file"
-                echo "    Owner ($owner): $owner_perms" >> "$summary_file"
-                echo "    Group ($group): $group_perms" >> "$summary_file"
-                echo "    Others: $other_perms" >> "$summary_file"
             else
-                echo "  ERROR: ACL file not found" >> "$summary_file"
+                echo "   ⚠️  File permessi non trovato" >> "$summary_file"
             fi
             echo "" >> "$summary_file"
-            echo "  ========================================" >> "$summary_file"
+            echo "  ────────────────────────────────────────────────────────────────────────────" >> "$summary_file"
             echo "" >> "$summary_file"
         done < "$OUTPUT_DIR/03_shares/shares_report.tsv"
     else
-        echo "ERROR: Share data not available" >> "$summary_file"
+        echo "⚠️  Dati cartelle condivise non disponibili" >> "$summary_file"
     fi
     
     cat >> "$summary_file" << EOF
 
-================================================================================
-4. EMAIL SHARING (WEBTOP & DOVECOT)
-================================================================================
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📧 CONDIVISIONI CASELLE EMAIL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
     
     # Analisi condivisioni email
@@ -607,13 +622,24 @@ EOF
         local dovecot_shares="$OUTPUT_DIR/04_mail_sharing/dovecot_shared_mailboxes.txt"
         
         # WebTop shares
-        if [[ -f "$webtop_shares" ]] && [[ -s "$webtop_shares" ]]; then
-            echo "WebTop Mail Sharing:" >> "$summary_file"
+        if [[ -f "$webtop_shares" ]] && ! grep -q "(0 rows)" "$webtop_shares" 2>/dev/null; then
+            echo "Condivisioni WebTop trovate:" >> "$summary_file"
             echo "" >> "$summary_file"
-            cat "$webtop_shares" >> "$summary_file"
-            echo "" >> "$summary_file"
-        elif [[ -f "$OUTPUT_DIR/04_mail_sharing/webtop_status.txt" ]]; then
-            echo "WebTop: $(cat "$OUTPUT_DIR/04_mail_sharing/webtop_status.txt")" >> "$summary_file"
+            # Parse output psql e rendi user-friendly
+            tail -n +3 "$webtop_shares" | grep -v "^(" | grep -v "^--" | while IFS='|' read -r id owner service path inst shared perms; do
+                [[ -z "$owner" ]] && continue
+                owner=$(echo "$owner" | xargs)
+                shared=$(echo "$shared" | xargs)
+                path=$(echo "$path" | xargs)
+                perms=$(echo "$perms" | xargs)
+                echo "  📬 Casella di: $owner" >> "$summary_file"
+                [[ -n "$path" ]] && echo "     Cartella: $path" >> "$summary_file"
+                [[ -n "$shared" ]] && echo "     Condivisa con: $shared" >> "$summary_file"
+                [[ -n "$perms" ]] && echo "     Permessi: $perms" >> "$summary_file"
+                echo "" >> "$summary_file"
+            done
+        else
+            echo "Nessuna casella email condivisa tramite WebTop" >> "$summary_file"
             echo "" >> "$summary_file"
         fi
         
@@ -623,14 +649,23 @@ EOF
             [[ -z "$share_count" ]] && share_count=0
             
             if [[ $share_count -gt 0 ]]; then
-                echo "Dovecot Shared Mailboxes: $share_count shares found" >> "$summary_file"
+                echo "Condivisioni Dovecot trovate: $share_count" >> "$summary_file"
                 echo "" >> "$summary_file"
-                cat "$dovecot_shares" >> "$summary_file"
+                # Parse e rendi user-friendly
+                grep -A20 "^Mailbox Owner:" "$dovecot_shares" | while read -r line; do
+                    if [[ "$line" =~ ^Mailbox\ Owner: ]]; then
+                        echo "  📬 ${line#Mailbox Owner: }" >> "$summary_file"
+                    elif [[ "$line" =~ ^Shared\ Folder: ]]; then
+                        echo "     Cartella: ${line#Shared Folder: }" >> "$summary_file"
+                    elif [[ "$line" =~ ^[[:space:]]+• ]]; then
+                        echo "     $line" >> "$summary_file"
+                    elif [[ "$line" =~ ^$ ]]; then
+                        echo "" >> "$summary_file"
+                    fi
+                done
             else
-                echo "Dovecot: No shared mailboxes configured" >> "$summary_file"
+                echo "Nessuna casella email condivisa tramite Dovecot" >> "$summary_file"
             fi
-        elif [[ -f "$OUTPUT_DIR/04_mail_sharing/dovecot_status.txt" ]]; then
-            echo "Dovecot: $(cat "$OUTPUT_DIR/04_mail_sharing/dovecot_status.txt")" >> "$summary_file"
         fi
         
         # Summary generale
@@ -639,15 +674,19 @@ EOF
             cat "$OUTPUT_DIR/04_mail_sharing/summary.txt" >> "$summary_file"
         fi
     else
-        echo "ERROR: Mail sharing data not available" >> "$summary_file"
+        echo "⚠️  Dati condivisioni email non disponibili" >> "$summary_file"
     fi
     
     cat >> "$summary_file" << EOF
 
-================================================================================
-END OF REPORT
-================================================================================
-For detailed data, see individual files in: $OUTPUT_DIR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Report completato con successo
+
+Per i dati tecnici dettagliati, consultare i file nella cartella:
+$OUTPUT_DIR
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
     
     log_success "Report riepilogativo generato → REPORT_SUMMARY.txt"
