@@ -631,7 +631,8 @@ EOF
         
         # Dovecot shared mailboxes
         if [[ -f "$dovecot_shares" ]]; then
-            local share_count=$(grep -c "^Mailbox Owner:" "$dovecot_shares" 2>/dev/null || echo "0")
+            local share_count=$(grep -c "^Mailbox Owner:" "$dovecot_shares" 2>/dev/null || true)
+            [[ -z "$share_count" ]] && share_count=0
             
             if [[ $share_count -gt 0 ]]; then
                 echo "Dovecot Shared Mailboxes: $share_count shares found" >> "$summary_file"
