@@ -307,15 +307,14 @@ collect_webtop_sharing() {
 SELECT s.share_id, s.user_uid AS owner, s.service_id, s.key AS mailbox_path, s.instance, sd.user_uid AS shared_with, sd.value AS permissions FROM core.shares s LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id WHERE s.service_id LIKE '%mail%' ORDER BY s.user_uid, s.share_id, sd.user_uid;
 EOSQL
                     then
-                        # Verifica se ci sono dati (più di 2 righe = header + almeno 1 record)
-                        local line_count=$(wc -l < "$webtop_output" 2>/dev/null || true)
-                        [[ -z "$line_count" ]] && line_count=0
-                        if [[ "$line_count" -gt 2 ]]; then
-                            log_success "  WebTop condivisioni raccolte ($((line_count - 2)) records)"
-                            has_data=1
-                        else
+                        # Verifica se ci sono dati reali (psql output contiene "(0 rows)" se vuoto)
+                        if grep -q "(0 rows)" "$webtop_output" 2>/dev/null; then
                             log_warn "  WebTop: Nessuna condivisione mail configurata"
                             echo "No mail sharing configured in WebTop" > "$webtop_output"
+                        else
+                            local record_count=$(grep -c "^[[:space:]]*[0-9]" "$webtop_output" 2>/dev/null || echo "0")
+                            log_success "  WebTop condivisioni raccolte ($record_count records)"
+                            has_data=1
                         fi
                     else
                         log_warn "  WebTop: Query fallita"
