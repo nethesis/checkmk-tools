@@ -281,11 +281,13 @@ collect_samba_shares() {
     
     log_info "  Entità trovate: $(echo "$all_entities_raw" | wc -l)"
     
+    # Usa while con -r per evitare interpretazione backslash come escape
     while IFS= read -r entity_full; do
         [[ -z "$entity_full" ]] && continue
         
-        # Rimuovi dominio (es. "NLABNS8\test1" → "test1") usando bash string manipulation
-        local entity_name="${entity_full##*\\}"
+        # Rimuovi dominio (es. "NLABNS8\test1" → "test1") 
+        # Nota: usa cut perché bash parameter expansion non funziona con backslash interpretato come tab
+        local entity_name=$(echo "$entity_full" | awk -F'\\' '{print $NF}')
         [[ -z "$entity_name" ]] && continue
         [[ "$entity_name" == "Everyone" ]] && continue
         
