@@ -276,8 +276,8 @@ collect_samba_shares() {
     local group_expansion_file="$output_dir/group_members.map"
     > "$group_expansion_file"  # Crea file vuoto
     
-    # Trova tutti i nomi entità negli ACL Windows
-    local all_entities=$(grep "^ACL:" "$acl_dir"/*_smbacl.txt 2>/dev/null | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)" | cut -d: -f2 | sed 's/.*\\//' | sort -u)
+    # Trova tutti i nomi entità negli ACL Windows (usa -h per nascondere filename)
+    local all_entities=$(grep -h "^ACL:" "$acl_dir"/*_smbacl.txt 2>/dev/null | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)" | cut -d: -f2 | sed 's/.*\\//' | sort -u)
     
     while IFS= read -r entity_name; do
         [[ -z "$entity_name" ]] && continue
