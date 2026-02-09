@@ -640,8 +640,9 @@ EOF
             done
         else
             echo "Nessuna casella email condivisa tramite WebTop" >> "$summary_file"
-            echo "" >> "$summary_file"
         fi
+        
+        echo "" >> "$summary_file"
         
         # Dovecot shared mailboxes
         if [[ -f "$dovecot_shares" ]]; then
@@ -649,22 +650,16 @@ EOF
             [[ -z "$share_count" ]] && share_count=0
             
             if [[ $share_count -gt 0 ]]; then
-                echo "Condivisioni Dovecot trovate: $share_count" >> "$summary_file"
+                echo "Condivisioni account Webtop trovate:" >> "$summary_file"
                 echo "" >> "$summary_file"
-                # Parse e rendi user-friendly
-                grep -A20 "^Mailbox Owner:" "$dovecot_shares" | while read -r line; do
-                    if [[ "$line" =~ ^Mailbox\ Owner: ]]; then
-                        echo "  📬 ${line#Mailbox Owner: }" >> "$summary_file"
-                    elif [[ "$line" =~ ^Shared\ Folder: ]]; then
-                        echo "     Cartella: ${line#Shared Folder: }" >> "$summary_file"
-                    elif [[ "$line" =~ ^[[:space:]]+• ]]; then
-                        echo "     $line" >> "$summary_file"
-                    elif [[ "$line" =~ ^$ ]]; then
-                        echo "" >> "$summary_file"
-                    fi
+                # Estrai utenti unici (senza duplicati)
+                grep "^Mailbox Owner:" "$dovecot_shares" | cut -d: -f2 | xargs | tr ' ' '\n' | sort -u | while read -r owner; do
+                    [[ -z "$owner" ]] && continue
+                    echo "  📬 $owner" >> "$summary_file"
+                    echo "" >> "$summary_file"
                 done
             else
-                echo "Nessuna casella email condivisa tramite Dovecot" >> "$summary_file"
+                echo "Nessuna casella email condivisa" >> "$summary_file"
             fi
         fi
         
