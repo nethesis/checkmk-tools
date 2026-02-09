@@ -276,17 +276,18 @@ collect_samba_shares() {
     local group_expansion_file="$output_dir/group_members.map"
     > "$group_expansion_file"  # Crea file vuoto
     
-    # Trova tutti i nomi entità negli ACL Windows (usa -h per nascondere filename)
-    local all_entities_raw=$(grep -h "^ACL:" "$acl_dir"/*_smbacl.txt 2>/dev/null | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)" | cut -d: -f2 | sort -u)
+    # Trova tutti i nomi entità negli ACL Windows - salva su file per preservare backslash
+    local entities_temp=$(mktemp)
+    grep -h "^ACL:" "$acl_dir"/*_smbacl.txt 2>/dev/null | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)" | cut -d: -f2 | sort -u > "$entities_temp"
     
-    log_info "  Entità trovate: $(echo "$all_entities_raw" | wc -l)"
+    local entity_count=$(wc -l < "$entities_temp")
+    log_info "  Entità trovate: $entity_count"
     
     # Usa while con -r per evitare interpretazione backslash come escape
     while IFS= read -r entity_full; do
         [[ -z "$entity_full" ]] && continue
         
         # Rimuovi dominio (es. "NLABNS8\test1" → "test1") 
-        # Nota: usa cut perché bash parameter expansion non funziona con backslash interpretato come tab
         local entity_name=$(echo "$entity_full" | awk -F'\\' '{print $NF}')
         [[ -z "$entity_name" ]] && continue
         [[ "$entity_name" == "Everyone" ]] && continue
@@ -308,7 +309,9 @@ collect_samba_shares() {
         else
             log_info "    → $entity_name: non è un gruppo o nessun membro"
         fi
-    done <<< "$all_entities_raw"
+    done < "$entities_temp"
+    
+    rm -f "$entities_temp"
     
     rm -f "$testparm_output"
     log_success "Share report completato → 03_shares/"
