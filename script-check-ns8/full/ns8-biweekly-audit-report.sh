@@ -277,9 +277,13 @@ collect_samba_shares() {
     > "$group_expansion_file"  # Crea file vuoto
     
     # Trova tutti i nomi entità negli ACL Windows (usa -h per nascondere filename)
-    local all_entities=$(grep -h "^ACL:" "$acl_dir"/*_smbacl.txt 2>/dev/null | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)" | cut -d: -f2 | sed 's/.*\\//' | sort -u)
+    local all_entities_raw=$(grep -h "^ACL:" "$acl_dir"/*_smbacl.txt 2>/dev/null | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)" | cut -d: -f2 | sort -u)
     
-    while IFS= read -r entity_name; do
+    while IFS= read -r entity_full; do
+        [[ -z "$entity_full" ]] && continue
+        
+        # Rimuovi dominio (es. "NLABNS8\test1" → "test1") usando bash string manipulation
+        local entity_name="${entity_full##*\\}"
         [[ -z "$entity_name" ]] && continue
         [[ "$entity_name" == "Everyone" ]] && continue
         
@@ -288,13 +292,15 @@ collect_samba_shares() {
         
         if [[ -n "$members" ]]; then
             # È un gruppo - salva mapping gruppo→utenti
+            local member_count=0
             while IFS= read -r member; do
                 [[ -z "$member" ]] && continue
                 echo "$entity_name:$member" >> "$group_expansion_file"
+                ((member_count++))
             done <<< "$members"
-            log_info "  $entity_name: gruppo con $(echo "$members" | wc -l) membri"
+            log_info "  $entity_name: gruppo con $member_count membri"
         fi
-    done <<< "$all_entities"
+    done <<< "$all_entities_raw"
     
     rm -f "$testparm_output"
     log_success "Share report completato → 03_shares/"
