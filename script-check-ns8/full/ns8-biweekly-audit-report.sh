@@ -75,12 +75,25 @@ check_prerequisites() {
     SAMBA_MODULE=$(echo "$SAMBA_MODULES" | head -1)
     log_success "Modulo Samba: $SAMBA_MODULE"
     
+    # Cerca il primo modulo WebTop con container Postgres attivo
     if [[ -z "$WEBTOP_MODULES" ]]; then
         log_warn "Nessun modulo WebTop trovato (report limitato)"
         WEBTOP_MODULE=""
     else
-        WEBTOP_MODULE=$(echo "$WEBTOP_MODULES" | head -1)
-        log_success "Modulo WebTop: $WEBTOP_MODULE"
+        WEBTOP_MODULE=""
+        while IFS= read -r webtop_mod; do
+            [[ -z "$webtop_mod" ]] && continue
+            local postgres_check=$(runagent -m "$webtop_mod" podman ps --format '{{.Names}}' 2>/dev/null | grep -i postgres || true)
+            if [[ -n "$postgres_check" ]]; then
+                WEBTOP_MODULE="$webtop_mod"
+                log_success "Modulo WebTop: $WEBTOP_MODULE (con Postgres attivo)"
+                break
+            fi
+        done <<< "$WEBTOP_MODULES"
+        
+        if [[ -z "$WEBTOP_MODULE" ]]; then
+            log_warn "Nessun modulo WebTop con Postgres attivo trovato (report limitato)"
+        fi
     fi
     
     # Crea directory output
