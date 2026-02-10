@@ -303,9 +303,8 @@ collect_webtop_sharing() {
     # Crea file query temporaneo NEL container
     local query_file="/tmp/webtop_query_$$.sql"
     
-    # Scrivi query nel container
-    runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" bash -c "cat > $query_file" <<'EOFQUERY'
-SELECT 
+    # Scrivi query nel container (senza -i, usa bash -c con echo)
+    runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" bash -c "echo \"SELECT 
     u_owner.user_id as owner,
     s.share_id,
     s.key as share_key,
@@ -316,8 +315,7 @@ LEFT JOIN core.users u_owner ON s.user_uid = u_owner.user_uid
 LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id
 LEFT JOIN core.users u_shared ON sd.user_uid = u_shared.user_uid
 WHERE s.service_id = 'com.sonicle.webtop.mail'
-ORDER BY u_owner.user_id, s.share_id;
-EOFQUERY
+ORDER BY u_owner.user_id, s.share_id;\" > $query_file"
     
     # Esegui query da file
     if runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
