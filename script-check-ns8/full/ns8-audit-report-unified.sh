@@ -447,58 +447,6 @@ EOF
     else
         echo "Nessun dato disponibile" >> "$summary_file"
     fi
-    
-    cat >> "$summary_file" <<EOF
-
-================================================================================
-DETTAGLIO SHARE SAMBA
-================================================================================
-
-EOF
-    
-    # Tabella share Samba
-    if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
-        cat >> "$summary_file" <<'EOF'
-NOME SHARE          PATH COMPLETO                             DESCRIZIONE
-------------------- ----------------------------------------- ------------------------
-EOF
-        tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r name path desc; do
-            printf "%-19s %-41s %s\n" "$name" "$path" "$desc"
-        done >> "$summary_file"
-        
-        echo "" >> "$summary_file"
-        echo "NOTA: Per ACL dettagliate vedere file in 03_shares/acls/" >> "$summary_file"
-    else
-        echo "Nessun dato disponibile" >> "$summary_file"
-    fi
-    
-    cat >> "$summary_file" <<EOF
-
-================================================================================
-DETTAGLIO CONDIVISIONI EMAIL WEBTOP
-================================================================================
-
-EOF
-    
-    # Tabella WebTop shares (convertire UUID in username se possibile)
-    if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.tsv" && $webtop_share_count -gt 0 ]]; then
-        cat >> "$summary_file" <<'EOF'
-ID   MAILBOX/CARTELLA    PROPRIETARIO (UUID SUBSTR)   CONDIVISO CON (UUID SUBSTR)  PERMESSI
----- ------------------- ---------------------------- ---------------------------- -------------------------
-EOF
-        tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" | while IFS=$'\t' read -r id owner svc path inst shared perms; do
-            # Abbrevia UUID (primi 12 char), estrae info da JSON permissions
-            owner_short="${owner:0:12}..."
-            shared_short="${shared:0:12}..."
-            perms_clean=$(echo "$perms" | sed 's/[{}"]//g' | sed 's/,/ /g' | sed 's/://g' | cut -c1-40)
-            printf "%-4s %-19s %-28s %-28s %s\n" "$id" "$path" "$owner_short" "$shared_short" "$perms_clean"
-        done >> "$summary_file"
-        
-        echo "" >> "$summary_file"
-        echo "NOTA: Gli UUID completi possono essere mappati agli utenti AD tramite WebTop admin panel" >> "$summary_file"
-    else
-        echo "Nessuna condivisione email configurata" >> "$summary_file"
-    fi
 
     cat >> "$summary_file" <<EOF
 
@@ -610,15 +558,15 @@ display_detailed_tables() {
     echo ""
     
     if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
-        printf "%-19s %-41s %s\n" "NOME SHARE" "PATH COMPLETO" "DESCRIZIONE"
-        printf "%-19s %-41s %s\n" "-------------------" "-----------------------------------------" "------------------------"
+        printf "%-20s %s\n" "NOME SHARE" "PATH COMPLETO"
+        printf "%-20s %s\n" "--------------------" "-------------------------------------------"
         
         tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r name path desc; do
-            printf "%-19s %-41s %s\n" "$name" "$path" "${desc:0:24}"
+            printf "%-20s %s\n" "$name" "$path"
         done
         
         echo ""
-        echo "NOTA: Per ACL dettagliate vedere sezione 'REPORT PERMESSI SHARE' sotto"
+        echo "NOTA: Per ACL e permessi dettagliati vedere sezione 'REPORT PERMESSI SHARE' sotto"
     else
         echo "Nessun dato disponibile"
     fi
@@ -634,19 +582,40 @@ display_detailed_tables() {
     local webtop_share_count=$(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" 2>/dev/null | wc -l || echo 0)
     
     if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.tsv" && $webtop_share_count -gt 0 ]]; then
-        printf "%-4s %-19s %-28s %-28s %s\n" "ID" "MAILBOX/CARTELLA" "PROPRIETARIO (UUID)" "CONDIVISO CON (UUID)" "PERMESSI"
-        printf "%-4s %-19s %-28s %-28s %s\n" "----" "-------------------" "----------------------------" "----------------------------" "-------------------------"
+        # Mappa UUID → username da database WebTop
+        declare -A uuid_to_user
+        
+        if [[ -n "$WEBTOP_MODULE" ]]; then
+            local postgres_container=$(runagent -m "$WEBTOP_MODULE" podman ps --format '{{.Names}}' 2>/dev/null | grep -i postgres | head -1 || echo "postgres")
+            local webtop_db=$(runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" psql -U postgres -t -c "\l" 2>/dev/null | grep -iE 'webtop' | awk '{print $1}' | head -1 || echo "")
+            
+            if [[ -n "$webtop_db" ]]; then
+                # Query per mappare user_uid → user_id (username)
+                local uuid_map=$(echo "SELECT user_uid, user_id FROM core.users;" | runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" psql -U postgres -d "$webtop_db" -A -t -F $'\t' 2>/dev/null || echo "")
+                
+                # Popola array associativo
+                while IFS=$'\t' read -r uuid username; do
+                    [[ -n "$uuid" && -n "$username" ]] && uuid_to_user["$uuid"]="$username"
+                done <<< "$uuid_map"
+            fi
+        fi
+        
+        printf "%-4s %-19s %-25s %-25s %s\n" "ID" "MAILBOX/CARTELLA" "PROPRIETARIO" "CONDIVISO CON" "PERMESSI"
+        printf "%-4s %-19s %-25s %-25s %s\n" "----" "-------------------" "-------------------------" "-------------------------" "-------------------------"
         
         tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" | while IFS=$'\t' read -r id owner svc path inst shared perms; do
-            # Abbrevia UUID (primi 12 char), estrae info da JSON permissions
-            owner_short="${owner:0:12}..."
-            shared_short="${shared:0:12}..."
-            perms_clean=$(echo "$perms" | sed 's/[{}"]//g' | sed 's/,/ /g' | sed 's/://g' | cut -c1-40)
-            printf "%-4s %-19s %-28s %-28s %s\n" "$id" "$path" "$owner_short" "$shared_short" "$perms_clean"
+            # Mappa UUID → username (se disponibile, altrimenti mostra UUID abbreviato)
+            local owner_name="${uuid_to_user[$owner]:-${owner:0:8}...}"
+            local shared_name="${uuid_to_user[$shared]:-${shared:0:8}...}"
+            
+            # Estrai info da JSON permissions
+            local perms_clean=$(echo "$perms" | sed 's/[{}"]//g' | sed 's/,/ /g' | sed 's/://g' | cut -c1-35)
+            
+            printf "%-4s %-19s %-25s %-25s %s\n" "$id" "$path" "$owner_name" "$shared_name" "$perms_clean"
         done
         
         echo ""
-        echo "NOTA: Gli UUID completi possono essere mappati agli utenti AD tramite WebTop admin panel"
+        echo "NOTA: Username mappati automaticamente da database WebTop"
     else
         echo "Nessuna condivisione email configurata"
     fi
