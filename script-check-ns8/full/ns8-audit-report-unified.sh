@@ -293,17 +293,18 @@ collect_webtop_sharing() {
     
     # Debug: mostra query
     if [[ "${DEBUG:-0}" == "1" ]]; then
-        echo "[DEBUG] Query SQL:"
-        echo "$sql_query"
+        echo "[DEBUG] Query SQL"
     fi
     
     # Esegui query
     local temp_result=$(mktemp)
     local temp_error=$(mktemp)
     
-    #Esegui query via heredoc, usa TAB come field separator (passato come variabile)
-    if runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
-        psql -U postgres -d webtop5 -t -A -F '	' <<'EOFQUERY' > "$temp_result" 2>"$temp_error"
+    # Crea file query temporaneo NEL container
+    local query_file="/tmp/webtop_query_$$.sql"
+    
+    # Scrivi query nel container
+    runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" bash -c "cat > $query_file" <<'EOFQUERY'
 SELECT 
     u_owner.user_id as owner,
     s.share_id,
@@ -317,7 +318,14 @@ LEFT JOIN core.users u_shared ON sd.user_uid = u_shared.user_uid
 WHERE s.service_id = 'com.sonicle.webtop.mail'
 ORDER BY u_owner.user_id, s.share_id;
 EOFQUERY
-then
+    
+    # Esegui query da file
+    if runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
+        psql -U postgres -d webtop5 -t -A -F$'\t' -f "$query_file" > "$temp_result" 2>"$temp_error"; then
+        
+        # Pulisci file query
+        runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" rm -f "$query_file" 2>/dev/null || true
+        
         
         # Parse risultati TSV diretti (gestisci NULL come empty string)
         local row_count=0
