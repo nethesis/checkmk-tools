@@ -316,15 +316,26 @@ collect_webtop_sharing() {
     # Usa echo per passare query via stdin, evitando problemi con heredoc quando script eseguito via curl|bash
     local query="SELECT s.share_id, s.user_uid AS owner, s.service_id, s.key AS mailbox_path, s.instance, sd.user_uid AS shared_with, sd.value AS permissions FROM core.shares s LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id WHERE s.service_id LIKE '%mail%' ORDER BY s.user_uid, s.share_id, sd.user_uid;"
     
+    local temp_output="/tmp/webtop_raw_$$.txt"
+    
     if echo "$query" | runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
-        psql -U postgres -d "$webtop_db" > "$output_file" 2>/dev/null; then
-        # Verifica se ci sono dati (psql output contiene "(0 rows)" se vuoto)
-        if grep -q "(0 rows)" "$output_file" 2>/dev/null; then
+        psql -U postgres -d "$webtop_db" -t > "$temp_output" 2>/dev/null; then
+        
+        # Pulisci output PostgreSQL: rimuovi linee vuote, trim spazi, converti pipe in TAB
+        # Header TSV
+        echo -e "share_id\towner\tservice_id\tmailbox_path\tinstance\tshared_with\tpermissions" > "$output_file"
+        
+        # Verifica se ci sono dati
+        if grep -q "^[[:space:]]*$" "$temp_output" 2>/dev/null && ! grep -qE "^[[:space:]]*[0-9]" "$temp_output" 2>/dev/null; then
             log_warn "Nessuna condivisione email configurata"
-            echo "No mail sharing configured in WebTop" > "$output_file"
+            rm -f "$temp_output"
         else
-            local record_count=$(grep -c "^[[:space:]]*[0-9]" "$output_file" 2>/dev/null || echo "0")
+            # Parse output: converti formato PostgreSQL (pipe-separated) in TSV
+            grep -vE "^[[:space:]]*$|^-+\+|^\(.*rows?\)" "$temp_output" | sed 's/|/\t/g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' >> "$output_file"
+            
+            local record_count=$(tail -n +2 "$output_file" 2>/dev/null | wc -l || echo "0")
             log_success "Raccolte $record_count condivisioni email → $(basename "$output_file")"
+            rm -f "$temp_output"
         fi
         return 0
     else
@@ -444,17 +455,19 @@ EOF
     # Tabella WebTop shares (convertire UUID in username se possibile)
     if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.tsv" && $webtop_share_count -gt 0 ]]; then
         cat >> "$summary_file" <<'EOF'
-ID   PROPRIETARIO (UUID)              CONDIVISO CON (UUID)             PERMESSI
----- -------------------------------- -------------------------------- -----------------------
+ID   MAILBOX/CARTELLA    PROPRIETARIO (UUID SUBSTR)   CONDIVISO CON (UUID SUBSTR)  PERMESSI
+---- ------------------- ---------------------------- ---------------------------- -------------------------
 EOF
         tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" | while IFS=$'\t' read -r id owner svc path inst shared perms; do
-            # Estrai solo campi rilevanti da JSON permissions
-            perms_clean=$(echo "$perms" | sed 's/[{}"]//g' | sed 's/,/ | /g' | cut -c1-50)
-            printf "%-4s %-32s %-32s %s\n" "$id" "${owner:0:32}" "${shared:0:32}" "$perms_clean"
+            # Abbrevia UUID (primi 12 char), estrae info da JSON permissions
+            owner_short="${owner:0:12}..."
+            shared_short="${shared:0:12}..."
+            perms_clean=$(echo "$perms" | sed 's/[{}"]//g' | sed 's/,/ /g' | sed 's/://g' | cut -c1-40)
+            printf "%-4s %-19s %-28s %-28s %s\n" "$id" "$path" "$owner_short" "$shared_short" "$perms_clean"
         done >> "$summary_file"
         
         echo "" >> "$summary_file"
-        echo "NOTA: Gli UUID possono essere mappati agli utenti AD tramite WebTop admin panel" >> "$summary_file"
+        echo "NOTA: Gli UUID completi possono essere mappati agli utenti AD tramite WebTop admin panel" >> "$summary_file"
     else
         echo "Nessuna condivisione email configurata" >> "$summary_file"
     fi
