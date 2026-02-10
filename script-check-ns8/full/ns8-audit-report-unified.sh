@@ -250,17 +250,27 @@ collect_samba_shares() {
         local acl_file="$acls_dir/${share_name}_smbacl.txt"
         local admin_pass="Nethesis,1234"  # Password di default NS8
         
-        if runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-            smbcacls "//localhost/$share_name" / -U "administrator%$admin_pass" 2>/dev/null > "$acl_file"; then
+        # Esegui smbcacls e verifica se ha generato output valido (non exit code, perché può avere warnings)
+        runagent -m "$SAMBA_MODULE" podman exec samba-dc \
+            smbcacls "//localhost/$share_name" / -U "administrator%$admin_pass" > "$acl_file" 2>&1
+        
+        if grep -q "^ACL:" "$acl_file" 2>/dev/null; then
             log_success "    ACL salvato → $(basename "$acl_file")"
         else
             # Fallback: usa getfacl (ACL filesystem POSIX) se smbcacls fallisce
             log_warn "    smbcacls fallito, provo getfacl..."
-            if [[ "$share_path" != "N/A" ]] && runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-                getfacl "$share_path" 2>/dev/null > "$acl_file"; then
-                log_success "    ACL POSIX salvato → $(basename "$acl_file")"
+            if [[ "$share_path" != "N/A" ]]; then
+                runagent -m "$SAMBA_MODULE" podman exec samba-dc \
+                    getfacl "$share_path" > "$acl_file" 2>&1
+                
+                if grep -qE "^(user|group):" "$acl_file" 2>/dev/null; then
+                    log_success "    ACL POSIX salvato → $(basename "$acl_file")"
+                else
+                    log_warn "    Impossibile ottenere ACL"
+                    echo "ERROR: Unable to retrieve ACL for $share_name" > "$acl_file"
+                fi
             else
-                log_warn "    Impossibile ottenere ACL"
+                log_warn "    Impossibile ottenere ACL (path non disponibile)"
                 echo "ERROR: Unable to retrieve ACL for $share_name" > "$acl_file"
             fi
         fi
