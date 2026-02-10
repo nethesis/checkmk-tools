@@ -506,12 +506,12 @@ EOF
     # Tabella gruppi AD (gruppo → utenti)
     if [[ -f "$OUTPUT_DIR/05_ad_groups.tsv" ]]; then
         cat >> "$summary_file" <<'EOF'
-GRUPPO                                  UTENTI PRESENTI NEL GRUPPO
----------------------------------------- --------------------------------------------------------------------------------
+GRUPPO                                                      UTENTI PRESENTI NEL GRUPPO
+------------------------------------------------------------ --------------------------------------------------------------------------------
 EOF
         tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" | while IFS=$'\t' read -r groupname count members; do
             [[ -z "$members" ]] && members="N/A"
-            printf "%-40s %-80s\n" "$groupname" "$members"
+            printf "%-60s %-80s\n" "$groupname" "$members"
         done >> "$summary_file"
     else
         echo "Nessun dato disponibile" >> "$summary_file"
