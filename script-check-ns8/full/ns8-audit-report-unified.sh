@@ -203,7 +203,61 @@ collect_password_expiry() {
     return 0
 }
 
-# Funzione 3: Raccolta share e permessi
+# Funzione 3: Raccolta gruppi AD e membri
+collect_ad_groups() {
+    log_info "Raccolta gruppi Active Directory e membri..."
+    
+    local output_file="$OUTPUT_DIR/05_ad_groups.tsv"
+    local temp_groups=$(mktemp)
+    
+    # Header TSV
+    echo -e "group_name\tmembers_count\tmembers_list" > "$output_file"
+    
+    # Lista gruppi AD
+    if ! runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group list > "$temp_groups" 2>/dev/null; then
+        log_error "Fallita raccolta gruppi AD"
+        echo "ERROR: Unable to collect AD groups" > "$output_file"
+        rm -f "$temp_groups"
+        return 1
+    fi
+    
+    local group_count=0
+    local success_count=0
+    
+    # DISABILITA set -e solo per questo loop
+    set +e
+    
+    while IFS= read -r groupname; do
+        [[ -z "$groupname" ]] && continue
+        ((group_count++))
+        
+        log_info "  Elaborazione gruppo: $groupname"
+        
+        # Ottieni membri del gruppo
+        local members=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc \
+            samba-tool group listmembers "$groupname" 2>/dev/null | tr '\n' ',' | sed 's/,$//' || echo "")
+        
+        local members_count=0
+        if [[ -n "$members" ]]; then
+            members_count=$(echo "$members" | tr ',' '\n' | wc -l)
+        fi
+        
+        log_info "    Membri: $members_count"
+        
+        echo -e "$groupname\t$members_count\t$members" >> "$output_file"
+        ((success_count++))
+        
+    done < "$temp_groups"
+    
+    # Riabilita set -e
+    set -e
+    
+    log_success "Gruppi AD elaborati: $success_count/$group_count → $(basename "$output_file")"
+    rm -f "$temp_groups"
+    return 0
+}
+
+# Funzione 4: Raccolta share e permessi
 collect_samba_shares() {
     log_info "Raccolta share Samba e permessi..."
     
@@ -415,6 +469,7 @@ Active Directory:
   - Utenti con analisi password:      $pwd_count
   - Password in scadenza (≤7 giorni): $expiring_soon
   - Password scadute:                  $expired
+  - Gruppi AD totali:                  $(tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" 2>/dev/null | wc -l || echo 0)
 
 Samba File Shares:
   - Share totali:                      $share_count
@@ -451,6 +506,27 @@ EOF
     cat >> "$summary_file" <<EOF
 
 ================================================================================
+DETTAGLIO GRUPPI AD E MEMBRI
+================================================================================
+
+EOF
+
+    # Tabella gruppi AD
+    if [[ -f "$OUTPUT_DIR/05_ad_groups.tsv" ]]; then
+        cat >> "$summary_file" <<'EOF'
+GRUPPO                           MEMBRI  UTENTI NEL GRUPPO
+-------------------------------- ------- --------------------------------------------------
+EOF
+        tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" | while IFS=$'\t' read -r groupname count members; do
+            printf "%-32s %7s  %s\n" "$groupname" "$count" "${members:0:50}"
+        done >> "$summary_file"
+    else
+        echo "Nessun dato disponibile" >> "$summary_file"
+    fi
+
+    cat >> "$summary_file" <<EOF
+
+================================================================================
 FILE DATI ESPORTATI
 ================================================================================
 
@@ -467,6 +543,9 @@ FILE DATI ESPORTATI
 
 4. WebTop email shares (TSV):
    → 04_webtop_email_shares.tsv
+
+5. Gruppi AD e membri (TSV):
+   → 05_ad_groups.tsv
 
 ================================================================================
 AZIONI CONSIGLIATE
@@ -551,7 +630,33 @@ display_detailed_tables() {
     
     echo ""
     
-    # ========== TABELLA 2: SHARE SAMBA ==========
+    # ========== TABELLA 2: GRUPPI AD ==========
+    echo "================================================================================"
+    echo "DETTAGLIO GRUPPI AD E MEMBRI"
+    echo "================================================================================"
+    echo ""
+    
+    if [[ -f "$OUTPUT_DIR/05_ad_groups.tsv" ]]; then
+        printf "%-32s %7s  %s\n" "GRUPPO" "MEMBRI" "UTENTI NEL GRUPPO"
+        printf "%-32s %7s  %s\n" "--------------------------------" "-------" "--------------------------------------------------"
+        
+        tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" | while IFS=$'\t' read -r groupname count members; do
+            # Tronca lista membri se troppo lunga per display
+            local members_display="${members:0:50}"
+            [[ ${#members} -gt 50 ]] && members_display="${members_display}..."
+            
+            printf "%-32s %7s  %s\n" "$groupname" "$count" "$members_display"
+        done
+        
+        echo ""
+        echo "NOTA: Per lista membri completa vedere file 05_ad_groups.tsv"
+    else
+        echo "Nessun dato disponibile"
+    fi
+    
+    echo ""
+    
+    # ========== TABELLA 3: SHARE SAMBA ==========
     echo "================================================================================"
     echo "DETTAGLIO SHARE SAMBA"
     echo "================================================================================"
@@ -573,7 +678,7 @@ display_detailed_tables() {
     
     echo ""
     
-    # ========== TABELLA 3: CONDIVISIONI EMAIL WEBTOP ==========
+    # ========== TABELLA 4: CONDIVISIONI EMAIL WEBTOP ==========
     echo "================================================================================"
     echo "DETTAGLIO CONDIVISIONI EMAIL WEBTOP"
     echo "================================================================================"
@@ -831,6 +936,7 @@ main() {
     # Fase 1: Raccolta dati
     collect_ad_users
     collect_password_expiry
+    collect_ad_groups
     collect_samba_shares
     collect_webtop_sharing
     
