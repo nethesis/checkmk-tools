@@ -149,7 +149,7 @@ main() {
         for acl_line in "${acl_lines[@]}"; do
             # Parse ACL: ACL:DOMAIN\entity:ALLOWED/flags/perms
             local entity=$(echo "$acl_line" | cut -d: -f2)
-            local perms=$(echo "$acl_line" | cut -d: -f4 | cut -d/ -f3)
+            local perms=$(echo "$acl_line" | cut -d: -f3 | cut -d/ -f3)
             
             # Traduzione permessi
             local perms_italian=$(translate_permissions "$perms")
