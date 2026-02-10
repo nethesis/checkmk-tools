@@ -566,6 +566,93 @@ EOF
 }
 
 # ============================================================================
+# VISUALIZZAZIONE TABELLE DETTAGLIATE
+# ============================================================================
+
+display_detailed_tables() {
+    echo ""
+    echo "================================================================================"
+    echo "  DETTAGLI COMPLETI AUDIT NS8"
+    echo "================================================================================"
+    echo ""
+    
+    # ========== TABELLA 1: PASSWORD EXPIRY ==========
+    echo "================================================================================"
+    echo "DETTAGLIO PASSWORD EXPIRY"
+    echo "================================================================================"
+    echo ""
+    
+    if [[ -f "$OUTPUT_DIR/02_password_expiry.tsv" ]]; then
+        printf "%-19s %-20s %-20s %10s\n" "UTENTE" "ULTIMA MODIFICA" "SCADE IL" "GIORNI"
+        printf "%-19s %-20s %-20s %10s\n" "-------------------" "--------------------" "--------------------" "----------"
+        
+        tail -n +2 "$OUTPUT_DIR/02_password_expiry.tsv" | while IFS=$'\t' read -r user pwd_raw pwd_unix pwd_iso exp_unix exp_iso days; do
+            printf "%-19s %-20s %-20s %10s\n" "$user" "$pwd_iso" "$exp_iso" "$days"
+        done
+        
+        echo ""
+        echo "LEGENDA:"
+        echo "  • Giorni positivi = password ancora valida"
+        echo "  • Giorni negativi = password SCADUTA"
+        echo "  • N/A = account senza password o Guest"
+    else
+        echo "Nessun dato disponibile"
+    fi
+    
+    echo ""
+    
+    # ========== TABELLA 2: SHARE SAMBA ==========
+    echo "================================================================================"
+    echo "DETTAGLIO SHARE SAMBA"
+    echo "================================================================================"
+    echo ""
+    
+    if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
+        printf "%-19s %-41s %s\n" "NOME SHARE" "PATH COMPLETO" "DESCRIZIONE"
+        printf "%-19s %-41s %s\n" "-------------------" "-----------------------------------------" "------------------------"
+        
+        tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r name path desc; do
+            printf "%-19s %-41s %s\n" "$name" "$path" "${desc:0:24}"
+        done
+        
+        echo ""
+        echo "NOTA: Per ACL dettagliate vedere sezione 'REPORT PERMESSI SHARE' sotto"
+    else
+        echo "Nessun dato disponibile"
+    fi
+    
+    echo ""
+    
+    # ========== TABELLA 3: CONDIVISIONI EMAIL WEBTOP ==========
+    echo "================================================================================"
+    echo "DETTAGLIO CONDIVISIONI EMAIL WEBTOP"
+    echo "================================================================================"
+    echo ""
+    
+    local webtop_share_count=$(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" 2>/dev/null | wc -l || echo 0)
+    
+    if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.tsv" && $webtop_share_count -gt 0 ]]; then
+        printf "%-4s %-19s %-28s %-28s %s\n" "ID" "MAILBOX/CARTELLA" "PROPRIETARIO (UUID)" "CONDIVISO CON (UUID)" "PERMESSI"
+        printf "%-4s %-19s %-28s %-28s %s\n" "----" "-------------------" "----------------------------" "----------------------------" "-------------------------"
+        
+        tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" | while IFS=$'\t' read -r id owner svc path inst shared perms; do
+            # Abbrevia UUID (primi 12 char), estrae info da JSON permissions
+            owner_short="${owner:0:12}..."
+            shared_short="${shared:0:12}..."
+            perms_clean=$(echo "$perms" | sed 's/[{}"]//g' | sed 's/,/ /g' | sed 's/://g' | cut -c1-40)
+            printf "%-4s %-19s %-28s %-28s %s\n" "$id" "$path" "$owner_short" "$shared_short" "$perms_clean"
+        done
+        
+        echo ""
+        echo "NOTA: Gli UUID completi possono essere mappati agli utenti AD tramite WebTop admin panel"
+    else
+        echo "Nessuna condivisione email configurata"
+    fi
+    
+    echo ""
+}
+
+# ============================================================================
 # VISUALIZZAZIONE ACL - Integrato da acl-viewer.sh
 # ============================================================================
 
@@ -783,7 +870,10 @@ main() {
     
     echo ""
     
-    # Fase 3: Visualizza report ACL (se abilitato)
+    # Fase 3: Visualizza tabelle dettagliate
+    display_detailed_tables
+    
+    # Fase 4: Visualizza report ACL (se abilitato)
     display_acl_report
     
     echo ""
