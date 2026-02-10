@@ -273,19 +273,32 @@ collect_webtop_sharing() {
         return 0
     fi
     
-    # TEMPORARY: Skip Postgres query (debugging blocking issue)
-    log_warn "Raccolta condivisioni email WebTop temporaneamente disabilitata (debug)"
-    local output_file="$OUTPUT_DIR/04_webtop_email_shares.tsv"
-    echo -e "owner\tshare_id\tshare_key\tshared_with_user\tpermissions" > "$output_file"
-    echo -e "N/A\tN/A\tFEATURE_DISABLED\tN/A\tN/A" >> "$output_file"
-    return 0
-    
     log_info "Raccolta condivisioni email WebTop..."
     
     local output_file="$OUTPUT_DIR/04_webtop_email_shares.tsv"
     
+    # Query SQL per ottenere le condivisioni
+    local sql_query="
+    SELECT 
+        s.user_id as owner,
+        s.share_id,
+        s.description,
+        json_agg(
+            json_build_object(
+                'user', u.user_id,
+                'permissions', p.permission_string
+            )
+        ) as permissions
+    FROM core.shares s
+    LEFT JOIN core.shares_permissions p ON s.share_id = p.share_id
+    LEFT JOIN core.users u ON p.user_uid = u.user_uid
+    WHERE s.service_id = 'com.sonicle.webtop.mail'
+    GROUP BY s.user_id, s.share_id, s.description
+    ORDER BY s.user_id, s.share_id;
+    "
+    
     # Header TSV
-    echo -e "owner\tshare_id\tshare_key\tshared_with_user\tpermissions" > "$output_file"
+    echo -e "owner\tshare_id\tdescription\tshared_with_user\tpermissions" > "$output_file"
     
     # Esegui query su Postgres container WebtBop
     local postgres_container=$(runagent -m "$WEBTOP_MODULE" podman ps --format '{{.Names}}' 2>/dev/null | grep -i postgres | head -1)
@@ -298,74 +311,49 @@ collect_webtop_sharing() {
     
     log_info "  Container Postgres: $postgres_container"
     
-    # Debug: mostra query
-    if [[ "${DEBUG:-0}" == "1" ]]; then
-        echo "[DEBUG] Query SQL"
-    fi
-    
     # Esegui query
     local temp_result=$(mktemp)
-    local temp_error=$(mktemp)
-    
-    # Crea file query temporaneo NEL container
-    local query_file="/tmp/webtop_query_$$.sql"
-    
-    # Scrivi query nel container (senza -i, usa bash -c con echo)
-    runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" bash -c "echo \"SELECT 
-    u_owner.user_id as owner,
-    s.share_id,
-    s.key as share_key,
-    u_shared.user_id as shared_user,
-    sd.value as permissions
-FROM core.shares s
-LEFT JOIN core.users u_owner ON s.user_uid = u_owner.user_uid
-LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id
-LEFT JOIN core.users u_shared ON sd.user_uid = u_shared.user_uid
-WHERE s.service_id = 'com.sonicle.webtop.mail'
-ORDER BY u_owner.user_id, s.share_id;\" > $query_file"
-    
-    # Esegui query da file
     if runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
-        psql -U postgres -d webtop5 -t -A -F$'\t' -f "$query_file" > "$temp_result" 2>"$temp_error"; then
+        psql -U postgres -d webtop5 -t -A -F$'\t' -c "$sql_query" > "$temp_result" 2>/dev/null; then
         
-        # Pulisci file query
-        runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" rm -f "$query_file" 2>/dev/null || true
-        
-        
-        # Parse risultati TSV diretti (gestisci NULL come empty string)
+        # Parse JSON results e converti in TSV
         local row_count=0
-        while IFS=$'\t' read -r owner share_id share_key shared_user permissions; do
+        while IFS=$'\t' read -r owner share_id description perms_json; do
             [[ -z "$owner" ]] && continue
             
-            # Converti empty string in N/A
-            [[ -z "$share_key" ]] && share_key="N/A"
-            [[ -z "$shared_user" ]] && shared_user="N/A"
-            [[ -z "$permissions" ]] && permissions="N/A"
+            # Parse JSON permissions array
+            local users=$(echo "$perms_json" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    for item in data:
+        if item and 'user' in item:
+            print(f\"{item['user']}\t{item.get('permissions', 'N/A')}\")
+except:
+    pass
+" 2>/dev/null || echo "N/A	N/A")
             
-            # Scrivi riga nel file output
-            echo -e "$owner\t$share_id\t$share_key\t$shared_user\t$permissions" >> "$output_file"
-            ((row_count++))
+            # Se ci sono utenti con permessi, aggiungi una riga per ciascuno
+            if [[ -n "$users" ]] && [[ "$users" != "N/A	N/A" ]]; then
+                while IFS=$'\t' read -r shared_user perm_string; do
+                    echo -e "$owner\t$share_id\t$description\t$shared_user\t$perm_string" >> "$output_file"
+                    ((row_count++))
+                done <<< "$users"
+            else
+                # Nessun permesso specifico
+                echo -e "$owner\t$share_id\t$description\tN/A\tN/A" >> "$output_file"
+                ((row_count++))
+            fi
             
         done < "$temp_result"
         
-        if [[ $row_count -eq 0 ]]; then
-            log_warn "Nessuna condivisione email trovata"
-            echo "N/A	N/A	N/A	N/A	N/A" >> "$output_file"
-        else
-            log_success "Raccolte $row_count condivisioni email → $(basename "$output_file")"
-        fi
-        rm -f "$temp_result" "$temp_error"
+        log_success "Raccolte $row_count condivisioni email → $(basename "$output_file")"
+        rm -f "$temp_result"
         return 0
     else
         log_error "Query Postgres fallita"
-        if [[ -s "$temp_error" ]]; then
-            echo "[ERROR] Dettaglio errore PostgreSQL:"
-            cat "$temp_error"
-        else
-            echo "[ERROR] Nessun dettaglio errore disponibile (stderr vuoto)"
-        fi
         echo "ERROR: Postgres query failed" >> "$output_file"
-        rm -f "$temp_result" "$temp_error"
+        rm -f "$temp_result"
         return 1
     fi
 }
