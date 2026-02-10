@@ -318,23 +318,33 @@ collect_webtop_sharing() {
     
     local temp_output="/tmp/webtop_raw_$$.txt"
     
-    # Usa psql con opzioni per output TSV pulito: -A (unaligned), -t (tuples only), -F (field separator)
+    # Esegui query e post-processa output per ottenere TSV pulito
     if echo "$query" | runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
-        psql -U postgres -d "$webtop_db" -A -t -F $'\t' > "$temp_output" 2>/dev/null; then
+        psql -U postgres -d "$webtop_db" > "$temp_output" 2>/dev/null; then
         
         # Header TSV
         echo -e "share_id\towner\tservice_id\tmailbox_path\tinstance\tshared_with\tpermissions" > "$output_file"
         
-        # Verifica se ci sono dati (file vuoto = no risultati)
-        if [[ ! -s "$temp_output" ]] || ! grep -qE "^[0-9]" "$temp_output" 2>/dev/null; then
-            log_warn "Nessuna condivisione email configurata"
-            rm -f "$temp_output"
-        else
-            # Copia dati (già in formato TSV pulito grazie a -A -t -F)
-            cat "$temp_output" >> "$output_file"
+        # Pulisci output PostgreSQL: rimuovi header/footer/borders, converti pipe in TAB
+        # Filtra solo linee con dati (iniziano con spazio+numero oppure numero)
+        if grep -qE "^\s*[0-9]+" "$temp_output" 2>/dev/null; then
+            grep -E "^\s*[0-9]+" "$temp_output" | \
+                sed 's/|/\t/g' | \
+                sed 's/^\s\+//;s/\s\+$//' | \
+                awk -F'\t' '{
+                    # Trim ogni campo
+                    for(i=1; i<=NF; i++) {
+                        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $i)
+                    }
+                    # Stampa solo se ha abbastanza campi
+                    if (NF >= 6) print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7
+                }' >> "$output_file"
             
             local record_count=$(tail -n +2 "$output_file" 2>/dev/null | wc -l || echo "0")
             log_success "Raccolte $record_count condivisioni email → $(basename "$output_file")"
+            rm -f "$temp_output"
+        else
+            log_warn "Nessuna condivisione email configurata"
             rm -f "$temp_output"
         fi
         return 0
