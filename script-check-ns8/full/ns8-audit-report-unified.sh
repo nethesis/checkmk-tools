@@ -277,22 +277,6 @@ collect_webtop_sharing() {
     
     local output_file="$OUTPUT_DIR/04_webtop_email_shares.tsv"
     
-    # Query SQL per ottenere le condivisioni (usa shares_data e colonne corrette)
-    local sql_query="
-    SELECT 
-        u_owner.user_id as owner,
-        s.share_id,
-        COALESCE(s.key, 'N/A') as share_key,
-        COALESCE(u_shared.user_id, 'N/A') as shared_user,
-        COALESCE(sd.value, 'N/A') as permissions
-    FROM core.shares s
-    LEFT JOIN core.users u_owner ON s.user_uid = u_owner.user_uid
-    LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id
-    LEFT JOIN core.users u_shared ON sd.user_uid = u_shared.user_uid
-    WHERE s.service_id = 'com.sonicle.webtop.mail'
-    ORDER BY u_owner.user_id, s.share_id;
-    "
-    
     # Header TSV
     echo -e "owner\tshare_id\tshare_key\tshared_with_user\tpermissions" > "$output_file"
     
@@ -317,16 +301,35 @@ collect_webtop_sharing() {
     local temp_result=$(mktemp)
     local temp_error=$(mktemp)
     
-    # Esegui query via stdin per evitare problemi escaping 
-    if echo "$sql_query" | runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
-        psql -U postgres -d webtop5 -t -A -F$'\t' > "$temp_result" 2>"$temp_error"; then
+    # Esegui query via heredoc per evitare problemi escaping 
+    if runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
+        psql -U postgres -d webtop5 -t -A -F$'\t' <<EOFQUERY > "$temp_result" 2>"$temp_error"
+SELECT 
+    u_owner.user_id as owner,
+    s.share_id,
+    s.key as share_key,
+    u_shared.user_id as shared_user,
+    sd.value as permissions
+FROM core.shares s
+LEFT JOIN core.users u_owner ON s.user_uid = u_owner.user_uid
+LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id
+LEFT JOIN core.users u_shared ON sd.user_uid = u_shared.user_uid
+WHERE s.service_id = 'com.sonicle.webtop.mail'
+ORDER BY u_owner.user_id, s.share_id;
+EOFQUERY
+then
         
-        # Parse risultati TSV diretti (non più JSON)
+        # Parse risultati TSV diretti (gestisci NULL come empty string)
         local row_count=0
         while IFS=$'\t' read -r owner share_id share_key shared_user permissions; do
             [[ -z "$owner" ]] && continue
             
-            # Scrivi riga direttamente nel file output
+            # Converti empty string in N/A
+            [[ -z "$share_key" ]] && share_key="N/A"
+            [[ -z "$shared_user" ]] && shared_user="N/A"
+            [[ -z "$permissions" ]] && permissions="N/A"
+            
+            # Scrivi riga nel file output
             echo -e "$owner\t$share_id\t$share_key\t$shared_user\t$permissions" >> "$output_file"
             ((row_count++))
             
