@@ -277,17 +277,17 @@ collect_webtop_sharing() {
     
     local output_file="$OUTPUT_DIR/04_webtop_email_shares.tsv"
     
-    # Query SQL per ottenere le condivisioni (semplificata senza json_agg)
+    # Query SQL per ottenere le condivisioni (usa shares_data invece di shares_permissions)
     local sql_query="
     SELECT 
         s.user_id as owner,
         s.share_id,
         COALESCE(s.description, 'N/A') as description,
         COALESCE(u.user_id, 'N/A') as shared_user,
-        COALESCE(p.permission_string, 'N/A') as permissions
+        COALESCE(sd.value, 'N/A') as permissions
     FROM core.shares s
-    LEFT JOIN core.shares_permissions p ON s.share_id = p.share_id
-    LEFT JOIN core.users u ON p.user_uid = u.user_uid
+    LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id
+    LEFT JOIN core.users u ON sd.user_uid = u.user_uid
     WHERE s.service_id = 'com.sonicle.webtop.mail'
     ORDER BY s.user_id, s.share_id;
     "
