@@ -277,83 +277,61 @@ collect_webtop_sharing() {
     
     local output_file="$OUTPUT_DIR/04_webtop_email_shares.tsv"
     
-    # Query SQL per ottenere le condivisioni
-    local sql_query="
-    SELECT 
-        s.user_id as owner,
-        s.share_id,
-        s.description,
-        json_agg(
-            json_build_object(
-                'user', u.user_id,
-                'permissions', p.permission_string
-            )
-        ) as permissions
-    FROM core.shares s
-    LEFT JOIN core.shares_permissions p ON s.share_id = p.share_id
-    LEFT JOIN core.users u ON p.user_uid = u.user_uid
-    WHERE s.service_id = 'com.sonicle.webtop.mail'
-    GROUP BY s.user_id, s.share_id, s.description
-    ORDER BY s.user_id, s.share_id;
-    "
-    
-    # Header TSV
-    echo -e "owner\tshare_id\tdescription\tshared_with_user\tpermissions" > "$output_file"
-    
-    # Esegui query su Postgres container WebtBop
+    # Container Postgres
     local postgres_container=$(runagent -m "$WEBTOP_MODULE" podman ps --format '{{.Names}}' 2>/dev/null | grep -i postgres | head -1)
     
     if [[ -z "$postgres_container" ]]; then
         log_warn "Container Postgres non trovato"
-        echo "ERROR: Postgres container not found" >> "$output_file"
+        echo -e "owner\tshare_id\tmailbox_path\tshared_with\tpermissions" > "$output_file"
+        echo -e "ERROR\tN/A\tPostgres container not found\tN/A\tN/A" >> "$output_file"
         return 1
     fi
     
     log_info "  Container Postgres: $postgres_container"
     
-    # Esegui query
-    local temp_result=$(mktemp)
-    if runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
-        psql -U postgres -d webtop5 -t -A -F$'\t' -c "$sql_query" > "$temp_result" 2>/dev/null; then
-        
-        # Parse JSON results e converti in TSV
-        local row_count=0
-        while IFS=$'\t' read -r owner share_id description perms_json; do
-            [[ -z "$owner" ]] && continue
-            
-            # Parse JSON permissions array
-            local users=$(echo "$perms_json" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    for item in data:
-        if item and 'user' in item:
-            print(f\"{item['user']}\t{item.get('permissions', 'N/A')}\")
-except:
-    pass
-" 2>/dev/null || echo "N/A	N/A")
-            
-            # Se ci sono utenti con permessi, aggiungi una riga per ciascuno
-            if [[ -n "$users" ]] && [[ "$users" != "N/A	N/A" ]]; then
-                while IFS=$'\t' read -r shared_user perm_string; do
-                    echo -e "$owner\t$share_id\t$description\t$shared_user\t$perm_string" >> "$output_file"
-                    ((row_count++))
-                done <<< "$users"
-            else
-                # Nessun permesso specifico
-                echo -e "$owner\t$share_id\t$description\tN/A\tN/A" >> "$output_file"
-                ((row_count++))
-            fi
-            
-        done < "$temp_result"
-        
-        log_success "Raccolte $row_count condivisioni email → $(basename "$output_file")"
-        rm -f "$temp_result"
+    # Rileva database WebTop
+    local db_list=$(mktemp)
+    if ! runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
+        psql -U postgres -t -c '\l' > "$db_list" 2>/dev/null; then
+        log_warn "Impossibile listare database"
+        rm -f "$db_list"
+        echo -e "owner\tshare_id\tmailbox_path\tshared_with\tpermissions" > "$output_file"
+        echo -e "ERROR\tN/A\tDatabase list failed\tN/A\tN/A" >> "$output_file"
+        return 1
+    fi
+    
+    local webtop_db=$(grep -iE 'webtop' "$db_list" | awk '{print $1}' | head -1 || true)
+    rm -f "$db_list"
+    
+    if [[ -z "$webtop_db" ]]; then
+        log_warn "Database WebTop non trovato"
+        echo -e "owner\tshare_id\tmailbox_path\tshared_with\tpermissions" > "$output_file"
+        echo -e "ERROR\tN/A\tWebTop database not found\tN/A\tN/A" >> "$output_file"
+        return 1
+    fi
+    
+    log_info "  Database WebTop: $webtop_db"
+    
+    # Esegui query (metodo funzionante da ns8-biweekly-audit-report.sh)
+    # Query single-line per evitare problemi escaping
+    if runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
+        psql -U postgres -d "$webtop_db" > "$output_file" 2>/dev/null <<'EOSQL'
+SELECT s.share_id, s.user_uid AS owner, s.service_id, s.key AS mailbox_path, s.instance, sd.user_uid AS shared_with, sd.value AS permissions FROM core.shares s LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id WHERE s.service_id LIKE '%mail%' ORDER BY s.user_uid, s.share_id, sd.user_uid;
+EOSQL
+    then
+        # Verifica se ci sono dati (psql output contiene "(0 rows)" se vuoto)
+        if grep -q "(0 rows)" "$output_file" 2>/dev/null; then
+            log_warn "Nessuna condivisione email configurata"
+            echo "No mail sharing configured in WebTop" > "$output_file"
+        else
+            local record_count=$(grep -c "^[[:space:]]*[0-9]" "$output_file" 2>/dev/null || echo "0")
+            log_success "Raccolte $record_count condivisioni email → $(basename "$output_file")"
+        fi
         return 0
     else
         log_error "Query Postgres fallita"
-        echo "ERROR: Postgres query failed" >> "$output_file"
-        rm -f "$temp_result"
+        echo -e "owner\tshare_id\tmailbox_path\tshared_with\tpermissions" > "$output_file"
+        echo -e "ERROR\tN/A\tQuery failed\tN/A\tN/A" >> "$output_file"
         return 1
     fi
 }
