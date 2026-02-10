@@ -30,29 +30,9 @@ translate_permissions() {
             echo "Solo Lettura"
             ;;
         *)
-            echo "Permessi Personalizzati ($perms)"
+            echo "Permessi: $perms"
             ;;
     esac
-}
-
-# Espandi gruppo AD (se possibile)
-# Ritorna lista membri separati da newline, oppure stringa vuota se non è un gruppo
-expand_group_safe() {
-    local entity="$1"
-    local samba_module="${2:-samba1}"
-    
-    # Prova a espandere come gruppo (timeout 3s per sicurezza)
-    local members=""
-    members=$(timeout 3 runagent -m "$samba_module" podman exec samba-dc \
-        samba-tool group listmembers "$entity" 2>/dev/null || echo "")
-    
-    # Se vuoto o errore, non è un gruppo
-    if [ -z "$members" ]; then
-        return 1
-    fi
-    
-    echo "$members"
-    return 0
 }
 
 # Main
@@ -74,50 +54,29 @@ main() {
         die "Directory ACL non trovata: $acl_dir"
     fi
     
-    # Header
+    # Header semplice
     echo ""
-    echo "╔═══════════════════════════════════════════════════════════════╗"
-    echo "║           VISUALIZZATORE PERMESSI SHARE NS8                  ║"
-    echo "╚═══════════════════════════════════════════════════════════════╝"
+    echo "==============================================================================="
+    echo "  REPORT PERMESSI SHARE NS8"
+    echo "==============================================================================="
     echo ""
-    echo "Directory audit: $audit_dir"
+    echo "Audit directory: $audit_dir"
     echo ""
     
-    # Rileva modulo Samba
-    local samba_module="samba1"
-    if command -v runagent >/dev/null 2>&1; then
-        # Verifica modulo disponibile
-        if ! runagent -m "$samba_module" echo "test" >/dev/null 2>&1; then
-            warn "Modulo $samba_module non disponibile - skip espansione gruppi"
-            samba_module=""
-        fi
-    else
-        warn "runagent non disponibile - skip espansione gruppi"
-        samba_module=""
-    fi
+    # Rileva modulo Samba (disabilita espansione gruppi - troppo lenta)
+    local samba_module=""
     
     # Conta share
     local share_count=0
     
-    # Itera su tutti i file ACL (usa array per evitare while loop problematici)
-    local acl_files=()
-    while IFS= read -r -d '' file; do
-        acl_files+=("$file")
-    done < <(find "$acl_dir" -name "*_smbacl.txt" -print0 | sort -z) || true
-    
-    if [ "${#acl_files[@]}" -eq 0 ]; then
-        warn "Nessun file ACL trovato in $acl_dir"
-        exit 0
-    fi
-    
-    # Processa ogni share
-    for acl_file in "${acl_files[@]}"; do
+    # Itera su tutti i file ACL - usa approccio semplice con find e for
+    for acl_file in $(find "$acl_dir" -name "*_smbacl.txt" -type f | sort); do
         local share_name=$(basename "$acl_file" _smbacl.txt)
         ((share_count++))
         
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "📂 SHARE: $share_name"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "-------------------------------------------------------------------------------"
+        echo "SHARE: $share_name"
+        echo "-------------------------------------------------------------------------------"
         echo ""
         
         # Leggi path dalla shares_report.tsv
@@ -125,28 +84,26 @@ main() {
         if [ -f "$shares_report" ]; then
             local share_path=$(grep "^$share_name	" "$shares_report" | cut -f2)
             if [ -n "$share_path" ]; then
-                echo "Percorso: $share_path"
-                echo ""
+                echo "  Percorso: $share_path"
             fi
         fi
         
-        # Estrai ACL (evita while loop - usa array)
-        local acl_lines=()
-        while IFS= read -r line; do
-            acl_lines+=("$line")
-        done < <(grep "^ACL:" "$acl_file" | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)") || true
+        # Estrai ACL - usa approccio semplice senza array
+        local acl_lines=$(grep "^ACL:" "$acl_file" | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)")
         
-        if [ "${#acl_lines[@]}" -eq 0 ]; then
-            echo "⚠️  Solo permessi di sistema configurati (Everyone/Administrators)"
+        if [ -z "$acl_lines" ]; then
+            echo "  [Nessun permesso utente configurato - solo permessi di sistema]"
             echo ""
             continue
         fi
         
-        echo "Permessi configurati:"
+        echo "  Permessi:"
         echo ""
         
-        # Processa ogni ACL
-        for acl_line in "${acl_lines[@]}"; do
+        # Processa ogni ACL - usa while read da variabile (no subshell issues)
+        echo "$acl_lines" | while IFS= read -r acl_line; do
+            [ -z "$acl_line" ] && continue
+            
             # Parse ACL: ACL:DOMAIN\entity:ALLOWED/flags/perms
             local entity=$(echo "$acl_line" | cut -d: -f2)
             local perms=$(echo "$acl_line" | cut -d: -f3 | cut -d/ -f3)
@@ -154,37 +111,24 @@ main() {
             # Traduzione permessi
             local perms_italian=$(translate_permissions "$perms")
             
-            # Prova espansione gruppo (solo se runagent disponibile)
-            if [ -n "$samba_module" ]; then
-                # Estrai solo nome entità (rimuovi DOMAIN\)
-                local entity_name="${entity##*\\}"
-                
-                # Prova espansione
-                local members=""
-                if members=$(expand_group_safe "$entity_name" "$samba_module" 2>/dev/null); then
-                    # È un gruppo - mostra gruppo e membri
-                    echo "  🔷 GRUPPO: $entity → $perms_italian"
-                    echo "     Membri:"
-                    while IFS= read -r member; do
-                        [ -n "$member" ] && echo "       • $member"
-                    done <<< "$members" || true
-                    echo ""
-                else
-                    # Non è un gruppo (o errore espansione) - mostra direttamente
-                    echo "  • $entity → $perms_italian"
-                fi
-            else
-                # Runagent non disponibile - mostra solo entità
-                echo "  • $entity → $perms_italian"
-            fi
+            # Output semplice: entità -> permessi
+            printf "    %-40s  %s\n" "$entity" "$perms_italian"
         done
         
         echo ""
     done
     
     # Footer
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "==============================================================================="
     echo "Totale share analizzate: $share_count"
+    echo ""
+    echo "NOTE:"
+    echo "  - Per vedere i membri di un gruppo AD:"
+    echo "    runagent -m samba1 podman exec samba-dc samba-tool group listmembers NOME_GRUPPO"
+    echo ""
+    echo "  Esempio:"
+    echo "    runagent -m samba1 podman exec samba-dc samba-tool group listmembers test1"
+    echo "    runagent -m samba1 podman exec samba-dc samba-tool group listmembers test2"
     echo ""
 }
 
