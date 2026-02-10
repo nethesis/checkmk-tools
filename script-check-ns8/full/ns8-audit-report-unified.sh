@@ -385,13 +385,90 @@ WebTop Email Sharing:
   - Condivisioni email totali:         $webtop_share_count
 
 ================================================================================
-FILE GENERATI
+DETTAGLIO PASSWORD EXPIRY
+================================================================================
+
+EOF
+
+    # Tabella password expiry
+    if [[ -f "$OUTPUT_DIR/02_password_expiry.tsv" ]]; then
+        cat >> "$summary_file" <<'EOF'
+UTENTE              ULTIMA MODIFICA      SCADE IL             GIORNI
+------------------- -------------------- -------------------- ----------
+EOF
+        tail -n +2 "$OUTPUT_DIR/02_password_expiry.tsv" | while IFS=$'\t' read -r user pwd_raw pwd_unix pwd_iso exp_unix exp_iso days; do
+            printf "%-19s %-20s %-20s %10s\n" "$user" "$pwd_iso" "$exp_iso" "$days"
+        done >> "$summary_file"
+        
+        echo "" >> "$summary_file"
+        echo "LEGENDA:" >> "$summary_file"
+        echo "  • Giorni positivi = password ancora valida" >> "$summary_file"
+        echo "  • Giorni negativi = password SCADUTA" >> "$summary_file"
+        echo "  • N/A = account senza password o Guest" >> "$summary_file"
+    else
+        echo "Nessun dato disponibile" >> "$summary_file"
+    fi
+    
+    cat >> "$summary_file" <<EOF
+
+================================================================================
+DETTAGLIO SHARE SAMBA
+================================================================================
+
+EOF
+    
+    # Tabella share Samba
+    if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
+        cat >> "$summary_file" <<'EOF'
+NOME SHARE          PATH COMPLETO                             DESCRIZIONE
+------------------- ----------------------------------------- ------------------------
+EOF
+        tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r name path desc; do
+            printf "%-19s %-41s %s\n" "$name" "$path" "$desc"
+        done >> "$summary_file"
+        
+        echo "" >> "$summary_file"
+        echo "NOTA: Per ACL dettagliate vedere file in 03_shares/acls/" >> "$summary_file"
+    else
+        echo "Nessun dato disponibile" >> "$summary_file"
+    fi
+    
+    cat >> "$summary_file" <<EOF
+
+================================================================================
+DETTAGLIO CONDIVISIONI EMAIL WEBTOP
+================================================================================
+
+EOF
+    
+    # Tabella WebTop shares (convertire UUID in username se possibile)
+    if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.tsv" && $webtop_share_count -gt 0 ]]; then
+        cat >> "$summary_file" <<'EOF'
+ID   PROPRIETARIO (UUID)              CONDIVISO CON (UUID)             PERMESSI
+---- -------------------------------- -------------------------------- -----------------------
+EOF
+        tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" | while IFS=$'\t' read -r id owner svc path inst shared perms; do
+            # Estrai solo campi rilevanti da JSON permissions
+            perms_clean=$(echo "$perms" | sed 's/[{}"]//g' | sed 's/,/ | /g' | cut -c1-50)
+            printf "%-4s %-32s %-32s %s\n" "$id" "${owner:0:32}" "${shared:0:32}" "$perms_clean"
+        done >> "$summary_file"
+        
+        echo "" >> "$summary_file"
+        echo "NOTA: Gli UUID possono essere mappati agli utenti AD tramite WebTop admin panel" >> "$summary_file"
+    else
+        echo "Nessuna condivisione email configurata" >> "$summary_file"
+    fi
+
+    cat >> "$summary_file" <<EOF
+
+================================================================================
+FILE DATI ESPORTATI
 ================================================================================
 
 1. Utenti AD:
    → 01_users.txt
 
-2. Scadenze password:
+2. Scadenze password (TSV):
    → 02_password_expiry.tsv
 
 3. Share e permessi:
@@ -399,7 +476,7 @@ FILE GENERATI
    → 03_shares/shares_report.tsv
    → 03_shares/acls/*.txt
 
-4. WebTop email shares:
+4. WebTop email shares (TSV):
    → 04_webtop_email_shares.tsv
 
 ================================================================================
