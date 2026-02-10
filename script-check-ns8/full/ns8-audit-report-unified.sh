@@ -246,15 +246,23 @@ collect_samba_shares() {
         
         log_info "    Path: $share_path"
         
-        # Ottieni ACL tramite smbcacls
+        # Ottieni ACL tramite smbcacls (Windows-style, mostra permessi configurati in NS8 UI)
         local acl_file="$acls_dir/${share_name}_smbacl.txt"
+        local admin_pass="Nethesis,1234"  # Password di default NS8
         
         if runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-            smbcacls //localhost/"$share_name" / -N 2>/dev/null > "$acl_file"; then
+            smbcacls "//localhost/$share_name" / -U "administrator%$admin_pass" 2>/dev/null > "$acl_file"; then
             log_success "    ACL salvato → $(basename "$acl_file")"
         else
-            log_warn "    Impossibile ottenere ACL"
-            echo "ERROR: Unable to retrieve ACL for $share_name" > "$acl_file"
+            # Fallback: usa getfacl (ACL filesystem POSIX) se smbcacls fallisce
+            log_warn "    smbcacls fallito, provo getfacl..."
+            if [[ "$share_path" != "N/A" ]] && runagent -m "$SAMBA_MODULE" podman exec samba-dc \
+                getfacl "$share_path" 2>/dev/null > "$acl_file"; then
+                log_success "    ACL POSIX salvato → $(basename "$acl_file")"
+            else
+                log_warn "    Impossibile ottenere ACL"
+                echo "ERROR: Unable to retrieve ACL for $share_name" > "$acl_file"
+            fi
         fi
         
         # Aggiungi a report TSV
@@ -625,49 +633,104 @@ display_acl_report() {
             share_path=$(grep "^$share_name	" "$shares_report" | cut -f2 || echo "N/A")
         fi
         
-        # Estrai ACL - solo utenti/gruppi (no system)
-        local acl_lines=$(grep "^ACL:" "$acl_file" | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)" || true)
+        # Detect del tipo di ACL (smbcacls vs getfacl)
+        local acl_type="unknown"
+        if grep -q "^ACL:" "$acl_file" 2>/dev/null; then
+            acl_type="smbacl"
+        elif grep -q "^# file:" "$acl_file" 2>/dev/null; then
+            acl_type="posix"
+        fi
         
-        if [[ -z "$acl_lines" ]]; then
-            # Share senza permessi utente
+        local has_acl=0
+        local first_line=1
+        
+        if [[ "$acl_type" == "smbacl" ]]; then
+            # Parse ACL Windows-style (smbcacls)
+            local acl_lines=$(grep "^ACL:" "$acl_file" | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)" || true)
+            
+            if [[ -n "$acl_lines" ]]; then
+                has_acl=1
+                # Processa ogni ACL
+                echo "$acl_lines" | while IFS= read -r acl_line; do
+                    [[ -z "$acl_line" ]] && continue
+                    
+                    # Parse ACL: ACL:DOMAIN\entity:ALLOWED/flags/perms
+                    local entity=$(echo "$acl_line" | cut -d: -f2)
+                    local perms=$(echo "$acl_line" | cut -d: -f3 | cut -d/ -f3)
+                    
+                    # Traduzione permessi
+                    local perms_italian=$(translate_permissions "$perms")
+                    
+                    # Prima riga mostra share e path, successive solo entità e permessi
+                    if [[ $first_line -eq 1 ]]; then
+                        printf "%-20s %-35s %-30s %-25s\n" \
+                            "$share_name" \
+                            "${share_path:0:35}" \
+                            "${entity:0:30}" \
+                            "$perms_italian"
+                        first_line=0
+                    else
+                        printf "%-20s %-35s %-30s %-25s\n" \
+                            "" \
+                            "" \
+                            "${entity:0:30}" \
+                            "$perms_italian"
+                    fi
+                done
+            fi
+            
+        elif [[ "$acl_type" == "posix" ]]; then
+            # Parse ACL POSIX (getfacl)
+            local acl_lines=$(grep -E "^(user|group):[^:]+:" "$acl_file" | grep -v ":---$" || true)
+            
+            if [[ -n "$acl_lines" ]]; then
+                has_acl=1
+                # Processa ogni ACL
+                echo "$acl_lines" | while IFS= read -r acl_line; do
+                    [[ -z "$acl_line" ]] && continue
+                    
+                    # Parse: user:username:rwx o group:groupname:rwx
+                    local type=$(echo "$acl_line" | cut -d: -f1)
+                    local entity=$(echo "$acl_line" | cut -d: -f2)
+                    local perms=$(echo "$acl_line" | cut -d: -f3)
+                    
+                    # Skip se entity vuoto (user::rwx sono permessi owner di default)
+                    [[ -z "$entity" ]] && continue
+                    
+                    # Format entity (aggiungi prefisso user/group)
+                    if [[ "$type" == "user" ]]; then
+                        entity="[user] $entity"
+                    else
+                        entity="[group] $entity"
+                    fi
+                    
+                    # Prima riga mostra share e path
+                    if [[ $first_line -eq 1 ]]; then
+                        printf "%-20s %-35s %-30s %-25s\n" \
+                            "$share_name" \
+                            "${share_path:0:35}" \
+                            "${entity:0:30}" \
+                            "$perms"
+                        first_line=0
+                    else
+                        printf "%-20s %-35s %-30s %-25s\n" \
+                            "" \
+                            "" \
+                            "${entity:0:30}" \
+                            "$perms"
+                    fi
+                done
+            fi
+        fi
+        
+        # Se nessun ACL trovato, mostra "[solo sistema]"
+        if [[ $has_acl -eq 0 ]]; then
             printf "%-20s %-35s %-30s %-25s\n" \
                 "$share_name" \
                 "${share_path:0:35}" \
                 "[solo sistema]" \
                 "-"
-            continue
         fi
-        
-        # Prima riga con dati share
-        local first_line=1
-        
-        # Processa ogni ACL
-        echo "$acl_lines" | while IFS= read -r acl_line; do
-            [[ -z "$acl_line" ]] && continue
-            
-            # Parse ACL: ACL:DOMAIN\entity:ALLOWED/flags/perms
-            local entity=$(echo "$acl_line" | cut -d: -f2)
-            local perms=$(echo "$acl_line" | cut -d: -f3 | cut -d/ -f3)
-            
-            # Traduzione permessi
-            local perms_italian=$(translate_permissions "$perms")
-            
-            # Prima riga mostra share e path, successive solo entità e permessi
-            if [[ $first_line -eq 1 ]]; then
-                printf "%-20s %-35s %-30s %-25s\n" \
-                    "$share_name" \
-                    "${share_path:0:35}" \
-                    "${entity:0:30}" \
-                    "$perms_italian"
-                first_line=0
-            else
-                printf "%-20s %-35s %-30s %-25s\n" \
-                    "" \
-                    "" \
-                    "${entity:0:30}" \
-                    "$perms_italian"
-            fi
-        done
     done
     
     # Footer
