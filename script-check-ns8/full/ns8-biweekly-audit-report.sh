@@ -489,9 +489,9 @@ UTENTI DEL DOMINIO (Active Directory)
 ===============================================================================
 EOF
     
-    # Analisi utenti - formato tabella
+    # Analisi utenti - formato tabella (esclusi utenti di sistema)
     if [[ -f "$OUTPUT_DIR/01_users.txt" ]]; then
-        local user_count=$(grep -v "^ERROR" "$OUTPUT_DIR/01_users.txt" | wc -l)
+        local user_count=$(grep -v "^ERROR" "$OUTPUT_DIR/01_users.txt" | grep -vE "^(Administrator|Guest|krbtgt|ldapservice|bindns8ad|nethvoice.*-adm)$" | wc -l)
         echo "" >> "$summary_file"
         echo "Numero totale utenti: $user_count" >> "$summary_file"
         echo "" >> "$summary_file"
@@ -500,9 +500,9 @@ EOF
         printf "%-3s  %-30s\n" "N." "USERNAME" >> "$summary_file"
         printf "%-3s  %-30s\n" "---" "------------------------------" >> "$summary_file"
         
-        # Lista utenti numerata
+        # Lista utenti numerata (esclusi utenti di sistema)
         local counter=1
-        grep -v "^ERROR" "$OUTPUT_DIR/01_users.txt" | while IFS= read -r username; do
+        grep -v "^ERROR" "$OUTPUT_DIR/01_users.txt" | grep -vE "^(Administrator|Guest|krbtgt|ldapservice|bindns8ad|nethvoice.*-adm)$" | while IFS= read -r username; do
             printf "%-3d  %-30s\n" "$counter" "$username" >> "$summary_file"
             counter=$((counter + 1))
         done
