@@ -313,12 +313,11 @@ collect_webtop_sharing() {
     log_info "  Database WebTop: $webtop_db"
     
     # Esegui query (metodo funzionante da ns8-biweekly-audit-report.sh)
-    # Query single-line per evitare problemi escaping
-    if runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
-        psql -U postgres -d "$webtop_db" > "$output_file" 2>/dev/null <<'EOSQL'
-SELECT s.share_id, s.user_uid AS owner, s.service_id, s.key AS mailbox_path, s.instance, sd.user_uid AS shared_with, sd.value AS permissions FROM core.shares s LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id WHERE s.service_id LIKE '%mail%' ORDER BY s.user_uid, s.share_id, sd.user_uid;
-EOSQL
-    then
+    # Usa echo per passare query via stdin, evitando problemi con heredoc quando script eseguito via curl|bash
+    local query="SELECT s.share_id, s.user_uid AS owner, s.service_id, s.key AS mailbox_path, s.instance, sd.user_uid AS shared_with, sd.value AS permissions FROM core.shares s LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id WHERE s.service_id LIKE '%mail%' ORDER BY s.user_uid, s.share_id, sd.user_uid;"
+    
+    if echo "$query" | runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
+        psql -U postgres -d "$webtop_db" > "$output_file" 2>/dev/null; then
         # Verifica se ci sono dati (psql output contiene "(0 rows)" se vuoto)
         if grep -q "(0 rows)" "$output_file" 2>/dev/null; then
             log_warn "Nessuna condivisione email configurata"
