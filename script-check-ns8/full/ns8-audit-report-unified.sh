@@ -313,8 +313,9 @@ collect_webtop_sharing() {
     
     # Esegui query
     local temp_result=$(mktemp)
+    local temp_error=$(mktemp)
     if runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
-        psql -U postgres -d webtop5 -t -A -F$'\t' -c "$sql_query" > "$temp_result" 2>/dev/null; then
+        psql -U postgres -d webtop5 -t -A -F$'\t' -c "$sql_query" > "$temp_result" 2>"$temp_error"; then
         
         # Parse JSON results e converti in TSV
         local row_count=0
@@ -348,12 +349,16 @@ except:
         done < "$temp_result"
         
         log_success "Raccolte $row_count condivisioni email → $(basename "$output_file")"
-        rm -f "$temp_result"
+        rm -f "$temp_result" "$temp_error"
         return 0
     else
         log_error "Query Postgres fallita"
+        if [[ -s "$temp_error" ]]; then
+            log_error "Dettaglio errore:"
+            cat "$temp_error" >&2
+        fi
         echo "ERROR: Postgres query failed" >> "$output_file"
-        rm -f "$temp_result"
+        rm -f "$temp_result" "$temp_error"
         return 1
     fi
 }
