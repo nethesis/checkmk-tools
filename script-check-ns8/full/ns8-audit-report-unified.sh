@@ -311,6 +311,12 @@ collect_webtop_sharing() {
     
     log_info "  Container Postgres: $postgres_container"
     
+    # Debug: mostra query
+    if [[ "${DEBUG:-0}" == "1" ]]; then
+        echo "[DEBUG] Query SQL:"
+        echo "$sql_query"
+    fi
+    
     # Esegui query
     local temp_result=$(mktemp)
     local temp_error=$(mktemp)
@@ -354,8 +360,10 @@ except:
     else
         log_error "Query Postgres fallita"
         if [[ -s "$temp_error" ]]; then
-            log_error "Dettaglio errore:"
-            cat "$temp_error" >&2
+            echo "[ERROR] Dettaglio errore PostgreSQL:"
+            cat "$temp_error"
+        else
+            echo "[ERROR] Nessun dettaglio errore disponibile (stderr vuoto)"
         fi
         echo "ERROR: Postgres query failed" >> "$output_file"
         rm -f "$temp_result" "$temp_error"
