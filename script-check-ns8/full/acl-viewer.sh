@@ -54,7 +54,7 @@ main() {
         die "Directory ACL non trovata: $acl_dir"
     fi
     
-    # Header semplice
+    # Header tabella
     echo ""
     echo "==============================================================================="
     echo "  REPORT PERMESSI SHARE NS8"
@@ -66,39 +66,44 @@ main() {
     # Rileva modulo Samba (disabilita espansione gruppi - troppo lenta)
     local samba_module=""
     
+    # Header tabella
+    printf "%-20s %-35s %-30s %-25s\n" "SHARE" "PERCORSO" "ENTITA" "PERMESSI"
+    printf "%-20s %-35s %-30s %-25s\n" \
+        "--------------------" \
+        "-----------------------------------" \
+        "------------------------------" \
+        "-------------------------"
+    
     # Conta share
     local share_count=0
+    local shares_report="$audit_dir/03_shares/shares_report.tsv"
     
     # Itera su tutti i file ACL - usa approccio semplice con find e for
     for acl_file in $(find "$acl_dir" -name "*_smbacl.txt" -type f | sort); do
         local share_name=$(basename "$acl_file" _smbacl.txt)
         share_count=$((share_count + 1))
         
-        echo "-------------------------------------------------------------------------------"
-        echo "SHARE: $share_name"
-        echo "-------------------------------------------------------------------------------"
-        echo ""
-        
         # Leggi path dalla shares_report.tsv
-        local shares_report="$audit_dir/03_shares/shares_report.tsv"
+        local share_path=""
         if [ -f "$shares_report" ]; then
-            local share_path=$(grep "^$share_name	" "$shares_report" | cut -f2)
-            if [ -n "$share_path" ]; then
-                echo "  Percorso: $share_path"
-            fi
+            share_path=$(grep "^$share_name	" "$shares_report" | cut -f2)
         fi
         
         # Estrai ACL - usa approccio semplice senza array
         local acl_lines=$(grep "^ACL:" "$acl_file" | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)")
         
         if [ -z "$acl_lines" ]; then
-            echo "  [Nessun permesso utente configurato - solo permessi di sistema]"
-            echo ""
+            # Share senza permessi utente
+            printf "%-20s %-35s %-30s %-25s\n" \
+                "$share_name" \
+                "${share_path:0:35}" \
+                "[solo sistema]" \
+                "-"
             continue
         fi
         
-        echo "  Permessi:"
-        echo ""
+        # Prima riga con dati share
+        local first_line=1
         
         # Processa ogni ACL - usa while read da variabile (no subshell issues)
         echo "$acl_lines" | while IFS= read -r acl_line; do
@@ -111,24 +116,32 @@ main() {
             # Traduzione permessi
             local perms_italian=$(translate_permissions "$perms")
             
-            # Output semplice: entità -> permessi
-            printf "    %-40s  %s\n" "$entity" "$perms_italian"
+            # Prima riga mostra share e path, successive solo entità e permessi
+            if [ $first_line -eq 1 ]; then
+                printf "%-20s %-35s %-30s %-25s\n" \
+                    "$share_name" \
+                    "${share_path:0:35}" \
+                    "${entity:0:30}" \
+                    "$perms_italian"
+                first_line=0
+            else
+                printf "%-20s %-35s %-30s %-25s\n" \
+                    "" \
+                    "" \
+                    "${entity:0:30}" \
+                    "$perms_italian"
+            fi
         done
-        
-        echo ""
     done
     
     # Footer
+    echo ""
     echo "==============================================================================="
     echo "Totale share analizzate: $share_count"
     echo ""
     echo "NOTE:"
     echo "  - Per vedere i membri di un gruppo AD:"
     echo "    runagent -m samba1 podman exec samba-dc samba-tool group listmembers NOME_GRUPPO"
-    echo ""
-    echo "  Esempio:"
-    echo "    runagent -m samba1 podman exec samba-dc samba-tool group listmembers test1"
-    echo "    runagent -m samba1 podman exec samba-dc samba-tool group listmembers test2"
     echo ""
 }
 
