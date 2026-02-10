@@ -527,6 +527,114 @@ EOF
     cat >> "$summary_file" <<EOF
 
 ================================================================================
+DETTAGLIO SHARE SAMBA
+================================================================================
+
+EOF
+
+    # Tabella share Samba con utenti RW/RO
+    if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
+        cat >> "$summary_file" <<'EOF'
+NOME SHARE           UTENTI LETTURA/SCRITTURA                 UTENTI SOLA LETTURA
+-------------------- ---------------------------------------- ----------------------------------------
+EOF
+        
+        local acls_dir="$OUTPUT_DIR/03_shares/acls"
+        
+        # Itera su tutte le share
+        tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r share_name share_path acl_file; do
+            [[ -z "$share_name" ]] && continue
+            
+            local users_rw=""
+            local users_ro=""
+            
+            # Parse ACL file se esiste
+            if [[ -f "$acl_file" ]] && grep -q "^ACL:" "$acl_file" 2>/dev/null; then
+                # Leggi ACL Windows-style
+                while IFS= read -r acl_line; do
+                    [[ ! "$acl_line" =~ ^ACL: ]] && continue
+                    
+                    # Skip system accounts
+                    [[ "$acl_line" =~ (NT\ AUTHORITY|BUILTIN) ]] && continue
+                    
+                    # Parse: ACL:DOMAIN\entity:ALLOWED/flags/perms
+                    local entity=$(echo "$acl_line" | cut -d: -f2)
+                    local perms=$(echo "$acl_line" | cut -d: -f3 | cut -d/ -f3)
+                    
+                    # Determina RW o RO
+                    if [[ "$perms" =~ (FULL|RWXD|0x001301bf|0x001f01ff) ]]; then
+                        users_rw="${users_rw}${entity}, "
+                    elif [[ "$perms" =~ (READ|0x00120089) ]]; then
+                        users_ro="${users_ro}${entity}, "
+                    fi
+                done < <(grep "^ACL:" "$acl_file")
+                
+                # Rimuovi virgola finale
+                users_rw=$(echo "$users_rw" | sed 's/, $//')
+                users_ro=$(echo "$users_ro" | sed 's/, $//')
+            fi
+            
+            # Se nessun ACL, mostra N/A
+            [[ -z "$users_rw" ]] && users_rw="N/A"
+            [[ -z "$users_ro" ]] && users_ro="N/A"
+            
+            # Stampa riga formattata
+            printf "%-20s %-40s %-40s\n" "$share_name" "${users_rw:0:40}" "${users_ro:0:40}" >> "$summary_file"
+        done
+    else
+        echo "Nessun dato disponibile" >> "$summary_file"
+    fi
+
+    cat >> "$summary_file" <<EOF
+
+================================================================================
+DETTAGLIO CONDIVISIONI EMAIL WEBTOP
+================================================================================
+
+EOF
+
+    # Tabella WebTop condivisioni
+    local webtop_has_data=$(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" 2>/dev/null | wc -l || echo 0)
+    
+    if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.tsv" && $webtop_has_data -gt 0 ]]; then
+        # Mappa UUID → username
+        declare -A uuid_to_user
+        
+        if [[ -n "$WEBTOP_MODULE" ]]; then
+            local postgres_container=$(runagent -m "$WEBTOP_MODULE" podman ps --format '{{.Names}}' 2>/dev/null | grep -i postgres | head -1 || echo "postgres")
+            local webtop_db=$(runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" psql -U postgres -t -c "\l" 2>/dev/null | grep -iE 'webtop' | awk '{print $1}' | head -1 || echo "")
+            
+            if [[ -n "$webtop_db" ]]; then
+                local uuid_map=$(echo "SELECT user_uid, user_id FROM core.users;" | runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" psql -U postgres -d "$webtop_db" -A -t -F $'\t' 2>/dev/null || echo "")
+                
+                while IFS=$'\t' read -r uuid username; do
+                    [[ -n "$uuid" && -n "$username" ]] && uuid_to_user["$uuid"]="$username"
+                done <<< "$uuid_map"
+            fi
+        fi
+        
+        cat >> "$summary_file" <<'EOF'
+MAILBOX/CARTELLA    PROPRIETARIO              CONDIVISO CON             PERMESSI
+------------------- ------------------------- ------------------------- -------------------------
+EOF
+        
+        tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" | while IFS=$'\t' read -r id owner svc path inst shared perms; do
+            # Mappa UUID → username
+            local owner_name="${uuid_to_user[$owner]:-${owner:0:12}...}"
+            local shared_name="${uuid_to_user[$shared]:-${shared:0:12}...}"
+            
+            # Clean permissions JSON
+            local perms_clean=$(echo "$perms" | sed 's/[{}":]//g' | tr ',' ' ' | cut -c1-25)
+            
+            printf "%-19s %-25s %-25s %-25s\n" "$path" "$owner_name" "$shared_name" "$perms_clean" >> "$summary_file"
+        done
+    else
+        echo "Nessuna condivisione email configurata" >> "$summary_file"
+    fi
+
+    cat >> "$summary_file" <<EOF
+
+================================================================================
 FILE DATI ESPORTATI
 ================================================================================
 
@@ -663,15 +771,54 @@ display_detailed_tables() {
     echo ""
     
     if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
-        printf "%-20s %s\n" "NOME SHARE" "PATH COMPLETO"
-        printf "%-20s %s\n" "--------------------" "-------------------------------------------"
+        printf "%-20s %-40s %-40s\n" "NOME SHARE" "UTENTI LETTURA/SCRITTURA" "UTENTI SOLA LETTURA"
+        printf "%-20s %-40s %-40s\n" "--------------------" "----------------------------------------" "----------------------------------------"
         
-        tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r name path desc; do
-            printf "%-20s %s\n" "$name" "$path"
+        local acls_dir="$OUTPUT_DIR/03_shares/acls"
+        
+        # Itera su tutte le share
+        tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r share_name share_path acl_file; do
+            [[ -z "$share_name" ]] && continue
+            
+            local users_rw=""
+            local users_ro=""
+            
+            # Parse ACL file se esiste
+            if [[ -f "$acl_file" ]] && grep -q "^ACL:" "$acl_file" 2>/dev/null; then
+                # Leggi ACL Windows-style
+                while IFS= read -r acl_line; do
+                    [[ ! "$acl_line" =~ ^ACL: ]] && continue
+                    
+                    # Skip system accounts
+                    [[ "$acl_line" =~ (NT\ AUTHORITY|BUILTIN) ]] && continue
+                    
+                    # Parse: ACL:DOMAIN\entity:ALLOWED/flags/perms
+                    local entity=$(echo "$acl_line" | cut -d: -f2)
+                    local perms=$(echo "$acl_line" | cut -d: -f3 | cut -d/ -f3)
+                    
+                    # Determina RW o RO
+                    if [[ "$perms" =~ (FULL|RWXD|0x001301bf|0x001f01ff) ]]; then
+                        users_rw="${users_rw}${entity}, "
+                    elif [[ "$perms" =~ (READ|0x00120089) ]]; then
+                        users_ro="${users_ro}${entity}, "
+                    fi
+                done < <(grep "^ACL:" "$acl_file")
+                
+                # Rimuovi virgola finale
+                users_rw=$(echo "$users_rw" | sed 's/, $//')
+                users_ro=$(echo "$users_ro" | sed 's/, $//')
+            fi
+            
+            # Se nessun ACL, mostra N/A
+            [[ -z "$users_rw" ]] && users_rw="N/A"
+            [[ -z "$users_ro" ]] && users_ro="N/A"
+            
+            # Stampa riga formattata
+            printf "%-20s %-40s %-40s\n" "$share_name" "${users_rw:0:40}" "${users_ro:0:40}"
         done
         
         echo ""
-        echo "NOTA: Per ACL e permessi dettagliati vedere sezione 'REPORT PERMESSI SHARE' sotto"
+        echo "NOTA: Per ACL e permessi POSIX dettagliati vedere sezione 'REPORT PERMESSI SHARE' sotto"
     else
         echo "Nessun dato disponibile"
     fi
