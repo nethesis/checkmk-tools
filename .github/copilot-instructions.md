@@ -1236,7 +1236,31 @@ Copy-Item -Recurse "$env:USERPROFILE\Desktop\VSCode-User-Backup\*" "$env:APPDATA
 
 ## 🚀 CHECKPOINT - Sistema ROCKSOLID NethSecurity 8
 
-### ✅ Implementazione Completata (2026-02-04)
+### ⚠️ STATO ATTUALE (2026-02-10): SISTEMA DISMESSO
+
+**ATTENZIONE:**
+- ❌ **Sistema ROCKSOLID rimosso da nsec8-stable e laboratorio** (10 febbraio 2026)
+- ❌ **NON eseguire install-checkmk-agent-persistent-nsec8.sh** su nsec8-stable (10.155.100.100) e laboratorio (10.155.100.1)
+- ✅ CheckMK Agent e FRP rimangono attivi e funzionanti
+- ✅ Repository /opt/checkmk-tools ancora presente (auto-sync git funzionante)
+- ❌ Rimossi: /opt/checkmk-backups/, /etc/checkmk-post-upgrade.sh, autocheck rc.local, protezioni sysupgrade.conf
+
+**Componenti rimosse:**
+- Backup binari critici (/opt/checkmk-backups/binaries/)
+- Script post-upgrade (/etc/checkmk-post-upgrade.sh)
+- Autocheck all'avvio (rocksolid-startup-check.sh)
+- Protezioni sysupgrade.conf (CheckMK, FRP, QEMU-GA entries)
+- Marker FRP (/etc/.frp-installed)
+
+**Componenti mantenuti:**
+- CheckMK Agent (porta 6556) - funzionante
+- FRP Client + configurazione tunnel
+- QEMU Guest Agent
+- Repository /opt/checkmk-tools + auto-sync git (cron ogni minuto)
+
+---
+
+### ✅ Implementazione Completata (2026-02-04) - STORICO
 
 **Obiettivo raggiunto:**
 - ✅ Eliminazione di TUTTI gli URL statici/hardcoded dagli script di installazione
