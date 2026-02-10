@@ -491,7 +491,10 @@ EOF
     
     # Analisi utenti - formato tabella (esclusi utenti di sistema)
     if [[ -f "$OUTPUT_DIR/01_users.txt" ]]; then
-        local user_count=$(grep -v "^ERROR" "$OUTPUT_DIR/01_users.txt" | grep -vE "^(Administrator|Guest|krbtgt|ldapservice|bindns8ad|nethvoice.*-adm)$" | wc -l)
+        # Filtra utenti di sistema
+        local filtered_users=$(grep -v "^ERROR" "$OUTPUT_DIR/01_users.txt" | grep -vi "^Administrator$" | grep -vi "^Guest$" | grep -vi "^krbtgt$" | grep -vi "^ldapservice$" | grep -vi "^bindns8ad$" | grep -viE "^nethvoice.*-adm$")
+        local user_count=$(echo "$filtered_users" | grep -v "^$" | wc -l)
+        
         echo "" >> "$summary_file"
         echo "Numero totale utenti: $user_count" >> "$summary_file"
         echo "" >> "$summary_file"
@@ -502,7 +505,8 @@ EOF
         
         # Lista utenti numerata (esclusi utenti di sistema)
         local counter=1
-        grep -v "^ERROR" "$OUTPUT_DIR/01_users.txt" | grep -vE "^(Administrator|Guest|krbtgt|ldapservice|bindns8ad|nethvoice.*-adm)$" | while IFS= read -r username; do
+        echo "$filtered_users" | while IFS= read -r username; do
+            [[ -z "$username" ]] && continue
             printf "%-3d  %-30s\n" "$counter" "$username" >> "$summary_file"
             counter=$((counter + 1))
         done
