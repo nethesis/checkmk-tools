@@ -738,12 +738,12 @@ display_detailed_tables() {
     echo ""
     
     if [[ -f "$OUTPUT_DIR/05_ad_groups.tsv" ]]; then
-        printf "%-50s %-70s\n" "GRUPPO" "UTENTI PRESENTI NEL GRUPPO"
-        printf "%-50s %-70s\n" "--------------------------------------------------" "----------------------------------------------------------------------"
+        printf "%-60s %-70s\n" "GRUPPO" "UTENTI PRESENTI NEL GRUPPO"
+        printf "%-60s %-70s\n" "------------------------------------------------------------" "----------------------------------------------------------------------"
         
         tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" | while IFS=$'\t' read -r groupname count members; do
             [[ -z "$members" ]] && members="N/A"
-            printf "%-50s %-70s\n" "$groupname" "$members"
+            printf "%-60s %-70s\n" "$groupname" "$members"
         done
         
         echo ""
