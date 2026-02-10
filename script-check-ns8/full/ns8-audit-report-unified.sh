@@ -511,14 +511,14 @@ DETTAGLIO GRUPPI AD E MEMBRI
 
 EOF
 
-    # Tabella gruppi AD
+    # Tabella gruppi AD (gruppo → utenti)
     if [[ -f "$OUTPUT_DIR/05_ad_groups.tsv" ]]; then
         cat >> "$summary_file" <<'EOF'
-GRUPPO                           MEMBRI  UTENTI NEL GRUPPO
--------------------------------- ------- --------------------------------------------------
+GRUPPO                           UTENTI NEL GRUPPO
+-------------------------------- --------------------------------------------------
 EOF
         tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" | while IFS=$'\t' read -r groupname count members; do
-            printf "%-32s %7s  %s\n" "$groupname" "$count" "${members:0:50}"
+            printf "%-32s %s\n" "$groupname" "$members"
         done >> "$summary_file"
     else
         echo "Nessun dato disponibile" >> "$summary_file"
@@ -745,15 +745,11 @@ display_detailed_tables() {
     echo ""
     
     if [[ -f "$OUTPUT_DIR/05_ad_groups.tsv" ]]; then
-        printf "%-32s %7s  %s\n" "GRUPPO" "MEMBRI" "UTENTI NEL GRUPPO"
-        printf "%-32s %7s  %s\n" "--------------------------------" "-------" "--------------------------------------------------"
+        printf "%-32s %s\n" "GRUPPO" "UTENTI NEL GRUPPO"
+        printf "%-32s %s\n" "--------------------------------" "--------------------------------------------------"
         
         tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" | while IFS=$'\t' read -r groupname count members; do
-            # Tronca lista membri se troppo lunga per display
-            local members_display="${members:0:50}"
-            [[ ${#members} -gt 50 ]] && members_display="${members_display}..."
-            
-            printf "%-32s %7s  %s\n" "$groupname" "$count" "$members_display"
+            printf "%-32s %s\n" "$groupname" "$members"
         done
         
         echo ""
