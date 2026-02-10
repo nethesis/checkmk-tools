@@ -103,7 +103,7 @@ main() {
     local acl_files=()
     while IFS= read -r -d '' file; do
         acl_files+=("$file")
-    done < <(find "$acl_dir" -name "*_smbacl.txt" -print0 | sort -z)
+    done < <(find "$acl_dir" -name "*_smbacl.txt" -print0 | sort -z) || true
     
     if [ "${#acl_files[@]}" -eq 0 ]; then
         warn "Nessun file ACL trovato in $acl_dir"
@@ -134,7 +134,7 @@ main() {
         local acl_lines=()
         while IFS= read -r line; do
             acl_lines+=("$line")
-        done < <(grep "^ACL:" "$acl_file" | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)")
+        done < <(grep "^ACL:" "$acl_file" | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)") || true
         
         if [ "${#acl_lines[@]}" -eq 0 ]; then
             echo "⚠️  Solo permessi di sistema configurati (Everyone/Administrators)"
@@ -167,7 +167,7 @@ main() {
                     echo "     Membri:"
                     while IFS= read -r member; do
                         [ -n "$member" ] && echo "       • $member"
-                    done <<< "$members"
+                    done <<< "$members" || true
                     echo ""
                 else
                     # Non è un gruppo (o errore espansione) - mostra direttamente
