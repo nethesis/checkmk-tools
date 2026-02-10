@@ -318,20 +318,20 @@ collect_webtop_sharing() {
     
     local temp_output="/tmp/webtop_raw_$$.txt"
     
+    # Usa psql con opzioni per output TSV pulito: -A (unaligned), -t (tuples only), -F (field separator)
     if echo "$query" | runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
-        psql -U postgres -d "$webtop_db" -t > "$temp_output" 2>/dev/null; then
+        psql -U postgres -d "$webtop_db" -A -t -F $'\t' > "$temp_output" 2>/dev/null; then
         
-        # Pulisci output PostgreSQL: rimuovi linee vuote, trim spazi, converti pipe in TAB
         # Header TSV
         echo -e "share_id\towner\tservice_id\tmailbox_path\tinstance\tshared_with\tpermissions" > "$output_file"
         
-        # Verifica se ci sono dati
-        if grep -q "^[[:space:]]*$" "$temp_output" 2>/dev/null && ! grep -qE "^[[:space:]]*[0-9]" "$temp_output" 2>/dev/null; then
+        # Verifica se ci sono dati (file vuoto = no risultati)
+        if [[ ! -s "$temp_output" ]] || ! grep -qE "^[0-9]" "$temp_output" 2>/dev/null; then
             log_warn "Nessuna condivisione email configurata"
             rm -f "$temp_output"
         else
-            # Parse output: converti formato PostgreSQL (pipe-separated) in TSV
-            grep -vE "^[[:space:]]*$|^-+\+|^\(.*rows?\)" "$temp_output" | sed 's/|/\t/g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' >> "$output_file"
+            # Copia dati (già in formato TSV pulito grazie a -A -t -F)
+            cat "$temp_output" >> "$output_file"
             
             local record_count=$(tail -n +2 "$output_file" 2>/dev/null | wc -l || echo "0")
             log_success "Raccolte $record_count condivisioni email → $(basename "$output_file")"
