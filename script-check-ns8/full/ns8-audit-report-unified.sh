@@ -277,23 +277,18 @@ collect_webtop_sharing() {
     
     local output_file="$OUTPUT_DIR/04_webtop_email_shares.tsv"
     
-    # Query SQL per ottenere le condivisioni
+    # Query SQL per ottenere le condivisioni (semplificata senza json_agg)
     local sql_query="
     SELECT 
         s.user_id as owner,
         s.share_id,
-        s.description,
-        json_agg(
-            json_build_object(
-                'user', u.user_id,
-                'permissions', p.permission_string
-            )
-        ) as permissions
+        COALESCE(s.description, 'N/A') as description,
+        COALESCE(u.user_id, 'N/A') as shared_user,
+        COALESCE(p.permission_string, 'N/A') as permissions
     FROM core.shares s
     LEFT JOIN core.shares_permissions p ON s.share_id = p.share_id
     LEFT JOIN core.users u ON p.user_uid = u.user_uid
     WHERE s.service_id = 'com.sonicle.webtop.mail'
-    GROUP BY s.user_id, s.share_id, s.description
     ORDER BY s.user_id, s.share_id;
     "
     
@@ -323,38 +318,23 @@ collect_webtop_sharing() {
     if runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
         psql -U postgres -d webtop5 -t -A -F$'\t' -c "$sql_query" > "$temp_result" 2>"$temp_error"; then
         
-        # Parse JSON results e converti in TSV
+        # Parse risultati TSV diretti (non più JSON)
         local row_count=0
-        while IFS=$'\t' read -r owner share_id description perms_json; do
+        while IFS=$'\t' read -r owner share_id description shared_user permissions; do
             [[ -z "$owner" ]] && continue
             
-            # Parse JSON permissions array
-            local users=$(echo "$perms_json" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    for item in data:
-        if item and 'user' in item:
-            print(f\"{item['user']}\t{item.get('permissions', 'N/A')}\")
-except:
-    pass
-" 2>/dev/null || echo "N/A	N/A")
-            
-            # Se ci sono utenti con permessi, aggiungi una riga per ciascuno
-            if [[ -n "$users" ]] && [[ "$users" != "N/A	N/A" ]]; then
-                while IFS=$'\t' read -r shared_user perm_string; do
-                    echo -e "$owner\t$share_id\t$description\t$shared_user\t$perm_string" >> "$output_file"
-                    ((row_count++))
-                done <<< "$users"
-            else
-                # Nessun permesso specifico
-                echo -e "$owner\t$share_id\t$description\tN/A\tN/A" >> "$output_file"
-                ((row_count++))
-            fi
+            # Scrivi riga direttamente nel file output
+            echo -e "$owner\t$share_id\t$description\t$shared_user\t$permissions" >> "$output_file"
+            ((row_count++))
             
         done < "$temp_result"
         
-        log_success "Raccolte $row_count condivisioni email → $(basename "$output_file")"
+        if [[ $row_count -eq 0 ]]; then
+            log_warn "Nessuna condivisione email trovata"
+            echo "N/A	N/A	N/A	N/A	N/A" >> "$output_file"
+        else
+            log_success "Raccolte $row_count condivisioni email → $(basename "$output_file")"
+        fi
         rm -f "$temp_result" "$temp_error"
         return 0
     else
