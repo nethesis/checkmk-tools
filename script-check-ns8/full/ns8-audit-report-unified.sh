@@ -277,23 +277,24 @@ collect_webtop_sharing() {
     
     local output_file="$OUTPUT_DIR/04_webtop_email_shares.tsv"
     
-    # Query SQL per ottenere le condivisioni (usa shares_data invece di shares_permissions)
+    # Query SQL per ottenere le condivisioni (usa shares_data e colonne corrette)
     local sql_query="
     SELECT 
-        s.user_id as owner,
+        u_owner.user_id as owner,
         s.share_id,
-        COALESCE(s.description, 'N/A') as description,
-        COALESCE(u.user_id, 'N/A') as shared_user,
+        COALESCE(s.key, 'N/A') as share_key,
+        COALESCE(u_shared.user_id, 'N/A') as shared_user,
         COALESCE(sd.value, 'N/A') as permissions
     FROM core.shares s
+    LEFT JOIN core.users u_owner ON s.user_uid = u_owner.user_uid
     LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id
-    LEFT JOIN core.users u ON sd.user_uid = u.user_uid
+    LEFT JOIN core.users u_shared ON sd.user_uid = u_shared.user_uid
     WHERE s.service_id = 'com.sonicle.webtop.mail'
-    ORDER BY s.user_id, s.share_id;
+    ORDER BY u_owner.user_id, s.share_id;
     "
     
     # Header TSV
-    echo -e "owner\tshare_id\tdescription\tshared_with_user\tpermissions" > "$output_file"
+    echo -e "owner\tshare_id\tshare_key\tshared_with_user\tpermissions" > "$output_file"
     
     # Esegui query su Postgres container WebtBop
     local postgres_container=$(runagent -m "$WEBTOP_MODULE" podman ps --format '{{.Names}}' 2>/dev/null | grep -i postgres | head -1)
@@ -320,11 +321,11 @@ collect_webtop_sharing() {
         
         # Parse risultati TSV diretti (non più JSON)
         local row_count=0
-        while IFS=$'\t' read -r owner share_id description shared_user permissions; do
+        while IFS=$'\t' read -r owner share_id share_key shared_user permissions; do
             [[ -z "$owner" ]] && continue
             
             # Scrivi riga direttamente nel file output
-            echo -e "$owner\t$share_id\t$description\t$shared_user\t$permissions" >> "$output_file"
+            echo -e "$owner\t$share_id\t$share_key\t$shared_user\t$permissions" >> "$output_file"
             ((row_count++))
             
         done < "$temp_result"
