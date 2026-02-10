@@ -576,6 +576,8 @@ display_detailed_tables() {
     echo "================================================================================"
     echo ""
     
+    log_info "Visualizzazione tabelle dettagliate..."
+    
     # ========== TABELLA 1: PASSWORD EXPIRY ==========
     echo "================================================================================"
     echo "DETTAGLIO PASSWORD EXPIRY"
