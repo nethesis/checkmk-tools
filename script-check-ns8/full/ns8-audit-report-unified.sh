@@ -316,8 +316,10 @@ collect_webtop_sharing() {
     # Esegui query
     local temp_result=$(mktemp)
     local temp_error=$(mktemp)
-    if runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
-        psql -U postgres -d webtop5 -t -A -F$'\t' -c "$sql_query" > "$temp_result" 2>"$temp_error"; then
+    
+    # Esegui query via stdin per evitare problemi escaping 
+    if echo "$sql_query" | runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
+        psql -U postgres -d webtop5 -t -A -F$'\t' > "$temp_result" 2>"$temp_error"; then
         
         # Parse risultati TSV diretti (non più JSON)
         local row_count=0
