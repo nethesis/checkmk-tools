@@ -9,7 +9,7 @@
 #
 # Se non specificato, usa l'audit più recente in /var/tmp/ns8-audit-*
 
-set -euo pipefail
+set -uo pipefail
 
 # Funzioni helper
 log() { echo "[INFO] $*"; }
