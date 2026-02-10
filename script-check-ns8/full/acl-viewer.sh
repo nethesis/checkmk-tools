@@ -72,7 +72,7 @@ main() {
     # Itera su tutti i file ACL - usa approccio semplice con find e for
     for acl_file in $(find "$acl_dir" -name "*_smbacl.txt" -type f | sort); do
         local share_name=$(basename "$acl_file" _smbacl.txt)
-        ((share_count++))
+        share_count=$((share_count + 1))
         
         echo "-------------------------------------------------------------------------------"
         echo "SHARE: $share_name"
