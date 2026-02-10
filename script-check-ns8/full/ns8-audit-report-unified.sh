@@ -248,11 +248,11 @@ collect_samba_shares() {
         
         # Ottieni ACL tramite smbcacls (Windows-style, mostra permessi configurati in NS8 UI)
         local acl_file="$acls_dir/${share_name}_smbacl.txt"
-        local admin_pass="Nethesis,1234"  # Password di default NS8
         
         # Esegui smbcacls e verifica se ha generato output valido (non exit code, perché può avere warnings)
+        # Password NS8 di default: Nethesis,1234
         runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-            smbcacls "//localhost/$share_name" / -U "administrator%$admin_pass" > "$acl_file" 2>&1
+            smbcacls "//localhost/$share_name" / -U 'administrator%Nethesis,1234' > "$acl_file" 2>&1
         
         if grep -q "^ACL:" "$acl_file" 2>/dev/null; then
             log_success "    ACL salvato → $(basename "$acl_file")"
