@@ -453,47 +453,39 @@ generate_summary_report() {
     fi
     
     # Crea summary
-    cat > "$summary_file" <<EOF
+        cat > "$summary_file" <<EOF
 
-                    REPORT AUDIT QUINDICINALE NS8
-                    
-Data report:          $(date +"%Y-%m-%d %H:%M:%S")
-Directory output:     $OUTPUT_DIR
+                                        REPORT AUDIT QUINDICINALE NS8
 
-================================================================================
-RIEPILOGO DATI RACCOLTI
-================================================================================
+        Data report:          $(date +"%Y-%m-%d %H:%M:%S")
+        Directory output:     $OUTPUT_DIR
 
-Active Directory:
-  - Utenti totali:                    $user_count
-  - Utenti con analisi password:      $pwd_count
-  - Password in scadenza (≤7 giorni): $expiring_soon
-  - Password scadute:                  $expired
-  - Gruppi AD totali:                  $(tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" 2>/dev/null | wc -l || echo 0)
+        ================================================================================
+        RIEPILOGO DATI RACCOLTI
+        ================================================================================
 
-Samba File Shares:
-  - Share totali:                      $share_count
-  - File ACL generati:                 $share_count
+        Active Directory:
+            - Utenti totali:                    $user_count
+            - Utenti con analisi password:      $pwd_count
+            - Password in scadenza (≤7 giorni): $expiring_soon
+            - Password scadute:                  $expired
+            - Gruppi AD totali:                  $(tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" 2>/dev/null | wc -l || echo 0)
 
-WebTop Email Sharing:
-  - Condivisioni email totali:         $webtop_share_count
+        Samba File Shares:
+            - Share totali:                      $share_count
+            - File ACL generati:                 $share_count
 
-================================================================================
-DETTAGLIO PASSWORD EXPIRY
-================================================================================
+        WebTop Email Sharing:
+            - Condivisioni email totali:         $webtop_share_count
+
+        ================================================================================
+        DETTAGLIO PASSWORD EXPIRY
+        ================================================================================
 
 EOF
 
     # Tabella password expiry
     if [[ -f "$OUTPUT_DIR/02_password_expiry.tsv" ]]; then
-        cat >> "$summary_file" <<'EOF'
-UTENTE              ULTIMA MODIFICA      SCADE IL             GIORNI
-------------------- -------------------- -------------------- ----------
-EOF
-        tail -n +2 "$OUTPUT_DIR/02_password_expiry.tsv" | while IFS=$'\t' read -r user pwd_raw pwd_unix pwd_iso exp_unix exp_iso days; do
-            printf "%-19s %-20s %-20s %10s\n" "$user" "$pwd_iso" "$exp_iso" "$days"
-        done >> "$summary_file"
-        
         echo "" >> "$summary_file"
         echo "LEGENDA:" >> "$summary_file"
         echo "  • Giorni positivi = password ancora valida" >> "$summary_file"
@@ -514,12 +506,12 @@ EOF
     # Tabella gruppi AD (gruppo → utenti)
     if [[ -f "$OUTPUT_DIR/05_ad_groups.tsv" ]]; then
         cat >> "$summary_file" <<'EOF'
-GRUPPO                       UTENTI PRESENTI NEL GRUPPO
---------------------------- ----------------------------------------------------------------------
+GRUPPO                                  UTENTI PRESENTI NEL GRUPPO
+---------------------------------------- --------------------------------------------------------------------------------
 EOF
         tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" | while IFS=$'\t' read -r groupname count members; do
             [[ -z "$members" ]] && members="N/A"
-            printf "%-27s %-70s\n" "$groupname" "$members"
+            printf "%-40s %-80s\n" "$groupname" "$members"
         done >> "$summary_file"
     else
         echo "Nessun dato disponibile" >> "$summary_file"
@@ -615,8 +607,8 @@ EOF
         fi
         
         cat >> "$summary_file" <<'EOF'
-MAILBOX/CARTELLA    PROPRIETARIO              CONDIVISO CON             PERMESSI
-------------------- ------------------------- ------------------------- -------------------------
+    MAILBOX/CARTELLA    PROPRIETARIO              CONDIVISO CON             PERMESSI
+    ------------------- ------------------------- ------------------------- -------------------------
 EOF
         
         tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" | while IFS=$'\t' read -r id owner svc path inst shared perms; do
@@ -664,31 +656,31 @@ EOF
 
     # Aggiungi avvisi password
     if [[ $expired -gt 0 ]]; then
-        cat >> "$summary_file" <<EOF
+                cat >> "$summary_file" <<EOF
 ⚠ ATTENZIONE: $expired password SCADUTE!
-  → Eseguire reset password immediato
+    → Eseguire reset password immediato
 
 EOF
     fi
     
     if [[ $expiring_soon -gt 0 ]]; then
-        cat >> "$summary_file" <<EOF
+                cat >> "$summary_file" <<EOF
 ⚠ ATTENZIONE: $expiring_soon password in scadenza entro 7 giorni
-  → Notificare utenti per cambio password
+    → Notificare utenti per cambio password
 
 EOF
     fi
     
-    cat >> "$summary_file" <<EOF
+        cat >> "$summary_file" <<EOF
 Verifica permessi share:
-  → Eseguire: ./acl-viewer.sh $OUTPUT_DIR
-  → Oppure visualizzato automaticamente sotto (se abilitato)
+    → Eseguire: ./acl-viewer.sh $OUTPUT_DIR
+    → Oppure visualizzato automaticamente sotto (se abilitato)
 
 Analisi dettagliata:
-  → Aprire file TSV con foglio di calcolo
-  → Filtrare/ordinare per priorità
+    → Aprire file TSV con foglio di calcolo
+    → Filtrare/ordinare per priorità
 
-================================================================================
+===============================================================================
 
 EOF
     
@@ -746,12 +738,12 @@ display_detailed_tables() {
     echo ""
     
     if [[ -f "$OUTPUT_DIR/05_ad_groups.tsv" ]]; then
-        printf "%-27s %-70s\n" "GRUPPO" "UTENTI PRESENTI NEL GRUPPO"
-        printf "%-27s %-70s\n" "---------------------------" "----------------------------------------------------------------------"
+        printf "%-50s %-70s\n" "GRUPPO" "UTENTI PRESENTI NEL GRUPPO"
+        printf "%-50s %-70s\n" "--------------------------------------------------" "----------------------------------------------------------------------"
         
         tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" | while IFS=$'\t' read -r groupname count members; do
             [[ -z "$members" ]] && members="N/A"
-            printf "%-27s %-70s\n" "$groupname" "$members"
+            printf "%-50s %-70s\n" "$groupname" "$members"
         done
         
         echo ""
