@@ -273,6 +273,13 @@ collect_webtop_sharing() {
         return 0
     fi
     
+    # TEMPORARY: Skip Postgres query (debugging blocking issue)
+    log_warn "Raccolta condivisioni email WebTop temporaneamente disabilitata (debug)"
+    local output_file="$OUTPUT_DIR/04_webtop_email_shares.tsv"
+    echo -e "owner\tshare_id\tshare_key\tshared_with_user\tpermissions" > "$output_file"
+    echo -e "N/A\tN/A\tFEATURE_DISABLED\tN/A\tN/A" >> "$output_file"
+    return 0
+    
     log_info "Raccolta condivisioni email WebTop..."
     
     local output_file="$OUTPUT_DIR/04_webtop_email_shares.tsv"
