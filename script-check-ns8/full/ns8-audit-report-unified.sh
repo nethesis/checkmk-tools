@@ -301,9 +301,9 @@ collect_webtop_sharing() {
     local temp_result=$(mktemp)
     local temp_error=$(mktemp)
     
-    # Esegui query via heredoc per evitare problemi escaping 
+    #Esegui query via heredoc, usa TAB come field separator (passato come variabile)
     if runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
-        psql -U postgres -d webtop5 -t -A -F$'\t' <<EOFQUERY > "$temp_result" 2>"$temp_error"
+        psql -U postgres -d webtop5 -t -A -F '	' <<'EOFQUERY' > "$temp_result" 2>"$temp_error"
 SELECT 
     u_owner.user_id as owner,
     s.share_id,
