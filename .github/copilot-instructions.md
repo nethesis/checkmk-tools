@@ -482,7 +482,48 @@ git ls-files -s script-tools/full/nuovo-script.sh
 # 5. Commit
 git commit -m "feat: nuovo script"
 
-```text
+```
+
+18. **📌 VERSIONING SCRIPT OBBLIGATORIO**
+   - ✅ **SEMPRE aggiungere variabile VERSION** all'inizio di ogni script bash/PowerShell
+   - ✅ Rendere **versione visibile nell'output/header** dello script
+   - ✅ **Aggiornare versione ad OGNI modifica** committata
+   - ⚠️ Permette identificazione immediata versione in esecuzione su host remoti
+   
+   **Schema versionamento:**
+   - `MAJOR.MINOR.PATCH` (es: `2.0.5`)
+   - MAJOR: cambio architettura/breaking changes
+   - MINOR: nuove funzionalità backwards-compatible
+   - PATCH: bugfix/miglioramenti minori
+   
+   **Template Bash:**
+   ```bash
+   #!/bin/bash
+   VERSION="1.0.0"   # Versione script (aggiornare ad ogni modifica)
+   
+   # Mostra versione in output/help
+   echo "Script Name - Version v${VERSION}"
+   ```
+   
+   **Template PowerShell:**
+   ```powershell
+   # Script Name
+   $VERSION = "1.0.0"   # Versione script (aggiornare ad ogni modifica)
+   
+   Write-Host "Script Name - Version v$VERSION"
+   ```
+   
+   **Esempio commit message con bump versione:**
+   ```bash
+   git commit -m "fix(script): v1.0.1 - corregge bug parsing ACL"
+   ```
+   
+   **Workflow modifica script:**
+   1. Modifica codice
+   2. **OBBLIGATORIO**: Bump VERSION variable
+   3. Test validazione
+   4. Commit con versione nel message
+   5. Push
 
 ---
 ## 📋 NethSecurity 8 - Local Checks CheckMK
