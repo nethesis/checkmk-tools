@@ -21,6 +21,10 @@
 #   ./ns8-audit-report-unified.sh --output-dir /custom/path
 #   ./ns8-audit-report-unified.sh --no-display  # Skip visualizzazione ACL
 #
+#  Con password Samba custom (se diversa da default Nethesis,1234):
+#   export SAMBA_ADMIN_PASSWORD="YourPassword"
+#   ./ns8-audit-report-unified.sh
+#
 # Requisiti:
 #   - NS8 con modulo samba installato
 #   - runagent disponibile nel PATH
@@ -303,10 +307,27 @@ collect_samba_shares() {
         # Ottieni ACL tramite smbcacls (Windows-style, mostra permessi configurati in NS8 UI)
         local acl_file="$acls_dir/${share_name}_smbacl.txt"
         
-        # Esegui smbcacls e verifica se ha generato output valido (non exit code, perché può avere warnings)
-        # Password NS8 di default: Nethesis,1234
+        # Auto-recupero password amministratore Samba (se non già impostata)
+        if [[ -z "$SAMBA_ADMIN_PASSWORD" ]]; then
+            # Tentativo 1: Da secrets module
+            SAMBA_ADMIN_PASSWORD=$(redis-cli HGET "module/$SAMBA_MODULE/srv/secrets" adminpassword 2>/dev/null || echo "")
+            
+            # Tentativo 2: Da agent.env
+            if [[ -z "$SAMBA_ADMIN_PASSWORD" ]]; then
+                SAMBA_ADMIN_PASSWORD=$(runagent -m "$SAMBA_MODULE" cat /home/$SAMBA_MODULE/.config/state/agent.env 2>/dev/null | grep -i "ADMIN_PASSWORD\|PROVISION_PASSWORD" | cut -d'=' -f2 | head -1 || echo "")
+            fi
+            
+            # Fallback: Password default NS8
+            if [[ -z "$SAMBA_ADMIN_PASSWORD" ]]; then
+                SAMBA_ADMIN_PASSWORD="Nethesis,1234"
+                log_warn "    Uso password default NS8: Nethesis,1234"
+            else
+                log_info "    Password recuperata automaticamente dal modulo"
+            fi
+        fi
+        
         runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-            smbcacls "//localhost/$share_name" / -U 'administrator%Nethesis,1234' > "$acl_file" 2>&1
+            smbcacls "//localhost/$share_name" / -U "administrator%${SAMBA_ADMIN_PASSWORD}" > "$acl_file" 2>&1 || true
         
         if grep -q "^ACL:" "$acl_file" 2>/dev/null; then
             log_success "    ACL salvato → $(basename "$acl_file")"

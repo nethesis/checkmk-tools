@@ -46,7 +46,90 @@
    - ✅ Email include: lista file corrotti, percentuale errori, dettagli
    - ✅ Non inviare email se tutto OK (solo output console)
 
-8. **⚠️ CONTROLLO PROBLEMS OBBLIGATORIO**
+8. **🔐 CONTROLLO DATI SENSIBILI OBBLIGATORIO**
+   - ✅ **SEMPRE** verificare presenza dati sensibili quando si crea/modifica uno script
+   - ✅ Scansionare per:
+     - **Token**: API keys, auth tokens, access tokens
+     - **Password**: hardcoded passwords, default credentials
+     - **Secrets**: chiavi SSH/GPG, certificati privati
+     - **Credenziali**: username+password, connection strings
+     - **Indirizzi IP privati**: se espongono infrastruttura critica
+     - **Domini interni**: se riservati/confidenziali
+   - ⚠️ **PATTERN CRITICI da cercare**:
+     - `token=`, `password=`, `secret=`, `key=`
+     - `AUTH_TOKEN=`, `API_KEY=`, `PRIVATE_KEY=`
+     - Stringhe lunghe alfanumeriche hardcoded (token-like)
+     - Default credentials con valori reali
+   - ✅ **Azioni correttive**:
+     - Rimuovere valori hardcoded
+     - Usare variabili d'ambiente senza default sensibili
+     - Forzare input manuale utente (con validazione)
+     - Usare placeholder generici (`INSERISCI_TOKEN_QUI`)
+   - ✅ **Workflow obbligatorio**:
+     1. Prima di commit → scansiona script modificati
+     2. Se trovati dati sensibili → avvisa utente
+     3. Proponi fix immediato (rimozione/variabili env)
+     4. Valida che fix non rompa funzionalità
+     5. Ricorda all'utente di **rotare credenziali** se già pubblicate
+
+9. **🧠 EFFICIENZA E CONTENIMENTO TOKEN - Pensare Prima di Agire**
+   - ⚠️ **BUDGET MENSILE**: 1500 token/mese utilizzabili
+   - ⚠️ **Budget extra disponibili MA preferire NON usarli** - mantenerli come riserva emergenza
+   - ✅ **SEMPRE pensare e pianificare** prima di eseguire azioni
+   - ✅ **Autonomia decisionale**: Prendere decisioni ovvie senza chiedere conferma per banalità
+   - ✅ **Ragionamento profondo**: Analizzare contesto disponibile, dedurre risposte, inferire intent utente
+   - ✅ **Capitalizzare token prima richiesta**: Usare informazioni già fornite, evitare domande ridondanti
+   - ⚠️ **Chiedere solo se necessario**: Solo per decisioni con reale impatto o ambiguità sostanziali
+   - ✅ **Limite tentativi fix**: Max 3 iterazioni per stesso problema
+   - ⚠️ **Se 3 tentativi falliscono** → FERMARSI e chiedere aiuto utente
+   - ✅ **Evitare loop infiniti**: Non ripetere stesso approccio se fallisce
+   - ✅ **Approccio incrementale**: Fix piccoli e testati, non modifiche massive senza validazione
+   - ⚠️ **Sessioni lunghe**: Ogni 15-20 interazioni → breve recap e conferma direzione
+   - ✅ **Operazioni massive**: Prima di modifiche >20 file → chiedere conferma strategia
+   - ❌ **NON iterare ciecamente**: Se un comando fallisce 2 volte → cambiare approccio
+   - ✅ **Valutare costo/beneficio**: Per operazioni lunghe → proporre alternative più efficienti
+   - ✅ **Ragionamento esplicito**: Per problemi complessi → spiegare piano d'azione prima di eseguire
+
+   **Esempio decisioni AUTONOME (NON chiedere):**
+   ```text
+   ✅ Fix sintassi ovvia (parentesi mancante, virgola, etc.)
+   ✅ Rinumerare liste dopo inserimento elemento
+   ✅ Aggiornare timestamp nei backup
+   ✅ Correggere path relativo → assoluto (workspace noto)
+   ✅ Rendere eseguibile script .sh con git update-index
+   ✅ Commit message descrittivo da modifiche ovvie
+   ```
+
+   **Esempio decisioni che RICHIEDONO conferma:**
+   ```text
+   ⚠️ Cancellare dati/file (anche con backup)
+   ⚠️ Deploy su produzione
+   ⚠️ Scelta tra approcci tecnici diversi con trade-off
+   ⚠️ Modifiche che impattano sicurezza/performace
+   ⚠️ Scelta tra più host per test quando non ovvio
+   ```
+
+   **Esempio gestione tentativi:**
+   ```text
+   Tentativo 1: wsl bash -n script.sh → ERRORE linea 45
+   Fix 1: correggi sintassi → testa
+   
+   Tentativo 2: wsl bash -n script.sh → ERRORE linea 67
+   Fix 2: correggi secondo errore → testa
+   
+   Tentativo 3: wsl bash -n script.sh → ERRORE linea 45 (stessa linea!)
+   ⚠️ STOP: Approccio non funziona, pattern non chiaro
+   → Chiedi aiuto: "Ho provato 3 volte, errore persiste. Posso vedere il contesto completo della linea 45?"
+   ```
+
+   **Quando fermarsi e chiedere aiuto:**
+   - ❌ Loop fix sullo stesso errore (>2 tentativi)
+   - ❌ Approccio teoricamente corretto ma fallisce ripetutamente
+   - ❌ Errori non chiari o ambigui dopo 2 tentativi
+   - ❌ Problema fuori dal tuo controllo (permessi, configurazione sistema, etc.)
+   - ❌ Soluzione richiede conoscenza specifica che non hai
+
+11. **⚠️ CONTROLLO PROBLEMS OBBLIGATORIO**
    - ✅ **SEMPRE** controllare pannello PROBLEMS prima di considerare completato un task
    - ✅ Eseguire `get_errors()` dopo modifiche a file markdown/script
    - ✅ Priorità correzione errori:
@@ -59,7 +142,7 @@
    - ✅ Confermare "0 errors" prima di dichiarare task completato
    - ❌ **NON** ignorare problemi senza consultare utente
 
-9. **⚠️ TEST OBBLIGATORIO - TUTTI GLI SCRIPT MODIFICATI**
+12. **⚠️ TEST OBBLIGATORIO - TUTTI GLI SCRIPT MODIFICATI**
    - ❌ **MAI** dire "test completato" senza testare TUTTI gli script modificati
    - ✅ **SEMPRE** testare OGNI script modificato nella sessione corrente
    - ✅ Lista script modificati → test CIASCUNO separatamente
@@ -115,7 +198,7 @@ rm file.txt
 
 ```text
 
-11. **⚠️ MARKDOWN QUALITY - Prevenzione Errori Markdownlint**
+13. **⚠️ MARKDOWN QUALITY - Prevenzione Errori Markdownlint**
    - ✅ **WORKFLOW OBBLIGATORIO per OGNI file .md creato/modificato:**
      1. **PRIMA**: Segui best practices markdownlint (vedi sotto)
      2. **SUBITO DOPO modifica**: Esegui `markdownlint file.md` (exit code 0=OK)
@@ -144,7 +227,7 @@ rm file.txt
    - ✅ Dopo creazione/modifica file .md → `get_errors()` per validazione immediata
    - ✅ Preferire TOC senza link se heading hanno emoji (usa **testo bold** invece)
 
-12. **Recupero script corrotti o persi**
+14. **Recupero script corrotti o persi**
    - ✅ **Metodo 1**: Git history - `git log`, `git show`, `git checkout`
    - ✅ **Metodo 2**: Backup locali - `C:\CheckMK-Backups\<timestamp>\`
    - ✅ **Metodo 3**: Backup rete - `\\192.168.10.132\usbshare\CheckMK-Backups\<timestamp>\`
@@ -165,7 +248,7 @@ Copy-Item "\\192.168.10.132\usbshare\CheckMK-Backups\2026-01-29_00-00-00\script-
 
 ```text
 
-9. **Test-Fix-Validate Loop Automatico**
+15. **Test-Fix-Validate Loop Automatico**
    - ✅ Quando modifichiamo uno script E abbiamo accesso a host di test
    - ✅ **SEMPRE** seguire questo ciclo automatico dopo ogni modifica:
      1. **Modifica** script
@@ -212,7 +295,7 @@ git commit -m "fix: risolto errore comando"
 - `checkmk-vps-02` (monitor01.nethlab.it) - CheckMK staging/test
 - `checkmk-z1plus` (192.168.10.128) - CheckMK locale test
 
-10. **⚠️ WORKFLOW OBBLIGATORIO - Sviluppo e Test Script**
+16. **⚠️ WORKFLOW OBBLIGATORIO - Sviluppo e Test Script**
    - ✅ **SEMPRE seguire questo workflow completo** per modifiche a script bash/shell
    - ❌ **MAI** saltare step o dichiarare "completato" senza test reale
    - 🔄 **LOOP finché non funziona tutto** - non uscire fino a successo completo
@@ -322,7 +405,7 @@ curl -fsSL .../install-script.sh | bash
 
 ```text
 
-11. **Script eseguibili - Verifica SEMPRE permessi Git**
+17. **Script eseguibili - Verifica SEMPRE permessi Git**
    - ⚠️ **Windows (NTFS) NON preserva il bit eseguibile Unix**
    - ✅ **SEMPRE** quando crei/modifichi script bash/shell (.sh):
      1. Crea/modifica il file
