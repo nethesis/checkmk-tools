@@ -71,7 +71,8 @@ while IFS= read -r sid; do
     if [[ -z "$sid" ]]; then
         continue
     fi
-    ((CURRENT++))
+    CURRENT=$((CURRENT + 1))
+    echo "[DEBUG] After increment, CURRENT=$CURRENT"
     
     echo "[$CURRENT/$SID_COUNT] Testing SID: $sid"
     
