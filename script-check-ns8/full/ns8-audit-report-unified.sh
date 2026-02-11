@@ -37,6 +37,9 @@ OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
 
+# Cache globale per conversione SID → Username (usata da sid_to_name)
+declare -gA SID_CACHE
+
 # Colori output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -483,7 +486,6 @@ generate_summary_report() {
     # PRE-CACHE SID → Username per performance (evita chiamate ripetute a wbinfo)
     # TEMPORANEAMENTE DISABILITATO: il loop si blocca, usiamo wbinfo on-demand
     log_info "Pre-caching conversione SID → Username..."
-    declare -gA SID_CACHE  # Array associativo globale per cache
     
     # SKIP pre-caching per ora - sid_to_name() farà wbinfo on-demand
     log_warn "Pre-caching disabilitato - conversione SID on-demand (più lento)"
