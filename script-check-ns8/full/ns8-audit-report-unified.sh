@@ -945,7 +945,13 @@ display_detailed_tables() {
     
     if [[ -f "$OUTPUT_DIR/03_shares/shares_report.txt" ]]; then
         # Warning se pre-caching disabilitato (cache vuota)
-        if [[ ${#SID_CACHE[@]} -eq 0 ]]; then
+        # Protezione: controlla se SID_CACHE esiste prima di accedere
+        local cache_size=0
+        if declare -p SID_CACHE &>/dev/null; then
+            cache_size=${#SID_CACHE[@]}
+        fi
+        
+        if [[ $cache_size -eq 0 ]]; then
             log_warn "Pre-caching SID disabilitato - conversione on-demand in corso"
             log_info "Questo richiederà 3-5 minuti (~112 chiamate wbinfo per 28 share)"
             log_info "Attendere prego, lo script NON è bloccato..."
