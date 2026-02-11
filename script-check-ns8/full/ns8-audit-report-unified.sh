@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.0.0"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.0.1"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -190,7 +190,7 @@ collect_password_expiry() {
     local output_file="$OUTPUT_DIR/02_password_expiry.txt"
     local temp_file=$(mktemp)
     
-    # Header (tab-separated)
+    # Header TSV
     echo -e "user\tpwdLastSet_raw\tpwdLastSet_unix\tpwdLastSet_iso\texpires_unix\texpires_iso\tdays_until_expiry" > "$output_file"
     
     # Leggi lista utenti
@@ -264,7 +264,7 @@ collect_ad_groups() {
     local output_file="$OUTPUT_DIR/05_ad_groups.txt"
     local temp_groups=$(mktemp)
     
-    # Header (tab-separated)
+    # Header TSV
     echo -e "group_name\tmembers_count\tmembers_list" > "$output_file"
     
     # Lista gruppi AD
@@ -1267,7 +1267,7 @@ display_acl_report() {
 
 main() {
     echo "================================================================================"
-    echo "NS8 Audit Report - Unified Version v${VERSION}"
+    echo "NS8 Audit Report - Unified Version (Collector + Viewer)"
     echo "================================================================================"
     echo ""
     
@@ -1335,3 +1335,4 @@ done
 
 # Run
 main "$@"
+
