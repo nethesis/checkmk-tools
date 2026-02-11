@@ -481,70 +481,21 @@ generate_summary_report() {
     log_info "Generazione report riepilogativo..."
     
     # PRE-CACHE SID → Username per performance (evita chiamate ripetute a wbinfo)
+    # TEMPORANEAMENTE DISABILITATO: il loop si blocca, usiamo wbinfo on-demand
     log_info "Pre-caching conversione SID → Username..."
     declare -gA SID_CACHE  # Array associativo globale per cache
     
-    local acls_dir="$OUTPUT_DIR/03_shares/acls"
-    if [[ -d "$acls_dir" ]]; then
-        # Estrai TUTTI i SID unici da TUTTI i file ACL
-        local all_sids=$(grep -h "trustee.*: S-1" "$acls_dir"/*_acl.txt 2>/dev/null | sed 's/.*trustee.*: \(S-1-[0-9-]*\).*/\1/' | sort -u)
-        local sid_count=$(echo "$all_sids" | grep -c "^S-1" || echo 0)
-        
-        log_info "  Trovati $sid_count SID unici da convertire (richiede ~$((sid_count * 2)) secondi)..."
-        
-        local current=0
-        local start_time=$(date +%s)
-        
-        # DISABILITA set -e per questo loop (evita exit silenzioso se wbinfo fallisce)
-        set +e
-        
-        while IFS= read -r sid; do
-            [[ -z "$sid" ]] && continue
-            ((current++))
-            
-            # Debug: mostra quale SID stiamo processando
-            log_info "    Processing SID #$current: $sid"
-            
-            # Skip SID di sistema (non serve conversione)
-            case "$sid" in
-                S-1-5-18|S-1-5-32-544|S-1-5-2|S-1-1-0) 
-                    SID_CACHE["$sid"]=""
-                    log_info "      → Skipped (system SID)"
-                    continue
-                    ;;
-            esac
-            
-            # Converti SID → nome (con timeout di 10 secondi)
-            log_info "      → Calling wbinfo..."
-            local name=$(timeout 10 runagent -m "$SAMBA_MODULE" podman exec samba-dc wbinfo --sid-to-name "$sid" 2>/dev/null </dev/null | cut -d' ' -f1 || echo "")
-            
-            if [[ -z "$name" ]]; then
-                log_warn "      → Conversione fallita per $sid"
-                SID_CACHE["$sid"]="UNKNOWN_$sid"
-            else
-                SID_CACHE["$sid"]="$name"
-                log_info "      → Resolved: $name"
-            fi
-            
-            # Progress ogni 3 SID (evita divisione per zero)
-            if (( current % 3 == 0 )); then
-                local elapsed=$(($(date +%s) - start_time))
-                if (( elapsed > 0 )); then
-                    local rate=$(awk "BEGIN {printf \"%.1f\", $current / $elapsed}")
-                    local remaining=$(awk "BEGIN {printf \"%.0f\", ($sid_count - $current) / $rate}")
-                    log_info "    [$current/$sid_count] Velocità: ${rate} SID/sec | Tempo rimanente: ~${remaining}s"
-                else
-                    log_info "    [$current/$sid_count] In elaborazione..."
-                fi
-            fi
-        done <<< "$all_sids"
-        
-        # Riabilita set -e
-        set -e
-        
-        local total_time=$(($(date +%s) - start_time))
-        log_success "Cache SID completata: $sid_count SID in ${total_time}s → ${#SID_CACHE[@]} entries"
-    fi
+    # SKIP pre-caching per ora - sid_to_name() farà wbinfo on-demand
+    log_warn "Pre-caching disabilitato - conversione SID on-demand (più lento)"
+    log_info "Questo richiederà 3-5 minuti durante la visualizzazione tabelle..."
+    
+    ## CODICE PRE-CACHING DISABILITATO - DA FIXARE DOPO
+    # local acls_dir="$OUTPUT_DIR/03_shares/acls"
+    # if [[ -d "$acls_dir" ]]; then
+    #     local all_sids=$(grep -h "trustee.*: S-1" "$acls_dir"/*_acl.txt 2>/dev/null | sed 's/.*trustee.*: \(S-1-[0-9-]*\).*/\1/' | sort -u)
+    #     local sid_count=$(echo "$all_sids" | grep -c "^S-1" || echo 0)
+    #     ...
+    # fi
     
     local summary_file="$OUTPUT_DIR/REPORT_SUMMARY.txt"
     
@@ -991,6 +942,14 @@ display_detailed_tables() {
     fi
     
     if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
+        # Warning se pre-caching disabilitato (cache vuota)
+        if [[ ${#SID_CACHE[@]} -eq 0 ]]; then
+            log_warn "Pre-caching SID disabilitato - conversione on-demand in corso"
+            log_info "Questo richiederà 3-5 minuti (~112 chiamate wbinfo per 28 share)"
+            log_info "Attendere prego, lo script NON è bloccato..."
+            echo ""
+        fi
+        
         printf "%-20s %-40s %-40s\n" "NOME SHARE" "UTENTI LETTURA/SCRITTURA" "UTENTI SOLA LETTURA"
         printf "%-20s %-40s %-40s\n" "--------------------" "----------------------------------------" "----------------------------------------"
         
@@ -1003,7 +962,10 @@ display_detailed_tables() {
             [[ -z "$share_name" ]] && continue
             
             ((current_share++))
-            echo "[INFO] Elaborazione permessi share $current_share/$total_shares: $share_name" >&2
+            # Progress ogni 5 share (stdout, non stderr)
+            if (( current_share % 5 == 0 )) || (( current_share == total_shares )); then
+                log_info "Progress permessi: $current_share/$total_shares share elaborate..."
+            fi
             
             local users_rw=""
             local users_ro=""
