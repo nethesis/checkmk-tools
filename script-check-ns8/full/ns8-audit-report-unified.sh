@@ -61,19 +61,30 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $*"
 }
 
-# Funzione helper: Conversione SID → Nome utente/gruppo
+# Funzione helper: Conversione SID → Nome utente/gruppo (USA CACHE)
 sid_to_name() {
     local sid="$1"
-    local module="$2"
     
-    # Skip SID di sistema (non servono conversione nome)
+    # Skip SID di sistema
     case "$sid" in
         S-1-5-18|S-1-5-32-544|S-1-5-2|S-1-1-0) 
             return 1 
             ;;
     esac
     
-    # Converti SID in nome (formato: DOMAIN\name tipo)
+    # USA CACHE se disponibile (instantaneo)
+    if [[ -n "${SID_CACHE[$sid]+isset}" ]]; then
+        local cached="${SID_CACHE[$sid]}"
+        if [[ -n "$cached" ]]; then
+            echo "$cached"
+            return 0
+        else
+            return 1
+        fi
+    fi
+    
+    # Fallback: converti se cache non disponibile
+    local module="$2"
     local result=$(runagent -m "$module" podman exec samba-dc wbinfo --sid-to-name "$sid" 2>/dev/null </dev/null | cut -d' ' -f1 || echo "")
     
     if [[ -n "$result" ]]; then
@@ -478,6 +489,44 @@ collect_webtop_sharing() {
 # Funzione 5: Genera report riepilogativo
 generate_summary_report() {
     log_info "Generazione report riepilogativo..."
+    
+    # PRE-CACHE SID → Username per performance (evita chiamate ripetute a wbinfo)
+    log_info "Pre-caching conversione SID → Username..."
+    declare -gA SID_CACHE  # Array associativo globale per cache
+    
+    local acls_dir="$OUTPUT_DIR/03_shares/acls"
+    if [[ -d "$acls_dir" ]]; then
+        # Estrai TUTTI i SID unici da TUTTI i file ACL
+        local all_sids=$(grep -h "trustee.*: S-1" "$acls_dir"/*_acl.txt 2>/dev/null | sed 's/.*trustee.*: \(S-1-[0-9-]*\).*/\1/' | sort -u)
+        local sid_count=$(echo "$all_sids" | wc -l)
+        
+        log_info "  Trovati $sid_count SID unici da convertire..."
+        
+        local current=0
+        while IFS= read -r sid; do
+            [[ -z "$sid" ]] && continue
+            ((current++))
+            
+            # Skip SID di sistema (non serve conversione)
+            case "$sid" in
+                S-1-5-18|S-1-5-32-544|S-1-5-2|S-1-1-0) 
+                    SID_CACHE["$sid"]=""
+                    continue
+                    ;;
+            esac
+            
+            # Converti SID → nome
+            local name=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc wbinfo --sid-to-name "$sid" 2>/dev/null </dev/null | cut -d' ' -f1 || echo "")
+            SID_CACHE["$sid"]="$name"
+            
+            # Progress ogni 5 SID
+            if (( current % 5 == 0 )); then
+                log_info "    Convertiti: $current/$sid_count"
+            fi
+        done <<< "$all_sids"
+        
+        log_success "Cache SID completata: $sid_count SID → ${#SID_CACHE[@]} entries"
+    fi
     
     local summary_file="$OUTPUT_DIR/REPORT_SUMMARY.txt"
     
