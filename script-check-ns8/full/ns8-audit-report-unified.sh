@@ -301,7 +301,7 @@ collect_samba_shares() {
         
         # Ottieni path share
         local share_path=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-            net conf getparm "$share_name" path 2>/dev/null || echo "N/A")
+            net conf getparm "$share_name" path 2>/dev/null </dev/null || echo "N/A")
         
         log_info "    Path: $share_path"
         
@@ -311,16 +311,16 @@ collect_samba_shares() {
         # Auto-recupero password amministratore Samba (solo al primo share)
         if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
             # Tentativo 1: Da secrets module (adminpassword)
-            SAMBA_ADMIN_PASSWORD=$(redis-cli HGET "module/$SAMBA_MODULE/srv/secrets" adminpassword 2>/dev/null | tr -d '"' || echo "")
+            SAMBA_ADMIN_PASSWORD=$(redis-cli HGET "module/$SAMBA_MODULE/srv/secrets" adminpassword 2>/dev/null </dev/null | tr -d '"' || echo "")
             
             # Tentativo 2: Da environment module (ADMIN_PASS)
             if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
-                SAMBA_ADMIN_PASSWORD=$(redis-cli GET "module/$SAMBA_MODULE/environment" 2>/dev/null | jq -r '.ADMIN_PASS // empty' 2>/dev/null || echo "")
+                SAMBA_ADMIN_PASSWORD=$(redis-cli GET "module/$SAMBA_MODULE/environment" 2>/dev/null </dev/null | jq -r '.ADMIN_PASS // empty' 2>/dev/null || echo "")
             fi
             
             # Tentativo 3: Account provider secrets
             if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
-                local account_provider=$(redis-cli HGET "cluster/account_providers" "$(redis-cli KEYS 'cluster/account_providers/*' | head -1 | cut -d'/' -f3)" 2>/dev/null | jq -r '.bind_password // empty' 2>/dev/null || echo "")
+                local account_provider=$(redis-cli HGET "cluster/account_providers" "$(redis-cli KEYS 'cluster/account_providers/*' </dev/null | head -1 | cut -d'/' -f3)" 2>/dev/null </dev/null | jq -r '.bind_password // empty' 2>/dev/null || echo "")
                 SAMBA_ADMIN_PASSWORD="${account_provider}"
             fi
             
@@ -334,7 +334,7 @@ collect_samba_shares() {
         fi
         
         runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-            smbcacls "//localhost/$share_name" / -U "administrator%${SAMBA_ADMIN_PASSWORD}" > "$acl_file" 2>&1 || true
+            smbcacls "//localhost/$share_name" / -U "administrator%${SAMBA_ADMIN_PASSWORD}" > "$acl_file" 2>&1 </dev/null || true
         
         if grep -q "^ACL:" "$acl_file" 2>/dev/null; then
             log_success "    ACL salvato → $(basename "$acl_file")"
@@ -343,7 +343,7 @@ collect_samba_shares() {
             log_warn "    smbcacls fallito, provo getfacl..."
             if [[ "$share_path" != "N/A" ]]; then
                 runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-                    getfacl "$share_path" > "$acl_file" 2>&1 || true
+                    getfacl "$share_path" > "$acl_file" 2>&1 </dev/null || true
                 
                 if grep -qE "^(user|group):" "$acl_file" 2>/dev/null; then
                     log_success "    ACL POSIX salvato → $(basename "$acl_file")"
