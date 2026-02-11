@@ -36,6 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
+VERSION="2.0.0"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -1266,7 +1267,7 @@ display_acl_report() {
 
 main() {
     echo "================================================================================"
-    echo "NS8 Audit Report - Unified Version (Collector + Viewer)"
+    echo "NS8 Audit Report - Unified Version v${VERSION}"
     echo "================================================================================"
     echo ""
     
