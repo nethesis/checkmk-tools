@@ -129,6 +129,40 @@
    - ❌ Problema fuori dal tuo controllo (permessi, configurazione sistema, etc.)
    - ❌ Soluzione richiede conoscenza specifica che non hai
 
+10. **🔬 APPROCCIO INCREMENTALE - Spezzare Problemi Complessi**
+   - ✅ **Per situazioni complesse**: NON riscrivere tutto lo script/codice immediatamente
+   - ✅ **Spezzare problema grande** in tanti micro-problemi gestibili
+   - ✅ **Risolvere on the fly**: Affrontare un micro-problema alla volta
+   - ✅ **Validare step-by-step**: Solo quando micro-problema risolto → passare al prossimo
+   - ✅ **Approccio scalare**: Iterare fino a risolvere tutti i micro-problemi
+   - ✅ **Riscrivere codice** solo quando TUTTI i micro-problemi sono risolti
+   - ⚠️ **NON fare rewrites massivi** senza aver prima scomposto e validato ogni pezzo
+
+   **Workflow corretto per problemi complessi:**
+   ```text
+   Problema: Script fallisce con 5 errori diversi
+   
+   ❌ SBAGLIATO: Riscrivere intero script subito
+   
+   ✅ CORRETTO: Approccio incrementale
+   1. Identifica micro-problema 1 (es: sintassi bash linea 45)
+   2. Fix micro-problema 1 on the fly (singola modifica)
+   3. Test validazione (wsl bash -n)
+   4. Conferma risoluzione → passa a micro-problema 2
+   5. Identifica micro-problema 2 (es: path file errato)
+   6. Fix micro-problema 2 on the fly
+   7. Test validazione
+   8. Ripeti fino a risolvere tutti i micro-problemi
+   9. SOLO ORA: considera refactoring/rewrite completo se necessario
+   ```
+
+   **Benefici approccio incrementale:**
+   - ✅ Riduce rischio di introdurre nuovi bug
+   - ✅ Facilita debugging (ogni step isolato)
+   - ✅ Mantiene funzionalità esistenti durante fix
+   - ✅ Permette rollback parziale se necessario
+   - ✅ Costo token ridotto (fix mirati vs rewrite massiccio)
+
 11. **⚠️ CONTROLLO PROBLEMS OBBLIGATORIO**
    - ✅ **SEMPRE** controllare pannello PROBLEMS prima di considerare completato un task
    - ✅ Eseguire `get_errors()` dopo modifiche a file markdown/script
