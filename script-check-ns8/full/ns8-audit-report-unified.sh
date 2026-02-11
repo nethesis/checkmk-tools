@@ -607,112 +607,18 @@ EOF
     echo ""
     echo "" >> "$summary_file"
 
-    # Tabella share Samba con utenti RW/RO
+    # Tabella share Samba (VELOCE: solo statistiche, dettagli sotto)
     if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
-        cat >> "$summary_file" <<'EOF'
-NOME SHARE           UTENTI LETTURA/SCRITTURA                 UTENTI SOLA LETTURA
--------------------- ---------------------------------------- ----------------------------------------
+        local acl_with_trustee=$(grep -l "trustee" "$OUTPUT_DIR/03_shares/acls"/*_acl.txt 2>/dev/null | wc -l)
+        cat >> "$summary_file" <<EOF
+
+⚠ NOTA: Permessi share dettagliati visualizzati nella sezione "REPORT PERMESSI SHARE" più sotto.
+       (Processing ACL richiede 2-3 minuti - query Active Directory in corso...)
+
+Share totali: $share_count
+Share con ACL: $acl_with_trustee
+
 EOF
-        
-        # Conta share totali per progress
-        local total_shares=$(tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | wc -l)
-        local current_share=0
-        
-        # Itera su tutte le share
-        tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r share_name share_path acl_file; do
-            [[ -z "$share_name" ]] && continue
-            
-            ((current_share++))
-            log_info "Elaborazione permessi share $current_share/$total_shares: $share_name"
-            
-            local users_rw=""
-            local users_ro=""
-            
-            # DEBUG: Contatori per diagnostica  
-            local sid_found=0
-            local sid_filtered=0
-            local sid_converted=0
-            local all_sids=""  # Lista TUTTI i SID trovati (prima del filtro)
-            
-            # Parse ACL Windows (samba-tool ntacl output)
-            if [[ -f "$acl_file" ]] && grep -q "trustee" "$acl_file" 2>/dev/null; then
-                # Estrai coppie access_mask + trustee (ORDINE CORRETTO: mask PRIMA di trustee)
-                local current_trustee=""
-                local current_mask=""
-                
-                while IFS= read -r line; do
-                    # Rileva access_mask (VIENE PRIMA nel output)
-                    if [[ "$line" =~ access_mask.*:\ (0x[0-9a-f]+) ]]; then
-                        current_mask="${BASH_REMATCH[1]}"
-                    fi
-                    
-                    # Rileva trustee SID (VIENE DOPO nel output)
-                    if [[ "$line" =~ trustee.*:\ (S-1-[0-9-]+) ]]; then
-                        current_trustee="${BASH_REMATCH[1]}"
-                        ((sid_found++))
-                        all_sids="$all_sids$current_trustee, "
-                        
-                        # Quando abbiamo entrambi, processa questa ACE IMMEDIATAMENTE
-                        if [[ -n "$current_mask" && -n "$current_trustee" ]]; then
-                            # DEBUG: Log SID prima della conversione (console + file)
-                            if [[ "$sid_found" -eq 1 ]]; then
-                                log_info "[DEBUG] Share: $share_name | Primo SID: $current_trustee | Mask: $current_mask"
-                                echo "[DEBUG] Share: $share_name | Primo SID: $current_trustee | Mask: $current_mask" >> "$summary_file"
-                            fi
-                            
-                            # Converti SID → nome
-                            local entity_name=$(sid_to_name "$current_trustee" "$SAMBA_MODULE")
-                            
-                            # Skip SID di sistema
-                            if [[ -z "$entity_name" ]]; then
-                                ((sid_filtered++))
-                                current_trustee=""
-                                current_mask=""
-                                continue
-                            fi
-                            
-                            ((sid_converted++))
-                            
-                            # Decodifica permessi
-                            local perm_type=$(decode_access_mask "$current_mask")
-                            
-                            # Aggiungi a lista appropriata
-                            if [[ "$perm_type" == "RW" ]]; then
-                                users_rw="${users_rw}${entity_name}, "
-                            else
-                                users_ro="${users_ro}${entity_name}, "
-                            fi
-                            
-                            # Reset
-                            current_trustee=""
-                            current_mask=""
-                        fi
-                    fi
-                done < "$acl_file"
-                
-                # Rimuovi virgola finale da all_sids
-                all_sids=$(echo "$all_sids" | sed 's/, $//')
-                
-                # DEBUG: Riepilogo share (console + file)
-                if [[ $sid_found -gt 0 ]]; then
-                    log_info "[DEBUG] Share: $share_name | SID tot: $sid_found | Filtrati (sistema): $sid_filtered | Convertiti: $sid_converted"
-                    log_info "[DEBUG]   TUTTI i SID trovati: $all_sids"
-                    echo "[DEBUG] Share: $share_name | SID tot: $sid_found | Filtrati (sistema): $sid_filtered | Convertiti: $sid_converted" >> "$summary_file"
-                    echo "[DEBUG]   TUTTI i SID trovati: $all_sids" >> "$summary_file"
-                fi
-                
-                # Rimuovi virgola finale
-                users_rw=$(echo "$users_rw" | sed 's/, $//')
-                users_ro=$(echo "$users_ro" | sed 's/, $//')
-            fi
-            
-            # Se nessun ACL, mostra N/A
-            [[ -z "$users_rw" ]] && users_rw="N/A"
-            [[ -z "$users_ro" ]] && users_ro="N/A"
-            
-            # Stampa riga formattata
-            printf "%-20s %-40s %-40s\n" "$share_name" "${users_rw:0:40}" "${users_ro:0:40}" >> "$summary_file"
-        done
     else
         echo "Nessun dato disponibile" >> "$summary_file"
     fi
