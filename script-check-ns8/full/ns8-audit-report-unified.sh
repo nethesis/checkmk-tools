@@ -64,6 +64,49 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $*"
 }
 
+# Funzione helper: Conversione SID → Nome utente/gruppo
+sid_to_name() {
+    local sid="$1"
+    local module="$2"
+    
+    # Skip SID di sistema (non servono conversione nome)
+    case "$sid" in
+        S-1-5-18|S-1-5-32-544|S-1-5-2|S-1-1-0) 
+            return 1 
+            ;;
+    esac
+    
+    # Converti SID in nome (formato: DOMAIN\name tipo)
+    local result=$(runagent -m "$module" podman exec samba-dc wbinfo --sid-to-name "$sid" 2>/dev/null </dev/null | cut -d' ' -f1 || echo "")
+    
+    if [[ -n "$result" ]]; then
+        echo "$result"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Funzione helper: Decodifica access_mask → RW/RO
+decode_access_mask() {
+    local mask="$1"
+    
+    # Converti hex to decimal se necessario
+    if [[ "$mask" =~ ^0x ]]; then
+        mask=$((mask))
+    fi
+    
+    # Full Control / Modify (include write bit)
+    # 0x001f01ff = Full Control
+    # 0x001301bf = Modify
+    # Check bit WRITE (0x0002) e DELETE (0x00010000)
+    if (( (mask & 0x0002) || (mask & 0x00010000) )); then
+        echo "RW"
+    else
+        echo "RO"
+    fi
+}
+
 # Verifica prerequisiti
 check_prerequisites() {
     log_info "Verifica prerequisiti..."
@@ -308,14 +351,16 @@ collect_samba_shares() {
         
         log_info "    Path: $share_path"
         
-        # Ottieni ACL direttamente da filesystem (accesso root)
+        # Ottieni ACL Windows direttamente da extended attributes (samba-tool ntacl)
+        # Questo funziona con accesso root senza autenticazione SMB
         local acl_file="$acls_dir/${share_name}_acl.txt"
         
         if [[ "$share_path" != "N/A" ]]; then
+            # Usa samba-tool ntacl get per leggere ACL Windows dal filesystem
             runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-                getfacl "$share_path" > "$acl_file" 2>&1 </dev/null || true
+                samba-tool ntacl get "$share_path" > "$acl_file" 2>&1 </dev/null || true
             
-            if grep -qE "^(user|group):" "$acl_file" 2>/dev/null; then
+            if grep -q "trustee" "$acl_file" 2>/dev/null; then
                 log_success "    ACL salvato → $(basename "$acl_file")"
                 (( ++acl_success_count ))
             else
@@ -546,37 +591,53 @@ EOF
             local users_rw=""
             local users_ro=""
             
-            # Parse ACL POSIX (getfacl)
-            if [[ -f "$acl_file" ]] && grep -qE "^(user|group):" "$acl_file" 2>/dev/null; then
-                # Leggi ACL POSIX-style: user:name:rwx o group:name:rwx
-                while IFS= read -r acl_line; do
-                    [[ -z "$acl_line" ]] && continue
-                    
-                    # Parse: user:username:rwx o group:groupname:rwx
-                    local type=$(echo "$acl_line" | cut -d: -f1)
-                    local entity=$(echo "$acl_line" | cut -d: -f2)
-                    local perms=$(echo "$acl_line" | cut -d: -f3)
-                    
-                    # Skip se entity vuoto (user::rwx sono owner default)
-                    [[ -z "$entity" ]] && continue
-                    
-                    # Prefisso tipo per chiarezza
-                    if [[ "$type" == "user" ]]; then
-                        entity="[u] $entity"
-                    else
-                        entity="[g] $entity"
+            # Parse ACL Windows (samba-tool ntacl output)
+            if [[ -f "$acl_file" ]] && grep -q "trustee" "$acl_file" 2>/dev/null; then
+                # Estrai coppie trustee + access_mask
+                local current_trustee=""
+                local current_mask=""
+                
+                while IFS= read -r line; do
+                    # Rileva trustee SID
+                    if [[ "$line" =~ trustee.*:\ (S-1-[0-9-]+) ]]; then
+                        current_trustee="${BASH_REMATCH[1]}"
                     fi
                     
-                    # Determina RW o RO (r-x=read-only, rwx=read-write)
-                    if [[ "$perms" =~ w ]]; then
-                        users_rw="${users_rw}${entity}, "
-                    else
-                        users_ro="${users_ro}${entity}, "
+                    # Rileva access_mask
+                    if [[ "$line" =~ access_mask.*:\ (0x[0-9a-f]+) ]]; then
+                        current_mask="${BASH_REMATCH[1]}"
+                        
+                        # Quando abbiamo entrambi, processa questa ACE
+                        if [[ -n "$current_trustee" && -n "$current_mask" ]]; then
+                            # Converti SID → nome
+                            local entity_name=$(sid_to_name "$current_trustee" "$SAMBA_MODULE")
+                            
+                            # Skip SID di sistema
+                            if [[ -z "$entity_name" ]]; then
+                                current_trustee=""
+                                current_mask=""
+                                continue
+                            fi
+                            
+                            # Decodifica permessi
+                            local perm_type=$(decode_access_mask "$current_mask")
+                            
+                            # Aggiungi a lista appropriata
+                            if [[ "$perm_type" == "RW" ]]; then
+                                users_rw="${users_rw}${entity_name}, "
+                            else
+                                users_ro="${users_ro}${entity_name}, "
+                            fi
+                            
+                            # Reset
+                            current_trustee=""
+                            current_mask=""
+                        fi
                     fi
-                done < <(grep -E "^(user|group):[^:]+:" "$acl_file" | grep -v ":---$")
+                done < "$acl_file"
                 
                 # Rimuovi virgola finale
-                users_rw=$(echo "$users_rw" | sed 's/, $//')
+users_rw=$(echo "$users_rw" | sed 's/, $//')
                 users_ro=$(echo "$users_ro" | sed 's/, $//')
             fi
             
@@ -762,15 +823,27 @@ generate_consolidated_tsv() {
         # 3. Accesso share
         local share_access=""
         if [[ -d "$OUTPUT_DIR/03_shares/acls" ]]; then
-            # Parse tutti i file ACL per trovare l'utente (formato POSIX)
+            # Parse tutti i file ACL per trovare l'utente (samba-tool ntacl format)
             for acl_file in "$OUTPUT_DIR/03_shares/acls"/*.txt; do
                 [[ ! -f "$acl_file" ]] && continue
                 local share_name=$(basename "$acl_file" _acl.txt)
                 
-                # Controlla se utente ha accesso (formato POSIX: user:username:rwx)
-                if grep -qiE "^user:${username}:" "$acl_file" 2>/dev/null; then
-                    share_access="${share_access}${share_name}; "
-                fi
+                # Cerca SID, poi converti e verifica se corrisponde all'utente
+                local current_trustee=""
+                while IFS= read -r line; do
+                    if [[ "$line" =~ trustee.*:\ (S-1-[0-9-]+) ]]; then
+                        current_trustee="${BASH_REMATCH[1]}"
+                        
+                        # Converti SID → nome
+                        local entity_name=$(sid_to_name "$current_trustee" "$SAMBA_MODULE")
+                        
+                        # Verifica se corrisponde con username (formato: DOMAIN\username)
+                        if [[ "$entity_name" =~ \\${username}$ ]] || [[ "$entity_name" == "$username" ]]; then
+                            share_access="${share_access}${share_name}; "
+                            break  # Trovato, vai alla prossima share
+                        fi
+                    fi
+                done < "$acl_file"
             done
             share_access=$(echo "$share_access" | sed 's/; $//')
             [[ -z "$share_access" ]] && share_access="N/A"
@@ -881,34 +954,50 @@ display_detailed_tables() {
             local users_rw=""
             local users_ro=""
             
-            # Parse ACL POSIX (getfacl)
-            if [[ -f "$acl_file" ]] && grep -qE "^(user|group):" "$acl_file" 2>/dev/null; then
-                # Leggi ACL POSIX-style: user:name:rwx o group:name:rwx
-                while IFS= read -r acl_line; do
-                    [[ -z "$acl_line" ]] && continue
-                    
-                    # Parse: user:username:rwx o group:groupname:rwx
-                    local type=$(echo "$acl_line" | cut -d: -f1)
-                    local entity=$(echo "$acl_line" | cut -d: -f2)
-                    local perms=$(echo "$acl_line" | cut -d: -f3)
-                    
-                    # Skip se entity vuoto (user::rwx sono owner default)
-                    [[ -z "$entity" ]] && continue
-                    
-                    # Prefisso tipo per chiarezza
-                    if [[ "$type" == "user" ]]; then
-                        entity="[u] $entity"
-                    else
-                        entity="[g] $entity"
+            # Parse ACL Windows (samba-tool ntacl output)
+            if [[ -f "$acl_file" ]] && grep -q "trustee" "$acl_file" 2>/dev/null; then
+                # Estrai coppie trustee + access_mask
+                local current_trustee=""
+                local current_mask=""
+                
+                while IFS= read -r line; do
+                    # Rileva trustee SID
+                    if [[ "$line" =~ trustee.*:\ (S-1-[0-9-]+) ]]; then
+                        current_trustee="${BASH_REMATCH[1]}"
                     fi
                     
-                    # Determina RW o RO (r-x=read-only, rwx=read-write)
-                    if [[ "$perms" =~ w ]]; then
-                        users_rw="${users_rw}${entity}, "
-                    else
-                        users_ro="${users_ro}${entity}, "
+                    # Rileva access_mask
+                    if [[ "$line" =~ access_mask.*:\ (0x[0-9a-f]+) ]]; then
+                        current_mask="${BASH_REMATCH[1]}"
+                        
+                        # Quando abbiamo entrambi, processa questa ACE
+                        if [[ -n "$current_trustee" && -n "$current_mask" ]]; then
+                            # Converti SID → nome
+                            local entity_name=$(sid_to_name "$current_trustee" "$SAMBA_MODULE")
+                            
+                            # Skip SID di sistema
+                            if [[ -z "$entity_name" ]]; then
+                                current_trustee=""
+                                current_mask=""
+                                continue
+                            fi
+                            
+                            # Decodifica permessi
+                            local perm_type=$(decode_access_mask "$current_mask")
+                            
+                            # Aggiungi a lista appropriata
+                            if [[ "$perm_type" == "RW" ]]; then
+                                users_rw="${users_rw}${entity_name}, "
+                            else
+                                users_ro="${users_ro}${entity_name}, "
+                            fi
+                            
+                            # Reset
+                            current_trustee=""
+                            current_mask=""
+                        fi
                     fi
-                done < <(grep -E "^(user|group):[^:]+:" "$acl_file" | grep -v ":---$")
+                done < "$acl_file"
                 
                 # Rimuovi virgola finale
                 users_rw=$(echo "$users_rw" | sed 's/, $//')
@@ -1062,46 +1151,65 @@ display_acl_report() {
         local has_acl=0
         local first_line=1
         
-        # Parse ACL POSIX (getfacl)
-        local acl_lines=$(grep -E "^(user|group):[^:]+:" "$acl_file" | grep -v ":---$" || true)
-        
-        if [[ -n "$acl_lines" ]]; then
+        # Parse ACL Windows (samba-tool ntacl output)
+        # Estrai coppie trustee + access_mask
+        if grep -q "trustee" "$acl_file" 2>/dev/null; then
             has_acl=1
-            # Processa ogni ACL
-            echo "$acl_lines" | while IFS= read -r acl_line; do
-                [[ -z "$acl_line" ]] && continue
-                
-                # Parse: user:username:rwx o group:groupname:rwx
-                local type=$(echo "$acl_line" | cut -d: -f1)
-                local entity=$(echo "$acl_line" | cut -d: -f2)
-                local perms=$(echo "$acl_line" | cut -d: -f3)
-                
-                # Skip se entity vuoto (user::rwx sono permessi owner di default)
-                [[ -z "$entity" ]] && continue
-                
-                # Format entity (aggiungi prefisso user/group)
-                if [[ "$type" == "user" ]]; then
-                    entity="[user] $entity"
-                else
-                    entity="[group] $entity"
+            
+            # Estrai tutti i blocchi ACE
+            local ace_count=0
+            local current_trustee=""
+            local current_mask=""
+            
+            while IFS= read -r line; do
+                # Rileva trustee SID
+                if [[ "$line" =~ trustee.*:\ (S-1-[0-9-]+) ]]; then
+                    current_trustee="${BASH_REMATCH[1]}"
                 fi
                 
-                # Prima riga mostra share e path
-                if [[ $first_line -eq 1 ]]; then
-                    printf "%-20s %-35s %-30s %-25s\n" \
-                        "$share_name" \
-                        "${share_path:0:35}" \
-                        "${entity:0:30}" \
-                        "$perms"
-                    first_line=0
-                else
-                    printf "%-20s %-35s %-30s %-25s\n" \
-                        "" \
-                        "" \
-                        "${entity:0:30}" \
-                        "$perms"
+                # Rileva access_mask
+                if [[ "$line" =~ access_mask.*:\ (0x[0-9a-f]+) ]]; then
+                    current_mask="${BASH_REMATCH[1]}"
+                    
+                    # Quando abbiamo entrambi, processa questa ACE
+                    if [[ -n "$current_trustee" && -n "$current_mask" ]]; then
+                        # Converti SID → nome
+                        local entity_name=$(sid_to_name "$current_trustee" "$SAMBA_MODULE")
+                        
+                        # Skip SID di sistema (S-1-5-18, S-1-5-32-544, etc.)
+                        if [[ -z "$entity_name" ]]; then
+                            current_trustee=""
+                            current_mask=""
+                            continue
+                        fi
+                        
+                        # Decodifica permessi
+                        local perm_type=$(decode_access_mask "$current_mask")
+                        
+                        # Mostra nella tabella
+                        if [[ $first_line -eq 1 ]]; then
+                            printf "%-20s %-35s %-30s %-25s\n" \
+                                "$share_name" \
+                                "${share_path:0:35}" \
+                                "${entity_name:0:30}" \
+                                "$perm_type"
+                            first_line=0
+                        else
+                            printf "%-20s %-35s %-30s %-25s\n" \
+                                "" \
+                                "" \
+                                "${entity_name:0:30}" \
+                                "$perm_type"
+                        fi
+                        
+                        ((ace_count++))
+                        
+                        # Reset per prossima ACE
+                        current_trustee=""
+                        current_mask=""
+                    fi
                 fi
-            done
+            done < "$acl_file"
         fi
         
         # Se nessun ACL trovato, mostra "[solo sistema]"
