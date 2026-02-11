@@ -572,26 +572,39 @@ DETTAGLIO SHARE SAMBA
 
 EOF
 
-    # DEBUG: Diagnostica file ACL
+    # DEBUG: Diagnostica file ACL (console + file)
+    echo ""
+    log_info "[DEBUG] === DIAGNOSTICA ACL ==="
     echo "" >> "$summary_file"
     echo "[DEBUG] === DIAGNOSTICA ACL ===" >> "$summary_file"
+    
     local acls_dir="$OUTPUT_DIR/03_shares/acls"
     if [[ -d "$acls_dir" ]]; then
         local acl_count=$(find "$acls_dir" -name "*_acl.txt" -type f 2>/dev/null | wc -l)
         local acl_with_trustee=$(grep -l "trustee" "$acls_dir"/*_acl.txt 2>/dev/null | wc -l)
+        
+        # Log su console E file
+        log_info "[DEBUG] File ACL trovati: $acl_count"
+        log_info "[DEBUG] File ACL con 'trustee': $acl_with_trustee"
         echo "[DEBUG] File ACL trovati: $acl_count" >> "$summary_file"
         echo "[DEBUG] File ACL con 'trustee': $acl_with_trustee" >> "$summary_file"
         
         # Mostra esempio primo file ACL con trustee
         local first_acl=$(grep -l "trustee" "$acls_dir"/*_acl.txt 2>/dev/null | head -1)
         if [[ -n "$first_acl" ]]; then
+            log_info "[DEBUG] Esempio file ACL: $(basename "$first_acl")"
+            log_info "[DEBUG] Prime 20 righe:"
+            head -20 "$first_acl" | sed 's/^/  /'
+            
             echo "[DEBUG] Esempio file ACL: $(basename "$first_acl")" >> "$summary_file"
             echo "[DEBUG] Prime 20 righe:" >> "$summary_file"
             head -20 "$first_acl" | sed 's/^/  /' >> "$summary_file"
         fi
     else
+        log_warn "[DEBUG] Directory ACL non trovata: $acls_dir"
         echo "[DEBUG] Directory ACL non trovata: $acls_dir" >> "$summary_file"
     fi
+    echo ""
     echo "" >> "$summary_file"
 
     # Tabella share Samba con utenti RW/RO
@@ -632,8 +645,9 @@ EOF
                         
                         # Quando abbiamo entrambi, processa questa ACE
                         if [[ -n "$current_trustee" && -n "$current_mask" ]]; then
-                            # DEBUG: Log SID prima della conversione
+                            # DEBUG: Log SID prima della conversione (console + file)
                             if [[ "$sid_found" -eq 1 ]]; then
+                                log_info "[DEBUG] Share: $share_name | Primo SID: $current_trustee"
                                 echo "[DEBUG] Share: $share_name | Primo SID: $current_trustee" >> "$summary_file"
                             fi
                             
@@ -667,8 +681,9 @@ EOF
                     fi
                 done < "$acl_file"
                 
-                # DEBUG: Riepilogo share
+                # DEBUG: Riepilogo share (console + file)
                 if [[ $sid_found -gt 0 ]]; then
+                    log_info "[DEBUG] Share: $share_name | SID tot: $sid_found | Filtrati (sistema): $sid_filtered | Convertiti: $sid_converted"
                     echo "[DEBUG] Share: $share_name | SID tot: $sid_found | Filtrati (sistema): $sid_filtered | Convertiti: $sid_converted" >> "$summary_file"
                 fi
                 
