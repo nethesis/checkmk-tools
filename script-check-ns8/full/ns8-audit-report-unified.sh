@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.0.5"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.0.6"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -890,16 +890,18 @@ display_detailed_tables() {
     echo ""
     
     if [[ -f "$OUTPUT_DIR/05_ad_groups.txt" ]]; then
-        printf "%-60s %-70s\n" "GRUPPO" "UTENTI PRESENTI NEL GRUPPO"
-        printf "%-60s %-70s\n" "------------------------------------------------------------" "----------------------------------------------------------------------"
-        
         tail -n +2 "$OUTPUT_DIR/05_ad_groups.txt" | while IFS=$'\t' read -r groupname count members; do
             [[ -z "$members" ]] && members="N/A"
-            printf "%-60s %-70s\n" "$groupname" "$members"
-            printf "%-60s %-70s\n" "------------------------------------------------------------" "----------------------------------------------------------------------"
+            
+            echo "================================================================================"
+            echo "GRUPPO: $groupname ($count membri)"
+            echo "--------------------------------------------------------------------------------"
+            
+            # Word-wrap intelligente: prima riga normale, righe successive indentate
+            echo "Membri: $members" | fold -s -w 80 | sed '2,$s/^/        /'
+            echo ""
         done
         
-        echo ""
         echo "NOTA: Per lista membri completa vedere file 05_ad_groups.txt"
     else
         echo "Nessun dato disponibile"
