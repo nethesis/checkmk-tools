@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.0.3"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.0.4"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -147,7 +147,9 @@ check_prerequisites() {
     else
         WEBTOP_MODULE=""
         while IFS= read -r webtop_mod; do
-            [[ -z "$webtop_mod" ]] && continue
+            if [[ -z "$webtop_mod" ]]; then
+                continue
+            fi
             local postgres_check=$(runagent -m "$webtop_mod" podman ps --format '{{.Names}}' 2>/dev/null | grep -i postgres || true)
             if [[ -n "$postgres_check" ]]; then
                 WEBTOP_MODULE="$webtop_mod"
@@ -967,9 +969,11 @@ display_detailed_tables() {
         
         # Itera su tutte le share
         tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.txt" | while IFS=$'\t' read -r share_name share_path acl_file; do
-            [[ -z "$share_name" ]] && continue
+            if [[ -z "$share_name" ]]; then
+                continue
+            fi
             
-            ((current_share++))
+            current_share=$((current_share + 1))
             # Progress ogni 5 share (stdout, non stderr)
             if (( current_share % 5 == 0 )) || (( current_share == total_shares )); then
                 log_info "Progress permessi: $current_share/$total_shares share elaborate..."
@@ -1226,7 +1230,7 @@ display_acl_report() {
                                 "$perm_type"
                         fi
                         
-                        ((ace_count++))
+                        ace_count=$((ace_count + 1))
                         
                         # Reset per prossima ACE
                         current_trustee=""
