@@ -68,7 +68,9 @@ echo ""
 
 while IFS= read -r sid; do
     echo "[DEBUG] Loop iteration - raw sid: '$sid'"
-    [[ -z "$sid" ]] && continue
+    if [[ -z "$sid" ]]; then
+        continue
+    fi
     ((CURRENT++))
     
     echo "[$CURRENT/$SID_COUNT] Testing SID: $sid"
