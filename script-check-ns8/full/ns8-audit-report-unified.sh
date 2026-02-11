@@ -21,9 +21,6 @@
 #   ./ns8-audit-report-unified.sh --output-dir /custom/path
 #   ./ns8-audit-report-unified.sh --no-display  # Skip visualizzazione ACL
 #
-#  Con password Samba custom (se diversa da default Nethesis,1234):
-#   export SAMBA_ADMIN_PASSWORD="YourPassword"
-#   ./ns8-audit-report-unified.sh
 #
 # Requisiti:
 #   - NS8 con modulo samba installato
@@ -937,11 +934,31 @@ display_detailed_tables() {
     echo "================================================================================"
     echo ""
     
+    # DEBUG: Verifica file ACL disponibili
+    local acls_dir="$OUTPUT_DIR/03_shares/acls"
+    if [[ -d "$acls_dir" ]]; then
+        local acl_count=$(find "$acls_dir" -name "*_acl.txt" -type f 2>/dev/null | wc -l)
+        local acl_with_trustee=$(grep -l "trustee" "$acls_dir"/*_acl.txt 2>/dev/null | wc -l)
+        echo "[DEBUG] File ACL trovati: $acl_count"
+        echo "[DEBUG] File ACL con 'trustee': $acl_with_trustee"
+        echo "[DEBUG] Directory ACL: $acls_dir"
+        
+        # Mostra esempio primo file ACL
+        local first_acl=$(find "$acls_dir" -name "*_acl.txt" -type f 2>/dev/null | head -1)
+        if [[ -n "$first_acl" ]]; then
+            echo "[DEBUG] Esempio primo file ACL: $(basename "$first_acl")"
+            echo "[DEBUG] Prime 15 righe:"
+            head -15 "$first_acl" | sed 's/^/  /'
+        fi
+        echo ""
+    else
+        echo "[DEBUG] Directory ACL non trovata: $acls_dir"
+        echo ""
+    fi
+    
     if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
         printf "%-20s %-40s %-40s\n" "NOME SHARE" "UTENTI LETTURA/SCRITTURA" "UTENTI SOLA LETTURA"
         printf "%-20s %-40s %-40s\n" "--------------------" "----------------------------------------" "----------------------------------------"
-        
-        local acls_dir="$OUTPUT_DIR/03_shares/acls"
         
         # Itera su tutte le share
         tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r share_name share_path acl_file; do
