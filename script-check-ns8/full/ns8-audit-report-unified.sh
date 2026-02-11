@@ -629,28 +629,28 @@ EOF
             
             # Parse ACL Windows (samba-tool ntacl output)
             if [[ -f "$acl_file" ]] && grep -q "trustee" "$acl_file" 2>/dev/null; then
-                # Estrai coppie trustee + access_mask
+                # Estrai coppie access_mask + trustee (ORDINE CORRETTO: mask PRIMA di trustee)
                 local current_trustee=""
                 local current_mask=""
                 
                 while IFS= read -r line; do
-                    # Rileva trustee SID
+                    # Rileva access_mask (VIENE PRIMA nel output)
+                    if [[ "$line" =~ access_mask.*:\ (0x[0-9a-f]+) ]]; then
+                        current_mask="${BASH_REMATCH[1]}"
+                    fi
+                    
+                    # Rileva trustee SID (VIENE DOPO nel output)
                     if [[ "$line" =~ trustee.*:\ (S-1-[0-9-]+) ]]; then
                         current_trustee="${BASH_REMATCH[1]}"
                         ((sid_found++))
                         all_sids="$all_sids$current_trustee, "
-                    fi
-                    
-                    # Rileva access_mask
-                    if [[ "$line" =~ access_mask.*:\ (0x[0-9a-f]+) ]]; then
-                        current_mask="${BASH_REMATCH[1]}"
                         
-                        # Quando abbiamo entrambi, processa questa ACE
-                        if [[ -n "$current_trustee" && -n "$current_mask" ]]; then
+                        # Quando abbiamo entrambi, processa questa ACE IMMEDIATAMENTE
+                        if [[ -n "$current_mask" && -n "$current_trustee" ]]; then
                             # DEBUG: Log SID prima della conversione (console + file)
                             if [[ "$sid_found" -eq 1 ]]; then
-                                log_info "[DEBUG] Share: $share_name | Primo SID: $current_trustee"
-                                echo "[DEBUG] Share: $share_name | Primo SID: $current_trustee" >> "$summary_file"
+                                log_info "[DEBUG] Share: $share_name | Primo SID: $current_trustee | Mask: $current_mask"
+                                echo "[DEBUG] Share: $share_name | Primo SID: $current_trustee | Mask: $current_mask" >> "$summary_file"
                             fi
                             
                             # Converti SID → nome
@@ -1030,27 +1030,27 @@ display_detailed_tables() {
             
             # Parse ACL Windows (samba-tool ntacl output)
             if [[ -f "$acl_file" ]] && grep -q "trustee" "$acl_file" 2>/dev/null; then
-                # Estrai coppie trustee + access_mask
-                local current_trustee=""
-                local current_mask=""
+            # Estrai coppie access_mask + trustee (ORDINE CORRETTO: mask PRIMA di trustee)
+            local current_trustee=""
+            local current_mask=""
+            
+            while IFS= read -r line; do
+                # Rileva access_mask (VIENE PRIMA nel output)
+                if [[ "$line" =~ access_mask.*:\ (0x[0-9a-f]+) ]]; then
+                    current_mask="${BASH_REMATCH[1]}"
+                fi
                 
-                while IFS= read -r line; do
-                    # Rileva trustee SID
-                    if [[ "$line" =~ trustee.*:\ (S-1-[0-9-]+) ]]; then
-                        current_trustee="${BASH_REMATCH[1]}"
-                    fi
+                # Rileva trustee SID (VIENE DOPO nel output)
+                if [[ "$line" =~ trustee.*:\ (S-1-[0-9-]+) ]]; then
+                    current_trustee="${BASH_REMATCH[1]}"
                     
-                    # Rileva access_mask
-                    if [[ "$line" =~ access_mask.*:\ (0x[0-9a-f]+) ]]; then
-                        current_mask="${BASH_REMATCH[1]}"
+                    # Quando abbiamo entrambi, processa questa ACE IMMEDIATAMENTE
+                    if [[ -n "$current_mask" && -n "$current_trustee" ]]; then
+                        # Converti SID → nome
+                        local entity_name=$(sid_to_name "$current_trustee" "$SAMBA_MODULE")
                         
-                        # Quando abbiamo entrambi, processa questa ACE
-                        if [[ -n "$current_trustee" && -n "$current_mask" ]]; then
-                            # Converti SID → nome
-                            local entity_name=$(sid_to_name "$current_trustee" "$SAMBA_MODULE")
-                            
-                            # Skip SID di sistema
-                            if [[ -z "$entity_name" ]]; then
+                        # Skip SID di sistema
+                        if [[ -z "$entity_name" ]]; then
                                 current_trustee=""
                                 current_mask=""
                                 continue
@@ -1236,17 +1236,17 @@ display_acl_report() {
             local current_mask=""
             
             while IFS= read -r line; do
-                # Rileva trustee SID
-                if [[ "$line" =~ trustee.*:\ (S-1-[0-9-]+) ]]; then
-                    current_trustee="${BASH_REMATCH[1]}"
-                fi
-                
-                # Rileva access_mask
+                # Rileva access_mask (VIENE PRIMA nel output)
                 if [[ "$line" =~ access_mask.*:\ (0x[0-9a-f]+) ]]; then
                     current_mask="${BASH_REMATCH[1]}"
+                fi
+                
+                # Rileva trustee SID (VIENE DOPO nel output)
+                if [[ "$line" =~ trustee.*:\ (S-1-[0-9-]+) ]]; then
+                    current_trustee="${BASH_REMATCH[1]}"
                     
-                    # Quando abbiamo entrambi, processa questa ACE
-                    if [[ -n "$current_trustee" && -n "$current_mask" ]]; then
+                    # Quando abbiamo entrambi, processa questa ACE IMMEDIATAMENTE
+                    if [[ -n "$current_mask" && -n "$current_trustee" ]]; then
                         # Converti SID → nome
                         local entity_name=$(sid_to_name "$current_trustee" "$SAMBA_MODULE")
                         
