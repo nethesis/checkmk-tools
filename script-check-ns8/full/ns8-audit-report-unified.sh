@@ -676,6 +676,10 @@ FILE DATI ESPORTATI
 5. Gruppi AD e membri (TSV):
    → 05_ad_groups.tsv
 
+6. Report consolidato (TSV):
+   → REPORT_CONSOLIDATED.tsv
+   (Tutti i dati aggregati per utente - aprire con Excel/LibreOffice)
+
 ================================================================================
 AZIONI CONSIGLIATE
 ================================================================================
@@ -719,6 +723,97 @@ EOF
     echo "================================================================================"
     cat "$summary_file"
     echo "================================================================================"
+}
+
+# Funzione 6: Genera report consolidato TSV
+generate_consolidated_tsv() {
+    log_info "Generazione report consolidato TSV..."
+    
+    local consolidated_file="$OUTPUT_DIR/REPORT_CONSOLIDATED.tsv"
+    
+    # Header TSV
+    echo -e "username\tpassword_last_set\tpassword_expires\tdays_until_expiry\tmember_of_groups\tshare_access\temail_shares" > "$consolidated_file"
+    
+    # Leggi lista utenti
+    if [[ ! -f "$OUTPUT_DIR/01_users.txt" ]]; then
+        log_warn "Lista utenti non disponibile"
+        return 1
+    fi
+    
+    # Per ogni utente
+    while IFS= read -r username; do
+        [[ -z "$username" ]] && continue
+        [[ "$username" == "Guest" ]] && continue  # Skip Guest
+        
+        # 1. Password expiry info
+        local pwd_last_set="N/A"
+        local pwd_expires="N/A"
+        local days_expiry="N/A"
+        
+        if [[ -f "$OUTPUT_DIR/02_password_expiry.tsv" ]]; then
+            local pwd_line=$(grep -i "^${username}\t" "$OUTPUT_DIR/02_password_expiry.tsv" 2>/dev/null || true)
+            if [[ -n "$pwd_line" ]]; then
+                pwd_last_set=$(echo "$pwd_line" | cut -f3)
+                pwd_expires=$(echo "$pwd_line" | cut -f5)
+                days_expiry=$(echo "$pwd_line" | cut -f7)
+            fi
+        fi
+        
+        # 2. Gruppi di appartenenza
+        local user_groups=""
+        if [[ -f "$OUTPUT_DIR/05_ad_groups.tsv" ]]; then
+            # Cerca utente nei membri di ogni gruppo
+            while IFS=$'\t' read -r group_name members; do
+                if echo "$members" | grep -qiE "(^|,)${username}(,|$)" 2>/dev/null; then
+                    user_groups="${user_groups}${group_name}; "
+                fi
+            done < <(tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" 2>/dev/null || true)
+            user_groups=$(echo "$user_groups" | sed 's/; $//')
+            [[ -z "$user_groups" ]] && user_groups="N/A"
+        else
+            user_groups="N/A"
+        fi
+        
+        # 3. Accesso share
+        local share_access=""
+        if [[ -d "$OUTPUT_DIR/03_shares/acls" ]]; then
+            # Parse tutti i file ACL per trovare l'utente
+            for acl_file in "$OUTPUT_DIR/03_shares/acls"/*.txt; do
+                [[ ! -f "$acl_file" ]] && continue
+                local share_name=$(basename "$acl_file" _smbacl.txt)
+                
+                # Controlla se utente ha accesso (ACL Windows o POSIX)
+                if grep -qiE "(\\\\${username}:|user:${username})" "$acl_file" 2>/dev/null; then
+                    share_access="${share_access}${share_name}; "
+                fi
+            done
+            share_access=$(echo "$share_access" | sed 's/; $//')
+            [[ -z "$share_access" ]] && share_access="N/A"
+        else
+            share_access="N/A"
+        fi
+        
+        # 4. Email shares
+        local email_shares=""
+        if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.tsv" ]]; then
+            # Cerca utente come owner o shared_with
+            while IFS=$'\t' read -r owner_id shared_id mailbox owner shared perms; do
+                if [[ "$owner" == "$username" ]] || [[ "$shared" == "$username" ]]; then
+                    email_shares="${email_shares}${mailbox} (${perms}); "
+                fi
+            done < <(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" 2>/dev/null || true)
+            email_shares=$(echo "$email_shares" | sed 's/; $//')
+            [[ -z "$email_shares" ]] && email_shares="N/A"
+        else
+            email_shares="N/A"
+        fi
+        
+        # Scrivi riga consolidata
+        echo -e "$username\t$pwd_last_set\t$pwd_expires\t$days_expiry\t$user_groups\t$share_access\t$email_shares" >> "$consolidated_file"
+        
+    done < "$OUTPUT_DIR/01_users.txt"
+    
+    log_success "Report consolidato generato → REPORT_CONSOLIDATED.tsv"
 }
 
 # ============================================================================
@@ -1109,6 +1204,7 @@ main() {
     
     # Fase 2: Genera report riepilogativo
     generate_summary_report
+    generate_consolidated_tsv
     
     echo ""
     
