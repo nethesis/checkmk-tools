@@ -50,6 +50,11 @@ if [[ $SID_COUNT -eq 0 ]]; then
     exit 1
 fi
 
+# DEBUG: Mostra primi 3 SID
+echo "[DEBUG] Primi 3 SID estratti:"
+echo "$ALL_SIDS" | head -3
+echo ""
+
 # Test conversione SID uno alla volta
 echo "=========================================="
 echo "TEST CONVERSIONE SID (uno alla volta)"
@@ -58,7 +63,11 @@ echo ""
 
 CURRENT=0
 
+echo "[DEBUG] Starting loop with ALL_SIDS length: ${#ALL_SIDS}"
+echo ""
+
 while IFS= read -r sid; do
+    echo "[DEBUG] Loop iteration - raw sid: '$sid'"
     [[ -z "$sid" ]] && continue
     ((CURRENT++))
     
