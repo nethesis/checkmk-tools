@@ -572,6 +572,28 @@ DETTAGLIO SHARE SAMBA
 
 EOF
 
+    # DEBUG: Diagnostica file ACL
+    echo "" >> "$summary_file"
+    echo "[DEBUG] === DIAGNOSTICA ACL ===" >> "$summary_file"
+    local acls_dir="$OUTPUT_DIR/03_shares/acls"
+    if [[ -d "$acls_dir" ]]; then
+        local acl_count=$(find "$acls_dir" -name "*_acl.txt" -type f 2>/dev/null | wc -l)
+        local acl_with_trustee=$(grep -l "trustee" "$acls_dir"/*_acl.txt 2>/dev/null | wc -l)
+        echo "[DEBUG] File ACL trovati: $acl_count" >> "$summary_file"
+        echo "[DEBUG] File ACL con 'trustee': $acl_with_trustee" >> "$summary_file"
+        
+        # Mostra esempio primo file ACL con trustee
+        local first_acl=$(grep -l "trustee" "$acls_dir"/*_acl.txt 2>/dev/null | head -1)
+        if [[ -n "$first_acl" ]]; then
+            echo "[DEBUG] Esempio file ACL: $(basename "$first_acl")" >> "$summary_file"
+            echo "[DEBUG] Prime 20 righe:" >> "$summary_file"
+            head -20 "$first_acl" | sed 's/^/  /' >> "$summary_file"
+        fi
+    else
+        echo "[DEBUG] Directory ACL non trovata: $acls_dir" >> "$summary_file"
+    fi
+    echo "" >> "$summary_file"
+
     # Tabella share Samba con utenti RW/RO
     if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
         cat >> "$summary_file" <<'EOF'
@@ -579,14 +601,17 @@ NOME SHARE           UTENTI LETTURA/SCRITTURA                 UTENTI SOLA LETTUR
 -------------------- ---------------------------------------- ----------------------------------------
 EOF
         
-        local acls_dir="$OUTPUT_DIR/03_shares/acls"
-        
         # Itera su tutte le share
         tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r share_name share_path acl_file; do
             [[ -z "$share_name" ]] && continue
             
             local users_rw=""
             local users_ro=""
+            
+            # DEBUG: Contatori per diagnostica  
+            local sid_found=0
+            local sid_filtered=0
+            local sid_converted=0
             
             # Parse ACL Windows (samba-tool ntacl output)
             if [[ -f "$acl_file" ]] && grep -q "trustee" "$acl_file" 2>/dev/null; then
@@ -598,6 +623,7 @@ EOF
                     # Rileva trustee SID
                     if [[ "$line" =~ trustee.*:\ (S-1-[0-9-]+) ]]; then
                         current_trustee="${BASH_REMATCH[1]}"
+                        ((sid_found++))
                     fi
                     
                     # Rileva access_mask
@@ -606,15 +632,23 @@ EOF
                         
                         # Quando abbiamo entrambi, processa questa ACE
                         if [[ -n "$current_trustee" && -n "$current_mask" ]]; then
+                            # DEBUG: Log SID prima della conversione
+                            if [[ "$sid_found" -eq 1 ]]; then
+                                echo "[DEBUG] Share: $share_name | Primo SID: $current_trustee" >> "$summary_file"
+                            fi
+                            
                             # Converti SID → nome
                             local entity_name=$(sid_to_name "$current_trustee" "$SAMBA_MODULE")
                             
                             # Skip SID di sistema
                             if [[ -z "$entity_name" ]]; then
+                                ((sid_filtered++))
                                 current_trustee=""
                                 current_mask=""
                                 continue
                             fi
+                            
+                            ((sid_converted++))
                             
                             # Decodifica permessi
                             local perm_type=$(decode_access_mask "$current_mask")
@@ -633,8 +667,13 @@ EOF
                     fi
                 done < "$acl_file"
                 
+                # DEBUG: Riepilogo share
+                if [[ $sid_found -gt 0 ]]; then
+                    echo "[DEBUG] Share: $share_name | SID tot: $sid_found | Filtrati (sistema): $sid_filtered | Convertiti: $sid_converted" >> "$summary_file"
+                fi
+                
                 # Rimuovi virgola finale
-users_rw=$(echo "$users_rw" | sed 's/, $//')
+                users_rw=$(echo "$users_rw" | sed 's/, $//')
                 users_ro=$(echo "$users_ro" | sed 's/, $//')
             fi
             
