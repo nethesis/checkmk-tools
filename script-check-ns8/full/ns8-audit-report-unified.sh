@@ -593,12 +593,12 @@ EOF
         local first_acl=$(grep -l "trustee" "$acls_dir"/*_acl.txt 2>/dev/null | head -1)
         if [[ -n "$first_acl" ]]; then
             log_info "[DEBUG] Esempio file ACL: $(basename "$first_acl")"
-            log_info "[DEBUG] Prime 60 righe:"
-            head -60 "$first_acl" | sed 's/^/  /'
+            log_info "[DEBUG] Prime 100 righe:"
+            head -100 "$first_acl" | sed 's/^/  /'
             
             echo "[DEBUG] Esempio file ACL: $(basename "$first_acl")" >> "$summary_file"
-            echo "[DEBUG] Prime 60 righe:" >> "$summary_file"
-            head -60 "$first_acl" | sed 's/^/  /' >> "$summary_file"
+            echo "[DEBUG] Prime 100 righe:" >> "$summary_file"
+            head -100 "$first_acl" | sed 's/^/  /' >> "$summary_file"
         fi
     else
         log_warn "[DEBUG] Directory ACL non trovata: $acls_dir"
@@ -625,6 +625,7 @@ EOF
             local sid_found=0
             local sid_filtered=0
             local sid_converted=0
+            local all_sids=""  # Lista TUTTI i SID trovati (prima del filtro)
             
             # Parse ACL Windows (samba-tool ntacl output)
             if [[ -f "$acl_file" ]] && grep -q "trustee" "$acl_file" 2>/dev/null; then
@@ -637,6 +638,7 @@ EOF
                     if [[ "$line" =~ trustee.*:\ (S-1-[0-9-]+) ]]; then
                         current_trustee="${BASH_REMATCH[1]}"
                         ((sid_found++))
+                        all_sids="$all_sids$current_trustee, "
                     fi
                     
                     # Rileva access_mask
@@ -681,10 +683,15 @@ EOF
                     fi
                 done < "$acl_file"
                 
+                # Rimuovi virgola finale da all_sids
+                all_sids=$(echo "$all_sids" | sed 's/, $//')
+                
                 # DEBUG: Riepilogo share (console + file)
                 if [[ $sid_found -gt 0 ]]; then
                     log_info "[DEBUG] Share: $share_name | SID tot: $sid_found | Filtrati (sistema): $sid_filtered | Convertiti: $sid_converted"
+                    log_info "[DEBUG]   TUTTI i SID trovati: $all_sids"
                     echo "[DEBUG] Share: $share_name | SID tot: $sid_found | Filtrati (sistema): $sid_filtered | Convertiti: $sid_converted" >> "$summary_file"
+                    echo "[DEBUG]   TUTTI i SID trovati: $all_sids" >> "$summary_file"
                 fi
                 
                 # Rimuovi virgola finale
