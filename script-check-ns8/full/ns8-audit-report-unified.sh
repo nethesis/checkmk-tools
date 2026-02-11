@@ -205,17 +205,17 @@ collect_password_expiry() {
         [[ -z "$username" ]] && continue
         ((user_count++))
         
-        log_info "  Elaborazione: $username"
+        # Progress solo ogni 10 utenti (riduce output da 400 a 10 righe)
+        if (( user_count % 10 == 0 )); then
+            log_info "  Progress: $user_count utenti elaborati..."
+        fi
         
         # Ottieni pwdLastSet via samba-tool user show
         local pwd_last_set=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc \
             samba-tool user show "$username" 2>/dev/null \
             | grep "^pwdLastSet:" | awk '{print $2}' || echo "0")
         
-        log_info "    pwdLastSet raw: $pwd_last_set"
-        
         if [[ -z "$pwd_last_set" ]] || [[ "$pwd_last_set" == "0" ]]; then
-            log_warn "    pwdLastSet non disponibile"
             echo -e "$username\t0\t0\tN/A\t0\tN/A\tN/A" >> "$output_file"
             continue
         fi
@@ -224,18 +224,13 @@ collect_password_expiry() {
         # Formula: unix = (filetime - 116444736000000000) / 10000000
         local unix_time=$(python3 -c "print(int(($pwd_last_set - 116444736000000000) / 10000000))" 2>/dev/null || echo "0")
         
-        log_info "    unix_time: $unix_time"
-        
         if [[ "$unix_time" == "0" ]]; then
-            log_warn "    Conversione fallita"
             echo -e "$username\t$pwd_last_set\t0\tN/A\t0\tN/A\tN/A" >> "$output_file"
             continue
         fi
         
         # Data ISO formattata
         local iso_date=$(date -d "@$unix_time" +"%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "N/A")
-        
-        log_info "    iso_date: $iso_date"
         
         # Calcola scadenza (pwdLastSet + maxPwdAge)
         local expires_unix=$((unix_time + MAX_PWD_AGE_DAYS * 86400))
@@ -286,7 +281,10 @@ collect_ad_groups() {
         [[ -z "$groupname" ]] && continue
         ((group_count++))
         
-        log_info "  Elaborazione gruppo: $groupname"
+        # Progress solo ogni 10 gruppi (riduce output da 87 a ~9 righe)
+        if (( group_count % 10 == 0 )); then
+            log_info "  Progress: $group_count gruppi elaborati..."
+        fi
         
         # Ottieni membri del gruppo
         local members=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc \
@@ -296,8 +294,6 @@ collect_ad_groups() {
         if [[ -n "$members" ]]; then
             members_count=$(echo "$members" | tr ',' '\n' | wc -l)
         fi
-        
-        log_info "    Membri: $members_count"
         
         echo -e "$groupname\t$members_count\t$members" >> "$output_file"
         ((success_count++))
@@ -351,13 +347,14 @@ collect_samba_shares() {
     while IFS= read -r share_name; do
         [[ -z "$share_name" ]] && continue
         
-        log_info "  Elaborazione share: $share_name"
+        # Progress ogni 5 share (riduce output da 84 a ~17 righe)
+        if (( (acl_success_count + acl_failed_count + 1) % 5 == 0 )); then
+            log_info "  Progress: $((acl_success_count + acl_failed_count + 1))/$share_count share elaborati..."
+        fi
         
         # Ottieni path share
         local share_path=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc \
             net conf getparm "$share_name" path 2>/dev/null </dev/null || echo "N/A")
-        
-        log_info "    Path: $share_path"
         
         # Ottieni ACL Windows direttamente da extended attributes (samba-tool ntacl)
         # Questo funziona con accesso root senza autenticazione SMB
@@ -369,15 +366,12 @@ collect_samba_shares() {
                 samba-tool ntacl get "$share_path" > "$acl_file" 2>&1 </dev/null || true
             
             if grep -q "trustee" "$acl_file" 2>/dev/null; then
-                log_success "    ACL salvato → $(basename "$acl_file")"
                 (( ++acl_success_count ))
             else
-                log_warn "    Impossibile ottenere ACL"
                 echo "ERROR: Unable to retrieve ACL for $share_name" > "$acl_file"
                 (( ++acl_failed_count ))
             fi
         else
-            log_warn "    Path non disponibile"
             echo "ERROR: Share path not available for $share_name" > "$acl_file"
             (( ++acl_failed_count ))
         fi
@@ -417,8 +411,6 @@ collect_webtop_sharing() {
         return 1
     fi
     
-    log_info "  Container Postgres: $postgres_container"
-    
     # Rileva database WebTop
     local db_list=$(mktemp)
     if ! runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" \
@@ -439,8 +431,6 @@ collect_webtop_sharing() {
         echo -e "ERROR\tN/A\tWebTop database not found\tN/A\tN/A" >> "$output_file"
         return 1
     fi
-    
-    log_info "  Database WebTop: $webtop_db"
     
     # Esegui query (metodo funzionante da ns8-biweekly-audit-report.sh)
     # Usa echo per passare query via stdin, evitando problemi con heredoc quando script eseguito via curl|bash
@@ -498,11 +488,13 @@ generate_summary_report() {
     if [[ -d "$acls_dir" ]]; then
         # Estrai TUTTI i SID unici da TUTTI i file ACL
         local all_sids=$(grep -h "trustee.*: S-1" "$acls_dir"/*_acl.txt 2>/dev/null | sed 's/.*trustee.*: \(S-1-[0-9-]*\).*/\1/' | sort -u)
-        local sid_count=$(echo "$all_sids" | wc -l)
+        local sid_count=$(echo "$all_sids" | grep -c "^S-1" || echo 0)
         
-        log_info "  Trovati $sid_count SID unici da convertire..."
+        log_info "  Trovati $sid_count SID unici da convertire (richiede ~$((sid_count * 2)) secondi)..."
         
         local current=0
+        local start_time=$(date +%s)
+        
         while IFS= read -r sid; do
             [[ -z "$sid" ]] && continue
             ((current++))
@@ -519,13 +511,17 @@ generate_summary_report() {
             local name=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc wbinfo --sid-to-name "$sid" 2>/dev/null </dev/null | cut -d' ' -f1 || echo "")
             SID_CACHE["$sid"]="$name"
             
-            # Progress ogni 5 SID
-            if (( current % 5 == 0 )); then
-                log_info "    Convertiti: $current/$sid_count"
+            # Progress ogni 3 SID (più frequente)
+            if (( current % 3 == 0 )); then
+                local elapsed=$(($(date +%s) - start_time))
+                local rate=$(awk "BEGIN {printf \"%.1f\", $current / $elapsed}")
+                local remaining=$(awk "BEGIN {printf \"%.0f\", ($sid_count - $current) / $rate}")
+                log_info "    [$current/$sid_count] Velocità: ${rate} SID/sec | Tempo rimanente: ~${remaining}s"
             fi
         done <<< "$all_sids"
         
-        log_success "Cache SID completata: $sid_count SID → ${#SID_CACHE[@]} entries"
+        local total_time=$(($(date +%s) - start_time))
+        log_success "Cache SID completata: $sid_count SID in ${total_time}s → ${#SID_CACHE[@]} entries"
     fi
     
     local summary_file="$OUTPUT_DIR/REPORT_SUMMARY.txt"
@@ -621,7 +617,7 @@ DETTAGLIO SHARE SAMBA
 
 EOF
 
-    # DEBUG: Diagnostica file ACL (console + file)
+    # DEBUG: Diagnostica file ACL (console + file) - VERSIONE RIDOTTA
     echo ""
     log_info "[DEBUG] === DIAGNOSTICA ACL ==="
     echo "" >> "$summary_file"
@@ -638,16 +634,12 @@ EOF
         echo "[DEBUG] File ACL trovati: $acl_count" >> "$summary_file"
         echo "[DEBUG] File ACL con 'trustee': $acl_with_trustee" >> "$summary_file"
         
-        # Mostra esempio primo file ACL con trustee
+        # NO MOSTRA CONTENUTO FILE - troppo verboso (rimane solo nel file summary)
         local first_acl=$(grep -l "trustee" "$acls_dir"/*_acl.txt 2>/dev/null | head -1)
         if [[ -n "$first_acl" ]]; then
-            log_info "[DEBUG] Esempio file ACL: $(basename "$first_acl")"
-            log_info "[DEBUG] Prime 100 righe:"
-            head -100 "$first_acl" | sed 's/^/  /'
-            
             echo "[DEBUG] Esempio file ACL: $(basename "$first_acl")" >> "$summary_file"
-            echo "[DEBUG] Prime 100 righe:" >> "$summary_file"
-            head -100 "$first_acl" | sed 's/^/  /' >> "$summary_file"
+            echo "[DEBUG] Prime 20 righe:" >> "$summary_file"
+            head -20 "$first_acl" | sed 's/^/  /' >> "$summary_file"
         fi
     else
         log_warn "[DEBUG] Directory ACL non trovata: $acls_dir"
@@ -779,12 +771,9 @@ Analisi dettagliata:
 EOF
     
     log_success "Report riepilogativo generato → REPORT_SUMMARY.txt"
-    
-    # Mostra summary su stdout
     echo ""
-    echo "================================================================================"
-    cat "$summary_file"
-    echo "================================================================================"
+    log_info "Report completo salvato in: $OUTPUT_DIR/REPORT_SUMMARY.txt"
+    echo ""
 }
 
 # Funzione 6: Genera report consolidato TSV
