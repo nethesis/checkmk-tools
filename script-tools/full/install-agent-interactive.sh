@@ -316,8 +316,11 @@ configure_frpc() {
         err "Porta remota obbligatoria (numero)"
     done
 
-    read -r -p "Token [default: conduit-reenact-talon-macarena-demotion-vaguely]: " AUTH_TOKEN
-    AUTH_TOKEN=${AUTH_TOKEN:-conduit-reenact-talon-macarena-demotion-vaguely}
+    while true; do
+        read -r -p "Token FRP (obbligatorio): " AUTH_TOKEN
+        [[ -n "$AUTH_TOKEN" ]] && break
+        err "Token obbligatorio per autenticazione FRP"
+    done
 
     mkdir -p /etc/frp
     cat >/etc/frp/frpc.toml <<EOF
