@@ -327,7 +327,7 @@ collect_samba_shares() {
             # Fallback: Password default NS8
             if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
                 SAMBA_ADMIN_PASSWORD="Nethesis,1234"
-                log_warn "    Uso password default NS8: Nethesis,1234"
+                # Password default usata - no log per sicurezza
             else
                 log_info "    Password recuperata automaticamente"
             fi
