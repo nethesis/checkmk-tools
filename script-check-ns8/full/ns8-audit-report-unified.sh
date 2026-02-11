@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.0.4"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.0.5"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -606,22 +606,10 @@ EOF
         local acl_count=$(find "$acls_dir" -name "*_acl.txt" -type f 2>/dev/null | wc -l)
         local acl_with_trustee=$(grep -l "trustee" "$acls_dir"/*_acl.txt 2>/dev/null | wc -l)
         
-        # Log su console E file
-        log_info "[DEBUG] File ACL trovati: $acl_count"
-        log_info "[DEBUG] File ACL con 'trustee': $acl_with_trustee"
-        echo "[DEBUG] File ACL trovati: $acl_count" >> "$summary_file"
-        echo "[DEBUG] File ACL con 'trustee': $acl_with_trustee" >> "$summary_file"
-        
-        # NO MOSTRA CONTENUTO FILE - troppo verboso (rimane solo nel file summary)
-        local first_acl=$(grep -l "trustee" "$acls_dir"/*_acl.txt 2>/dev/null | head -1)
-        if [[ -n "$first_acl" ]]; then
-            echo "[DEBUG] Esempio file ACL: $(basename "$first_acl")" >> "$summary_file"
-            echo "[DEBUG] Prime 20 righe:" >> "$summary_file"
-            head -20 "$first_acl" | sed 's/^/  /' >> "$summary_file"
-        fi
+        # Log solo su file summary (non su console)
+        echo "# ACL raccolti: $acl_count file ($acl_with_trustee con trustee)" >> "$summary_file"
     else
-        log_warn "[DEBUG] Directory ACL non trovata: $acls_dir"
-        echo "[DEBUG] Directory ACL non trovata: $acls_dir" >> "$summary_file"
+        echo "# Nessun ACL raccolto" >> "$summary_file"
     fi
     echo ""
     echo "" >> "$summary_file"
@@ -908,6 +896,7 @@ display_detailed_tables() {
         tail -n +2 "$OUTPUT_DIR/05_ad_groups.txt" | while IFS=$'\t' read -r groupname count members; do
             [[ -z "$members" ]] && members="N/A"
             printf "%-60s %-70s\n" "$groupname" "$members"
+            printf "%-60s %-70s\n" "------------------------------------------------------------" "----------------------------------------------------------------------"
         done
         
         echo ""
@@ -924,27 +913,7 @@ display_detailed_tables() {
     echo "================================================================================"
     echo ""
     
-    # DEBUG: Verifica file ACL disponibili
-    local acls_dir="$OUTPUT_DIR/03_shares/acls"
-    if [[ -d "$acls_dir" ]]; then
-        local acl_count=$(find "$acls_dir" -name "*_acl.txt" -type f 2>/dev/null | wc -l)
-        local acl_with_trustee=$(grep -l "trustee" "$acls_dir"/*_acl.txt 2>/dev/null | wc -l)
-        echo "[DEBUG] File ACL trovati: $acl_count"
-        echo "[DEBUG] File ACL con 'trustee': $acl_with_trustee"
-        echo "[DEBUG] Directory ACL: $acls_dir"
-        
-        # Mostra esempio primo file ACL
-        local first_acl=$(find "$acls_dir" -name "*_acl.txt" -type f 2>/dev/null | head -1)
-        if [[ -n "$first_acl" ]]; then
-            echo "[DEBUG] Esempio primo file ACL: $(basename "$first_acl")"
-            echo "[DEBUG] Prime 15 righe:"
-            head -15 "$first_acl" | sed 's/^/  /'
-        fi
-        echo ""
-    else
-        echo "[DEBUG] Directory ACL non trovata: $acls_dir"
-        echo ""
-    fi
+    # (Debug ACL rimosso - verifica solo nel file summary se necessario)
     
     if [[ -f "$OUTPUT_DIR/03_shares/shares_report.txt" ]]; then
         # Warning se pre-caching disabilitato (cache vuota)
