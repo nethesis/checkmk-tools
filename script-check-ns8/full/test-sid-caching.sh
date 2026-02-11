@@ -14,7 +14,7 @@ echo "=========================================="
 echo ""
 
 # Trova modulo Samba
-SAMBA_MODULE=$(api-cli run list-modules --data '{}' 2>/dev/null | jq -r '.[] | select(.id | startswith("samba")) | .id' | head -1)
+SAMBA_MODULE=$(api-cli run list-modules --data '{}' 2>/dev/null | jq -r '.[] | select(try (.id | startswith("samba")) catch false) | .id' | head -1)
 
 if [[ -z "$SAMBA_MODULE" ]]; then
     echo "[ERROR] Nessun modulo Samba trovato"
