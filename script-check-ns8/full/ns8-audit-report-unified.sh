@@ -495,21 +495,36 @@ generate_summary_report() {
         local current=0
         local start_time=$(date +%s)
         
+        # DISABILITA set -e per questo loop (evita exit silenzioso se wbinfo fallisce)
+        set +e
+        
         while IFS= read -r sid; do
             [[ -z "$sid" ]] && continue
             ((current++))
+            
+            # Debug: mostra quale SID stiamo processando
+            log_info "    Processing SID #$current: $sid"
             
             # Skip SID di sistema (non serve conversione)
             case "$sid" in
                 S-1-5-18|S-1-5-32-544|S-1-5-2|S-1-1-0) 
                     SID_CACHE["$sid"]=""
+                    log_info "      → Skipped (system SID)"
                     continue
                     ;;
             esac
             
-            # Converti SID → nome
-            local name=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc wbinfo --sid-to-name "$sid" 2>/dev/null </dev/null | cut -d' ' -f1 || echo "")
-            SID_CACHE["$sid"]="$name"
+            # Converti SID → nome (con timeout di 10 secondi)
+            log_info "      → Calling wbinfo..."
+            local name=$(timeout 10 runagent -m "$SAMBA_MODULE" podman exec samba-dc wbinfo --sid-to-name "$sid" 2>/dev/null </dev/null | cut -d' ' -f1 || echo "")
+            
+            if [[ -z "$name" ]]; then
+                log_warn "      → Conversione fallita per $sid"
+                SID_CACHE["$sid"]="UNKNOWN_$sid"
+            else
+                SID_CACHE["$sid"]="$name"
+                log_info "      → Resolved: $name"
+            fi
             
             # Progress ogni 3 SID (evita divisione per zero)
             if (( current % 3 == 0 )); then
@@ -523,6 +538,9 @@ generate_summary_report() {
                 fi
             fi
         done <<< "$all_sids"
+        
+        # Riabilita set -e
+        set -e
         
         local total_time=$(($(date +%s) - start_time))
         log_success "Cache SID completata: $sid_count SID in ${total_time}s → ${#SID_CACHE[@]} entries"
