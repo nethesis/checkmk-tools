@@ -39,8 +39,6 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-SAMBA_ADMIN_PASSWORD=""  # Sarà recuperata automaticamente se vuota
-SAMBA_PWD_SOURCE=""  # Traccia sorgente password (manual/redis/default)
 
 # Colori output
 RED='\033[0;31m'
@@ -295,8 +293,7 @@ collect_samba_shares() {
     echo -e "share_name\tshare_path\tacl_file" > "$shares_report"
     
     # Contatori per statistiche ACL
-    local acl_windows_count=0
-    local acl_posix_count=0
+    local acl_success_count=0
     local acl_failed_count=0
     
     # Per ogni share: ottieni path e ACL
@@ -311,80 +308,25 @@ collect_samba_shares() {
         
         log_info "    Path: $share_path"
         
-        # Ottieni ACL tramite smbcacls (Windows-style, mostra permessi configurati in NS8 UI)
-        local acl_file="$acls_dir/${share_name}_smbacl.txt"
+        # Ottieni ACL direttamente da filesystem (accesso root)
+        local acl_file="$acls_dir/${share_name}_acl.txt"
         
-        # Auto-recupero password amministratore Samba (solo al primo share)
-        if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
-            log_info "    Recupero password amministratore Samba..."
-            
-            # Tentativo 1: Da secrets module (adminpassword)
-            SAMBA_ADMIN_PASSWORD=$(redis-cli HGET "module/$SAMBA_MODULE/srv/secrets" adminpassword 2>/dev/null </dev/null | tr -d '"' || echo "")
-            if [[ -n "${SAMBA_ADMIN_PASSWORD}" ]]; then
-                SAMBA_PWD_SOURCE="redis-secrets"
-                log_success "    Password recuperata da Redis secrets"
-            fi
-            
-            # Tentativo 2: Da environment module (ADMIN_PASS)
-            if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
-                SAMBA_ADMIN_PASSWORD=$(redis-cli GET "module/$SAMBA_MODULE/environment" 2>/dev/null </dev/null | jq -r '.ADMIN_PASS // empty' 2>/dev/null || echo "")
-                if [[ -n "${SAMBA_ADMIN_PASSWORD}" ]]; then
-                    SAMBA_PWD_SOURCE="redis-environment"
-                    log_success "    Password recuperata da Redis environment"
-                fi
-            fi
-            
-            # Tentativo 3: Account provider secrets
-            if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
-                local account_provider=$(redis-cli HGET "cluster/account_providers" "$(redis-cli KEYS 'cluster/account_providers/*' </dev/null | head -1 | cut -d'/' -f3)" 2>/dev/null </dev/null | jq -r '.bind_password // empty' 2>/dev/null || echo "")
-                SAMBA_ADMIN_PASSWORD="${account_provider}"
-                if [[ -n "${SAMBA_ADMIN_PASSWORD}" ]]; then
-                    SAMBA_PWD_SOURCE="redis-account-provider"
-                    log_success "    Password recuperata da account provider"
-                fi
-            fi
-            
-            # Nessuna password trovata
-            if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
-                SAMBA_PWD_SOURCE="not-found"
-                log_warn "    Password non trovata automaticamente"
-                log_warn "    smbcacls fallirà, userò getfacl (ACL POSIX) come fallback"
-                log_warn "    Per ACL Windows completi, usa: --samba-password 'password_admin'"
-            fi
-        fi
-        
-        
-        # Tenta ACL Windows solo se password disponibile
-        if [[ -n "${SAMBA_ADMIN_PASSWORD}" ]]; then
+        if [[ "$share_path" != "N/A" ]]; then
             runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-                smbcacls "//localhost/$share_name" / -U "administrator%${SAMBA_ADMIN_PASSWORD}" > "$acl_file" 2>&1 </dev/null || true
-        else
-            # Password non disponibile, salta direttamente a getfacl
-            echo "" > "$acl_file"
-        fi
-        
-        if grep -q "^ACL:" "$acl_file" 2>/dev/null; then
-            log_success "    ACL Windows salvato → $(basename "$acl_file")"
-            (( ++acl_windows_count ))
-        else
-            # Fallback: usa getfacl (ACL filesystem POSIX) se smbcacls fallisce
-            if [[ "$share_path" != "N/A" ]]; then
-                runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-                    getfacl "$share_path" > "$acl_file" 2>&1 </dev/null || true
-                
-                if grep -qE "^(user|group):" "$acl_file" 2>/dev/null; then
-                    log_success "    ACL POSIX salvato → $(basename "$acl_file")"
-                    (( ++acl_posix_count ))
-                else
-                    log_warn "    Impossibile ottenere ACL"
-                    echo "ERROR: Unable to retrieve ACL for $share_name" > "$acl_file"
-                    (( ++acl_failed_count ))
-                fi
+                getfacl "$share_path" > "$acl_file" 2>&1 </dev/null || true
+            
+            if grep -qE "^(user|group):" "$acl_file" 2>/dev/null; then
+                log_success "    ACL salvato → $(basename "$acl_file")"
+                (( ++acl_success_count ))
             else
-                log_warn "    Impossibile ottenere ACL (path non disponibile)"
+                log_warn "    Impossibile ottenere ACL"
                 echo "ERROR: Unable to retrieve ACL for $share_name" > "$acl_file"
                 (( ++acl_failed_count ))
             fi
+        else
+            log_warn "    Path non disponibile"
+            echo "ERROR: Share path not available for $share_name" > "$acl_file"
+            (( ++acl_failed_count ))
         fi
         
         # Aggiungi a report TSV
@@ -395,10 +337,8 @@ collect_samba_shares() {
     echo ""
     log_success "Raccolti $share_count share → $shares_dir/"
     log_info "Statistiche ACL:"
-    log_info "  • ACL Windows (smbcacls): $acl_windows_count"
-    log_info "  • ACL POSIX (getfacl):    $acl_posix_count"
-    [[ $acl_failed_count -gt 0 ]] && log_warn "  • ACL falliti:            $acl_failed_count"
-    [[ -n "$SAMBA_PWD_SOURCE" ]] && log_info "  • Password source: $SAMBA_PWD_SOURCE"
+    log_info "  • ACL raccolti:  $acl_success_count"
+    [[ $acl_failed_count -gt 0 ]] && log_warn "  • ACL falliti:   $acl_failed_count"
     
     return 0
 }
@@ -606,26 +546,34 @@ EOF
             local users_rw=""
             local users_ro=""
             
-            # Parse ACL file se esiste
-            if [[ -f "$acl_file" ]] && grep -q "^ACL:" "$acl_file" 2>/dev/null; then
-                # Leggi ACL Windows-style
+            # Parse ACL POSIX (getfacl)
+            if [[ -f "$acl_file" ]] && grep -qE "^(user|group):" "$acl_file" 2>/dev/null; then
+                # Leggi ACL POSIX-style: user:name:rwx o group:name:rwx
                 while IFS= read -r acl_line; do
-                    [[ ! "$acl_line" =~ ^ACL: ]] && continue
+                    [[ -z "$acl_line" ]] && continue
                     
-                    # Skip system accounts
-                    [[ "$acl_line" =~ (NT\ AUTHORITY|BUILTIN) ]] && continue
-                    
-                    # Parse: ACL:DOMAIN\entity:ALLOWED/flags/perms
+                    # Parse: user:username:rwx o group:groupname:rwx
+                    local type=$(echo "$acl_line" | cut -d: -f1)
                     local entity=$(echo "$acl_line" | cut -d: -f2)
-                    local perms=$(echo "$acl_line" | cut -d: -f3 | cut -d/ -f3)
+                    local perms=$(echo "$acl_line" | cut -d: -f3)
                     
-                    # Determina RW o RO
-                    if [[ "$perms" =~ (FULL|RWXD|0x001301bf|0x001f01ff) ]]; then
+                    # Skip se entity vuoto (user::rwx sono owner default)
+                    [[ -z "$entity" ]] && continue
+                    
+                    # Prefisso tipo per chiarezza
+                    if [[ "$type" == "user" ]]; then
+                        entity="[u] $entity"
+                    else
+                        entity="[g] $entity"
+                    fi
+                    
+                    # Determina RW o RO (r-x=read-only, rwx=read-write)
+                    if [[ "$perms" =~ w ]]; then
                         users_rw="${users_rw}${entity}, "
-                    elif [[ "$perms" =~ (READ|0x00120089) ]]; then
+                    else
                         users_ro="${users_ro}${entity}, "
                     fi
-                done < <(grep "^ACL:" "$acl_file")
+                done < <(grep -E "^(user|group):[^:]+:" "$acl_file" | grep -v ":---$")
                 
                 # Rimuovi virgola finale
                 users_rw=$(echo "$users_rw" | sed 's/, $//')
@@ -814,13 +762,13 @@ generate_consolidated_tsv() {
         # 3. Accesso share
         local share_access=""
         if [[ -d "$OUTPUT_DIR/03_shares/acls" ]]; then
-            # Parse tutti i file ACL per trovare l'utente
+            # Parse tutti i file ACL per trovare l'utente (formato POSIX)
             for acl_file in "$OUTPUT_DIR/03_shares/acls"/*.txt; do
                 [[ ! -f "$acl_file" ]] && continue
-                local share_name=$(basename "$acl_file" _smbacl.txt)
+                local share_name=$(basename "$acl_file" _acl.txt)
                 
-                # Controlla se utente ha accesso (ACL Windows o POSIX)
-                if grep -qiE "(\\\\${username}:|user:${username})" "$acl_file" 2>/dev/null; then
+                # Controlla se utente ha accesso (formato POSIX: user:username:rwx)
+                if grep -qiE "^user:${username}:" "$acl_file" 2>/dev/null; then
                     share_access="${share_access}${share_name}; "
                 fi
             done
@@ -920,7 +868,7 @@ display_detailed_tables() {
     echo "================================================================================"
     echo ""
     
-    if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
+    if [[-f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
         printf "%-20s %-40s %-40s\n" "NOME SHARE" "UTENTI LETTURA/SCRITTURA" "UTENTI SOLA LETTURA"
         printf "%-20s %-40s %-40s\n" "--------------------" "----------------------------------------" "----------------------------------------"
         
@@ -933,26 +881,34 @@ display_detailed_tables() {
             local users_rw=""
             local users_ro=""
             
-            # Parse ACL file se esiste
-            if [[ -f "$acl_file" ]] && grep -q "^ACL:" "$acl_file" 2>/dev/null; then
-                # Leggi ACL Windows-style
+            # Parse ACL POSIX (getfacl)
+            if [[ -f "$acl_file" ]] && grep -qE "^(user|group):" "$acl_file" 2>/dev/null; then
+                # Leggi ACL POSIX-style: user:name:rwx o group:name:rwx
                 while IFS= read -r acl_line; do
-                    [[ ! "$acl_line" =~ ^ACL: ]] && continue
+                    [[ -z "$acl_line" ]] && continue
                     
-                    # Skip system accounts
-                    [[ "$acl_line" =~ (NT\ AUTHORITY|BUILTIN) ]] && continue
-                    
-                    # Parse: ACL:DOMAIN\entity:ALLOWED/flags/perms
+                    # Parse: user:username:rwx o group:groupname:rwx
+                    local type=$(echo "$acl_line" | cut -d: -f1)
                     local entity=$(echo "$acl_line" | cut -d: -f2)
-                    local perms=$(echo "$acl_line" | cut -d: -f3 | cut -d/ -f3)
+                    local perms=$(echo "$acl_line" | cut -d: -f3)
                     
-                    # Determina RW o RO
-                    if [[ "$perms" =~ (FULL|RWXD|0x001301bf|0x001f01ff) ]]; then
+                    # Skip se entity vuoto (user::rwx sono owner default)
+                    [[ -z "$entity" ]] && continue
+                    
+                    # Prefisso tipo per chiarezza
+                    if [[ "$type" == "user" ]]; then
+                        entity="[u] $entity"
+                    else
+                        entity="[g] $entity"
+                    fi
+                    
+                    # Determina RW o RO (r-x=read-only, rwx=read-write)
+                    if [[ "$perms" =~ w ]]; then
                         users_rw="${users_rw}${entity}, "
-                    elif [[ "$perms" =~ (READ|0x00120089) ]]; then
+                    else
                         users_ro="${users_ro}${entity}, "
                     fi
-                done < <(grep "^ACL:" "$acl_file")
+                done < <(grep -E "^(user|group):[^:]+:" "$acl_file" | grep -v ":---$")
                 
                 # Rimuovi virgola finale
                 users_rw=$(echo "$users_rw" | sed 's/, $//')
@@ -1064,7 +1020,7 @@ display_acl_report() {
         return 1
     fi
     
-    local share_files=$(find "$acl_dir" -name "*_smbacl.txt" -type f 2>/dev/null | wc -l || echo 0)
+    local share_files=$(find "$acl_dir" -name "*_acl.txt" -type f 2>/dev/null | wc -l || echo 0)
     
     if [[ $share_files -eq 0 ]]; then
         log_warn "Nessun file ACL trovato"
@@ -1093,8 +1049,8 @@ display_acl_report() {
     local shares_report="$OUTPUT_DIR/03_shares/shares_report.tsv"
     
     # Itera su tutti i file ACL
-    for acl_file in $(find "$acl_dir" -name "*_smbacl.txt" -type f | sort); do
-        local share_name=$(basename "$acl_file" _smbacl.txt)
+    for acl_file in $(find "$acl_dir" -name "*_acl.txt" -type f | sort); do
+        local share_name=$(basename "$acl_file" _acl.txt)
         share_count=$((share_count + 1))
         
         # Leggi path dalla shares_report.tsv
@@ -1103,94 +1059,49 @@ display_acl_report() {
             share_path=$(grep "^$share_name	" "$shares_report" | cut -f2 || echo "N/A")
         fi
         
-        # Detect del tipo di ACL (smbcacls vs getfacl)
-        local acl_type="unknown"
-        if grep -q "^ACL:" "$acl_file" 2>/dev/null; then
-            acl_type="smbacl"
-        elif grep -q "^# file:" "$acl_file" 2>/dev/null; then
-            acl_type="posix"
-        fi
-        
         local has_acl=0
         local first_line=1
         
-        if [[ "$acl_type" == "smbacl" ]]; then
-            # Parse ACL Windows-style (smbcacls)
-            local acl_lines=$(grep "^ACL:" "$acl_file" | grep -vE "^ACL:(NT AUTHORITY|BUILTIN)" || true)
-            
-            if [[ -n "$acl_lines" ]]; then
-                has_acl=1
-                # Processa ogni ACL
-                echo "$acl_lines" | while IFS= read -r acl_line; do
-                    [[ -z "$acl_line" ]] && continue
-                    
-                    # Parse ACL: ACL:DOMAIN\entity:ALLOWED/flags/perms
-                    local entity=$(echo "$acl_line" | cut -d: -f2)
-                    local perms=$(echo "$acl_line" | cut -d: -f3 | cut -d/ -f3)
-                    
-                    # Traduzione permessi
-                    local perms_italian=$(translate_permissions "$perms")
-                    
-                    # Prima riga mostra share e path, successive solo entità e permessi
-                    if [[ $first_line -eq 1 ]]; then
-                        printf "%-20s %-35s %-30s %-25s\n" \
-                            "$share_name" \
-                            "${share_path:0:35}" \
-                            "${entity:0:30}" \
-                            "$perms_italian"
-                        first_line=0
-                    else
-                        printf "%-20s %-35s %-30s %-25s\n" \
-                            "" \
-                            "" \
-                            "${entity:0:30}" \
-                            "$perms_italian"
-                    fi
-                done
-            fi
-            
-        elif [[ "$acl_type" == "posix" ]]; then
-            # Parse ACL POSIX (getfacl)
-            local acl_lines=$(grep -E "^(user|group):[^:]+:" "$acl_file" | grep -v ":---$" || true)
-            
-            if [[ -n "$acl_lines" ]]; then
-                has_acl=1
-                # Processa ogni ACL
-                echo "$acl_lines" | while IFS= read -r acl_line; do
-                    [[ -z "$acl_line" ]] && continue
-                    
-                    # Parse: user:username:rwx o group:groupname:rwx
-                    local type=$(echo "$acl_line" | cut -d: -f1)
-                    local entity=$(echo "$acl_line" | cut -d: -f2)
-                    local perms=$(echo "$acl_line" | cut -d: -f3)
-                    
-                    # Skip se entity vuoto (user::rwx sono permessi owner di default)
-                    [[ -z "$entity" ]] && continue
-                    
-                    # Format entity (aggiungi prefisso user/group)
-                    if [[ "$type" == "user" ]]; then
-                        entity="[user] $entity"
-                    else
-                        entity="[group] $entity"
-                    fi
-                    
-                    # Prima riga mostra share e path
-                    if [[ $first_line -eq 1 ]]; then
-                        printf "%-20s %-35s %-30s %-25s\n" \
-                            "$share_name" \
-                            "${share_path:0:35}" \
-                            "${entity:0:30}" \
-                            "$perms"
-                        first_line=0
-                    else
-                        printf "%-20s %-35s %-30s %-25s\n" \
-                            "" \
-                            "" \
-                            "${entity:0:30}" \
-                            "$perms"
-                    fi
-                done
-            fi
+        # Parse ACL POSIX (getfacl)
+        local acl_lines=$(grep -E "^(user|group):[^:]+:" "$acl_file" | grep -v ":---$" || true)
+        
+        if [[ -n "$acl_lines" ]]; then
+            has_acl=1
+            # Processa ogni ACL
+            echo "$acl_lines" | while IFS= read -r acl_line; do
+                [[ -z "$acl_line" ]] && continue
+                
+                # Parse: user:username:rwx o group:groupname:rwx
+                local type=$(echo "$acl_line" | cut -d: -f1)
+                local entity=$(echo "$acl_line" | cut -d: -f2)
+                local perms=$(echo "$acl_line" | cut -d: -f3)
+                
+                # Skip se entity vuoto (user::rwx sono permessi owner di default)
+                [[ -z "$entity" ]] && continue
+                
+                # Format entity (aggiungi prefisso user/group)
+                if [[ "$type" == "user" ]]; then
+                    entity="[user] $entity"
+                else
+                    entity="[group] $entity"
+                fi
+                
+                # Prima riga mostra share e path
+                if [[ $first_line -eq 1 ]]; then
+                    printf "%-20s %-35s %-30s %-25s\n" \
+                        "$share_name" \
+                        "${share_path:0:35}" \
+                        "${entity:0:30}" \
+                        "$perms"
+                    first_line=0
+                else
+                    printf "%-20s %-35s %-30s %-25s\n" \
+                        "" \
+                        "" \
+                        "${entity:0:30}" \
+                        "$perms"
+                fi
+            done
         fi
         
         # Se nessun ACL trovato, mostra "[solo sistema]"
@@ -1287,24 +1198,16 @@ while [[ $# -gt 0 ]]; do
             SHOW_ACL_REPORT=0
             shift
             ;;
-        --samba-password)
-            SAMBA_ADMIN_PASSWORD="$2"
-            SAMBA_PWD_SOURCE="manual"
-            shift 2
-            ;;
         --help)
             echo "Uso: $0 [opzioni]"
             echo ""
             echo "Opzioni:"
             echo "  --output-dir /path        Directory base output (default: /tmp)"
             echo "  --no-display              Disabilita visualizzazione report ACL"
-            echo "  --samba-password <pwd>    Password amministratore Samba"
-            echo "                            (recupero automatico da Redis se omessa)"
-            echo "                            Necessaria per ACL Windows completi se auto-detect fallisce"
             echo "  --help                    Mostra questo help"
             echo ""
-            echo "Nota: Se la password non viene trovata automaticamente, lo script userà"
-            echo "      getfacl (ACL POSIX) invece di smbcacls (ACL Windows)."
+            echo "Nota: Lo script raccoglie ACL direttamente dal filesystem usando getfacl"
+            echo "      (accesso root, nessuna autenticazione richiesta)."
             exit 0
             ;;
         *)
