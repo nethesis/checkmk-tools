@@ -35,7 +35,7 @@ set -euo pipefail
 
 # Configurazione
 REPORT_DATE=$(date +%Y%m%d-%H%M%S)
-OUTPUT_BASE="${OUTPUT_DIR:-/var/tmp}"
+OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
@@ -1217,6 +1217,24 @@ main() {
     echo ""
     log_success "Report completato!"
     log_info "Output salvato in: $OUTPUT_DIR"
+    
+    # Fase 5: Visualizza report consolidato finale
+    echo ""
+    echo "================================================================================"
+    echo "  REPORT CONSOLIDATO FINALE"
+    echo "================================================================================"
+    echo ""
+    
+    if [[ -f "$OUTPUT_DIR/REPORT_CONSOLIDATED.tsv" ]]; then
+        # Visualizza con column per formattazione pulita
+        column -t -s $'\t' "$OUTPUT_DIR/REPORT_CONSOLIDATED.tsv"
+        echo ""
+        echo "NOTA: Report completo disponibile in: $OUTPUT_DIR/REPORT_CONSOLIDATED.tsv"
+    else
+        log_warn "File REPORT_CONSOLIDATED.tsv non trovato"
+    fi
+    
+    echo ""
     
     return 0
 }
