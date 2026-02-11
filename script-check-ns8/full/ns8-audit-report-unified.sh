@@ -186,10 +186,10 @@ collect_ad_users() {
 collect_password_expiry() {
     log_info "Raccolta scadenze password AD..."
     
-    local output_file="$OUTPUT_DIR/02_password_expiry.tsv"
+    local output_file="$OUTPUT_DIR/02_password_expiry.txt"
     local temp_file=$(mktemp)
     
-    # Header TSV
+    # Header (tab-separated)
     echo -e "user\tpwdLastSet_raw\tpwdLastSet_unix\tpwdLastSet_iso\texpires_unix\texpires_iso\tdays_until_expiry" > "$output_file"
     
     # Leggi lista utenti
@@ -260,10 +260,10 @@ collect_password_expiry() {
 collect_ad_groups() {
     log_info "Raccolta gruppi Active Directory e membri..."
     
-    local output_file="$OUTPUT_DIR/05_ad_groups.tsv"
+    local output_file="$OUTPUT_DIR/05_ad_groups.txt"
     local temp_groups=$(mktemp)
     
-    # Header TSV
+    # Header (tab-separated)
     echo -e "group_name\tmembers_count\tmembers_list" > "$output_file"
     
     # Lista gruppi AD
@@ -320,7 +320,7 @@ collect_samba_shares() {
     mkdir -p "$acls_dir"
     
     local shares_list="$shares_dir/shares_list.txt"
-    local shares_report="$shares_dir/shares_report.tsv"
+    local shares_report="$shares_dir/shares_report.txt"
     
     # Lista share (escludi share di sistema)
     runagent -m "$SAMBA_MODULE" podman exec samba-dc \
@@ -402,7 +402,7 @@ collect_webtop_sharing() {
     
     log_info "Raccolta condivisioni email WebTop..."
     
-    local output_file="$OUTPUT_DIR/04_webtop_email_shares.tsv"
+    local output_file="$OUTPUT_DIR/04_webtop_email_shares.txt"
     
     # Container Postgres
     local postgres_container=$(runagent -m "$WEBTOP_MODULE" podman ps --format '{{.Names}}' 2>/dev/null | grep -i postgres | head -1)
@@ -503,20 +503,20 @@ generate_summary_report() {
     
     # Conta dati raccolti
     local user_count=$(wc -l < "$OUTPUT_DIR/01_users.txt" 2>/dev/null || echo 0)
-    local pwd_count=$(tail -n +2 "$OUTPUT_DIR/02_password_expiry.tsv" 2>/dev/null | wc -l || echo 0)
+    local pwd_count=$(tail -n +2 "$OUTPUT_DIR/02_password_expiry.txt" 2>/dev/null | wc -l || echo 0)
     local share_count=$(wc -l < "$OUTPUT_DIR/03_shares/shares_list.txt" 2>/dev/null || echo 0)
-    local webtop_share_count=$(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" 2>/dev/null | wc -l || echo 0)
+    local webtop_share_count=$(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.txt" 2>/dev/null | wc -l || echo 0)
     
     # Password in scadenza (entro 7 giorni)
     local expiring_soon=0
-    if [[ -f "$OUTPUT_DIR/02_password_expiry.tsv" ]]; then
-        expiring_soon=$(awk -F'\t' '$7 != "N/A" && $7 <= 7 && $7 >= 0 {print}' "$OUTPUT_DIR/02_password_expiry.tsv" 2>/dev/null | wc -l || echo 0)
+    if [[ -f "$OUTPUT_DIR/02_password_expiry.txt" ]]; then
+        expiring_soon=$(awk -F'\t' '$7 != "N/A" && $7 <= 7 && $7 >= 0 {print}' "$OUTPUT_DIR/02_password_expiry.txt" 2>/dev/null | wc -l || echo 0)
     fi
     
     # Password scadute
     local expired=0
-    if [[ -f "$OUTPUT_DIR/02_password_expiry.tsv" ]]; then
-        expired=$(awk -F'\t' '$7 != "N/A" && $7 < 0 {print}' "$OUTPUT_DIR/02_password_expiry.tsv" 2>/dev/null | wc -l || echo 0)
+    if [[ -f "$OUTPUT_DIR/02_password_expiry.txt" ]]; then
+        expired=$(awk -F'\t' '$7 != "N/A" && $7 < 0 {print}' "$OUTPUT_DIR/02_password_expiry.txt" 2>/dev/null | wc -l || echo 0)
     fi
     
     # Crea summary
@@ -536,7 +536,7 @@ generate_summary_report() {
             - Utenti con analisi password:      $pwd_count
             - Password in scadenza (≤7 giorni): $expiring_soon
             - Password scadute:                  $expired
-            - Gruppi AD totali:                  $(tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" 2>/dev/null | wc -l || echo 0)
+            - Gruppi AD totali:                  $(tail -n +2 "$OUTPUT_DIR/05_ad_groups.txt" 2>/dev/null | wc -l || echo 0)
 
         Samba File Shares:
             - Share totali:                      $share_count
@@ -552,7 +552,7 @@ generate_summary_report() {
 EOF
 
     # Tabella password expiry
-    if [[ -f "$OUTPUT_DIR/02_password_expiry.tsv" ]]; then
+    if [[ -f "$OUTPUT_DIR/02_password_expiry.txt" ]]; then
         echo "" >> "$summary_file"
         echo "LEGENDA:" >> "$summary_file"
         echo "  • Giorni positivi = password ancora valida" >> "$summary_file"
@@ -571,12 +571,12 @@ DETTAGLIO GRUPPI AD E MEMBRI
 EOF
 
     # Tabella gruppi AD (gruppo → utenti)
-    if [[ -f "$OUTPUT_DIR/05_ad_groups.tsv" ]]; then
+    if [[ -f "$OUTPUT_DIR/05_ad_groups.txt" ]]; then
         cat >> "$summary_file" <<'EOF'
 GRUPPO                                                      UTENTI PRESENTI NEL GRUPPO
 ------------------------------------------------------------ --------------------------------------------------------------------------------
 EOF
-        tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" | while IFS=$'\t' read -r groupname count members; do
+        tail -n +2 "$OUTPUT_DIR/05_ad_groups.txt" | while IFS=$'\t' read -r groupname count members; do
             [[ -z "$members" ]] && members="N/A"
             printf "%-60s %-80s\n" "$groupname" "$members"
         done >> "$summary_file"
@@ -624,7 +624,7 @@ EOF
     echo "" >> "$summary_file"
 
     # Tabella share Samba (VELOCE: solo statistiche, dettagli sotto)
-    if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
+    if [[ -f "$OUTPUT_DIR/03_shares/shares_report.txt" ]]; then
         local acl_with_trustee=$(grep -l "trustee" "$OUTPUT_DIR/03_shares/acls"/*_acl.txt 2>/dev/null | wc -l)
         cat >> "$summary_file" <<EOF
 
@@ -648,9 +648,9 @@ DETTAGLIO CONDIVISIONI EMAIL WEBTOP
 EOF
 
     # Tabella WebTop condivisioni
-    local webtop_has_data=$(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" 2>/dev/null | wc -l || echo 0)
+    local webtop_has_data=$(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.txt" 2>/dev/null | wc -l || echo 0)
     
-    if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.tsv" && $webtop_has_data -gt 0 ]]; then
+    if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.txt" && $webtop_has_data -gt 0 ]]; then
         # Mappa UUID → username
         declare -A uuid_to_user
         
@@ -672,7 +672,7 @@ EOF
     ------------------- ------------------------- ------------------------- -------------------------
 EOF
         
-        tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" | while IFS=$'\t' read -r id owner svc path inst shared perms; do
+        tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.txt" | while IFS=$'\t' read -r id owner svc path inst shared perms; do
             # Mappa UUID → username
             local owner_name="${uuid_to_user[$owner]:-${owner:0:12}...}"
             local shared_name="${uuid_to_user[$shared]:-${shared:0:12}...}"
@@ -696,18 +696,18 @@ FILE DATI ESPORTATI
    → 01_users.txt
 
 2. Scadenze password (TSV):
-   → 02_password_expiry.tsv
+   → 02_password_expiry.txt
 
 3. Share e permessi:
    → 03_shares/shares_list.txt
-   → 03_shares/shares_report.tsv
+   → 03_shares/shares_report.txt
    → 03_shares/acls/*.txt
 
 4. WebTop email shares (TSV):
-   → 04_webtop_email_shares.tsv
+   → 04_webtop_email_shares.txt
 
 5. Gruppi AD e membri (TSV):
-   → 05_ad_groups.tsv
+   → 05_ad_groups.txt
 
 ================================================================================
 AZIONI CONSIGLIATE
@@ -755,7 +755,7 @@ EOF
 generate_consolidated_tsv() {
     log_info "Generazione report consolidato TSV..."
     
-    local consolidated_file="$OUTPUT_DIR/REPORT_CONSOLIDATED.tsv"
+    local consolidated_file="$OUTPUT_DIR/REPORT_CONSOLIDATED.txt"
     
     # Header TSV
     echo -e "username\tpassword_last_set\tpassword_expires\tdays_until_expiry\tmember_of_groups\tshare_access\temail_shares" > "$consolidated_file"
@@ -776,8 +776,8 @@ generate_consolidated_tsv() {
         local pwd_expires="N/A"
         local days_expiry="N/A"
         
-        if [[ -f "$OUTPUT_DIR/02_password_expiry.tsv" ]]; then
-            local pwd_line=$(grep -i "^${username}\t" "$OUTPUT_DIR/02_password_expiry.tsv" 2>/dev/null || true)
+        if [[ -f "$OUTPUT_DIR/02_password_expiry.txt" ]]; then
+            local pwd_line=$(grep -i "^${username}\t" "$OUTPUT_DIR/02_password_expiry.txt" 2>/dev/null || true)
             if [[ -n "$pwd_line" ]]; then
                 pwd_last_set=$(echo "$pwd_line" | cut -f3)
                 pwd_expires=$(echo "$pwd_line" | cut -f5)
@@ -787,13 +787,13 @@ generate_consolidated_tsv() {
         
         # 2. Gruppi di appartenenza
         local user_groups=""
-        if [[ -f "$OUTPUT_DIR/05_ad_groups.tsv" ]]; then
+        if [[ -f "$OUTPUT_DIR/05_ad_groups.txt" ]]; then
             # Cerca utente nei membri di ogni gruppo
             while IFS=$'\t' read -r group_name members; do
                 if echo "$members" | grep -qiE "(^|,)${username}(,|$)" 2>/dev/null; then
                     user_groups="${user_groups}${group_name}; "
                 fi
-            done < <(tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" 2>/dev/null || true)
+            done < <(tail -n +2 "$OUTPUT_DIR/05_ad_groups.txt" 2>/dev/null || true)
             user_groups=$(echo "$user_groups" | sed 's/; $//')
             [[ -z "$user_groups" ]] && user_groups="N/A"
         else
@@ -833,13 +833,13 @@ generate_consolidated_tsv() {
         
         # 4. Email shares
         local email_shares=""
-        if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.tsv" ]]; then
+        if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.txt" ]]; then
             # Cerca utente come owner o shared_with
             while IFS=$'\t' read -r owner_id shared_id mailbox owner shared perms; do
                 if [[ "$owner" == "$username" ]] || [[ "$shared" == "$username" ]]; then
                     email_shares="${email_shares}${mailbox} (${perms}); "
                 fi
-            done < <(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" 2>/dev/null || true)
+            done < <(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.txt" 2>/dev/null || true)
             email_shares=$(echo "$email_shares" | sed 's/; $//')
             [[ -z "$email_shares" ]] && email_shares="N/A"
         else
@@ -851,7 +851,7 @@ generate_consolidated_tsv() {
         
     done < "$OUTPUT_DIR/01_users.txt"
     
-    log_success "Report consolidato generato → REPORT_CONSOLIDATED.tsv"
+    log_success "Report consolidato generato → REPORT_CONSOLIDATED.txt"
 }
 
 # ============================================================================
@@ -873,11 +873,11 @@ display_detailed_tables() {
     echo "================================================================================"
     echo ""
     
-    if [[ -f "$OUTPUT_DIR/02_password_expiry.tsv" ]]; then
+    if [[ -f "$OUTPUT_DIR/02_password_expiry.txt" ]]; then
         printf "%-19s %-20s %-20s %10s\n" "UTENTE" "ULTIMA MODIFICA" "SCADE IL" "GIORNI"
         printf "%-19s %-20s %-20s %10s\n" "-------------------" "--------------------" "--------------------" "----------"
         
-        tail -n +2 "$OUTPUT_DIR/02_password_expiry.tsv" | while IFS=$'\t' read -r user pwd_raw pwd_unix pwd_iso exp_unix exp_iso days; do
+        tail -n +2 "$OUTPUT_DIR/02_password_expiry.txt" | while IFS=$'\t' read -r user pwd_raw pwd_unix pwd_iso exp_unix exp_iso days; do
             printf "%-19s %-20s %-20s %10s\n" "$user" "$pwd_iso" "$exp_iso" "$days"
         done
         
@@ -898,17 +898,17 @@ display_detailed_tables() {
     echo "================================================================================"
     echo ""
     
-    if [[ -f "$OUTPUT_DIR/05_ad_groups.tsv" ]]; then
+    if [[ -f "$OUTPUT_DIR/05_ad_groups.txt" ]]; then
         printf "%-60s %-70s\n" "GRUPPO" "UTENTI PRESENTI NEL GRUPPO"
         printf "%-60s %-70s\n" "------------------------------------------------------------" "----------------------------------------------------------------------"
         
-        tail -n +2 "$OUTPUT_DIR/05_ad_groups.tsv" | while IFS=$'\t' read -r groupname count members; do
+        tail -n +2 "$OUTPUT_DIR/05_ad_groups.txt" | while IFS=$'\t' read -r groupname count members; do
             [[ -z "$members" ]] && members="N/A"
             printf "%-60s %-70s\n" "$groupname" "$members"
         done
         
         echo ""
-        echo "NOTA: Per lista membri completa vedere file 05_ad_groups.tsv"
+        echo "NOTA: Per lista membri completa vedere file 05_ad_groups.txt"
     else
         echo "Nessun dato disponibile"
     fi
@@ -943,7 +943,7 @@ display_detailed_tables() {
         echo ""
     fi
     
-    if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
+    if [[ -f "$OUTPUT_DIR/03_shares/shares_report.txt" ]]; then
         # Warning se pre-caching disabilitato (cache vuota)
         if [[ ${#SID_CACHE[@]} -eq 0 ]]; then
             log_warn "Pre-caching SID disabilitato - conversione on-demand in corso"
@@ -956,11 +956,11 @@ display_detailed_tables() {
         printf "%-20s %-40s %-40s\n" "--------------------" "----------------------------------------" "----------------------------------------"
         
         # Conta share totali per progress
-        local total_shares=$(tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | wc -l)
+        local total_shares=$(tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.txt" | wc -l)
         local current_share=0
         
         # Itera su tutte le share
-        tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r share_name share_path acl_file; do
+        tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.txt" | while IFS=$'\t' read -r share_name share_path acl_file; do
             [[ -z "$share_name" ]] && continue
             
             ((current_share++))
@@ -1044,9 +1044,9 @@ display_detailed_tables() {
     echo "================================================================================"
     echo ""
     
-    local webtop_share_count=$(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" 2>/dev/null | wc -l || echo 0)
+    local webtop_share_count=$(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.txt" 2>/dev/null | wc -l || echo 0)
     
-    if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.tsv" && $webtop_share_count -gt 0 ]]; then
+    if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.txt" && $webtop_share_count -gt 0 ]]; then
         # Mappa UUID → username da database WebTop
         declare -A uuid_to_user
         
@@ -1068,7 +1068,7 @@ display_detailed_tables() {
         printf "%-4s %-19s %-25s %-25s %s\n" "ID" "MAILBOX/CARTELLA" "PROPRIETARIO" "CONDIVISO CON" "PERMESSI"
         printf "%-4s %-19s %-25s %-25s %s\n" "----" "-------------------" "-------------------------" "-------------------------" "-------------------------"
         
-        tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.tsv" | while IFS=$'\t' read -r id owner svc path inst shared perms; do
+        tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.txt" | while IFS=$'\t' read -r id owner svc path inst shared perms; do
             # Mappa UUID → username (se disponibile, altrimenti mostra UUID abbreviato)
             local owner_name="${uuid_to_user[$owner]:-${owner:0:8}...}"
             local shared_name="${uuid_to_user[$shared]:-${shared:0:8}...}"
@@ -1153,14 +1153,14 @@ display_acl_report() {
     
     # Conta share
     local share_count=0
-    local shares_report="$OUTPUT_DIR/03_shares/shares_report.tsv"
+    local shares_report="$OUTPUT_DIR/03_shares/shares_report.txt"
     
     # Itera su tutti i file ACL
     for acl_file in $(find "$acl_dir" -name "*_acl.txt" -type f | sort); do
         local share_name=$(basename "$acl_file" _acl.txt)
         share_count=$((share_count + 1))
         
-        # Leggi path dalla shares_report.tsv
+        # Leggi path dalla shares_report.txt
         local share_path=""
         if [[ -f "$shares_report" ]]; then
             share_path=$(grep "^$share_name	" "$shares_report" | cut -f2 || echo "N/A")
