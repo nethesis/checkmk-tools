@@ -722,10 +722,6 @@ FILE DATI ESPORTATI
 5. Gruppi AD e membri (TSV):
    → 05_ad_groups.tsv
 
-6. Report consolidato (TSV):
-   → REPORT_CONSOLIDATED.tsv
-   (Tutti i dati aggregati per utente - aprire con Excel/LibreOffice)
-
 ================================================================================
 AZIONI CONSIGLIATE
 ================================================================================
@@ -1273,24 +1269,6 @@ main() {
     echo ""
     log_success "Report completato!"
     log_info "Output salvato in: $OUTPUT_DIR"
-    
-    # Fase 5: Visualizza report consolidato finale
-    echo ""
-    echo "================================================================================"
-    echo "  REPORT CONSOLIDATO FINALE"
-    echo "================================================================================"
-    echo ""
-    
-    if [[ -f "$OUTPUT_DIR/REPORT_CONSOLIDATED.tsv" ]]; then
-        # Visualizza con column per formattazione pulita
-        column -t -s $'\t' "$OUTPUT_DIR/REPORT_CONSOLIDATED.tsv"
-        echo ""
-        echo "NOTA: Report completo disponibile in: $OUTPUT_DIR/REPORT_CONSOLIDATED.tsv"
-    else
-        log_warn "File REPORT_CONSOLIDATED.tsv non trovato"
-    fi
-    
-    echo ""
     
     return 0
 }
