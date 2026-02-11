@@ -941,7 +941,7 @@ display_detailed_tables() {
     echo "================================================================================"
     echo ""
     
-    if [[-f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
+    if [[ -f "$OUTPUT_DIR/03_shares/shares_report.tsv" ]]; then
         printf "%-20s %-40s %-40s\n" "NOME SHARE" "UTENTI LETTURA/SCRITTURA" "UTENTI SOLA LETTURA"
         printf "%-20s %-40s %-40s\n" "--------------------" "----------------------------------------" "----------------------------------------"
         
