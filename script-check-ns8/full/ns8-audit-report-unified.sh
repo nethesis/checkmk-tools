@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.0.6"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.0.5"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -884,48 +884,19 @@ display_detailed_tables() {
     echo ""
     
     # ========== TABELLA 2: GRUPPI AD ==========
-    echo "============================================================================================================================================================================================================================================"
+    echo "================================================================================"
     echo "DETTAGLIO GRUPPI AD E MEMBRI"
-    echo "============================================================================================================================================================================================================================================"
+    echo "================================================================================"
     echo ""
     
     if [[ -f "$OUTPUT_DIR/05_ad_groups.txt" ]]; then
-        printf "%-60s %-200s\n" "GRUPPO" "UTENTI PRESENTI NEL GRUPPO"
-        printf "%-60s %-200s\n" "------------------------------------------------------------" "----------------------------------------------------------------------"
+        printf "%-60s %-70s\n" "GRUPPO" "UTENTI PRESENTI NEL GRUPPO"
+        printf "%-60s %-70s\n" "------------------------------------------------------------" "----------------------------------------------------------------------"
         
         tail -n +2 "$OUTPUT_DIR/05_ad_groups.txt" | while IFS=$'\t' read -r groupname count members; do
             [[ -z "$members" ]] && members="N/A"
-            
-            # Word-wrap per liste lunghe (>150 caratteri)
-            if [[ ${#members} -gt 150 ]]; then
-                # Stampa prima riga
-                local first_part="${members:0:150}"
-                local rest="${members:150}"
-                
-                # Trova ultimo carattere comma prima di 150
-                local last_comma="${first_part##*,}"
-                local first_line="${first_part%,${last_comma}}"
-                rest="${last_comma},${rest}"
-                
-                printf "%-60s %-200s\n" "$groupname" "$first_line"
-                
-                # Stampa righe successive con indentazione
-                while [[ ${#rest} -gt 150 ]]; do
-                    first_part="${rest:0:150}"
-                    rest="${rest:150}"
-                    last_comma="${first_part##*,}"
-                    first_line="${first_part%,${last_comma}}"
-                    rest="${last_comma},${rest}"
-                    printf "%-60s %-200s\n" "" "$first_line"
-                done
-                
-                # Ultima riga
-                [[ -n "$rest" ]] && printf "%-60s %-200s\n" "" "$rest"
-            else
-                printf "%-60s %-200s\n" "$groupname" "$members"
-            fi
-            
-            printf "%-60s %-200s\n" "------------------------------------------------------------" "----------------------------------------------------------------------"
+            printf "%-60s %-70s\n" "$groupname" "$members"
+            printf "%-60s %-70s\n" "------------------------------------------------------------" "----------------------------------------------------------------------"
         done
         
         echo ""
