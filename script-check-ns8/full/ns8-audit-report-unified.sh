@@ -511,12 +511,16 @@ generate_summary_report() {
             local name=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc wbinfo --sid-to-name "$sid" 2>/dev/null </dev/null | cut -d' ' -f1 || echo "")
             SID_CACHE["$sid"]="$name"
             
-            # Progress ogni 3 SID (più frequente)
+            # Progress ogni 3 SID (evita divisione per zero)
             if (( current % 3 == 0 )); then
                 local elapsed=$(($(date +%s) - start_time))
-                local rate=$(awk "BEGIN {printf \"%.1f\", $current / $elapsed}")
-                local remaining=$(awk "BEGIN {printf \"%.0f\", ($sid_count - $current) / $rate}")
-                log_info "    [$current/$sid_count] Velocità: ${rate} SID/sec | Tempo rimanente: ~${remaining}s"
+                if (( elapsed > 0 )); then
+                    local rate=$(awk "BEGIN {printf \"%.1f\", $current / $elapsed}")
+                    local remaining=$(awk "BEGIN {printf \"%.0f\", ($sid_count - $current) / $rate}")
+                    log_info "    [$current/$sid_count] Velocità: ${rate} SID/sec | Tempo rimanente: ~${remaining}s"
+                else
+                    log_info "    [$current/$sid_count] In elaborazione..."
+                fi
             fi
         done <<< "$all_sids"
         
