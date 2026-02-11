@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.0.2"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.0.3"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -948,7 +948,7 @@ display_detailed_tables() {
         # Warning se pre-caching disabilitato (cache vuota)
         # Protezione: disabilita temporaneamente set -u per accedere a SID_CACHE
         set +u
-        local cache_size=${#SID_CACHE[@]:-0}
+        local cache_size=${#SID_CACHE[@]}
         set -u
         
         if [[ $cache_size -eq 0 ]]; then
