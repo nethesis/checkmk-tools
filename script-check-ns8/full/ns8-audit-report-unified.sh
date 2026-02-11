@@ -40,6 +40,7 @@ OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
 SAMBA_ADMIN_PASSWORD=""  # Sarà recuperata automaticamente se vuota
+SAMBA_PWD_SOURCE=""  # Traccia sorgente password (manual/redis/default)
 
 # Colori output
 RED='\033[0;31m'
@@ -293,6 +294,11 @@ collect_samba_shares() {
     # Header TSV report
     echo -e "share_name\tshare_path\tacl_file" > "$shares_report"
     
+    # Contatori per statistiche ACL
+    local acl_windows_count=0
+    local acl_posix_count=0
+    local acl_failed_count=0
+    
     # Per ogni share: ottieni path e ACL
     while IFS= read -r share_name; do
         [[ -z "$share_name" ]] && continue
@@ -310,26 +316,39 @@ collect_samba_shares() {
         
         # Auto-recupero password amministratore Samba (solo al primo share)
         if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
+            log_info "    Recupero password amministratore Samba..."
+            
             # Tentativo 1: Da secrets module (adminpassword)
             SAMBA_ADMIN_PASSWORD=$(redis-cli HGET "module/$SAMBA_MODULE/srv/secrets" adminpassword 2>/dev/null </dev/null | tr -d '"' || echo "")
+            if [[ -n "${SAMBA_ADMIN_PASSWORD}" ]]; then
+                SAMBA_PWD_SOURCE="redis-secrets"
+                log_success "    Password recuperata da Redis secrets"
+            fi
             
             # Tentativo 2: Da environment module (ADMIN_PASS)
             if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
                 SAMBA_ADMIN_PASSWORD=$(redis-cli GET "module/$SAMBA_MODULE/environment" 2>/dev/null </dev/null | jq -r '.ADMIN_PASS // empty' 2>/dev/null || echo "")
+                if [[ -n "${SAMBA_ADMIN_PASSWORD}" ]]; then
+                    SAMBA_PWD_SOURCE="redis-environment"
+                    log_success "    Password recuperata da Redis environment"
+                fi
             fi
             
             # Tentativo 3: Account provider secrets
             if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
                 local account_provider=$(redis-cli HGET "cluster/account_providers" "$(redis-cli KEYS 'cluster/account_providers/*' </dev/null | head -1 | cut -d'/' -f3)" 2>/dev/null </dev/null | jq -r '.bind_password // empty' 2>/dev/null || echo "")
                 SAMBA_ADMIN_PASSWORD="${account_provider}"
+                if [[ -n "${SAMBA_ADMIN_PASSWORD}" ]]; then
+                    SAMBA_PWD_SOURCE="redis-account-provider"
+                    log_success "    Password recuperata da account provider"
+                fi
             fi
             
             # Fallback: Password default NS8
             if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
                 SAMBA_ADMIN_PASSWORD="Nethesis,1234"
-                # Password default usata - no log per sicurezza
-            else
-                log_info "    Password recuperata automaticamente"
+                SAMBA_PWD_SOURCE="default"
+                log_warn "    Password non trovata, uso default (potrebbe non funzionare)"
             fi
         fi
         
@@ -337,23 +356,26 @@ collect_samba_shares() {
             smbcacls "//localhost/$share_name" / -U "administrator%${SAMBA_ADMIN_PASSWORD}" > "$acl_file" 2>&1 </dev/null || true
         
         if grep -q "^ACL:" "$acl_file" 2>/dev/null; then
-            log_success "    ACL salvato → $(basename "$acl_file")"
+            log_success "    ACL Windows salvato → $(basename "$acl_file")"
+            ((acl_windows_count++))
         else
             # Fallback: usa getfacl (ACL filesystem POSIX) se smbcacls fallisce
-            log_warn "    smbcacls fallito, provo getfacl..."
             if [[ "$share_path" != "N/A" ]]; then
                 runagent -m "$SAMBA_MODULE" podman exec samba-dc \
                     getfacl "$share_path" > "$acl_file" 2>&1 </dev/null || true
                 
                 if grep -qE "^(user|group):" "$acl_file" 2>/dev/null; then
                     log_success "    ACL POSIX salvato → $(basename "$acl_file")"
+                    ((acl_posix_count++))
                 else
                     log_warn "    Impossibile ottenere ACL"
                     echo "ERROR: Unable to retrieve ACL for $share_name" > "$acl_file"
+                    ((acl_failed_count++))
                 fi
             else
                 log_warn "    Impossibile ottenere ACL (path non disponibile)"
                 echo "ERROR: Unable to retrieve ACL for $share_name" > "$acl_file"
+                ((acl_failed_count++))
             fi
         fi
         
@@ -362,7 +384,14 @@ collect_samba_shares() {
         
     done < "$shares_list"
     
+    echo ""
     log_success "Raccolti $share_count share → $shares_dir/"
+    log_info "Statistiche ACL:"
+    log_info "  • ACL Windows (smbcacls): $acl_windows_count"
+    log_info "  • ACL POSIX (getfacl):    $acl_posix_count"
+    [[ $acl_failed_count -gt 0 ]] && log_warn "  • ACL falliti:            $acl_failed_count"
+    [[ -n "$SAMBA_PWD_SOURCE" ]] && log_info "  • Password source: $SAMBA_PWD_SOURCE"
+    
     return 0
 }
 
@@ -1250,13 +1279,19 @@ while [[ $# -gt 0 ]]; do
             SHOW_ACL_REPORT=0
             shift
             ;;
+        --samba-password)
+            SAMBA_ADMIN_PASSWORD="$2"
+            SAMBA_PWD_SOURCE="manual"
+            shift 2
+            ;;
         --help)
             echo "Uso: $0 [opzioni]"
             echo ""
             echo "Opzioni:"
-            echo "  --output-dir /path    Directory base output (default: /var/tmp)"
-            echo "  --no-display          Disabilita visualizzazione report ACL"
-            echo "  --help                Mostra questo help"
+            echo "  --output-dir /path        Directory base output (default: /tmp)"
+            echo "  --no-display              Disabilita visualizzazione report ACL"
+            echo "  --samba-password <pwd>    Password amministratore Samba (auto-detect se omessa)"
+            echo "  --help                    Mostra questo help"
             exit 0
             ;;
         *)
