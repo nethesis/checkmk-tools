@@ -344,16 +344,24 @@ collect_samba_shares() {
                 fi
             fi
             
-            # Fallback: Password default NS8
+            # Nessuna password trovata
             if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
-                SAMBA_ADMIN_PASSWORD="Nethesis,1234"
-                SAMBA_PWD_SOURCE="default"
-                log_warn "    Password non trovata, uso default (potrebbe non funzionare)"
+                SAMBA_PWD_SOURCE="not-found"
+                log_warn "    Password non trovata automaticamente"
+                log_warn "    smbcacls fallirà, userò getfacl (ACL POSIX) come fallback"
+                log_warn "    Per ACL Windows completi, usa: --samba-password 'password_admin'"
             fi
         fi
         
-        runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-            smbcacls "//localhost/$share_name" / -U "administrator%${SAMBA_ADMIN_PASSWORD}" > "$acl_file" 2>&1 </dev/null || true
+        
+        # Tenta ACL Windows solo se password disponibile
+        if [[ -n "${SAMBA_ADMIN_PASSWORD}" ]]; then
+            runagent -m "$SAMBA_MODULE" podman exec samba-dc \
+                smbcacls "//localhost/$share_name" / -U "administrator%${SAMBA_ADMIN_PASSWORD}" > "$acl_file" 2>&1 </dev/null || true
+        else
+            # Password non disponibile, salta direttamente a getfacl
+            echo "" > "$acl_file"
+        fi
         
         if grep -q "^ACL:" "$acl_file" 2>/dev/null; then
             log_success "    ACL Windows salvato → $(basename "$acl_file")"
@@ -1290,8 +1298,13 @@ while [[ $# -gt 0 ]]; do
             echo "Opzioni:"
             echo "  --output-dir /path        Directory base output (default: /tmp)"
             echo "  --no-display              Disabilita visualizzazione report ACL"
-            echo "  --samba-password <pwd>    Password amministratore Samba (auto-detect se omessa)"
+            echo "  --samba-password <pwd>    Password amministratore Samba"
+            echo "                            (recupero automatico da Redis se omessa)"
+            echo "                            Necessaria per ACL Windows completi se auto-detect fallisce"
             echo "  --help                    Mostra questo help"
+            echo ""
+            echo "Nota: Se la password non viene trovata automaticamente, lo script userà"
+            echo "      getfacl (ACL POSIX) invece di smbcacls (ACL Windows)."
             exit 0
             ;;
         *)
