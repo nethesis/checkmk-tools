@@ -1267,7 +1267,7 @@ display_acl_report() {
 
 main() {
     echo "================================================================================"
-    echo "NS8 Audit Report - Unified Version (Collector + Viewer)"
+    echo "NS8 Audit Report - Unified Version v${VERSION}"
     echo "================================================================================"
     echo ""
     
