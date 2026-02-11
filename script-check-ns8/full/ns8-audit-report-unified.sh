@@ -593,12 +593,12 @@ EOF
         local first_acl=$(grep -l "trustee" "$acls_dir"/*_acl.txt 2>/dev/null | head -1)
         if [[ -n "$first_acl" ]]; then
             log_info "[DEBUG] Esempio file ACL: $(basename "$first_acl")"
-            log_info "[DEBUG] Prime 20 righe:"
-            head -20 "$first_acl" | sed 's/^/  /'
+            log_info "[DEBUG] Prime 60 righe:"
+            head -60 "$first_acl" | sed 's/^/  /'
             
             echo "[DEBUG] Esempio file ACL: $(basename "$first_acl")" >> "$summary_file"
-            echo "[DEBUG] Prime 20 righe:" >> "$summary_file"
-            head -20 "$first_acl" | sed 's/^/  /' >> "$summary_file"
+            echo "[DEBUG] Prime 60 righe:" >> "$summary_file"
+            head -60 "$first_acl" | sed 's/^/  /' >> "$summary_file"
         fi
     else
         log_warn "[DEBUG] Directory ACL non trovata: $acls_dir"
