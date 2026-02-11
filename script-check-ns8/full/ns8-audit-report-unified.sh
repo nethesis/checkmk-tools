@@ -614,9 +614,16 @@ NOME SHARE           UTENTI LETTURA/SCRITTURA                 UTENTI SOLA LETTUR
 -------------------- ---------------------------------------- ----------------------------------------
 EOF
         
+        # Conta share totali per progress
+        local total_shares=$(tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | wc -l)
+        local current_share=0
+        
         # Itera su tutte le share
         tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r share_name share_path acl_file; do
             [[ -z "$share_name" ]] && continue
+            
+            ((current_share++))
+            log_info "Elaborazione permessi share $current_share/$total_shares: $share_name"
             
             local users_rw=""
             local users_ro=""
@@ -1021,9 +1028,16 @@ display_detailed_tables() {
         printf "%-20s %-40s %-40s\n" "NOME SHARE" "UTENTI LETTURA/SCRITTURA" "UTENTI SOLA LETTURA"
         printf "%-20s %-40s %-40s\n" "--------------------" "----------------------------------------" "----------------------------------------"
         
+        # Conta share totali per progress
+        local total_shares=$(tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | wc -l)
+        local current_share=0
+        
         # Itera su tutte le share
         tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.tsv" | while IFS=$'\t' read -r share_name share_path acl_file; do
             [[ -z "$share_name" ]] && continue
+            
+            ((current_share++))
+            echo "[INFO] Elaborazione permessi share $current_share/$total_shares: $share_name" >&2
             
             local users_rw=""
             local users_ro=""
