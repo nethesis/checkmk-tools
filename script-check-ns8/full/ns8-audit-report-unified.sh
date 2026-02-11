@@ -39,6 +39,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/var/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
+SAMBA_ADMIN_PASSWORD=""  # Sarà recuperata automaticamente se vuota
 
 # Colori output
 RED='\033[0;31m'
@@ -307,22 +308,28 @@ collect_samba_shares() {
         # Ottieni ACL tramite smbcacls (Windows-style, mostra permessi configurati in NS8 UI)
         local acl_file="$acls_dir/${share_name}_smbacl.txt"
         
-        # Auto-recupero password amministratore Samba (se non già impostata)
-        if [[ -z "$SAMBA_ADMIN_PASSWORD" ]]; then
-            # Tentativo 1: Da secrets module
-            SAMBA_ADMIN_PASSWORD=$(redis-cli HGET "module/$SAMBA_MODULE/srv/secrets" adminpassword 2>/dev/null || echo "")
+        # Auto-recupero password amministratore Samba (solo al primo share)
+        if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
+            # Tentativo 1: Da secrets module (adminpassword)
+            SAMBA_ADMIN_PASSWORD=$(redis-cli HGET "module/$SAMBA_MODULE/srv/secrets" adminpassword 2>/dev/null | tr -d '"' || echo "")
             
-            # Tentativo 2: Da agent.env
-            if [[ -z "$SAMBA_ADMIN_PASSWORD" ]]; then
-                SAMBA_ADMIN_PASSWORD=$(runagent -m "$SAMBA_MODULE" cat /home/$SAMBA_MODULE/.config/state/agent.env 2>/dev/null | grep -i "ADMIN_PASSWORD\|PROVISION_PASSWORD" | cut -d'=' -f2 | head -1 || echo "")
+            # Tentativo 2: Da environment module (ADMIN_PASS)
+            if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
+                SAMBA_ADMIN_PASSWORD=$(redis-cli GET "module/$SAMBA_MODULE/environment" 2>/dev/null | jq -r '.ADMIN_PASS // empty' 2>/dev/null || echo "")
+            fi
+            
+            # Tentativo 3: Account provider secrets
+            if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
+                local account_provider=$(redis-cli HGET "cluster/account_providers" "$(redis-cli KEYS 'cluster/account_providers/*' | head -1 | cut -d'/' -f3)" 2>/dev/null | jq -r '.bind_password // empty' 2>/dev/null || echo "")
+                SAMBA_ADMIN_PASSWORD="${account_provider}"
             fi
             
             # Fallback: Password default NS8
-            if [[ -z "$SAMBA_ADMIN_PASSWORD" ]]; then
+            if [[ -z "${SAMBA_ADMIN_PASSWORD}" ]]; then
                 SAMBA_ADMIN_PASSWORD="Nethesis,1234"
                 log_warn "    Uso password default NS8: Nethesis,1234"
             else
-                log_info "    Password recuperata automaticamente dal modulo"
+                log_info "    Password recuperata automaticamente"
             fi
         fi
         
