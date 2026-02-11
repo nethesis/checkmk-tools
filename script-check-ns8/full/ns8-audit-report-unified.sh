@@ -343,7 +343,7 @@ collect_samba_shares() {
             log_warn "    smbcacls fallito, provo getfacl..."
             if [[ "$share_path" != "N/A" ]]; then
                 runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-                    getfacl "$share_path" > "$acl_file" 2>&1
+                    getfacl "$share_path" > "$acl_file" 2>&1 || true
                 
                 if grep -qE "^(user|group):" "$acl_file" 2>/dev/null; then
                     log_success "    ACL POSIX salvato → $(basename "$acl_file")"
