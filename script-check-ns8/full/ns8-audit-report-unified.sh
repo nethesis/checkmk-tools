@@ -357,7 +357,7 @@ collect_samba_shares() {
         
         if grep -q "^ACL:" "$acl_file" 2>/dev/null; then
             log_success "    ACL Windows salvato → $(basename "$acl_file")"
-            ((acl_windows_count++))
+            (( ++acl_windows_count ))
         else
             # Fallback: usa getfacl (ACL filesystem POSIX) se smbcacls fallisce
             if [[ "$share_path" != "N/A" ]]; then
@@ -366,16 +366,16 @@ collect_samba_shares() {
                 
                 if grep -qE "^(user|group):" "$acl_file" 2>/dev/null; then
                     log_success "    ACL POSIX salvato → $(basename "$acl_file")"
-                    ((acl_posix_count++))
+                    (( ++acl_posix_count ))
                 else
                     log_warn "    Impossibile ottenere ACL"
                     echo "ERROR: Unable to retrieve ACL for $share_name" > "$acl_file"
-                    ((acl_failed_count++))
+                    (( ++acl_failed_count ))
                 fi
             else
                 log_warn "    Impossibile ottenere ACL (path non disponibile)"
                 echo "ERROR: Unable to retrieve ACL for $share_name" > "$acl_file"
-                ((acl_failed_count++))
+                (( ++acl_failed_count ))
             fi
         fi
         
