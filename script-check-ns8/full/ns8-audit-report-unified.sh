@@ -1312,7 +1312,7 @@ main() {
     
     # Fase 2: Genera report riepilogativo
     generate_summary_report
-    generate_consolidated_tsv
+    # generate_consolidated_tsv  # Rimosso: troppo carico, non necessario
     
     echo ""
     
