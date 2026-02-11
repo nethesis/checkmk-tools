@@ -5,6 +5,9 @@
 
 set -e
 
+# Dichiarazione globale cache SID
+declare -A SID_CACHE
+
 echo "=========================================="
 echo "TEST PRE-CACHING SID - DEBUG"
 echo "=========================================="
@@ -54,7 +57,6 @@ echo "=========================================="
 echo ""
 
 CURRENT=0
-declare -A SID_CACHE
 
 while IFS= read -r sid; do
     [[ -z "$sid" ]] && continue
@@ -120,7 +122,10 @@ echo "RIEPILOGO TEST"
 echo "=========================================="
 echo ""
 echo "SID totali:        $SID_COUNT"
-echo "Cache popolata:    ${#SID_CACHE[@]} entries"
+set +u
+cache_size=${#SID_CACHE[@]}
+set -u
+echo "Cache popolata:    ${cache_size} entries"
 echo ""
 echo "Contenuto cache:"
 for sid in "${!SID_CACHE[@]}"; do
