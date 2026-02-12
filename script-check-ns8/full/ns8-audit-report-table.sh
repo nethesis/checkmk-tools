@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.6.5"   # Versione script - SENZA EMOJI
+VERSION="2.6.6"   # Versione script - SENZA EMOJI
 
 # Gruppi AD di sistema da escludere dal report
 EXCLUDE_GROUPS=(
@@ -880,21 +880,24 @@ generate_summary_report() {
     log_info "File MD esistenti:"
     ls -lh "$OUTPUT_DIR"/*.md 2>/dev/null || log_warn "Nessun file MD trovato!"
     
-    # Conta dati dai file MD - PATTERN DATI SPECIFICI (non filtrare header/separator)
+    # Conta dati dai file MD - PATTERN DATI SPECIFICI v2 (fix gruppi e webtop)
     # User count: conta righe con data (formato YYYY-MM-DD nella colonna "Scade Il")
     user_count=$(grep -E "^\| .+ \| [0-9]{4}-[0-9]{2}-[0-9]{2}" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | wc -l)
     user_count=$((user_count + 0))
     
-    # Group count: conta righe con numero membri (pattern: | numero |)
-    group_count=$(grep -E "^\| .+ \| [0-9]+ \|" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null | wc -l)
+    # Group count: conta righe tabella dati (esclude header, separator, vuote)
+    # Pattern: riga con | ma NON header (Gruppo/Membro/Computer) e NON separator (solo dashes)
+    group_count=$(grep -E "^\|" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null | \
+                  grep -v "Gruppo" | grep -v "Membro" | grep -v "Computer" | \
+                  grep -v "^|--" | grep -v "^\$" | wc -l)
     group_count=$((group_count + 0))
     
     # Share count: conta righe con path (contiene /)
     share_count=$(grep -E "^\| [^ ]+ +\| .*/.*\|" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null | wc -l)
     share_count=$((share_count + 0))
     
-    # WebTop count: conta righe con email (contiene @)
-    webtop_count=$(grep -E "@" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | wc -l)
+    # WebTop count: conta righe con pattern RW/RO (ultima colonna)
+    webtop_count=$(grep -E "^\| .+ \| .+ \| (RW|RO)" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | wc -l)
     webtop_count=$((webtop_count + 0))
     
     # Conta password critiche: righe con [!] Scaduta
