@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.2.4"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.2.5"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -744,6 +744,8 @@ collect_webtop_sharing() {
     # Processa righe output PostgreSQL e scrivi MD
     local record_count=0
     
+    set +e  # Disabilita set -e per processing loop (grep/awk possono tornare 1 se no match)
+    
     grep -E "^\s*[0-9]+" "$temp_output" | \
         sed 's/|/\t/g' | \
         sed 's/^\s\+//;s/\s\+$//' | \
@@ -764,10 +766,12 @@ collect_webtop_sharing() {
         }' | while IFS=$'\t' read -r share_id owner mailbox shared_with perms; do
         
         [[ -z "$share_id" ]] && continue
-        ((record_count++))
+        record_count=$((record_count + 1))  # Safe increment
         
         echo "| $share_id | $owner | $mailbox | $shared_with | $perms |" >> "$output_md"
     done
+    
+    set -e  # Ri-abilita set -e
     
     echo "" >> "$output_md"
     
