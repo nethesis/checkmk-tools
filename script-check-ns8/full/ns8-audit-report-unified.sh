@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.2.2"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.2.3"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -176,7 +176,7 @@ collect_ad_users() {
     
     if runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool user list > "$output_file" 2>/dev/null; then
         local user_count=$(wc -l < "$output_file")
-        log_success "Raccolti $user_count utenti AD → $(basename "$output_file")"
+        log_success "Raccolti $user_count utenti AD (file temporaneo per processing)"
         return 0
     else
         log_error "Fallita raccolta utenti AD"
