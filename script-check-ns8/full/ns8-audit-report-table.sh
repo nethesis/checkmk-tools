@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.4.2"   # Versione script - TUTTE LE TABELLE CON PADDING
+VERSION="2.4.3"   # Versione script - GRUPPI: UNA RIGA PER MEMBRO
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -342,7 +342,7 @@ collect_ad_groups() {
     
     local group_count=$(grep -c ^ "$temp_groups" 2>/dev/null || echo "0")
     
-    # Inizia file MD con tabella
+    # Inizia file MD con tabella (2 colonne: Gruppo, Membro)
     {
         echo "# 👥 Gruppi Active Directory"
         echo ""
@@ -352,10 +352,10 @@ collect_ad_groups() {
         echo ""
         echo "---"
         echo ""
-        echo "## 📋 Tabella Gruppi"
+        echo "## 📋 Tabella Membri Gruppi"
         echo ""
-        printf "| %-30s | %-10s | %-40s |\n" "📁 Gruppo" "👥 Membri" "📋 Primi Membri"
-        printf "|%s|%s|%s|\n" "$(printf '%.0s-' {1..32})" "$(printf '%.0s-' {1..12})" "$(printf '%.0s-' {1..42})"
+        printf "| %-35s | %-35s |\n" "📁 Gruppo" "👤 Membro"
+        printf "|%s|%s|\n" "$(printf '%.0s-' {1..37})" "$(printf '%.0s-' {1..37})"
     } > "$output_md"
     
     local processed=0
@@ -381,17 +381,17 @@ collect_ad_groups() {
             members_count=$(echo "$members" | wc -l)
         fi
         
-        # Prepara preview membri (primi 3)
-        local members_preview="-"
-        if [[ $members_count -gt 0 ]]; then
-            members_preview=$(echo "$members" | head -3 | tr '\n' ', ' | sed 's/, $//')
-            if [[ $members_count -gt 3 ]]; then
-                members_preview="${members_preview}, ... (+$((members_count - 3)))"
-            fi
+        # Scrivi una riga per ogni membro (o riga vuota se nessun membro)
+        if [[ $members_count -eq 0 ]]; then
+            printf "| %-35s | %-35s |\n" "$groupname" "(nessun membro)" >> "$output_md"
+        else
+            local first_member=1
+            while IFS= read -r member; do
+                [[ -z "$member" ]] && continue
+                printf "| %-35s | %-35s |\n" "$groupname" "$member" >> "$output_md"
+                first_member=0
+            done <<< "$members"
         fi
-        
-        # Scrivi riga tabella con padding
-        printf "| %-30s | %-10s | %-40s |\n" "$groupname" "$members_count" "$members_preview" >> "$output_md"
         
     done < "$temp_groups"
     
@@ -445,10 +445,10 @@ collect_samba_shares() {
         echo ""
         echo "---"
         echo ""
-        echo "## 📋 Tabella Share"
+        echo "## 📋 Tabella Share - Permessi"
         echo ""
-        printf "| %-25s | %-35s | %-30s |\n" "📁 Share" "📂 Path" "✍️ Permessi RW"
-        printf "|%s|%s|%s|\n" "$(printf '%.0s-' {1..27})" "$(printf '%.0s-' {1..37})" "$(printf '%.0s-' {1..32})"
+        printf "| %-30s | %-35s | %-10s |\n" "📁 Share" "👥 Utente/Gruppo" "🔓 Permesso"
+        printf "|%s|%s|%s|\n" "$(printf '%.0s-' {1..32})" "$(printf '%.0s-' {1..37})" "$(printf '%.0s-' {1..12})"
     } > "$output_md"
     
     # Contatori
@@ -473,14 +473,8 @@ collect_samba_shares() {
         local share_path=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc \
             net conf getparm "$share_name" path 2>/dev/null </dev/null || echo "N/A")
         
-        # Shorthand path se troppo lungo
-        local path_display="$share_path"
-        if [[ ${#share_path} -gt 32 ]]; then
-            path_display="...${share_path: -29}"
-        fi
-        
         if [[ "$share_path" == "N/A" ]]; then
-            printf "| %-25s | %-35s | %-30s |\n" "$share_name" "N/A" "❌ Errore path" >> "$output_md"
+            printf "| %-30s | %-35s | %-10s |\n" "$share_name" "(path non disponibile)" "❌ Errore" >> "$output_md"
             ((acl_failed++))
             continue
         fi
@@ -489,7 +483,7 @@ collect_samba_shares() {
         local temp_acl=$(mktemp)
         if ! runagent -m "$SAMBA_MODULE" podman exec samba-dc \
             samba-tool ntacl get "$share_path" > "$temp_acl" 2>&1 </dev/null; then
-            printf "| %-25s | %-35s | %-30s |\n" "$share_name" "$path_display" "❌ Errore ACL" >> "$output_md"
+            printf "| %-30s | %-35s | %-10s |\n" "$share_name" "(errore lettura ACL)" "❌ Errore" >> "$output_md"
             rm -f "$temp_acl"
             ((acl_failed++))
             continue
@@ -497,7 +491,7 @@ collect_samba_shares() {
         
         # Verifica ACL valido
         if ! grep -q "trustee" "$temp_acl" 2>/dev/null; then
-            printf "| %-25s | %-35s | %-30s |\n" "$share_name" "$path_display" "⚠️ ACL vuoto" >> "$output_md"
+            printf "| %-30s | %-35s | %-10s |\n" "$share_name" "(ACL vuoto)" "⚠️ Warning" >> "$output_md"
             rm -f "$temp_acl"
             ((acl_failed++))
             continue
@@ -547,18 +541,26 @@ collect_samba_shares() {
         
         rm -f "$temp_acl"
         
-        # Prepara lista permessi RW (primi 2 + count)
-        local perms_display="-"
+        # Scrivi una riga per ogni permesso (RW e RO)
+        local has_perms=0
+        
         if [[ ${#users_rw[@]} -gt 0 ]]; then
-            if [[ ${#users_rw[@]} -le 2 ]]; then
-                perms_display=$(IFS=', '; echo "${users_rw[*]}")
-            else
-                perms_display="${users_rw[0]}, ${users_rw[1]}, ... (+$((${#users_rw[@]} - 2)))"
-            fi
+            for user in "${users_rw[@]}"; do
+                printf "| %-30s | %-35s | %-10s |\n" "$share_name" "$user" "✍️ RW" >> "$output_md"
+            done
+            has_perms=1
         fi
         
-        # Scrivi riga tabella con padding
-        printf "| %-25s | %-35s | %-30s |\n" "$share_name" "$path_display" "$perms_display" >> "$output_md"
+        if [[ ${#users_ro[@]} -gt 0 ]]; then
+            for user in "${users_ro[@]}"; do
+                printf "| %-30s | %-35s | %-10s |\n" "$share_name" "$user" "👁️ RO" >> "$output_md"
+            done
+            has_perms=1
+        fi
+        
+        if [[ $has_perms -eq 0 ]]; then
+            printf "| %-30s | %-35s | %-10s |\n" "$share_name" "(nessun permesso)" "-" >> "$output_md"
+        fi
         
     done < "$temp_shares"
     
