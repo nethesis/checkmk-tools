@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.0.6"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.2.0"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -187,22 +187,34 @@ collect_ad_users() {
 
 # Funzione 2: Raccolta scadenze password AD
 collect_password_expiry() {
-    log_info "Raccolta scadenze password AD..."
+    log_info "Generazione report password expiry (Markdown)..."
     
-    local output_file="$OUTPUT_DIR/02_password_expiry.txt"
-    local temp_file=$(mktemp)
-    
-    # Header TSV
-    echo -e "user\tpwdLastSet_raw\tpwdLastSet_unix\tpwdLastSet_iso\texpires_unix\texpires_iso\tdays_until_expiry" > "$output_file"
+    local output_md="$OUTPUT_DIR/01_password_expiry.md"
+    local user_list="$OUTPUT_DIR/01_users.txt"
     
     # Leggi lista utenti
-    if [[ ! -f "$OUTPUT_DIR/01_users.txt" ]]; then
+    if [[ ! -f "$user_list" ]]; then
         log_error "File utenti non trovato, esegui prima collect_ad_users"
         return 1
     fi
     
+    # Inizia file MD
+    {
+        echo "# 🔐 Password Expiry Report"
+        echo ""
+        echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
+        echo ""
+        echo "---"
+        echo ""
+    } > "$output_md"
+    
     local user_count=0
     local success_count=0
+    local expired_count=0
+    local expiring_count=0
+    
+    # Array temporaneo per dati
+    declare -a pwd_data
     
     # DISABILITA set -e solo per questo loop
     set +e
@@ -211,7 +223,7 @@ collect_password_expiry() {
         [[ -z "$username" ]] && continue
         ((user_count++))
         
-        # Progress solo ogni 10 utenti (riduce output da 400 a 10 righe)
+        # Progress ogni 10 utenti
         if (( user_count % 10 == 0 )); then
             log_info "  Progress: $user_count utenti elaborati..."
         fi
@@ -222,108 +234,228 @@ collect_password_expiry() {
             | grep "^pwdLastSet:" | awk '{print $2}' || echo "0")
         
         if [[ -z "$pwd_last_set" ]] || [[ "$pwd_last_set" == "0" ]]; then
-            echo -e "$username\t0\t0\tN/A\t0\tN/A\tN/A" >> "$output_file"
+            pwd_data+=("$username|N/A|N/A|N/A")
             continue
         fi
         
         # Conversione FILETIME → Unix epoch
-        # Formula: unix = (filetime - 116444736000000000) / 10000000
         local unix_time=$(python3 -c "print(int(($pwd_last_set - 116444736000000000) / 10000000))" 2>/dev/null || echo "0")
         
         if [[ "$unix_time" == "0" ]]; then
-            echo -e "$username\t$pwd_last_set\t0\tN/A\t0\tN/A\tN/A" >> "$output_file"
+            pwd_data+=("$username|N/A|N/A|N/A")
             continue
         fi
         
         # Data ISO formattata
-        local iso_date=$(date -d "@$unix_time" +"%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "N/A")
+        local iso_date=$(date -d "@$unix_time" +"%Y-%m-%d" 2>/dev/null || echo "N/A")
         
-        # Calcola scadenza (pwdLastSet + maxPwdAge)
+        # Calcola scadenza
         local expires_unix=$((unix_time + MAX_PWD_AGE_DAYS * 86400))
-        local expires_iso=$(date -d "@$expires_unix" +"%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "N/A")
+        local expires_iso=$(date -d "@$expires_unix" +"%Y-%m-%d" 2>/dev/null || echo "N/A")
         
         # Giorni rimanenti
         local now=$(date +%s)
         local days_until_expiry=$(( (expires_unix - now) / 86400 ))
         
-        echo -e "$username\t$pwd_last_set\t$unix_time\t$iso_date\t$expires_unix\t$expires_iso\t$days_until_expiry" >> "$output_file"
+        # Contatori
+        if [[ $days_until_expiry -lt 0 ]]; then
+            ((expired_count++))
+        elif [[ $days_until_expiry -le 7 ]]; then
+            ((expiring_count++))
+        fi
+        
+        pwd_data+=("$username|$iso_date|$expires_iso|$days_until_expiry")
         ((success_count++))
         
-    done < "$OUTPUT_DIR/01_users.txt"
+    done < "$user_list"
     
     # Riabilita set -e
     set -e
     
-    log_success "Scadenze password elaborate: $success_count/$user_count → $(basename "$output_file")"
-    rm -f "$temp_file"
+    # Scrivi riepilogo
+    {
+        echo "## 📊 Riepilogo"
+        echo ""
+        echo "- **Utenti totali:** $success_count"
+        echo "- **Password scadute:** $expired_count"
+        echo "- **Password in scadenza (≤7 giorni):** $expiring_count"
+        echo ""
+    } >> "$output_md"
+    
+    # Sezione password scadute
+    if [[ $expired_count -gt 0 ]]; then
+        {
+            echo "---"
+            echo ""
+            echo "## ⚠️ Password Scadute"
+            echo ""
+            echo "| Utente | Ultima Modifica | Scaduta Il | Giorni |"
+            echo "|--------|-----------------|------------|--------|"
+        } >> "$output_md"
+        
+        for entry in "${pwd_data[@]}"; do
+            IFS='|' read -r user lastset expires days <<< "$entry"
+            if [[ "$days" != "N/A" ]] && [[ $days -lt 0 ]]; then
+                echo "| **$user** | $lastset | $expires | **$days** |" >> "$output_md"
+            fi
+        done
+        
+        echo "" >> "$output_md"
+    fi
+    
+    # Sezione password in scadenza
+    if [[ $expiring_count -gt 0 ]]; then
+        {
+            echo "---"
+            echo ""
+            echo "## ⏰ Password in Scadenza (≤7 giorni)"
+            echo ""
+            echo "| Utente | Ultima Modifica | Scade Il | Giorni |"
+            echo "|--------|-----------------|----------|--------|"
+        } >> "$output_md"
+        
+        for entry in "${pwd_data[@]}"; do
+            IFS='|' read -r user lastset expires days <<< "$entry"
+            if [[ "$days" != "N/A" ]] && [[ $days -ge 0 ]] && [[ $days -le 7 ]]; then
+                echo "| **$user** | $lastset | $expires | **$days** |" >> "$output_md"
+            fi
+        done
+        
+        echo "" >> "$output_md"
+    fi
+    
+    # Tabella completa
+    {
+        echo "---"
+        echo ""
+        echo "## 📋 Tutte le Password"
+        echo ""
+        echo "| Utente | Ultima Modifica | Scade Il | Giorni |"
+        echo "|--------|-----------------|----------|--------|"
+    } >> "$output_md"
+    
+    for entry in "${pwd_data[@]}"; do
+        IFS='|' read -r user lastset expires days <<< "$entry"
+        
+        if [[ "$days" == "N/A" ]]; then
+            echo "| $user | $lastset | $expires | N/A |" >> "$output_md"
+        elif [[ $days -lt 0 ]] || [[ $days -le 7 ]]; then
+            echo "| **$user** | $lastset | $expires | **$days** |" >> "$output_md"
+        else
+            echo "| $user | $lastset | $expires | $days |" >> "$output_md"
+        fi
+    done
+    
+    echo "" >> "$output_md"
+    
+    # Cleanup file utenti temporaneo
+    rm -f "$user_list"
+    
+    log_success "Report password generato → 01_password_expiry.md ($success_count utenti)"
     return 0
 }
 
 # Funzione 3: Raccolta gruppi AD e membri
 collect_ad_groups() {
-    log_info "Raccolta gruppi Active Directory e membri..."
+    log_info "Generazione report gruppi AD (Markdown)..."
     
-    local output_file="$OUTPUT_DIR/05_ad_groups.txt"
+    local output_md="$OUTPUT_DIR/02_gruppi_ad.md"
     local temp_groups=$(mktemp)
-    
-    # Header TSV
-    echo -e "group_name\tmembers_count\tmembers_list" > "$output_file"
     
     # Lista gruppi AD
     if ! runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group list > "$temp_groups" 2>/dev/null; then
         log_error "Fallita raccolta gruppi AD"
-        echo "ERROR: Unable to collect AD groups" > "$output_file"
+        echo "# ❌ Errore Raccolta Gruppi AD" > "$output_md"
+        echo "" >> "$output_md"
+        echo "Impossibile raccogliere gruppi dal domain controller." >> "$output_md"
         rm -f "$temp_groups"
         return 1
     fi
     
-    local group_count=0
-    local success_count=0
+    local group_count=$(grep -c ^ "$temp_groups" 2>/dev/null || echo "0")
+    
+    # Inizia file MD
+    {
+        echo "# 👥 Gruppi Active Directory"
+        echo ""
+        echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
+        echo ""
+        echo "**Totale gruppi:** $group_count"
+        echo ""
+        echo "---"
+        echo ""
+    } > "$output_md"
+    
+    local processed=0
     
     # DISABILITA set -e solo per questo loop
     set +e
     
     while IFS= read -r groupname; do
         [[ -z "$groupname" ]] && continue
-        ((group_count++))
+        ((processed++))
         
         # Progress solo ogni 10 gruppi (riduce output da 87 a ~9 righe)
-        if (( group_count % 10 == 0 )); then
-            log_info "  Progress: $group_count gruppi elaborati..."
+        if (( processed % 10 == 0 )); then
+            log_info "  Progress: $processed/$group_count gruppi..."
         fi
         
         # Ottieni membri del gruppo
         local members=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-            samba-tool group listmembers "$groupname" 2>/dev/null | tr '\n' ',' | sed 's/,$//' || echo "")
+            samba-tool group listmembers "$groupname" 2>/dev/null | sort || echo "")
         
         local members_count=0
         if [[ -n "$members" ]]; then
-            members_count=$(echo "$members" | tr ',' '\n' | wc -l)
+            members_count=$(echo "$members" | wc -l)
         fi
         
-        echo -e "$groupname\t$members_count\t$members" >> "$output_file"
-        ((success_count++))
+        # Scrivi sezione gruppo
+        {
+            echo "## 📁 $groupname"
+            echo ""
+            echo "**Membri:** $members_count"
+            echo ""
+        } >> "$output_md"
+        
+        if [[ $members_count -eq 0 ]]; then
+            echo "*Nessun membro*" >> "$output_md"
+        else
+            # Usa <details> per collapsibile solo se membri > 5
+            if [[ $members_count -gt 5 ]]; then
+                echo "<details>" >> "$output_md"
+                echo "<summary>Elenco membri ($members_count)</summary>" >> "$output_md"
+                echo "" >> "$output_md"
+            fi
+            
+            while IFS= read -r member; do
+                [[ -z "$member" ]] && continue
+                echo "- $member" >> "$output_md"
+            done <<< "$members"
+            
+            if [[ $members_count -gt 5 ]]; then
+                echo "" >> "$output_md"
+                echo "</details>" >> "$output_md"
+            fi
+        fi
+        
+        echo "" >> "$output_md"
         
     done < "$temp_groups"
     
     # Riabilita set -e
     set -e
     
-    log_success "Gruppi AD elaborati: $success_count/$group_count → $(basename "$output_file")"
+    log_success "Report gruppi generato → 02_gruppi_ad.md ($processed gruppi)"
     rm -f "$temp_groups"
     return 0
 }
 
 # Funzione 4: Raccolta share e permessi
 collect_samba_shares() {
-    log_info "Raccolta share Samba e permessi..."
+    log_info "Generazione report share Samba (Markdown)..."
     
-    local shares_dir="$OUTPUT_DIR/03_shares"
-    local acls_dir="$shares_dir/acls"
-    mkdir -p "$acls_dir"
-    
-    local shares_list="$shares_dir/shares_list.txt"
-    local shares_report="$shares_dir/shares_report.txt"
+    local output_md="$OUTPUT_DIR/04_share_permissions.md"
+    local temp_shares=$(mktemp)
     
     # Lista share (escludi share di sistema)
     runagent -m "$SAMBA_MODULE" podman exec samba-dc \
@@ -331,68 +463,176 @@ collect_samba_shares() {
         | grep "Disk" \
         | awk '{print $1}' \
         | grep -vE '^(IPC\$|ADMIN\$|print\$|netlogon|sysvol)$' \
-        > "$shares_list" || true
+        > "$temp_shares" || true
     
-    local share_count=$(wc -l < "$shares_list" 2>/dev/null || echo 0)
+    local share_count=$(wc -l < "$temp_shares" 2>/dev/null || echo 0)
     
     if [[ $share_count -eq 0 ]]; then
         log_warn "Nessuno share trovato"
+        {
+            echo "# 📂 Share Samba - Permessi"
+            echo ""
+            echo "⚠️ **Nessuno share trovato**"
+        } > "$output_md"
+        rm -f "$temp_shares"
         return 0
     fi
     
     log_info "Trovati $share_count share"
     
-    # Header TSV report
-    echo -e "share_name\tshare_path\tacl_file" > "$shares_report"
+    # Inizia file MD
+    {
+        echo "# 📂 Share Samba - Permessi"
+        echo ""
+        echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
+        echo ""
+        echo "**Totale share:** $share_count"
+        echo ""
+        echo "---"
+        echo ""
+    } > "$output_md"
     
-    # Contatori per statistiche ACL
-    local acl_success_count=0
-    local acl_failed_count=0
+    # Contatori
+    local processed=0
+    local acl_success=0
+    local acl_failed=0
     
-    # Per ogni share: ottieni path e ACL
+    # Per ogni share: ottieni path, ACL, parsa e scrivi MD
     while IFS= read -r share_name; do
         [[ -z "$share_name" ]] && continue
+        ((processed++))
         
-        # Progress ogni 5 share (riduce output da 84 a ~17 righe)
-        if (( (acl_success_count + acl_failed_count + 1) % 5 == 0 )); then
-            log_info "  Progress: $((acl_success_count + acl_failed_count + 1))/$share_count share elaborati..."
+        # Progress ogni 5 share
+        if (( processed % 5 == 0 )); then
+            log_info "  Progress: $processed/$share_count share..."
         fi
         
         # Ottieni path share
         local share_path=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc \
             net conf getparm "$share_name" path 2>/dev/null </dev/null || echo "N/A")
         
-        # Ottieni ACL Windows direttamente da extended attributes (samba-tool ntacl)
-        # Questo funziona con accesso root senza autenticazione SMB
-        local acl_file="$acls_dir/${share_name}_acl.txt"
+        # Scrivi header share
+        {
+            echo "## 📁 $share_name"
+            echo ""
+            echo "**Path:** $share_path"
+            echo ""
+        } >> "$output_md"
         
-        if [[ "$share_path" != "N/A" ]]; then
-            # Usa samba-tool ntacl get per leggere ACL Windows dal filesystem
-            runagent -m "$SAMBA_MODULE" podman exec samba-dc \
-                samba-tool ntacl get "$share_path" > "$acl_file" 2>&1 </dev/null || true
-            
-            if grep -q "trustee" "$acl_file" 2>/dev/null; then
-                (( ++acl_success_count ))
-            else
-                echo "ERROR: Unable to retrieve ACL for $share_name" > "$acl_file"
-                (( ++acl_failed_count ))
-            fi
-        else
-            echo "ERROR: Share path not available for $share_name" > "$acl_file"
-            (( ++acl_failed_count ))
+        if [[ "$share_path" == "N/A" ]]; then
+            echo "❌ **Errore:** Path non disponibile" >> "$output_md"
+            echo "" >> "$output_md"
+            ((acl_failed++))
+            continue
         fi
         
-        # Aggiungi a report TSV
-        echo -e "$share_name\t$share_path\t$acl_file" >> "$shares_report"
+        # Ottieni ACL Windows
+        local temp_acl=$(mktemp)
+        if ! runagent -m "$SAMBA_MODULE" podman exec samba-dc \
+            samba-tool ntacl get "$share_path" > "$temp_acl" 2>&1 </dev/null; then
+            echo "❌ **Errore:** Impossibile leggere ACL" >> "$output_md"
+            echo "" >> "$output_md"
+            rm -f "$temp_acl"
+            ((acl_failed++))
+            continue
+        fi
         
-    done < "$shares_list"
+        # Verifica ACL valido
+        if ! grep -q "trustee" "$temp_acl" 2>/dev/null; then
+            echo "⚠️ **Warning:** ACL non disponibile o vuoto" >> "$output_md"
+            echo "" >> "$output_md"
+            rm -f "$temp_acl"
+            ((acl_failed++))
+            continue
+        fi
+        
+        ((acl_success++))
+        
+        # Parsa ACL e raggruppa per tipo permesso
+        declare -a users_rw
+        declare -a users_ro
+        
+        local current_mask=""
+        local current_sid=""
+        
+        while IFS= read -r line; do
+            # Rileva access_mask
+            if [[ "$line" =~ access_mask.*:[[:space:]]*(0x[0-9a-f]+) ]]; then
+                current_mask="${BASH_REMATCH[1]}"
+            fi
+            
+            # Rileva trustee SID
+            if [[ "$line" =~ trustee.*:[[:space:]]*(S-1-[0-9-]+) ]]; then
+                current_sid="${BASH_REMATCH[1]}"
+                
+                # Quando abbiamo entrambi, processa
+                if [[ -n "$current_mask" && -n "$current_sid" ]]; then
+                    # Converti SID → nome (skip SID di sistema)
+                    local entity_name=$(sid_to_name "$current_sid" "$SAMBA_MODULE")
+                    
+                    if [[ -n "$entity_name" ]]; then
+                        # Decodifica permessi
+                        local perm_type=$(decode_access_mask "$current_mask")
+                        
+                        if [[ "$perm_type" == "RW" ]]; then
+                            users_rw+=("$entity_name")
+                        else
+                            users_ro+=("$entity_name")
+                        fi
+                    fi
+                    
+                    # Reset
+                    current_mask=""
+                    current_sid=""
+                fi
+            fi
+        done < "$temp_acl"
+        
+        rm -f "$temp_acl"
+        
+        # Scrivi tabella permessi
+        echo "### Permessi" >> "$output_md"
+        echo "" >> "$output_md"
+        
+        local has_perms=0
+        
+        if [[ ${#users_rw[@]} -gt 0 ]]; then
+            echo "**Lettura/Scrittura:**" >> "$output_md"
+            echo "" >> "$output_md"
+            for user in "${users_rw[@]}"; do
+                echo "- $user" >> "$output_md"
+            done
+            echo "" >> "$output_md"
+            has_perms=1
+        fi
+        
+        if [[ ${#users_ro[@]} -gt 0 ]]; then
+            echo "**Solo Lettura:**" >> "$output_md"
+            echo "" >> "$output_md"
+            for user in "${users_ro[@]}"; do
+                echo "- $user" >> "$output_md"
+            done
+            echo "" >> "$output_md"
+            has_perms=1
+        fi
+        
+        if [[ $has_perms -eq 0 ]]; then
+            echo "*Nessun permesso esplicito configurato*" >> "$output_md"
+            echo "" >> "$output_md"
+        fi
+        
+        echo "---" >> "$output_md"
+        echo "" >> "$output_md"
+        
+        # Cleanup array
+        unset users_rw
+        unset users_ro
+        
+    done < "$temp_shares"
     
-    echo ""
-    log_success "Raccolti $share_count share → $shares_dir/"
-    log_info "Statistiche ACL:"
-    log_info "  • ACL raccolti:  $acl_success_count"
-    [[ $acl_failed_count -gt 0 ]] && log_warn "  • ACL falliti:   $acl_failed_count"
+    rm -f "$temp_shares"
     
+    log_success "Report share generato → 04_share_permissions.md ($processed share, $acl_success ACL, $acl_failed errori)"
     return 0
 }
 
@@ -400,20 +640,29 @@ collect_samba_shares() {
 collect_webtop_sharing() {
     if [[ -z "$WEBTOP_MODULE" ]]; then
         log_warn "Modulo WebTop non disponibile - skip raccolta email sharing"
+        local output_md="$OUTPUT_DIR/03_webtop_shares.md"
+        {
+            echo "# 📧 Condivisioni Email WebTop"
+            echo ""
+            echo "⚠️ **Modulo WebTop non disponibile**"
+        } > "$output_md"
         return 0
     fi
     
-    log_info "Raccolta condivisioni email WebTop..."
+    log_info "Generazione report condivisioni email WebTop (Markdown)..."
     
-    local output_file="$OUTPUT_DIR/04_webtop_email_shares.txt"
+    local output_md="$OUTPUT_DIR/03_webtop_shares.md"
     
     # Container Postgres
     local postgres_container=$(runagent -m "$WEBTOP_MODULE" podman ps --format '{{.Names}}' 2>/dev/null | grep -i postgres | head -1)
     
     if [[ -z "$postgres_container" ]]; then
         log_warn "Container Postgres non trovato"
-        echo -e "owner\tshare_id\tmailbox_path\tshared_with\tpermissions" > "$output_file"
-        echo -e "ERROR\tN/A\tPostgres container not found\tN/A\tN/A" >> "$output_file"
+        {
+            echo "# 📧 Condivisioni Email WebTop"
+            echo ""
+            echo "❌ **Errore:** Container Postgres non trovato"
+        } > "$output_md"
         return 1
     fi
     
@@ -423,8 +672,11 @@ collect_webtop_sharing() {
         psql -U postgres -t -c '\l' > "$db_list" 2>/dev/null; then
         log_warn "Impossibile listare database"
         rm -f "$db_list"
-        echo -e "owner\tshare_id\tmailbox_path\tshared_with\tpermissions" > "$output_file"
-        echo -e "ERROR\tN/A\tDatabase list failed\tN/A\tN/A" >> "$output_file"
+        {
+            echo "# 📧 Condivisioni Email WebTop"
+            echo ""
+            echo "❌ **Errore:** Impossibile listare database"
+        } > "$output_md"
         return 1
     fi
     
@@ -433,313 +685,173 @@ collect_webtop_sharing() {
     
     if [[ -z "$webtop_db" ]]; then
         log_warn "Database WebTop non trovato"
-        echo -e "owner\tshare_id\tmailbox_path\tshared_with\tpermissions" > "$output_file"
-        echo -e "ERROR\tN/A\tWebTop database not found\tN/A\tN/A" >> "$output_file"
+        {
+            echo "# 📧 Condivisioni Email WebTop"
+            echo ""
+            echo "❌ **Errore:** Database WebTop non trovato"
+        } > "$output_md"
         return 1
     fi
     
-    # Esegui query (metodo funzionante da ns8-biweekly-audit-report.sh)
-    # Usa echo per passare query via stdin, evitando problemi con heredoc quando script eseguito via curl|bash
+    # Query SQL
     local query="SELECT s.share_id, s.user_uid AS owner, s.service_id, s.key AS mailbox_path, s.instance, sd.user_uid AS shared_with, sd.value AS permissions FROM core.shares s LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id WHERE s.service_id LIKE '%mail%' ORDER BY s.user_uid, s.share_id, sd.user_uid;"
     
     local temp_output="/tmp/webtop_raw_$$.txt"
     
-    # Esegui query e post-processa output per ottenere TSV pulito
-    if echo "$query" | runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
+    # Esegui query
+    if ! echo "$query" | runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
         psql -U postgres -d "$webtop_db" > "$temp_output" 2>/dev/null; then
-        
-        # Header TSV
-        echo -e "share_id\towner\tservice_id\tmailbox_path\tinstance\tshared_with\tpermissions" > "$output_file"
-        
-        # Pulisci output PostgreSQL: rimuovi header/footer/borders, converti pipe in TAB
-        # Filtra solo linee con dati (iniziano con spazio+numero oppure numero)
-        if grep -qE "^\s*[0-9]+" "$temp_output" 2>/dev/null; then
-            grep -E "^\s*[0-9]+" "$temp_output" | \
-                sed 's/|/\t/g' | \
-                sed 's/^\s\+//;s/\s\+$//' | \
-                awk -F'\t' '{
-                    # Trim ogni campo
-                    for(i=1; i<=NF; i++) {
-                        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $i)
-                    }
-                    # Stampa solo se ha abbastanza campi
-                    if (NF >= 6) print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7
-                }' >> "$output_file"
-            
-            local record_count=$(tail -n +2 "$output_file" 2>/dev/null | wc -l || echo "0")
-            log_success "Raccolte $record_count condivisioni email → $(basename "$output_file")"
-            rm -f "$temp_output"
-        else
-            log_warn "Nessuna condivisione email configurata"
-            rm -f "$temp_output"
-        fi
-        return 0
-    else
         log_error "Query Postgres fallita"
-        echo -e "owner\tshare_id\tmailbox_path\tshared_with\tpermissions" > "$output_file"
-        echo -e "ERROR\tN/A\tQuery failed\tN/A\tN/A" >> "$output_file"
+        {
+            echo "# 📧 Condivisioni Email WebTop"
+            echo ""
+            echo "❌ **Errore:** Query Postgres fallita"
+        } > "$output_md"
+        rm -f "$temp_output"
         return 1
     fi
+    
+    # Controlla se ci sono dati
+    if ! grep -qE "^\s*[0-9]+" "$temp_output" 2>/dev/null; then
+        log_warn "Nessuna condivisione email configurata"
+        {
+            echo "# 📧 Condivisioni Email WebTop"
+            echo ""
+            echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
+            echo ""
+            echo "*Nessuna condivisione email configurata*"
+        } > "$output_md"
+        rm -f "$temp_output"
+        return 0
+    fi
+    
+    # Inizia file MD
+    {
+        echo "# 📧 Condivisioni Email WebTop"
+        echo ""
+        echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
+        echo ""
+        echo "---"
+        echo ""
+        echo "## 📋 Tutte le Condivisioni"
+        echo ""
+        echo "| Share ID | Owner | Mailbox | Condiviso Con | Permessi |"
+        echo "|----------|-------|---------|---------------|----------|"
+    } > "$output_md"
+    
+    # Processa righe output PostgreSQL e scrivi MD
+    local record_count=0
+    
+    grep -E "^\s*[0-9]+" "$temp_output" | \
+        sed 's/|/\t/g' | \
+        sed 's/^\s\+//;s/\s\+$//' | \
+        awk -F'\t' '{
+            # Trim ogni campo
+            for(i=1; i<=NF; i++) {
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", $i)
+            }
+            # Stampa solo se ha abbastanza campi (share_id, owner, service_id, mailbox, instance, shared_with, perms)
+            if (NF >= 6) {
+                share_id = $1
+                owner = $2
+                mailbox = $4
+                shared_with = $6
+                perms = ($7 != "") ? $7 : "N/A"
+                print share_id "\t" owner "\t" mailbox "\t" shared_with "\t" perms
+            }
+        }' | while IFS=$'\t' read -r share_id owner mailbox shared_with perms; do
+        
+        [[ -z "$share_id" ]] && continue
+        ((record_count++))
+        
+        echo "| $share_id | $owner | $mailbox | $shared_with | $perms |" >> "$output_md"
+    done
+    
+    echo "" >> "$output_md"
+    
+    rm -f "$temp_output"
+    
+    log_success "Report condivisioni WebTop generato → 03_webtop_shares.md ($record_count condivisioni)"
+    return 0
 }
 
 # Funzione 5: Genera report riepilogativo
 generate_summary_report() {
-    log_info "Generazione report riepilogativo..."
+    log_info "Generazione report riepilogativo (Markdown)..."
     
-    # PRE-CACHE SID → Username per performance (evita chiamate ripetute a wbinfo)
-    # TEMPORANEAMENTE DISABILITATO: il loop si blocca, usiamo wbinfo on-demand
-    log_info "Pre-caching conversione SID → Username..."
+    local output_md="$OUTPUT_DIR/00_REPORT_SUMMARY.md"
     
-    # SKIP pre-caching per ora - sid_to_name() farà wbinfo on-demand
-    log_warn "Pre-caching disabilitato - conversione SID on-demand (più lento)"
-    log_info "Questo richiederà 3-5 minuti durante la visualizzazione tabelle..."
+    # Conta dati dai file MD
+    local user_count=$(grep -c "^|" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | tail -1 || echo "0")
+    local group_count=$(grep -c "^## 📁" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null || echo "0")
+    local share_count=$(grep -c "^## 📁" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null || echo "0")
+    local webtop_count=$(grep -c "^|" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | tail -1 || echo "0")
     
-    ## CODICE PRE-CACHING DISABILITATO - DA FIXARE DOPO
-    # local acls_dir="$OUTPUT_DIR/03_shares/acls"
-    # if [[ -d "$acls_dir" ]]; then
-    #     local all_sids=$(grep -h "trustee.*: S-1" "$acls_dir"/*_acl.txt 2>/dev/null | sed 's/.*trustee.*: \(S-1-[0-9-]*\).*/\1/' | sort -u)
-    #     local sid_count=$(echo "$all_sids" | grep -c "^S-1" || echo 0)
-    #     ...
-    # fi
+    # Conta password critiche
+    local expired_count=$(grep -c "⚠️" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null || echo "0")
+    local expiring_count=$(grep -c "⏰" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null || echo "0")
     
-    local summary_file="$OUTPUT_DIR/REPORT_SUMMARY.txt"
+    # Inizia file MD
+    {
+        echo "# 📊 Report Riepilogativo Audit NS8"
+        echo ""
+        echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
+        echo ""
+        echo "---"
+        echo ""
+        echo "## 📋 Statistiche Generali"
+        echo ""
+        echo "| Categoria | Totale |"
+        echo "|-----------|--------|"
+        echo "| **Utenti AD** | $user_count |"
+        echo "| **Gruppi AD** | $group_count |"
+        echo "| **Share Samba** | $share_count |"
+        echo "| **Condivisioni Email WebTop** | $webtop_count |"
+        echo ""
+        echo "---"
+        echo ""
+        echo "## ⚠️ Criticità"
+        echo ""
+    } > "$output_md"
     
-    # Conta dati raccolti
-    local user_count=$(wc -l < "$OUTPUT_DIR/01_users.txt" 2>/dev/null || echo 0)
-    local pwd_count=$(tail -n +2 "$OUTPUT_DIR/02_password_expiry.txt" 2>/dev/null | wc -l || echo 0)
-    local share_count=$(wc -l < "$OUTPUT_DIR/03_shares/shares_list.txt" 2>/dev/null || echo 0)
-    local webtop_share_count=$(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.txt" 2>/dev/null | wc -l || echo 0)
-    
-    # Password in scadenza (entro 7 giorni)
-    local expiring_soon=0
-    if [[ -f "$OUTPUT_DIR/02_password_expiry.txt" ]]; then
-        expiring_soon=$(awk -F'\t' '$7 != "N/A" && $7 <= 7 && $7 >= 0 {print}' "$OUTPUT_DIR/02_password_expiry.txt" 2>/dev/null | wc -l || echo 0)
-    fi
-    
-    # Password scadute
-    local expired=0
-    if [[ -f "$OUTPUT_DIR/02_password_expiry.txt" ]]; then
-        expired=$(awk -F'\t' '$7 != "N/A" && $7 < 0 {print}' "$OUTPUT_DIR/02_password_expiry.txt" 2>/dev/null | wc -l || echo 0)
-    fi
-    
-    # Crea summary
-        cat > "$summary_file" <<EOF
-
-                                        REPORT AUDIT QUINDICINALE NS8
-
-        Data report:          $(date +"%Y-%m-%d %H:%M:%S")
-        Directory output:     $OUTPUT_DIR
-
-        ================================================================================
-        RIEPILOGO DATI RACCOLTI
-        ================================================================================
-
-        Active Directory:
-            - Utenti totali:                    $user_count
-            - Utenti con analisi password:      $pwd_count
-            - Password in scadenza (≤7 giorni): $expiring_soon
-            - Password scadute:                  $expired
-            - Gruppi AD totali:                  $(tail -n +2 "$OUTPUT_DIR/05_ad_groups.txt" 2>/dev/null | wc -l || echo 0)
-
-        Samba File Shares:
-            - Share totali:                      $share_count
-            - File ACL generati:                 $share_count
-
-        WebTop Email Sharing:
-            - Condivisioni email totali:         $webtop_share_count
-
-        ================================================================================
-        DETTAGLIO PASSWORD EXPIRY
-        ================================================================================
-
-EOF
-
-    # Tabella password expiry
-    if [[ -f "$OUTPUT_DIR/02_password_expiry.txt" ]]; then
-        echo "" >> "$summary_file"
-        echo "LEGENDA:" >> "$summary_file"
-        echo "  • Giorni positivi = password ancora valida" >> "$summary_file"
-        echo "  • Giorni negativi = password SCADUTA" >> "$summary_file"
-        echo "  • N/A = account senza password o Guest" >> "$summary_file"
+    # Sezione password critiche
+    if [[ $expired_count -gt 0 ]] || [[ $expiring_count -gt 0 ]]; then
+        {
+            echo "### 🔐 Password"
+            echo ""
+            [[ $expired_count -gt 0 ]] && echo "- ⚠️ **Password scadute:** $expired_count"
+            [[ $expiring_count -gt 0 ]] && echo "- ⏰ **Password in scadenza (≤7 giorni):** $expiring_count"
+            echo ""
+        } >> "$output_md"
     else
-        echo "Nessun dato disponibile" >> "$summary_file"
-    fi
-
-    cat >> "$summary_file" <<EOF
-
-================================================================================
-DETTAGLIO GRUPPI AD E MEMBRI
-================================================================================
-
-EOF
-
-    # Tabella gruppi AD (gruppo → utenti)
-    if [[ -f "$OUTPUT_DIR/05_ad_groups.txt" ]]; then
-        cat >> "$summary_file" <<'EOF'
-GRUPPO                                                      UTENTI PRESENTI NEL GRUPPO
------------------------------------------------------------- --------------------------------------------------------------------------------
-EOF
-        tail -n +2 "$OUTPUT_DIR/05_ad_groups.txt" | while IFS=$'\t' read -r groupname count members; do
-            [[ -z "$members" ]] && members="N/A"
-            printf "%-60s %-80s\n" "$groupname" "$members"
-        done >> "$summary_file"
-    else
-        echo "Nessun dato disponibile" >> "$summary_file"
-    fi
-
-    cat >> "$summary_file" <<EOF
-
-================================================================================
-DETTAGLIO SHARE SAMBA
-================================================================================
-
-EOF
-
-    # DEBUG: Diagnostica file ACL (console + file) - VERSIONE RIDOTTA
-    echo ""
-    log_info "[DEBUG] === DIAGNOSTICA ACL ==="
-    echo "" >> "$summary_file"
-    echo "[DEBUG] === DIAGNOSTICA ACL ===" >> "$summary_file"
-    
-    local acls_dir="$OUTPUT_DIR/03_shares/acls"
-    if [[ -d "$acls_dir" ]]; then
-        local acl_count=$(find "$acls_dir" -name "*_acl.txt" -type f 2>/dev/null | wc -l)
-        local acl_with_trustee=$(grep -l "trustee" "$acls_dir"/*_acl.txt 2>/dev/null | wc -l)
-        
-        # Log solo su file summary (non su console)
-        echo "# ACL raccolti: $acl_count file ($acl_with_trustee con trustee)" >> "$summary_file"
-    else
-        echo "# Nessun ACL raccolto" >> "$summary_file"
-    fi
-    echo ""
-    echo "" >> "$summary_file"
-
-    # Tabella share Samba (VELOCE: solo statistiche, dettagli sotto)
-    if [[ -f "$OUTPUT_DIR/03_shares/shares_report.txt" ]]; then
-        local acl_with_trustee=$(grep -l "trustee" "$OUTPUT_DIR/03_shares/acls"/*_acl.txt 2>/dev/null | wc -l)
-        cat >> "$summary_file" <<EOF
-
-⚠ NOTA: Permessi share dettagliati visualizzati nella sezione "REPORT PERMESSI SHARE" più sotto.
-       (Processing ACL richiede 2-3 minuti - query Active Directory in corso...)
-
-Share totali: $share_count
-Share con ACL: $acl_with_trustee
-
-EOF
-    else
-        echo "Nessun dato disponibile" >> "$summary_file"
-    fi
-
-    cat >> "$summary_file" <<EOF
-
-================================================================================
-DETTAGLIO CONDIVISIONI EMAIL WEBTOP
-================================================================================
-
-EOF
-
-    # Tabella WebTop condivisioni
-    local webtop_has_data=$(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.txt" 2>/dev/null | wc -l || echo 0)
-    
-    if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.txt" && $webtop_has_data -gt 0 ]]; then
-        # Mappa UUID → username
-        declare -A uuid_to_user
-        
-        if [[ -n "$WEBTOP_MODULE" ]]; then
-            local postgres_container=$(runagent -m "$WEBTOP_MODULE" podman ps --format '{{.Names}}' 2>/dev/null | grep -i postgres | head -1 || echo "postgres")
-            local webtop_db=$(runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" psql -U postgres -t -c "\l" 2>/dev/null | grep -iE 'webtop' | awk '{print $1}' | head -1 || echo "")
-            
-            if [[ -n "$webtop_db" ]]; then
-                local uuid_map=$(echo "SELECT user_uid, user_id FROM core.users;" | runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" psql -U postgres -d "$webtop_db" -A -t -F $'\t' 2>/dev/null || echo "")
-                
-                while IFS=$'\t' read -r uuid username; do
-                    [[ -n "$uuid" && -n "$username" ]] && uuid_to_user["$uuid"]="$username"
-                done <<< "$uuid_map"
-            fi
-        fi
-        
-        cat >> "$summary_file" <<'EOF'
-    MAILBOX/CARTELLA    PROPRIETARIO              CONDIVISO CON             PERMESSI
-    ------------------- ------------------------- ------------------------- -------------------------
-EOF
-        
-        tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.txt" | while IFS=$'\t' read -r id owner svc path inst shared perms; do
-            # Mappa UUID → username
-            local owner_name="${uuid_to_user[$owner]:-${owner:0:12}...}"
-            local shared_name="${uuid_to_user[$shared]:-${shared:0:12}...}"
-            
-            # Clean permissions JSON
-            local perms_clean=$(echo "$perms" | sed 's/[{}":]//g' | tr ',' ' ' | cut -c1-25)
-            
-            printf "%-19s %-25s %-25s %-25s\n" "$path" "$owner_name" "$shared_name" "$perms_clean" >> "$summary_file"
-        done
-    else
-        echo "Nessuna condivisione email configurata" >> "$summary_file"
-    fi
-
-    cat >> "$summary_file" <<EOF
-
-================================================================================
-FILE DATI ESPORTATI
-================================================================================
-
-1. Utenti AD:
-   → 01_users.txt
-
-2. Scadenze password (TSV):
-   → 02_password_expiry.txt
-
-3. Share e permessi:
-   → 03_shares/shares_list.txt
-   → 03_shares/shares_report.txt
-   → 03_shares/acls/*.txt
-
-4. WebTop email shares (TSV):
-   → 04_webtop_email_shares.txt
-
-5. Gruppi AD e membri (TSV):
-   → 05_ad_groups.txt
-
-================================================================================
-AZIONI CONSIGLIATE
-================================================================================
-
-EOF
-
-    # Aggiungi avvisi password
-    if [[ $expired -gt 0 ]]; then
-                cat >> "$summary_file" <<EOF
-⚠ ATTENZIONE: $expired password SCADUTE!
-    → Eseguire reset password immediato
-
-EOF
+        {
+            echo "### ✅ Password"
+            echo ""
+            echo "*Nessuna criticità rilevata*"
+            echo ""
+        } >> "$output_md"
     fi
     
-    if [[ $expiring_soon -gt 0 ]]; then
-                cat >> "$summary_file" <<EOF
-⚠ ATTENZIONE: $expiring_soon password in scadenza entro 7 giorni
-    → Notificare utenti per cambio password
-
-EOF
-    fi
+    # Sezione file generati
+    {
+        echo "---"
+        echo ""
+        echo "## 📁 File Generati"
+        echo ""
+    } >> "$output_md"
     
-        cat >> "$summary_file" <<EOF
-Verifica permessi share:
-    → Eseguire: ./acl-viewer.sh $OUTPUT_DIR
-    → Oppure visualizzato automaticamente sotto (se abilitato)
-
-Analisi dettagliata:
-    → Aprire file TSV con foglio di calcolo
-    → Filtrare/ordinare per priorità
-
-===============================================================================
-
-EOF
+    # Lista file MD con dimensioni
+    for md_file in "$OUTPUT_DIR"/*.md; do
+        [[ -f "$md_file" ]] || continue
+        local basename=$(basename "$md_file")
+        local size=$(du -h "$md_file" | cut -f1)
+        echo "- [$basename]($basename) ($size)" >> "$output_md"
+    done
     
-    log_success "Report riepilogativo generato → REPORT_SUMMARY.txt"
-    echo ""
-    log_info "Report completo salvato in: $OUTPUT_DIR/REPORT_SUMMARY.txt"
-    echo ""
+    echo "" >> "$output_md"
+    
+    log_success "Report riepilogativo generato → 00_REPORT_SUMMARY.md"
+    return 0
 }
 
 # Funzione 6: Genera report consolidato TSV
@@ -852,221 +964,34 @@ generate_consolidated_tsv() {
 display_detailed_tables() {
     echo ""
     echo "================================================================================"
-    echo "  DETTAGLI COMPLETI AUDIT NS8"
+    echo "  REPORT COMPLETO AUDIT NS8"
     echo "================================================================================"
     echo ""
     
-    log_info "Visualizzazione tabelle dettagliate..."
+    log_info "Visualizzazione report Markdown..."
     
-    # ========== TABELLA 1: PASSWORD EXPIRY ==========
-    echo "================================================================================"
-    echo "DETTAGLIO PASSWORD EXPIRY"
-    echo "================================================================================"
-    echo ""
+    # Display file MD in ordine
+    local md_files=(
+        "01_password_expiry.md"
+        "02_gruppi_ad.md"
+        "03_webtop_shares.md"
+    )
     
-    if [[ -f "$OUTPUT_DIR/02_password_expiry.txt" ]]; then
-        printf "%-19s %-20s %-20s %10s\n" "UTENTE" "ULTIMA MODIFICA" "SCADE IL" "GIORNI"
-        printf "%-19s %-20s %-20s %10s\n" "-------------------" "--------------------" "--------------------" "----------"
+    for md_file in "${md_files[@]}"; do
+        local full_path="$OUTPUT_DIR/$md_file"
         
-        tail -n +2 "$OUTPUT_DIR/02_password_expiry.txt" | while IFS=$'\t' read -r user pwd_raw pwd_unix pwd_iso exp_unix exp_iso days; do
-            printf "%-19s %-20s %-20s %10s\n" "$user" "$pwd_iso" "$exp_iso" "$days"
-        done
-        
-        echo ""
-        echo "LEGENDA:"
-        echo "  • Giorni positivi = password ancora valida"
-        echo "  • Giorni negativi = password SCADUTA"
-        echo "  • N/A = account senza password o Guest"
-    else
-        echo "Nessun dato disponibile"
-    fi
-    
-    echo ""
-    
-    # ========== TABELLA 2: GRUPPI AD ==========
-    echo "================================================================================"
-    echo "DETTAGLIO GRUPPI AD E MEMBRI"
-    echo "================================================================================"
-    echo ""
-    
-    if [[ -f "$OUTPUT_DIR/05_ad_groups.txt" ]]; then
-        tail -n +2 "$OUTPUT_DIR/05_ad_groups.txt" | while IFS=$'\t' read -r groupname count members; do
-            [[ -z "$members" ]] && members="N/A"
-            
+        if [[ -f "$full_path" ]]; then
+            echo ""
+            cat "$full_path"
+            echo ""
             echo "================================================================================"
-            echo "GRUPPO: $groupname ($count membri)"
-            echo "--------------------------------------------------------------------------------"
-            
-            # Word-wrap intelligente: prima riga normale, righe successive indentate
-            echo "Membri: $members" | fold -s -w 80 | sed '2,$s/^/        /'
-            echo ""
-        done
-        
-        echo "NOTA: Per lista membri completa vedere file 05_ad_groups.txt"
-    else
-        echo "Nessun dato disponibile"
-    fi
-    
-    echo ""
-    
-    # ========== TABELLA 3: SHARE SAMBA ==========
-    echo "================================================================================"
-    echo "DETTAGLIO SHARE SAMBA"
-    echo "================================================================================"
-    echo ""
-    
-    # (Debug ACL rimosso - verifica solo nel file summary se necessario)
-    
-    if [[ -f "$OUTPUT_DIR/03_shares/shares_report.txt" ]]; then
-        # Warning se pre-caching disabilitato (cache vuota)
-        # Protezione: disabilita temporaneamente set -u per accedere a SID_CACHE
-        set +u
-        local cache_size=${#SID_CACHE[@]}
-        set -u
-        
-        if [[ $cache_size -eq 0 ]]; then
-            log_warn "Pre-caching SID disabilitato - conversione on-demand in corso"
-            log_info "Questo richiederà 3-5 minuti (~112 chiamate wbinfo per 28 share)"
-            log_info "Attendere prego, lo script NON è bloccato..."
-            echo ""
+        else
+            log_warn "File non trovato: $md_file"
         fi
-        
-        printf "%-20s %-40s %-40s\n" "NOME SHARE" "UTENTI LETTURA/SCRITTURA" "UTENTI SOLA LETTURA"
-        printf "%-20s %-40s %-40s\n" "--------------------" "----------------------------------------" "----------------------------------------"
-        
-        # Conta share totali per progress
-        local total_shares=$(tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.txt" | wc -l)
-        local current_share=0
-        
-        # Itera su tutte le share
-        tail -n +2 "$OUTPUT_DIR/03_shares/shares_report.txt" | while IFS=$'\t' read -r share_name share_path acl_file; do
-            if [[ -z "$share_name" ]]; then
-                continue
-            fi
-            
-            current_share=$((current_share + 1))
-            # Progress ogni 5 share (stdout, non stderr)
-            if (( current_share % 5 == 0 )) || (( current_share == total_shares )); then
-                log_info "Progress permessi: $current_share/$total_shares share elaborate..."
-            fi
-            
-            local users_rw=""
-            local users_ro=""
-            
-            # Parse ACL Windows (samba-tool ntacl output)
-            if [[ -f "$acl_file" ]] && grep -q "trustee" "$acl_file" 2>/dev/null; then
-            # Estrai coppie access_mask + trustee (ORDINE CORRETTO: mask PRIMA di trustee)
-            local current_trustee=""
-            local current_mask=""
-            
-            while IFS= read -r line; do
-                # Rileva access_mask (VIENE PRIMA nel output)
-                if [[ "$line" =~ access_mask.*:\ (0x[0-9a-f]+) ]]; then
-                    current_mask="${BASH_REMATCH[1]}"
-                fi
-                
-                # Rileva trustee SID (VIENE DOPO nel output)
-                if [[ "$line" =~ trustee.*:\ (S-1-[0-9-]+) ]]; then
-                    current_trustee="${BASH_REMATCH[1]}"
-                    
-                    # Quando abbiamo entrambi, processa questa ACE IMMEDIATAMENTE
-                    if [[ -n "$current_mask" && -n "$current_trustee" ]]; then
-                        # Converti SID → nome
-                        local entity_name=$(sid_to_name "$current_trustee" "$SAMBA_MODULE")
-                        
-                        # Skip SID di sistema
-                        if [[ -z "$entity_name" ]]; then
-                                current_trustee=""
-                                current_mask=""
-                                continue
-                            fi
-                            
-                            # Decodifica permessi
-                            local perm_type=$(decode_access_mask "$current_mask")
-                            
-                            # Aggiungi a lista appropriata
-                            if [[ "$perm_type" == "RW" ]]; then
-                                users_rw="${users_rw}${entity_name}, "
-                            else
-                                users_ro="${users_ro}${entity_name}, "
-                            fi
-                            
-                            # Reset
-                            current_trustee=""
-                            current_mask=""
-                        fi
-                    fi
-                done < "$acl_file"
-                
-                # Rimuovi virgola finale
-                users_rw=$(echo "$users_rw" | sed 's/, $//')
-                users_ro=$(echo "$users_ro" | sed 's/, $//')
-            fi
-            
-            # Se nessun ACL, mostra N/A
-            [[ -z "$users_rw" ]] && users_rw="N/A"
-            [[ -z "$users_ro" ]] && users_ro="N/A"
-            
-            # Stampa riga formattata
-            printf "%-20s %-40s %-40s\n" "$share_name" "${users_rw:0:40}" "${users_ro:0:40}"
-        done
-        
-        echo ""
-        echo "NOTA: Per ACL e permessi POSIX dettagliati vedere sezione 'REPORT PERMESSI SHARE' sotto"
-    else
-        echo "Nessun dato disponibile"
-    fi
+    done
     
     echo ""
-    
-    # ========== TABELLA 4: CONDIVISIONI EMAIL WEBTOP ==========
-    echo "================================================================================"
-    echo "DETTAGLIO CONDIVISIONI EMAIL WEBTOP"
-    echo "================================================================================"
-    echo ""
-    
-    local webtop_share_count=$(tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.txt" 2>/dev/null | wc -l || echo 0)
-    
-    if [[ -f "$OUTPUT_DIR/04_webtop_email_shares.txt" && $webtop_share_count -gt 0 ]]; then
-        # Mappa UUID → username da database WebTop
-        declare -A uuid_to_user
-        
-        if [[ -n "$WEBTOP_MODULE" ]]; then
-            local postgres_container=$(runagent -m "$WEBTOP_MODULE" podman ps --format '{{.Names}}' 2>/dev/null | grep -i postgres | head -1 || echo "postgres")
-            local webtop_db=$(runagent -m "$WEBTOP_MODULE" podman exec "$postgres_container" psql -U postgres -t -c "\l" 2>/dev/null | grep -iE 'webtop' | awk '{print $1}' | head -1 || echo "")
-            
-            if [[ -n "$webtop_db" ]]; then
-                # Query per mappare user_uid → user_id (username)
-                local uuid_map=$(echo "SELECT user_uid, user_id FROM core.users;" | runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" psql -U postgres -d "$webtop_db" -A -t -F $'\t' 2>/dev/null || echo "")
-                
-                # Popola array associativo
-                while IFS=$'\t' read -r uuid username; do
-                    [[ -n "$uuid" && -n "$username" ]] && uuid_to_user["$uuid"]="$username"
-                done <<< "$uuid_map"
-            fi
-        fi
-        
-        printf "%-4s %-19s %-25s %-25s %s\n" "ID" "MAILBOX/CARTELLA" "PROPRIETARIO" "CONDIVISO CON" "PERMESSI"
-        printf "%-4s %-19s %-25s %-25s %s\n" "----" "-------------------" "-------------------------" "-------------------------" "-------------------------"
-        
-        tail -n +2 "$OUTPUT_DIR/04_webtop_email_shares.txt" | while IFS=$'\t' read -r id owner svc path inst shared perms; do
-            # Mappa UUID → username (se disponibile, altrimenti mostra UUID abbreviato)
-            local owner_name="${uuid_to_user[$owner]:-${owner:0:8}...}"
-            local shared_name="${uuid_to_user[$shared]:-${shared:0:8}...}"
-            
-            # Estrai info da JSON permissions
-            local perms_clean=$(echo "$perms" | sed 's/[{}"]//g' | sed 's/,/ /g' | sed 's/://g' | cut -c1-35)
-            
-            printf "%-4s %-19s %-25s %-25s %s\n" "$id" "$path" "$owner_name" "$shared_name" "$perms_clean"
-        done
-        
-        echo ""
-        echo "NOTA: Username mappati automaticamente da database WebTop"
-    else
-        echo "Nessuna condivisione email configurata"
-    fi
-    
-    echo ""
+    log_success "Visualizzazione completata"
 }
 
 # ============================================================================
