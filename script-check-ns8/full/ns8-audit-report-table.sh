@@ -712,15 +712,8 @@ collect_webtop_sharing() {
         return 1
     fi
     
-    # Query per ottenere mapping UUID → username (include anche domains per completezza)
-    local mapping_query="
-        SELECT DISTINCT user_uid, user_id FROM core.users
-        UNION
-        SELECT DISTINCT owner_user_uid, user_id 
-        FROM vw_identities vi 
-        JOIN core.users cu ON vi.user_id = cu.user_id
-        WHERE owner_user_uid IS NOT NULL;
-    "
+    # Query per ottenere mapping UUID → username
+    local mapping_query="SELECT user_uid, user_id FROM core.users;"
     local temp_mapping="/tmp/webtop_mapping_$$.txt"
     local mapping_file="/tmp/webtop_uuid_map_$$.txt"
     
