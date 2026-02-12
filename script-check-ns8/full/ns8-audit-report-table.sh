@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.6.1"   # Versione script - SENZA EMOJI
+VERSION="2.6.2"   # Versione script - SENZA EMOJI
 
 # Gruppi AD di sistema da escludere dal report
 EXCLUDE_GROUPS=(
@@ -1409,7 +1409,7 @@ EOF
         rm -f "$email_file"
         
         if [[ $exit_code -eq 0 ]]; then
-            log_ok "Email inviata con successo a $recipient"
+            log_success "Email inviata con successo a $recipient"
         else
             log_error "Errore invio email (exit code: $exit_code)"
             log_error "Verifica credenziali SMTP e connessione a $smtp_server:$smtp_port"
