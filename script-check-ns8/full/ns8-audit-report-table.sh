@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.6.6"   # Versione script - SENZA EMOJI
+VERSION="2.7.0"   # Versione script - SENZA EMOJI
 
 # Gruppi AD di sistema da escludere dal report
 EXCLUDE_GROUPS=(
@@ -63,6 +63,12 @@ EXCLUDE_GROUPS=(
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
+
+# Contatori globali per statistiche summary (popolati durante collection)
+GLOBAL_USER_COUNT=0
+GLOBAL_GROUP_COUNT=0
+GLOBAL_SHARE_COUNT=0
+GLOBAL_WEBTOP_COUNT=0
 
 # Colori output
 RED='\033[0;31m'
@@ -337,6 +343,9 @@ collect_password_expiry() {
     # Cleanup file utenti temporaneo
     rm -f "$user_list"
     
+    # Salva conteggio globale per summary
+    GLOBAL_USER_COUNT=$success_count
+    
     log_success "Report password generato → 01_password_expiry.md ($success_count utenti)"
     return 0
 }
@@ -479,6 +488,9 @@ collect_ad_groups() {
     
     # Riabilita set -e
     set -e
+    
+    # Salva conteggio globale per summary
+    GLOBAL_GROUP_COUNT=$processed
     
     log_success "Report gruppi generato → 02_gruppi_ad.md ($processed gruppi, $excluded_count esclusi, $computer_count computer)"
     rm -f "$temp_groups" "$temp_computers"
@@ -650,6 +662,9 @@ collect_samba_shares() {
     set -e
     
     rm -f "$temp_shares"
+    
+    # Salva conteggio globale per summary
+    GLOBAL_SHARE_COUNT=$processed
     
     log_success "Report share generato → 04_share_permissions.md ($processed share, $acl_success ACL, $acl_failed errori)"
     return 0
@@ -863,6 +878,9 @@ collect_webtop_sharing() {
     
     rm -f "$temp_output" "$mapping_file"
     
+    # Salva conteggio globale per summary
+    GLOBAL_WEBTOP_COUNT=$record_count
+    
     log_success "Report condivisioni WebTop generato → 03_webtop_shares.md ($record_count condivisioni)"
     return 0
 }
@@ -873,41 +891,22 @@ generate_summary_report() {
     
     local output_md="$OUTPUT_DIR/00_REPORT_SUMMARY.md"
     
-    # DISABILITA set -e (grep -c può ritornare 1 se no match)
+    # USA CONTATORI GLOBALI (popolati durante collection, non ricalcolati con grep)
     set +e
     
-    # DEBUG: Log file esistenti
-    log_info "File MD esistenti:"
-    ls -lh "$OUTPUT_DIR"/*.md 2>/dev/null || log_warn "Nessun file MD trovato!"
-    
-    # Conta dati dai file MD - PATTERN DATI SPECIFICI v2 (fix gruppi e webtop)
-    # User count: conta righe con data (formato YYYY-MM-DD nella colonna "Scade Il")
-    user_count=$(grep -E "^\| .+ \| [0-9]{4}-[0-9]{2}-[0-9]{2}" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | wc -l)
-    user_count=$((user_count + 0))
-    
-    # Group count: conta righe tabella dati (esclude header, separator, vuote)
-    # Pattern: riga con | ma NON header (Gruppo/Membro/Computer) e NON separator (solo dashes)
-    group_count=$(grep -E "^\|" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null | \
-                  grep -v "Gruppo" | grep -v "Membro" | grep -v "Computer" | \
-                  grep -v "^|--" | grep -v "^\$" | wc -l)
-    group_count=$((group_count + 0))
-    
-    # Share count: conta righe con path (contiene /)
-    share_count=$(grep -E "^\| [^ ]+ +\| .*/.*\|" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null | wc -l)
-    share_count=$((share_count + 0))
-    
-    # WebTop count: conta righe con pattern RW/RO (ultima colonna)
-    webtop_count=$(grep -E "^\| .+ \| .+ \| (RW|RO)" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | wc -l)
-    webtop_count=$((webtop_count + 0))
+    local user_count=$GLOBAL_USER_COUNT
+    local group_count=$GLOBAL_GROUP_COUNT
+    local share_count=$GLOBAL_SHARE_COUNT
+    local webtop_count=$GLOBAL_WEBTOP_COUNT
     
     # Conta password critiche: righe con [!] Scaduta
-    expired_count=$(( $(grep -c "\[!\] Scaduta" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
+    local expired_count=$(( $(grep -c "\[!\] Scaduta" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
     
     # Conta password in scadenza: righe con [*] In scadenza
-    expiring_count=$(( $(grep -c "\[\*\] In scadenza" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
+    local expiring_count=$(( $(grep -c "\[\*\] In scadenza" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
     
-    # DEBUG: Log conteggi
-    log_info "Conteggi: users=$user_count groups=$group_count shares=$share_count webtop=$webtop_count"
+    # LOG conteggi provenienti da collection
+    log_info "Statistiche da collection: users=$user_count groups=$group_count shares=$share_count webtop=$webtop_count"
     
     # Inizia file MD
     {
