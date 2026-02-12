@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.5.7"   # Versione script - SENZA EMOJI
+VERSION="2.5.8"   # Versione script - SENZA EMOJI
 
 # Gruppi AD di sistema da escludere dal report
 EXCLUDE_GROUPS=(
@@ -1299,51 +1299,119 @@ send_email_interactive() {
             from_email="root@$(hostname)"
         fi
         
-        # Chiedi server SMTP (opzionale)
+        # Chiedi server SMTP
         echo ""
-        read -p "Server SMTP [localhost]: " smtp_server
+        read -p "Server SMTP [smtp.example.com]: " smtp_server
         if [[ -z "$smtp_server" ]]; then
-            smtp_server="localhost"
+            log_error "Server SMTP obbligatorio"
+            return 1
+        fi
+        
+        # Chiedi porta SMTP
+        echo ""
+        read -p "Porta SMTP [587]: " smtp_port
+        if [[ -z "$smtp_port" ]]; then
+            smtp_port="587"
+        fi
+        
+        # Chiedi username SMTP
+        echo ""
+        read -p "Username SMTP: " smtp_user
+        if [[ -z "$smtp_user" ]]; then
+            log_error "Username SMTP obbligatorio"
+            return 1
+        fi
+        
+        # Chiedi password SMTP (nascosta)
+        echo ""
+        read -s -p "Password SMTP: " smtp_pass
+        echo ""
+        if [[ -z "$smtp_pass" ]]; then
+            log_error "Password SMTP obbligatoria"
+            return 1
         fi
         
         echo ""
         log_info "Preparazione email..."
         
-        # Subject con hostname e data
-        local subject="NS8 Audit Report - $(hostname) - $(date '+%d/%m/%Y %H:%M')"
-        
-        # Verifica comando mail disponibile
-        if ! command -v mail &>/dev/null; then
-            log_error "Comando 'mail' non disponibile. Installa mailutils o mailx."
+        # Verifica curl disponibile
+        if ! command -v curl &>/dev/null; then
+            log_error "Comando 'curl' non disponibile"
             return 1
         fi
         
-        # Prepara corpo email (summary)
-        local email_body="/tmp/email_body_$$.txt"
+        # Subject con hostname e data
+        local subject="NS8 Audit Report - $(hostname) - $(date '+%d/%m/%Y %H:%M')"
+        
+        # File temporaneo per email
+        local email_file="/tmp/email_$$.txt"
+        local boundary="----=_NextPart_$(date +%s)"
+        
+        # Costruisci header email
+        cat > "$email_file" <<EOF
+From: $from_email
+To: $recipient
+Subject: $subject
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="$boundary"
+
+--$boundary
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+EOF
+        
+        # Aggiungi body (summary)
         if [[ -f "$report_dir/00_REPORT_SUMMARY.md" ]]; then
-            cat "$report_dir/00_REPORT_SUMMARY.md" > "$email_body"
+            cat "$report_dir/00_REPORT_SUMMARY.md" >> "$email_file"
         else
-            echo "NS8 Audit Report - $(date '+%d/%m/%Y %H:%M')" > "$email_body"
-            echo "" >> "$email_body"
-            echo "Report allegato in formato Markdown." >> "$email_body"
+            echo "NS8 Audit Report - $(date '+%d/%m/%Y %H:%M')" >> "$email_file"
+            echo "" >> "$email_file"
+            echo "Report allegato in formato Markdown." >> "$email_file"
         fi
         
-        # Invia con tutti gli allegati MD
-        log_info "Invio email a $recipient..."
-        mail -s "$subject" -r "$from_email" \
-             -a "$report_dir/01_password_expiry.md" \
-             -a "$report_dir/02_gruppi_ad.md" \
-             -a "$report_dir/04_share_permissions.md" \
-             -a "$report_dir/05_webtop_sharing.md" \
-             "$recipient" < "$email_body" 2>&1
+        # Aggiungi allegati MD in base64
+        for md_file in "$report_dir/01_password_expiry.md" \
+                       "$report_dir/02_gruppi_ad.md" \
+                       "$report_dir/04_share_permissions.md" \
+                       "$report_dir/05_webtop_sharing.md"; do
+            if [[ -f "$md_file" ]]; then
+                local filename=$(basename "$md_file")
+                echo "" >> "$email_file"
+                echo "--$boundary" >> "$email_file"
+                echo "Content-Type: text/markdown; name=\"$filename\"" >> "$email_file"
+                echo "Content-Transfer-Encoding: base64" >> "$email_file"
+                echo "Content-Disposition: attachment; filename=\"$filename\"" >> "$email_file"
+                echo "" >> "$email_file"
+                base64 "$md_file" >> "$email_file"
+            fi
+        done
         
-        local exit_code=$?
-        rm -f "$email_body"
+        # Chiudi MIME
+        echo "" >> "$email_file"
+        echo "--$boundary--" >> "$email_file"
+        
+        # Invia con curl
+        log_info "Invio email a $recipient tramite $smtp_server:$smtp_port..."
+        
+        curl --url "smtp://$smtp_server:$smtp_port" \
+             --ssl-reqd \
+             --mail-from "$from_email" \
+             --mail-rcpt "$recipient" \
+             --user "$smtp_user:$smtp_pass" \
+             --upload-file "$email_file" \
+             -v 2>&1 | grep -E "(Connected|250|failed|error)" || true
+        
+        local exit_code=${PIPESTATUS[0]}
+        
+        # Cleanup
+        rm -f "$email_file"
         
         if [[ $exit_code -eq 0 ]]; then
             log_ok "Email inviata con successo a $recipient"
         else
             log_error "Errore invio email (exit code: $exit_code)"
+            log_error "Verifica credenziali SMTP e connessione a $smtp_server:$smtp_port"
             return 1
         fi
     else
