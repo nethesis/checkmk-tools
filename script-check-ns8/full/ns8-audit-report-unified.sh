@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.3.1"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.3.2"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -280,73 +280,47 @@ collect_password_expiry() {
         echo "- **Password scadute:** $expired_count"
         echo "- **Password in scadenza (≤7 giorni):** $expiring_count"
         echo ""
-    } >> "$output_md"
-    
-    # Sezione password scadute
-    if [[ $expired_count -gt 0 ]]; then
-        {
-            echo "---"
-            echo ""
-            echo "## ⚠️ Password Scadute"
-            echo ""
-            echo "| Utente | Ultima Modifica | Scaduta Il | Giorni |"
-            echo "|--------|-----------------|------------|--------|"
-        } >> "$output_md"
-        
-        for entry in "${pwd_data[@]}"; do
-            IFS='|' read -r user lastset expires days <<< "$entry"
-            if [[ "$days" != "N/A" ]] && [[ $days -lt 0 ]]; then
-                echo "| **$user** | $lastset | $expires | **$days** |" >> "$output_md"
-            fi
-        done
-        
-        echo "" >> "$output_md"
-    fi
-    
-    # Sezione password in scadenza
-    if [[ $expiring_count -gt 0 ]]; then
-        {
-            echo "---"
-            echo ""
-            echo "## ⏰ Password in Scadenza (≤7 giorni)"
-            echo ""
-            echo "| Utente | Ultima Modifica | Scade Il | Giorni |"
-            echo "|--------|-----------------|----------|--------|"
-        } >> "$output_md"
-        
-        for entry in "${pwd_data[@]}"; do
-            IFS='|' read -r user lastset expires days <<< "$entry"
-            if [[ "$days" != "N/A" ]] && [[ $days -ge 0 ]] && [[ $days -le 7 ]]; then
-                echo "| **$user** | $lastset | $expires | **$days** |" >> "$output_md"
-            fi
-        done
-        
-        echo "" >> "$output_md"
-    fi
-    
-    # Tabella completa
-    {
         echo "---"
         echo ""
-        echo "## 📋 Tutte le Password"
-        echo ""
-        echo "| Utente | Ultima Modifica | Scade Il | Giorni |"
-        echo "|--------|-----------------|----------|--------|"
     } >> "$output_md"
     
+    # Scrivi ogni utente con formato heading uniforme
     for entry in "${pwd_data[@]}"; do
         IFS='|' read -r user lastset expires days <<< "$entry"
         
+        # Determina stato e emoji
+        local status_emoji=""
+        local status_text=""
+        
         if [[ "$days" == "N/A" ]]; then
-            echo "| $user | $lastset | $expires | N/A |" >> "$output_md"
-        elif [[ $days -lt 0 ]] || [[ $days -le 7 ]]; then
-            echo "| **$user** | $lastset | $expires | **$days** |" >> "$output_md"
+            status_emoji="ℹ️"
+            status_text="Informazioni non disponibili"
+        elif [[ $days -lt 0 ]]; then
+            status_emoji="⚠️"
+            local abs_days=$((days * -1))
+            status_text="Password scaduta da $abs_days giorni"
+        elif [[ $days -le 7 ]]; then
+            status_emoji="⏰"
+            status_text="Password in scadenza tra $days giorni"
         else
-            echo "| $user | $lastset | $expires | $days |" >> "$output_md"
+            status_emoji="✅"
+            status_text="Password valida (scade tra $days giorni)"
         fi
+        
+        # Scrivi heading per utente
+        {
+            echo "## 🔐 $user"
+            echo ""
+            echo "**Ultima Modifica:** $lastset  "
+            echo "**Scade Il:** $expires  "
+            echo "**Giorni rimanenti:** $days"
+            echo ""
+            echo "$status_emoji **$status_text**"
+            echo ""
+            echo "---"
+            echo ""
+        } >> "$output_md"
     done
-    
-    echo "" >> "$output_md"
     
     # Cleanup file utenti temporaneo
     rm -f "$user_list"
@@ -777,13 +751,9 @@ collect_webtop_sharing() {
         echo ""
         echo "---"
         echo ""
-        echo "## 📋 Tutte le Condivisioni"
-        echo ""
-        echo "| Share ID | Proprietario | Mailbox | Condiviso Con | Permessi |"
-        echo "|----------|--------------|---------|---------------|----------|"
     } > "$output_md"
     
-    # Processa righe output PostgreSQL e scrivi MD
+    # Processa righe output PostgreSQL e scrivi MD con formato heading
     local record_count=0
     
     set +e  # Disabilita set -e per processing loop (grep/awk possono tornare 1 se no match)
@@ -814,12 +784,29 @@ collect_webtop_sharing() {
         owner_user=$(resolve_uuid "$owner")
         shared_user=$(resolve_uuid "$shared_with")
         
-        echo "| $share_id | $owner_user | $mailbox | $shared_user | $perms |" >> "$output_md"
+        # Parse permessi JSON per formato leggibile
+        local perm_readable=""
+        if echo "$perms" | grep -q '"shareIdentity"\s*:\s*true'; then
+            perm_readable="Lettura/Scrittura"
+        else
+            perm_readable="Sola lettura"
+        fi
+        
+        # Scrivi heading per condivisione (formato uniforme con Samba)
+        {
+            echo "## 📧 Condivisione #$share_id - $owner_user → $shared_user"
+            echo ""
+            echo "**Proprietario:** $owner_user  "
+            echo "**Mailbox:** $mailbox  "
+            echo "**Condiviso Con:** $shared_user  "
+            echo "**Permessi:** $perm_readable"
+            echo ""
+            echo "---"
+            echo ""
+        } >> "$output_md"
     done
     
     set -e  # Ri-abilita set -e
-    
-    echo "" >> "$output_md"
     
     rm -f "$temp_output" "$mapping_file"
     
@@ -837,8 +824,8 @@ generate_summary_report() {
     set +e
     
     # Conta dati dai file MD (usa arithmetic expansion per garantire numero valido)
-    # User count: tutte le righe tabella escludendo header/separator
-    user_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Utente |" | wc -l 2>/dev/null) + 0 ))
+    # User count: conta heading "## 🔐"
+    user_count=$(( $(grep -c "^## 🔐" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
     
     # Group count: conta heading "## 📁"
     group_count=$(( $(grep -c "^## 📁" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null) + 0 ))
@@ -846,14 +833,14 @@ generate_summary_report() {
     # Share count: conta heading "## 📁"
     share_count=$(( $(grep -c "^## 📁" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null) + 0 ))
     
-    # WebTop count: righe tabella escludendo header
-    webtop_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Share ID |" | wc -l 2>/dev/null) + 0 ))
+    # WebTop count: conta heading "## 📧"
+    webtop_count=$(( $(grep -c "^## 📧" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null) + 0 ))
     
-    # Conta password critiche: righe con username bold nella sezione "Password Scadute"
-    expired_count=$(( $(awk '/## ⚠️ Password Scadute/,/^---/ {if (/^\| \*\*[A-Z]/) print}' "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | wc -l 2>/dev/null) + 0 ))
+    # Conta password critiche: cerca emoji ⚠️ per password scadute
+    expired_count=$(( $(grep -c "⚠️ \*\*Password scaduta" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
     
-    # Conta password in scadenza: cerca emoji ⏰ nelle righe tabella
-    expiring_count=$(( $(grep -c "⏰" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
+    # Conta password in scadenza: cerca emoji ⏰
+    expiring_count=$(( $(grep -c "⏰ \*\*Password in scadenza" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
     
     # Inizia file MD
     {
