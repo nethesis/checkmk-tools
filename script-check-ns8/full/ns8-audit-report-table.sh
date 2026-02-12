@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.5.8"   # Versione script - SENZA EMOJI
+VERSION="2.5.9"   # Versione script - SENZA EMOJI
 
 # Gruppi AD di sistema da escludere dal report
 EXCLUDE_GROUPS=(
@@ -1422,6 +1422,92 @@ EOF
 }
 
 # ============================================================================
+# SALVATAGGIO LOCALE SCP
+# ============================================================================
+
+save_local_copy_interactive() {
+    local report_dir="$1"
+    
+    echo ""
+    echo "================================================================================"
+    read -p "Vuoi salvare i report sul tuo computer locale? (s/n): " save_local
+    
+    if [[ "$save_local" =~ ^[sS]$ ]]; then
+        echo ""
+        log_info "Configurazione copia SCP..."
+        
+        # Chiedi indirizzo computer locale
+        echo ""
+        read -p "Indirizzo IP/hostname computer locale: " local_host
+        if [[ -z "$local_host" ]]; then
+            log_error "Indirizzo computer locale obbligatorio"
+            return 1
+        fi
+        
+        # Chiedi username SSH
+        echo ""
+        read -p "Username SSH sul computer locale: " local_user
+        if [[ -z "$local_user" ]]; then
+            log_error "Username SSH obbligatorio"
+            return 1
+        fi
+        
+        # Chiedi path destinazione
+        echo ""
+        read -p "Path destinazione [~/Documents/NS8-Reports]: " dest_path
+        if [[ -z "$dest_path" ]]; then
+            dest_path="~/Documents/NS8-Reports"
+        fi
+        
+        # Chiedi porta SSH (opzionale)
+        echo ""
+        read -p "Porta SSH [22]: " ssh_port
+        if [[ -z "$ssh_port" ]]; then
+            ssh_port="22"
+        fi
+        
+        echo ""
+        log_info "Copia report tramite SCP..."
+        
+        # Verifica scp disponibile
+        if ! command -v scp &>/dev/null; then
+            log_error "Comando 'scp' non disponibile"
+            return 1
+        fi
+        
+        # Nome directory report
+        local report_name=$(basename "$report_dir")
+        
+        # Copia con SCP
+        log_info "Copiando $report_dir → $local_user@$local_host:$dest_path/$report_name"
+        
+        scp -P "$ssh_port" -r "$report_dir" "$local_user@$local_host:$dest_path/" 2>&1
+        
+        local exit_code=$?
+        
+        if [[ $exit_code -eq 0 ]]; then
+            log_ok "Report copiati con successo su $local_host:$dest_path/$report_name"
+            echo ""
+            echo "Contenuto salvato:"
+            echo "  - 00_REPORT_SUMMARY.md"
+            echo "  - 01_password_expiry.md"
+            echo "  - 02_gruppi_ad.md"
+            echo "  - 04_share_permissions.md"
+            echo "  - 05_webtop_sharing.md"
+        else
+            log_error "Errore copia SCP (exit code: $exit_code)"
+            log_error "Verifica connessione SSH a $local_host:$ssh_port"
+            log_error "Assicurati che il path $dest_path esista sul computer locale"
+            return 1
+        fi
+    else
+        log_info "Copia locale saltata."
+    fi
+    
+    return 0
+}
+
+# ============================================================================
 # MAIN EXECUTION
 # ============================================================================
 
@@ -1461,6 +1547,9 @@ main() {
     
     # Fase 5: Invio email opzionale (interattivo)
     send_email_interactive "$OUTPUT_DIR"
+    
+    # Fase 6: Salvataggio locale via SCP (interattivo)
+    save_local_copy_interactive "$OUTPUT_DIR"
     
     return 0
 }
