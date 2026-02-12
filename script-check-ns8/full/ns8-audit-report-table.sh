@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.5.4"   # Versione script - SENZA EMOJI
+VERSION="2.5.5"   # Versione script - SENZA EMOJI
 
 # Gruppi AD di sistema da escludere dal report
 EXCLUDE_GROUPS=(
@@ -464,7 +464,7 @@ collect_ad_groups() {
             echo ""
             echo "---"
             echo ""
-            echo "## Tabella Computer"
+            echo "## Tabella Computer A Dominio"
             echo ""
             printf "| %-35s | %-35s |\n" "Gruppo" "Computer"
             printf "|%s|%s|\n" "$(printf '%.0s-' {1..37})" "$(printf '%.0s-' {1..37})"
