@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.4.1"   # Versione script - TABELLA CON PADDING
+VERSION="2.4.2"   # Versione script - TUTTE LE TABELLE CON PADDING
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -342,7 +342,7 @@ collect_ad_groups() {
     
     local group_count=$(grep -c ^ "$temp_groups" 2>/dev/null || echo "0")
     
-    # Inizia file MD
+    # Inizia file MD con tabella
     {
         echo "# 👥 Gruppi Active Directory"
         echo ""
@@ -352,6 +352,10 @@ collect_ad_groups() {
         echo ""
         echo "---"
         echo ""
+        echo "## 📋 Tabella Gruppi"
+        echo ""
+        printf "| %-30s | %-10s | %-40s |\n" "📁 Gruppo" "👥 Membri" "📋 Primi Membri"
+        printf "|%s|%s|%s|\n" "$(printf '%.0s-' {1..32})" "$(printf '%.0s-' {1..12})" "$(printf '%.0s-' {1..42})"
     } > "$output_md"
     
     local processed=0
@@ -377,38 +381,21 @@ collect_ad_groups() {
             members_count=$(echo "$members" | wc -l)
         fi
         
-        # Scrivi sezione gruppo
-        {
-            echo "## 📁 $groupname"
-            echo ""
-            echo "**Membri:** $members_count"
-            echo ""
-        } >> "$output_md"
-        
-        if [[ $members_count -eq 0 ]]; then
-            echo "*Nessun membro*" >> "$output_md"
-        else
-            # Usa <details> per collapsibile solo se membri > 5
-            if [[ $members_count -gt 5 ]]; then
-                echo "<details>" >> "$output_md"
-                echo "<summary>Elenco membri ($members_count)</summary>" >> "$output_md"
-                echo "" >> "$output_md"
-            fi
-            
-            while IFS= read -r member; do
-                [[ -z "$member" ]] && continue
-                echo "- $member" >> "$output_md"
-            done <<< "$members"
-            
-            if [[ $members_count -gt 5 ]]; then
-                echo "" >> "$output_md"
-                echo "</details>" >> "$output_md"
+        # Prepara preview membri (primi 3)
+        local members_preview="-"
+        if [[ $members_count -gt 0 ]]; then
+            members_preview=$(echo "$members" | head -3 | tr '\n' ', ' | sed 's/, $//')
+            if [[ $members_count -gt 3 ]]; then
+                members_preview="${members_preview}, ... (+$((members_count - 3)))"
             fi
         fi
         
-        echo "" >> "$output_md"
+        # Scrivi riga tabella con padding
+        printf "| %-30s | %-10s | %-40s |\n" "$groupname" "$members_count" "$members_preview" >> "$output_md"
         
     done < "$temp_groups"
+    
+    echo "" >> "$output_md"
     
     # Riabilita set -e
     set -e
@@ -448,7 +435,7 @@ collect_samba_shares() {
     
     log_info "Trovati $share_count share"
     
-    # Inizia file MD
+    # Inizia file MD con tabella
     {
         echo "# 📂 Share Samba - Permessi"
         echo ""
@@ -458,6 +445,10 @@ collect_samba_shares() {
         echo ""
         echo "---"
         echo ""
+        echo "## 📋 Tabella Share"
+        echo ""
+        printf "| %-25s | %-35s | %-30s |\n" "📁 Share" "📂 Path" "✍️ Permessi RW"
+        printf "|%s|%s|%s|\n" "$(printf '%.0s-' {1..27})" "$(printf '%.0s-' {1..37})" "$(printf '%.0s-' {1..32})"
     } > "$output_md"
     
     # Contatori
@@ -482,17 +473,14 @@ collect_samba_shares() {
         local share_path=$(runagent -m "$SAMBA_MODULE" podman exec samba-dc \
             net conf getparm "$share_name" path 2>/dev/null </dev/null || echo "N/A")
         
-        # Scrivi header share
-        {
-            echo "## 📁 $share_name"
-            echo ""
-            echo "**Path:** $share_path"
-            echo ""
-        } >> "$output_md"
+        # Shorthand path se troppo lungo
+        local path_display="$share_path"
+        if [[ ${#share_path} -gt 32 ]]; then
+            path_display="...${share_path: -29}"
+        fi
         
         if [[ "$share_path" == "N/A" ]]; then
-            echo "❌ **Errore:** Path non disponibile" >> "$output_md"
-            echo "" >> "$output_md"
+            printf "| %-25s | %-35s | %-30s |\n" "$share_name" "N/A" "❌ Errore path" >> "$output_md"
             ((acl_failed++))
             continue
         fi
@@ -501,8 +489,7 @@ collect_samba_shares() {
         local temp_acl=$(mktemp)
         if ! runagent -m "$SAMBA_MODULE" podman exec samba-dc \
             samba-tool ntacl get "$share_path" > "$temp_acl" 2>&1 </dev/null; then
-            echo "❌ **Errore:** Impossibile leggere ACL" >> "$output_md"
-            echo "" >> "$output_md"
+            printf "| %-25s | %-35s | %-30s |\n" "$share_name" "$path_display" "❌ Errore ACL" >> "$output_md"
             rm -f "$temp_acl"
             ((acl_failed++))
             continue
@@ -510,8 +497,7 @@ collect_samba_shares() {
         
         # Verifica ACL valido
         if ! grep -q "trustee" "$temp_acl" 2>/dev/null; then
-            echo "⚠️ **Warning:** ACL non disponibile o vuoto" >> "$output_md"
-            echo "" >> "$output_md"
+            printf "| %-25s | %-35s | %-30s |\n" "$share_name" "$path_display" "⚠️ ACL vuoto" >> "$output_md"
             rm -f "$temp_acl"
             ((acl_failed++))
             continue
@@ -561,41 +547,22 @@ collect_samba_shares() {
         
         rm -f "$temp_acl"
         
-        # Scrivi tabella permessi
-        echo "### Permessi" >> "$output_md"
-        echo "" >> "$output_md"
-        
-        local has_perms=0
-        
+        # Prepara lista permessi RW (primi 2 + count)
+        local perms_display="-"
         if [[ ${#users_rw[@]} -gt 0 ]]; then
-            echo "**Lettura/Scrittura:**" >> "$output_md"
-            echo "" >> "$output_md"
-            for user in "${users_rw[@]}"; do
-                echo "- $user" >> "$output_md"
-            done
-            echo "" >> "$output_md"
-            has_perms=1
+            if [[ ${#users_rw[@]} -le 2 ]]; then
+                perms_display=$(IFS=', '; echo "${users_rw[*]}")
+            else
+                perms_display="${users_rw[0]}, ${users_rw[1]}, ... (+$((${#users_rw[@]} - 2)))"
+            fi
         fi
         
-        if [[ ${#users_ro[@]} -gt 0 ]]; then
-            echo "**Solo Lettura:**" >> "$output_md"
-            echo "" >> "$output_md"
-            for user in "${users_ro[@]}"; do
-                echo "- $user" >> "$output_md"
-            done
-            echo "" >> "$output_md"
-            has_perms=1
-        fi
-        
-        if [[ $has_perms -eq 0 ]]; then
-            echo "*Nessun permesso esplicito configurato*" >> "$output_md"
-            echo "" >> "$output_md"
-        fi
-        
-        echo "---" >> "$output_md"
-        echo "" >> "$output_md"
+        # Scrivi riga tabella con padding
+        printf "| %-25s | %-35s | %-30s |\n" "$share_name" "$path_display" "$perms_display" >> "$output_md"
         
     done < "$temp_shares"
+    
+    echo "" >> "$output_md"
     
     # Riabilita set -e
     set -e
@@ -815,11 +782,11 @@ generate_summary_report() {
     # User count: conta righe tabella escludendo header/separator
     user_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | grep -v "^\|---" | grep -v "| 👤 Utente |" | wc -l 2>/dev/null) + 0 ))
     
-    # Group count: conta heading "## 📁"
-    group_count=$(( $(grep -c "^## 📁" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null) + 0 ))
+    # Group count: conta righe tabella escludendo header/separator
+    group_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null | grep -v "^\|---" | grep -v "| 📁 Gruppo |" | wc -l 2>/dev/null) + 0 ))
     
-    # Share count: conta heading "## 📁"
-    share_count=$(( $(grep -c "^## 📁" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null) + 0 ))
+    # Share count: conta righe tabella escludendo header/separator
+    share_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null | grep -v "^\|---" | grep -v "| 📁 Share |" | wc -l 2>/dev/null) + 0 ))
     
     # WebTop count: conta righe tabella escludendo header
     webtop_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | grep -v "^\|---" | grep -v "| 📨 Da |" | wc -l 2>/dev/null) + 0 ))
