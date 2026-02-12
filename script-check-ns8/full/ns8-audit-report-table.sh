@@ -460,7 +460,7 @@ collect_ad_groups() {
             echo ""
             echo "# Domain Computer"
             echo ""
-            echo "**Totale computer:** $computer_count"
+            echo "**Totale computer a dominio:** $computer_count"
             echo ""
             echo "---"
             echo ""
