@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.6.4"   # Versione script - SENZA EMOJI
+VERSION="2.6.5"   # Versione script - SENZA EMOJI
 
 # Gruppi AD di sistema da escludere dal report
 EXCLUDE_GROUPS=(
@@ -880,18 +880,22 @@ generate_summary_report() {
     log_info "File MD esistenti:"
     ls -lh "$OUTPUT_DIR"/*.md 2>/dev/null || log_warn "Nessun file MD trovato!"
     
-    # Conta dati dai file MD - VERSIONE TABELLA
-    # User count: conta righe tabella escludendo header/separator (conta righe dati reali)
-    user_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | grep -v "^\|--" | grep -v "Utente" | tail -n +2 | wc -l 2>/dev/null) + 0 ))
+    # Conta dati dai file MD - PATTERN DATI SPECIFICI (non filtrare header/separator)
+    # User count: conta righe con data (formato YYYY-MM-DD nella colonna "Scade Il")
+    user_count=$(grep -E "^\| .+ \| [0-9]{4}-[0-9]{2}-[0-9]{2}" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | wc -l)
+    user_count=$((user_count + 0))
     
-    # Group count: conta righe tabella escludendo header/separator
-    group_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null | grep -v "^\|--" | grep -v "Gruppo" | tail -n +2 | wc -l 2>/dev/null) + 0 ))
+    # Group count: conta righe con numero membri (pattern: | numero |)
+    group_count=$(grep -E "^\| .+ \| [0-9]+ \|" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null | wc -l)
+    group_count=$((group_count + 0))
     
-    # Share count: conta righe tabella escludendo header/separator
-    share_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null | grep -v "^\|--" | grep -v "Share" | tail -n +2 | wc -l 2>/dev/null) + 0 ))
+    # Share count: conta righe con path (contiene /)
+    share_count=$(grep -E "^\| [^ ]+ +\| .*/.*\|" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null | wc -l)
+    share_count=$((share_count + 0))
     
-    # WebTop count: conta righe tabella escludendo header
-    webtop_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | grep -v "^\|--" | grep -v " Da " | tail -n +2 | wc -l 2>/dev/null) + 0 ))
+    # WebTop count: conta righe con email (contiene @)
+    webtop_count=$(grep -E "@" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | wc -l)
+    webtop_count=$((webtop_count + 0))
     
     # Conta password critiche: righe con [!] Scaduta
     expired_count=$(( $(grep -c "\[!\] Scaduta" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
