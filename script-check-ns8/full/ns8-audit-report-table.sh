@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.5.2"   # Versione script - SENZA EMOJI
+VERSION="2.5.3"   # Versione script - SENZA EMOJI
 
 # Gruppi AD di sistema da escludere dal report
 EXCLUDE_GROUPS=(
@@ -712,8 +712,15 @@ collect_webtop_sharing() {
         return 1
     fi
     
-    # Query per ottenere mapping UUID → username
-    local mapping_query="SELECT user_uid, user_id FROM core.users;"
+    # Query per ottenere mapping UUID → username (include anche domains per completezza)
+    local mapping_query="
+        SELECT DISTINCT user_uid, user_id FROM core.users
+        UNION
+        SELECT DISTINCT owner_user_uid, user_id 
+        FROM vw_identities vi 
+        JOIN core.users cu ON vi.user_id = cu.user_id
+        WHERE owner_user_uid IS NOT NULL;
+    "
     local temp_mapping="/tmp/webtop_mapping_$$.txt"
     local mapping_file="/tmp/webtop_uuid_map_$$.txt"
     
@@ -836,6 +843,14 @@ collect_webtop_sharing() {
         # Risolvi UUID → username
         owner_user=$(resolve_uuid "$owner")
         shared_user=$(resolve_uuid "$shared_with")
+        
+        # Log UUID non risolti (solo se ancora UUID)
+        if [[ "$owner_user" == *"-"*"-"* ]] && [[ ${#owner_user} -gt 30 ]]; then
+            log_warn "  UUID owner non risolto: $owner (mailbox: $mailbox)"
+        fi
+        if [[ "$shared_user" == *"-"*"-"* ]] && [[ ${#shared_user} -gt 30 ]]; then
+            log_warn "  UUID shared non risolto: $shared_with"
+        fi
         
         # Parse permessi JSON per emoji
         local perm_icon=""
