@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.2.3"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.2.4"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -783,6 +783,9 @@ generate_summary_report() {
     
     local output_md="$OUTPUT_DIR/00_REPORT_SUMMARY.md"
     
+    # DISABILITA set -e (grep -c può ritornare 1 se no match)
+    set +e
+    
     # Conta dati dai file MD
     local user_count=$(grep -c "^|" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | tail -1 || echo "0")
     local group_count=$(grep -c "^## 📁" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null || echo "0")
@@ -851,6 +854,9 @@ generate_summary_report() {
     done
     
     echo "" >> "$output_md"
+    
+    # Riabilita set -e
+    set -e
     
     log_success "Report riepilogativo generato → 00_REPORT_SUMMARY.md"
     return 0
