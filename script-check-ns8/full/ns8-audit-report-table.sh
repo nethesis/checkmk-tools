@@ -1,6 +1,6 @@
 #!/bin/bash
 ################################################################################
-# NS8 Audit Report - Unified Version (Collector + Viewer)
+# NS8 Audit Report - Table Version (Formato Tabelle Compatte)
 ################################################################################
 # Scopo: Report quindicinale completo ambiente NethServer 8
 #
@@ -11,15 +11,17 @@
 #   4) Condivisioni account posta WebTop (se disponibile)
 #
 # Visualizza:
-#   - Tabella formattata permessi ACL share
-#   - Report riepilogativo completo
+#   - TUTTE le sezioni in formato TABELLA con padding
+#   - Password: tabella 4 colonne
+#   - Gruppi AD: tabella 2 colonne (una riga per membro)
+#   - WebTop: tabella 3 colonne
+#   - Samba Shares: tabella 3 colonne (una riga per permesso)
 #
-# Output: Directory /var/tmp/ns8-audit-YYYYMMDD-HHMMSS/
+# Output: Directory /tmp/ns8-audit-YYYYMMDD-HHMMSS/
 #
 # Uso:
-#  ./ns8-audit-report-unified.sh
-#   ./ns8-audit-report-unified.sh --output-dir /custom/path
-#   ./ns8-audit-report-unified.sh --no-display  # Skip visualizzazione ACL
+#  ./ns8-audit-report-table.sh
+#   ./ns8-audit-report-table.sh --output-dir /custom/path
 #
 #
 # Requisiti:
@@ -1179,7 +1181,7 @@ display_acl_report() {
 
 main() {
     echo "================================================================================"
-    echo "NS8 Audit Report - Unified Version v${VERSION}"
+    echo "NS8 Audit Report - Table Version v${VERSION}"
     echo "================================================================================"
     echo ""
     
