@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.2.8"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.2.9"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -1212,8 +1212,8 @@ main() {
     # Fase 3: Visualizza tabelle dettagliate
     display_detailed_tables
     
-    # Fase 4: Visualizza report ACL (se abilitato)
-    display_acl_report
+    # Fase 4: Visualizza report ACL (disabilitato - ora usiamo solo MD display)
+    # display_acl_report
     
     echo ""
     log_success "Report completato!"
