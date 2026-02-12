@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.7.0"   # Versione script - SENZA EMOJI
+VERSION="2.7.1"   # Versione script - SENZA EMOJI
 
 # Gruppi AD di sistema da escludere dal report
 EXCLUDE_GROUPS=(
@@ -806,27 +806,14 @@ collect_webtop_sharing() {
             echo "*Nessuna condivisione email configurata*"
         } > "$output_md"
         rm -f "$temp_output"
+        GLOBAL_WEBTOP_COUNT=0
         return 0
     fi
     
-    # Inizia file MD con tabella compatta
-    {
-        echo "# Condivisioni Email WebTop"
-        echo ""
-        echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
-        echo ""
-        echo "---"
-        echo ""
-        echo "## Tabella Condivisioni"
-        echo ""
-        printf "| %-22s | %-22s | %-10s |\n" "Da" "A" "Tipo"
-        printf "|%s|%s|%s|\n" "$(printf '%.0s-' {1..24})" "$(printf '%.0s-' {1..24})" "$(printf '%.0s-' {1..12})"
-    } > "$output_md"
+    # STEP 1: Processa dati e salva in file temporaneo (per evitare subshell issue)
+    local temp_processed="$OUTPUT_DIR/.webtop_processed.tmp"
     
-    # Processa righe output PostgreSQL e scrivi tabella compatta (3 colonne)
-    local record_count=0
-    
-    set +e  # Disabilita set -e per processing loop
+    set +e  # Disabilita set -e per processing
     
     grep -E "^\s*[0-9]+" "$temp_output" | \
         sed 's/|/\t/g' | \
@@ -843,40 +830,71 @@ collect_webtop_sharing() {
                 perms = ($7 != "") ? $7 : "N/A"
                 print share_id "\t" owner "\t" mailbox "\t" shared_with "\t" perms
             }
-        }' | while IFS=$'\t' read -r share_id owner mailbox shared_with perms; do
-        
-        [[ -z "$share_id" ]] && continue
-        record_count=$((record_count + 1))
-        
-        # Risolvi UUID → username
-        owner_user=$(resolve_uuid "$owner")
-        shared_user=$(resolve_uuid "$shared_with")
-        
-        # Log UUID non risolti (solo se ancora UUID)
-        if [[ "$owner_user" == *"-"*"-"* ]] && [[ ${#owner_user} -gt 30 ]]; then
-            log_warn "  UUID owner non risolto: $owner (mailbox: $mailbox)"
-        fi
-        if [[ "$shared_user" == *"-"*"-"* ]] && [[ ${#shared_user} -gt 30 ]]; then
-            log_warn "  UUID shared non risolto: $shared_with"
-        fi
-        
-        # Parse permessi JSON per emoji
-        local perm_icon=""
-        if echo "$perms" | grep -q '"shareIdentity"\s*:\s*true'; then
-            perm_icon="RW"
-        else
-            perm_icon="RO"
-        fi
-        
-        # Scrivi riga tabella compatta con padding
-        printf "| %-22s | %-22s | %-10s |\n" "$owner_user" "$shared_user" "$perm_icon" >> "$output_md"
-    done
+        }' > "$temp_processed"
     
     set -e  # Ri-abilita set -e
     
+    # STEP 2: Conta righe (evita subshell issue del pipeline)
+    local record_count=0
+    if [[ -f "$temp_processed" ]]; then
+        record_count=$(wc -l < "$temp_processed" 2>/dev/null | tr -d ' ' || echo "0")
+        # Forza numero valido
+        record_count=$((record_count + 0))
+    fi
+    
+    # STEP 3: Scrivi header MD con totale condivisioni
+    {
+        echo "# Condivisioni Email WebTop"
+        echo ""
+        echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
+        echo ""
+        echo "**Totale condivisioni:** $record_count"
+        echo ""
+        echo "---"
+        echo ""
+        echo "## Tabella Condivisioni"
+        echo ""
+        printf "| %-22s | %-22s | %-10s |\n" "Da" "A" "Tipo"
+        printf "|%s|%s|%s|\n" "$(printf '%.0s-' {1..24})" "$(printf '%.0s-' {1..24})" "$(printf '%.0s-' {1..12})"
+    } > "$output_md"
+    
+    # STEP 4: Processa file temporaneo e riempi tabella
+    if [[ $record_count -gt 0 ]]; then
+        set +e  # Disabilita set -e per loop
+        
+        while IFS=$'\t' read -r share_id owner mailbox shared_with perms; do
+            [[ -z "$share_id" ]] && continue
+            
+            # Risolvi UUID → username
+            owner_user=$(resolve_uuid "$owner")
+            shared_user=$(resolve_uuid "$shared_with")
+            
+            # Log UUID non risolti (solo se ancora UUID)
+            if [[ "$owner_user" == *"-"*"-"* ]] && [[ ${#owner_user} -gt 30 ]]; then
+                log_warn "  UUID owner non risolto: $owner (mailbox: $mailbox)"
+            fi
+            if [[ "$shared_user" == *"-"*"-"* ]] && [[ ${#shared_user} -gt 30 ]]; then
+                log_warn "  UUID shared non risolto: $shared_with"
+            fi
+            
+            # Parse permessi JSON per emoji
+            local perm_icon=""
+            if echo "$perms" | grep -q '"shareIdentity"\s*:\s*true'; then
+                perm_icon="RW"
+            else
+                perm_icon="RO"
+            fi
+            
+            # Scrivi riga tabella compatta con padding
+            printf "| %-22s | %-22s | %-10s |\n" "$owner_user" "$shared_user" "$perm_icon" >> "$output_md"
+        done < "$temp_processed"
+        
+        set -e  # Ri-abilita set -e
+    fi
+    
     echo "" >> "$output_md"
     
-    rm -f "$temp_output" "$mapping_file"
+    rm -f "$temp_output" "$mapping_file" "$temp_processed"
     
     # Salva conteggio globale per summary
     GLOBAL_WEBTOP_COUNT=$record_count
