@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.6.0"   # Versione script - SENZA EMOJI
+VERSION="2.6.1"   # Versione script - SENZA EMOJI
 
 # Gruppi AD di sistema da escludere dal report
 EXCLUDE_GROUPS=(
@@ -1371,10 +1371,11 @@ EOF
         fi
         
         # Aggiungi allegati MD in base64
-        for md_file in "$report_dir/01_password_expiry.md" \
+        for md_file in "$report_dir/00_REPORT_SUMMARY.md" \
+                       "$report_dir/01_password_expiry.md" \
                        "$report_dir/02_gruppi_ad.md" \
-                       "$report_dir/04_share_permissions.md" \
-                       "$report_dir/05_webtop_sharing.md"; do
+                       "$report_dir/03_webtop_shares.md" \
+                       "$report_dir/04_share_permissions.md"; do
             if [[ -f "$md_file" ]]; then
                 local filename=$(basename "$md_file")
                 echo "" >> "$email_file"
@@ -1467,8 +1468,8 @@ save_local_copy_interactive() {
         echo "  ✓ 00_REPORT_SUMMARY.md"
         echo "  ✓ 01_password_expiry.md"
         echo "  ✓ 02_gruppi_ad.md"
+        echo "  ✓ 03_webtop_shares.md"
         echo "  ✓ 04_share_permissions.md"
-        echo "  ✓ 05_webtop_sharing.md"
         echo ""
         echo "Destinazione locale: ~/Documents/NS8-Reports/${report_name}/"
         echo ""
