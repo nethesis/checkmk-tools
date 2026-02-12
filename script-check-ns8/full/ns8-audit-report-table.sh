@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.5.6"   # Versione script - SENZA EMOJI
+VERSION="2.5.7"   # Versione script - SENZA EMOJI
 
 # Gruppi AD di sistema da escludere dal report
 EXCLUDE_GROUPS=(
@@ -1270,6 +1270,90 @@ display_acl_report() {
 }
 
 # ============================================================================
+# INVIO EMAIL INTERATTIVO
+# ============================================================================
+
+send_email_interactive() {
+    local report_dir="$1"
+    
+    echo ""
+    echo "================================================================================"
+    read -p "Vuoi inviare il report via email? (s/n): " send_email
+    
+    if [[ "$send_email" =~ ^[sS]$ ]]; then
+        echo ""
+        log_info "Configurazione invio email..."
+        
+        # Chiedi destinatario
+        echo ""
+        read -p "Email destinatario: " recipient
+        if [[ -z "$recipient" ]]; then
+            log_error "Email destinatario obbligatoria"
+            return 1
+        fi
+        
+        # Chiedi mittente (campo From)
+        echo ""
+        read -p "Mostra come mittente (From) [root@$(hostname)]: " from_email
+        if [[ -z "$from_email" ]]; then
+            from_email="root@$(hostname)"
+        fi
+        
+        # Chiedi server SMTP (opzionale)
+        echo ""
+        read -p "Server SMTP [localhost]: " smtp_server
+        if [[ -z "$smtp_server" ]]; then
+            smtp_server="localhost"
+        fi
+        
+        echo ""
+        log_info "Preparazione email..."
+        
+        # Subject con hostname e data
+        local subject="NS8 Audit Report - $(hostname) - $(date '+%d/%m/%Y %H:%M')"
+        
+        # Verifica comando mail disponibile
+        if ! command -v mail &>/dev/null; then
+            log_error "Comando 'mail' non disponibile. Installa mailutils o mailx."
+            return 1
+        fi
+        
+        # Prepara corpo email (summary)
+        local email_body="/tmp/email_body_$$.txt"
+        if [[ -f "$report_dir/00_REPORT_SUMMARY.md" ]]; then
+            cat "$report_dir/00_REPORT_SUMMARY.md" > "$email_body"
+        else
+            echo "NS8 Audit Report - $(date '+%d/%m/%Y %H:%M')" > "$email_body"
+            echo "" >> "$email_body"
+            echo "Report allegato in formato Markdown." >> "$email_body"
+        fi
+        
+        # Invia con tutti gli allegati MD
+        log_info "Invio email a $recipient..."
+        mail -s "$subject" -r "$from_email" \
+             -a "$report_dir/01_password_expiry.md" \
+             -a "$report_dir/02_gruppi_ad.md" \
+             -a "$report_dir/04_share_permissions.md" \
+             -a "$report_dir/05_webtop_sharing.md" \
+             "$recipient" < "$email_body" 2>&1
+        
+        local exit_code=$?
+        rm -f "$email_body"
+        
+        if [[ $exit_code -eq 0 ]]; then
+            log_ok "Email inviata con successo a $recipient"
+        else
+            log_error "Errore invio email (exit code: $exit_code)"
+            return 1
+        fi
+    else
+        log_info "Invio email saltato."
+    fi
+    
+    return 0
+}
+
+# ============================================================================
 # MAIN EXECUTION
 # ============================================================================
 
@@ -1306,6 +1390,9 @@ main() {
     echo ""
     log_success "Report completato!"
     log_info "Output salvato in: $OUTPUT_DIR"
+    
+    # Fase 5: Invio email opzionale (interattivo)
+    send_email_interactive "$OUTPUT_DIR"
     
     return 0
 }
