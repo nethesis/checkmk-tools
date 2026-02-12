@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.2.0"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.2.1"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -549,8 +549,8 @@ collect_samba_shares() {
         ((acl_success++))
         
         # Parsa ACL e raggruppa per tipo permesso
-        declare -a users_rw
-        declare -a users_ro
+        local users_rw=()
+        local users_ro=()
         
         local current_mask=""
         local current_sid=""
@@ -623,10 +623,6 @@ collect_samba_shares() {
         
         echo "---" >> "$output_md"
         echo "" >> "$output_md"
-        
-        # Cleanup array
-        unset users_rw
-        unset users_ro
         
     done < "$temp_shares"
     
