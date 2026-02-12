@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.2.1"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.2.2"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -497,6 +497,9 @@ collect_samba_shares() {
     local acl_success=0
     local acl_failed=0
     
+    # DISABILITA set -e per il loop (sid_to_name può ritornare 1)
+    set +e
+    
     # Per ogni share: ottieni path, ACL, parsa e scrivi MD
     while IFS= read -r share_name; do
         [[ -z "$share_name" ]] && continue
@@ -625,6 +628,9 @@ collect_samba_shares() {
         echo "" >> "$output_md"
         
     done < "$temp_shares"
+    
+    # Riabilita set -e
+    set -e
     
     rm -f "$temp_shares"
     
