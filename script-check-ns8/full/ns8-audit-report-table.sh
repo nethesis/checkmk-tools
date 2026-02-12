@@ -304,7 +304,7 @@ collect_password_expiry() {
         echo ""
         echo "---"
         echo ""
-        echo "## Tabella Password"
+        echo "## Tabella Scadenza Password"
         echo ""
         printf "| %-20s | %-12s | %-10s | %-18s |\n" "Utente" "Scade Il" "Giorni" "Status"
         printf "|%s|%s|%s|%s|\n" "$(printf '%.0s-' {1..22})" "$(printf '%.0s-' {1..14})" "$(printf '%.0s-' {1..12})" "$(printf '%.0s-' {1..20})"
@@ -327,13 +327,8 @@ collect_password_expiry() {
             status_emoji="[OK] Valida"
         fi
         
-        # Scrivi riga tabella (username bold se critica)
-        if [[ "$days" == "N/A" ]] || [[ $days -ge 8 ]]; then
-            printf "| %-20s | %-12s | %-10s | %-18s |\n" "$user" "$expires" "$days" "$status_emoji" >> "$output_md"
-        else
-            # Bold per password critiche
-            printf "| %-20s | %-12s | %-10s | %-18s |\n" "**$user**" "**$expires**" "**$days**" "**$status_emoji**" >> "$output_md"
-        fi
+        # Scrivi riga tabella (tutte le righe senza bold per allineamento corretto)
+        printf "| %-20s | %-12s | %-10s | %-18s |\n" "$user" "$expires" "$days" "$status_emoji" >> "$output_md"
     done
     
     echo "" >> "$output_md"
