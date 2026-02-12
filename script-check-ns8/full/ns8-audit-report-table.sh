@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.4.3"   # Versione script - GRUPPI: UNA RIGA PER MEMBRO
+VERSION="2.4.4"   # Versione script - SENZA EMOJI
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -202,7 +202,7 @@ collect_password_expiry() {
     
     # Inizia file MD
     {
-        echo "# 🔐 Password Expiry Report"
+        echo "# Password Expiry Report"
         echo ""
         echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
         echo ""
@@ -276,7 +276,7 @@ collect_password_expiry() {
     
     # Scrivi riepilogo
     {
-        echo "## 📊 Riepilogo"
+        echo "## Riepilogo"
         echo ""
         echo "- **Utenti totali:** $success_count"
         echo "- **Password scadute:** $expired_count"
@@ -284,9 +284,9 @@ collect_password_expiry() {
         echo ""
         echo "---"
         echo ""
-        echo "## 📋 Tabella Password"
+        echo "## Tabella Password"
         echo ""
-        printf "| %-20s | %-12s | %-10s | %-18s |\n" "👤 Utente" "📅 Scade Il" "⏱️ Giorni" "🔔 Status"
+        printf "| %-20s | %-12s | %-10s | %-18s |\n" "Utente" "Scade Il" "Giorni" "Status"
         printf "|%s|%s|%s|%s|\n" "$(printf '%.0s-' {1..22})" "$(printf '%.0s-' {1..14})" "$(printf '%.0s-' {1..12})" "$(printf '%.0s-' {1..20})"
     } >> "$output_md"
     
@@ -298,13 +298,13 @@ collect_password_expiry() {
         local status_emoji=""
         
         if [[ "$days" == "N/A" ]]; then
-            status_emoji="ℹ️ Info N/A"
+            status_emoji="Info N/A"
         elif [[ $days -lt 0 ]]; then
-            status_emoji="⚠️ Scaduta"
+            status_emoji="[!] Scaduta"
         elif [[ $days -le 7 ]]; then
-            status_emoji="⏰ In scadenza"
+            status_emoji="[*] In scadenza"
         else
-            status_emoji="✅ Valida"
+            status_emoji="[OK] Valida"
         fi
         
         # Scrivi riga tabella (username bold se critica)
@@ -335,7 +335,7 @@ collect_ad_groups() {
     # Lista gruppi AD
     if ! runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group list > "$temp_groups" 2>/dev/null; then
         log_error "Fallita raccolta gruppi AD"
-        echo "# ❌ Errore Raccolta Gruppi AD" > "$output_md"
+        echo "# [ERRORE] Errore Raccolta Gruppi AD" > "$output_md"
         echo "" >> "$output_md"
         echo "Impossibile raccogliere gruppi dal domain controller." >> "$output_md"
         rm -f "$temp_groups"
@@ -346,7 +346,7 @@ collect_ad_groups() {
     
     # Inizia file MD con tabella (2 colonne: Gruppo, Membro)
     {
-        echo "# 👥 Gruppi Active Directory"
+        echo "# Gruppi Active Directory"
         echo ""
         echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
         echo ""
@@ -354,9 +354,9 @@ collect_ad_groups() {
         echo ""
         echo "---"
         echo ""
-        echo "## 📋 Tabella Membri Gruppi"
+        echo "## Tabella Membri Gruppi"
         echo ""
-        printf "| %-35s | %-35s |\n" "📁 Gruppo" "👤 Membro"
+        printf "| %-35s | %-35s |\n" "Gruppo" "Membro"
         printf "|%s|%s|\n" "$(printf '%.0s-' {1..37})" "$(printf '%.0s-' {1..37})"
     } > "$output_md"
     
@@ -427,9 +427,9 @@ collect_samba_shares() {
     if [[ $share_count -eq 0 ]]; then
         log_warn "Nessuno share trovato"
         {
-            echo "# 📂 Share Samba - Permessi"
+            echo "# Share Samba - Permessi"
             echo ""
-            echo "⚠️ **Nessuno share trovato**"
+            echo "[!] **Nessuno share trovato**"
         } > "$output_md"
         rm -f "$temp_shares"
         return 0
@@ -439,7 +439,7 @@ collect_samba_shares() {
     
     # Inizia file MD con tabella
     {
-        echo "# 📂 Share Samba - Permessi"
+        echo "# Share Samba - Permessi"
         echo ""
         echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
         echo ""
@@ -447,9 +447,9 @@ collect_samba_shares() {
         echo ""
         echo "---"
         echo ""
-        echo "## 📋 Tabella Share - Permessi"
+        echo "## Tabella Share - Permessi"
         echo ""
-        printf "| %-30s | %-35s | %-10s |\n" "📁 Share" "👥 Utente/Gruppo" "🔓 Permesso"
+        printf "| %-30s | %-35s | %-10s |\n" "Share" "Utente/Gruppo" "Permesso"
         printf "|%s|%s|%s|\n" "$(printf '%.0s-' {1..32})" "$(printf '%.0s-' {1..37})" "$(printf '%.0s-' {1..12})"
     } > "$output_md"
     
@@ -476,7 +476,7 @@ collect_samba_shares() {
             net conf getparm "$share_name" path 2>/dev/null </dev/null || echo "N/A")
         
         if [[ "$share_path" == "N/A" ]]; then
-            printf "| %-30s | %-35s | %-10s |\n" "$share_name" "(path non disponibile)" "❌ Errore" >> "$output_md"
+            printf "| %-30s | %-35s | %-10s |\n" "$share_name" "(path non disponibile)" "[ERR]" >> "$output_md"
             ((acl_failed++))
             continue
         fi
@@ -485,7 +485,7 @@ collect_samba_shares() {
         local temp_acl=$(mktemp)
         if ! runagent -m "$SAMBA_MODULE" podman exec samba-dc \
             samba-tool ntacl get "$share_path" > "$temp_acl" 2>&1 </dev/null; then
-            printf "| %-30s | %-35s | %-10s |\n" "$share_name" "(errore lettura ACL)" "❌ Errore" >> "$output_md"
+            printf "| %-30s | %-35s | %-10s |\n" "$share_name" "(errore lettura ACL)" "[ERR]" >> "$output_md"
             rm -f "$temp_acl"
             ((acl_failed++))
             continue
@@ -493,7 +493,7 @@ collect_samba_shares() {
         
         # Verifica ACL valido
         if ! grep -q "trustee" "$temp_acl" 2>/dev/null; then
-            printf "| %-30s | %-35s | %-10s |\n" "$share_name" "(ACL vuoto)" "⚠️ Warning" >> "$output_md"
+            printf "| %-30s | %-35s | %-10s |\n" "$share_name" "(ACL vuoto)" "[WARN]" >> "$output_md"
             rm -f "$temp_acl"
             ((acl_failed++))
             continue
@@ -548,14 +548,14 @@ collect_samba_shares() {
         
         if [[ ${#users_rw[@]} -gt 0 ]]; then
             for user in "${users_rw[@]}"; do
-                printf "| %-30s | %-35s | %-10s |\n" "$share_name" "$user" "✍️ RW" >> "$output_md"
+                printf "| %-30s | %-35s | %-10s |\n" "$share_name" "$user" "RW" >> "$output_md"
             done
             has_perms=1
         fi
         
         if [[ ${#users_ro[@]} -gt 0 ]]; then
             for user in "${users_ro[@]}"; do
-                printf "| %-30s | %-35s | %-10s |\n" "$share_name" "$user" "👁️ RO" >> "$output_md"
+                printf "| %-30s | %-35s | %-10s |\n" "$share_name" "$user" "RO" >> "$output_md"
             done
             has_perms=1
         fi
@@ -583,9 +583,9 @@ collect_webtop_sharing() {
         log_warn "Modulo WebTop non disponibile - skip raccolta email sharing"
         local output_md="$OUTPUT_DIR/03_webtop_shares.md"
         {
-            echo "# 📧 Condivisioni Email WebTop"
+            echo "# Condivisioni Email WebTop"
             echo ""
-            echo "⚠️ **Modulo WebTop non disponibile**"
+            echo "[!] **Modulo WebTop non disponibile**"
         } > "$output_md"
         return 0
     fi
@@ -600,9 +600,9 @@ collect_webtop_sharing() {
     if [[ -z "$postgres_container" ]]; then
         log_warn "Container Postgres non trovato"
         {
-            echo "# 📧 Condivisioni Email WebTop"
+            echo "# Condivisioni Email WebTop"
             echo ""
-            echo "❌ **Errore:** Container Postgres non trovato"
+            echo "[ERRORE] **Errore:** Container Postgres non trovato"
         } > "$output_md"
         return 1
     fi
@@ -614,9 +614,9 @@ collect_webtop_sharing() {
         log_warn "Impossibile listare database"
         rm -f "$db_list"
         {
-            echo "# 📧 Condivisioni Email WebTop"
+            echo "# Condivisioni Email WebTop"
             echo ""
-            echo "❌ **Errore:** Impossibile listare database"
+            echo "[ERRORE] **Errore:** Impossibile listare database"
         } > "$output_md"
         return 1
     fi
@@ -627,9 +627,9 @@ collect_webtop_sharing() {
     if [[ -z "$webtop_db" ]]; then
         log_warn "Database WebTop non trovato"
         {
-            echo "# 📧 Condivisioni Email WebTop"
+            echo "# Condivisioni Email WebTop"
             echo ""
-            echo "❌ **Errore:** Database WebTop non trovato"
+            echo "[ERRORE] **Errore:** Database WebTop non trovato"
         } > "$output_md"
         return 1
     fi
@@ -686,9 +686,9 @@ collect_webtop_sharing() {
         psql -U postgres -d "$webtop_db" > "$temp_output" 2>/dev/null; then
         log_error "Query Postgres fallita"
         {
-            echo "# 📧 Condivisioni Email WebTop"
+            echo "# Condivisioni Email WebTop"
             echo ""
-            echo "❌ **Errore:** Query Postgres fallita"
+            echo "[ERRORE] **Errore:** Query Postgres fallita"
         } > "$output_md"
         rm -f "$temp_output"
         return 1
@@ -698,7 +698,7 @@ collect_webtop_sharing() {
     if ! grep -qE "^\s*[0-9]+" "$temp_output" 2>/dev/null; then
         log_warn "Nessuna condivisione email configurata"
         {
-            echo "# 📧 Condivisioni Email WebTop"
+            echo "# Condivisioni Email WebTop"
             echo ""
             echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
             echo ""
@@ -710,15 +710,15 @@ collect_webtop_sharing() {
     
     # Inizia file MD con tabella compatta
     {
-        echo "# 📧 Condivisioni Email WebTop"
+        echo "# Condivisioni Email WebTop"
         echo ""
         echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
         echo ""
         echo "---"
         echo ""
-        echo "## 📋 Tabella Condivisioni"
+        echo "## Tabella Condivisioni"
         echo ""
-        printf "| %-22s | %-22s | %-10s |\n" "📨 Da" "📩 A" "🔓 Tipo"
+        printf "| %-22s | %-22s | %-10s |\n" "Da" "A" "Tipo"
         printf "|%s|%s|%s|\n" "$(printf '%.0s-' {1..24})" "$(printf '%.0s-' {1..24})" "$(printf '%.0s-' {1..12})"
     } > "$output_md"
     
@@ -754,9 +754,9 @@ collect_webtop_sharing() {
         # Parse permessi JSON per emoji
         local perm_icon=""
         if echo "$perms" | grep -q '"shareIdentity"\s*:\s*true'; then
-            perm_icon="✍️ RW"
+            perm_icon="RW"
         else
-            perm_icon="👁️ RO"
+            perm_icon="RO"
         fi
         
         # Scrivi riga tabella compatta con padding
@@ -784,32 +784,32 @@ generate_summary_report() {
     
     # Conta dati dai file MD - VERSIONE TABELLA
     # User count: conta righe tabella escludendo header/separator
-    user_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | grep -v "^\|---" | grep -v "| 👤 Utente |" | wc -l 2>/dev/null) + 0 ))
+    user_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Utente |" | wc -l 2>/dev/null) + 0 ))
     
     # Group count: conta righe tabella escludendo header/separator
-    group_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null | grep -v "^\|---" | grep -v "| 📁 Gruppo |" | wc -l 2>/dev/null) + 0 ))
+    group_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Gruppo |" | wc -l 2>/dev/null) + 0 ))
     
     # Share count: conta righe tabella escludendo header/separator
-    share_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null | grep -v "^\|---" | grep -v "| 📁 Share |" | wc -l 2>/dev/null) + 0 ))
+    share_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Share |" | wc -l 2>/dev/null) + 0 ))
     
     # WebTop count: conta righe tabella escludendo header
-    webtop_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | grep -v "^\|---" | grep -v "| 📨 Da |" | wc -l 2>/dev/null) + 0 ))
+    webtop_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Da |" | wc -l 2>/dev/null) + 0 ))
     
-    # Conta password critiche: righe con ⚠️ Scaduta
-    expired_count=$(( $(grep -c "⚠️ Scaduta" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
+    # Conta password critiche: righe con [!] Scaduta
+    expired_count=$(( $(grep -c "\[!\] Scaduta" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
     
-    # Conta password in scadenza: righe con ⏰ In scadenza
-    expiring_count=$(( $(grep -c "⏰ In scadenza" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
+    # Conta password in scadenza: righe con [*] In scadenza
+    expiring_count=$(( $(grep -c "\[\*\] In scadenza" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
     
     # Inizia file MD
     {
-        echo "# 📊 Report Riepilogativo Audit NS8"
+        echo "# Report Riepilogativo Audit NS8"
         echo ""
         echo "Report generato: $(date '+%d/%m/%Y %H:%M:%S')"
         echo ""
         echo "---"
         echo ""
-        echo "## 📋 Statistiche Generali"
+        echo "## Statistiche Generali"
         echo ""
         echo "| Categoria | Totale |"
         echo "|-----------|--------|"
@@ -820,22 +820,22 @@ generate_summary_report() {
         echo ""
         echo "---"
         echo ""
-        echo "## ⚠️ Criticità"
+        echo "## [!] Criticità"
         echo ""
     } > "$output_md"
     
     # Sezione password critiche
     if [[ $expired_count -gt 0 ]] || [[ $expiring_count -gt 0 ]]; then
         {
-            echo "### 🔐 Password"
+            echo "### Password"
             echo ""
-            [[ $expired_count -gt 0 ]] && echo "- ⚠️ **Password scadute:** $expired_count"
-            [[ $expiring_count -gt 0 ]] && echo "- ⏰ **Password in scadenza (≤7 giorni):** $expiring_count"
+            [[ $expired_count -gt 0 ]] && echo "- [!] **Password scadute:** $expired_count"
+            [[ $expiring_count -gt 0 ]] && echo "- [*] **Password in scadenza (≤7 giorni):** $expiring_count"
             echo ""
         } >> "$output_md"
     else
         {
-            echo "### ✅ Password"
+            echo "### [OK] Password"
             echo ""
             echo "*Nessuna criticità rilevata*"
             echo ""
@@ -846,7 +846,7 @@ generate_summary_report() {
     {
         echo "---"
         echo ""
-        echo "## 📁 File Generati"
+        echo "## File Generati"
         echo ""
     } >> "$output_md"
     
