@@ -36,7 +36,27 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.3.2"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.4.0"   # Versione script (aggiornare ad ogni modifica)
+
+# Gruppi AD di sistema da escludere dal report
+EXCLUDE_GROUPS=(
+    "Denied RODC Password Replication Group"
+    "DnsUpdateProxy"
+    "Enterprise Read-Only Domain Controllers"
+    "Network Configuration Operators"
+    "Pre-Windows 2000 Compatible Access"
+    "Incoming Forest Trust Builders"
+    "Terminal Server License Servers"
+    "Cryptographic Operators"
+    "Remote Desktop Users"
+    "RAS and IAS Servers"
+    "Event Log Readers"
+    "Guests"
+    "Certificate Service DCOM Access"
+    "Read-Only Domain Controllers"
+    "Windows Authorization Access Group"
+    "Performance Monitor Users"
+)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -335,6 +355,7 @@ collect_ad_groups() {
     
     local output_md="$OUTPUT_DIR/02_gruppi_ad.md"
     local temp_groups=$(mktemp)
+    local temp_computers=$(mktemp)
     
     # Lista gruppi AD
     if ! runagent -m "$SAMBA_MODULE" podman exec samba-dc samba-tool group list > "$temp_groups" 2>/dev/null; then
@@ -342,11 +363,22 @@ collect_ad_groups() {
         echo "# ❌ Errore Raccolta Gruppi AD" > "$output_md"
         echo "" >> "$output_md"
         echo "Impossibile raccogliere gruppi dal domain controller." >> "$output_md"
-        rm -f "$temp_groups"
+        rm -f "$temp_groups" "$temp_computers"
         return 1
     fi
     
     local group_count=$(grep -c ^ "$temp_groups" 2>/dev/null || echo "0")
+    
+    # Funzione helper: check se gruppo va escluso
+    is_excluded_group() {
+        local group="$1"
+        for excluded in "${EXCLUDE_GROUPS[@]}"; do
+            if [[ "$group" == "$excluded" ]]; then
+                return 0
+            fi
+        done
+        return 1
+    }
     
     # Inizia file MD
     {
@@ -361,12 +393,21 @@ collect_ad_groups() {
     } > "$output_md"
     
     local processed=0
+    local excluded_count=0
+    local computer_count=0
     
     # DISABILITA set -e solo per questo loop
     set +e
     
     while IFS= read -r groupname; do
         [[ -z "$groupname" ]] && continue
+        
+        # Salta gruppi di sistema esclusi
+        if is_excluded_group "$groupname"; then
+            ((excluded_count++))
+            continue
+        fi
+        
         ((processed++))
         
         # Progress solo ogni 10 gruppi (riduce output da 87 a ~9 righe)
@@ -379,21 +420,36 @@ collect_ad_groups() {
             samba-tool group listmembers "$groupname" 2>/dev/null | sort || echo "")
         
         local members_count=0
+        local regular_members=""
+        local computers=""
+        
         if [[ -n "$members" ]]; then
-            members_count=$(echo "$members" | wc -l)
+            # Separa computer (finiscono con $) da utenti normali
+            while IFS= read -r member; do
+                [[ -z "$member" ]] && continue
+                if [[ "$member" == *$ ]]; then
+                    computers+="$member
+"
+                    echo "$groupname|$member" >> "$temp_computers"
+                    ((computer_count++))
+                else
+                    regular_members+="$member
+"
+                    ((members_count++))
+                fi
+            done <<< "$members"
         fi
         
-        # Scrivi sezione gruppo
-        {
-            echo "## 📁 $groupname"
-            echo ""
-            echo "**Membri:** $members_count"
-            echo ""
-        } >> "$output_md"
-        
-        if [[ $members_count -eq 0 ]]; then
-            echo "*Nessun membro*" >> "$output_md"
-        else
+        # Scrivi solo se ci sono membri normali (non solo computer)
+        if [[ $members_count -gt 0 ]]; then
+            # Scrivi sezione gruppo
+            {
+                echo "## 📁 $groupname"
+                echo ""
+                echo "**Membri:** $members_count"
+                echo ""
+            } >> "$output_md"
+            
             # Usa <details> per collapsibile solo se membri > 5
             if [[ $members_count -gt 5 ]]; then
                 echo "<details>" >> "$output_md"
@@ -404,23 +460,52 @@ collect_ad_groups() {
             while IFS= read -r member; do
                 [[ -z "$member" ]] && continue
                 echo "- $member" >> "$output_md"
-            done <<< "$members"
+            done <<< "$regular_members"
             
             if [[ $members_count -gt 5 ]]; then
                 echo "" >> "$output_md"
                 echo "</details>" >> "$output_md"
             fi
+            
+            echo "" >> "$output_md"
         fi
-        
-        echo "" >> "$output_md"
         
     done < "$temp_groups"
     
     # Riabilita set -e
     set -e
     
-    log_success "Report gruppi generato → 02_gruppi_ad.md ($processed gruppi)"
-    rm -f "$temp_groups"
+    # Aggiungi sezione Domain Computer
+    if [[ -s "$temp_computers" ]]; then
+        {
+            echo "---"
+            echo ""
+            echo "# 💻 Domain Computer"
+            echo ""
+            echo "**Totale computer:** $computer_count"
+            echo ""
+            echo "---"
+            echo ""
+        } >> "$output_md"
+        
+        # Raggruppa per gruppo
+        local current_group=""
+        while IFS='|' read -r group_name computer_name; do
+            if [[ "$group_name" != "$current_group" ]]; then
+                if [[ -n "$current_group" ]]; then
+                    echo "" >> "$output_md"
+                fi
+                echo "## 📁 $group_name" >> "$output_md"
+                echo "" >> "$output_md"
+                current_group="$group_name"
+            fi
+            echo "- $computer_name" >> "$output_md"
+        done < <(sort "$temp_computers")
+        echo "" >> "$output_md"
+    fi
+    
+    log_success "Report gruppi generato → 02_gruppi_ad.md ($processed gruppi, $excluded_count esclusi, $computer_count computer)"
+    rm -f "$temp_groups" "$temp_computers"
     return 0
 }
 
@@ -497,7 +582,7 @@ collect_samba_shares() {
         } >> "$output_md"
         
         if [[ "$share_path" == "N/A" ]]; then
-            echo "❌ **Errore:** Path non disponibile" >> "$output_md"
+            echo "**Permessi:** ND" >> "$output_md"
             echo "" >> "$output_md"
             ((acl_failed++))
             continue
@@ -507,7 +592,7 @@ collect_samba_shares() {
         local temp_acl=$(mktemp)
         if ! runagent -m "$SAMBA_MODULE" podman exec samba-dc \
             samba-tool ntacl get "$share_path" > "$temp_acl" 2>&1 </dev/null; then
-            echo "❌ **Errore:** Impossibile leggere ACL" >> "$output_md"
+            echo "**Permessi:** ND" >> "$output_md"
             echo "" >> "$output_md"
             rm -f "$temp_acl"
             ((acl_failed++))
@@ -516,7 +601,7 @@ collect_samba_shares() {
         
         # Verifica ACL valido
         if ! grep -q "trustee" "$temp_acl" 2>/dev/null; then
-            echo "⚠️ **Warning:** ACL non disponibile o vuoto" >> "$output_md"
+            echo "**Permessi:** ND" >> "$output_md"
             echo "" >> "$output_md"
             rm -f "$temp_acl"
             ((acl_failed++))
@@ -677,11 +762,19 @@ collect_webtop_sharing() {
     # Funzione helper per risolvere UUID → username
     resolve_uuid() {
         local uuid="$1"
-        local username=$(grep "^$uuid|" "$mapping_file" 2>/dev/null | cut -d'|' -f2 | xargs)
-        if [[ -n "$username" ]]; then
+        # Normalizza UUID (rimuovi spazi)
+        uuid=$(echo "$uuid" | xargs)
+        local username=$(grep -i "^$uuid|" "$mapping_file" 2>/dev/null | cut -d'|' -f2 | xargs)
+        if [[ -n "$username" && "$username" != "$uuid" ]]; then
             echo "$username"
         else
-            echo "$uuid"
+            # Fallback: cerca in modo case-insensitive con awk
+            username=$(awk -F'|' -v uuid="$uuid" 'tolower($1) == tolower(uuid) {print $2; exit}' "$mapping_file" 2>/dev/null | xargs)
+            if [[ -n "$username" ]]; then
+                echo "$username"
+            else
+                echo "$uuid"
+            fi
         fi
     }
     
