@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.2.9"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.3.0"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -991,11 +991,13 @@ display_detailed_tables() {
     
     log_info "Visualizzazione report Markdown..."
     
-    # Display file MD in ordine
+    # Display file MD in ordine (summary primo, poi dettagli)
     local md_files=(
+        "00_REPORT_SUMMARY.md"
         "01_password_expiry.md"
         "02_gruppi_ad.md"
         "03_webtop_shares.md"
+        "04_share_permissions.md"
     )
     
     for md_file in "${md_files[@]}"; do
