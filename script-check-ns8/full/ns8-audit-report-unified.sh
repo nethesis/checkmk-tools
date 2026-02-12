@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.2.7"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.2.8"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -790,30 +790,24 @@ generate_summary_report() {
     # DISABILITA set -e (grep -c può ritornare 1 se no match)
     set +e
     
-    # Conta dati dai file MD (conta righe tabella escludendo header e separator)
-    # User count: tutte le tabelle nel file password_expiry.md
-    local user_count_raw=$(grep -E "^\|" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Utente |" | grep -v "| \*\*Utente\*\*" | wc -l)
-    local user_count=$(echo "$user_count_raw" | tr -d ' \n' || echo "0")
+    # Conta dati dai file MD (usa arithmetic expansion per garantire numero valido)
+    # User count: tutte le righe tabella escludendo header/separator
+    user_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Utente |" | wc -l 2>/dev/null) + 0 ))
     
     # Group count: conta heading "## 📁"
-    local group_count_raw=$(grep -c "^## 📁" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null || echo "0")
-    local group_count=$(echo "$group_count_raw" | tr -d ' \n' || echo "0")
+    group_count=$(( $(grep -c "^## 📁" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null) + 0 ))
     
     # Share count: conta heading "## 📁"
-    local share_count_raw=$(grep -c "^## 📁" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null || echo "0")
-    local share_count=$(echo "$share_count_raw" | tr -d ' \n' || echo "0")
+    share_count=$(( $(grep -c "^## 📁" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null) + 0 ))
     
     # WebTop count: righe tabella escludendo header
-    local webtop_count_raw=$(grep -E "^\|" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Share ID |" | grep -v "| \*\*Share ID\*\*" | wc -l)
-    local webtop_count=$(echo "$webtop_count_raw" | tr -d ' \n' || echo "0")
+    webtop_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Share ID |" | wc -l 2>/dev/null) + 0 ))
     
     # Conta password critiche: righe con username bold nella sezione "Password Scadute"
-    local expired_count_raw=$(awk '/## ⚠️ Password Scadute/,/^---/ {if (/^\| \*\*[A-Z]/) print}' "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | wc -l || echo "0")
-    local expired_count=$(echo "$expired_count_raw" | tr -d ' \n' || echo "0")
+    expired_count=$(( $(awk '/## ⚠️ Password Scadute/,/^---/ {if (/^\| \*\*[A-Z]/) print}' "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | wc -l 2>/dev/null) + 0 ))
     
     # Conta password in scadenza: cerca emoji ⏰ nelle righe tabella
-    local expiring_count_raw=$(grep -c "⏰" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null || echo "0")
-    local expiring_count=$(echo "$expiring_count_raw" | tr -d ' \n' || echo "0")
+    expiring_count=$(( $(grep -c "⏰" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
     
     # Inizia file MD
     {
