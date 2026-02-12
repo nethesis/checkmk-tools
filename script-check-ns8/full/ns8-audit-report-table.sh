@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.6.3"   # Versione script - SENZA EMOJI
+VERSION="2.6.4"   # Versione script - SENZA EMOJI
 
 # Gruppi AD di sistema da escludere dal report
 EXCLUDE_GROUPS=(
@@ -876,24 +876,31 @@ generate_summary_report() {
     # DISABILITA set -e (grep -c può ritornare 1 se no match)
     set +e
     
+    # DEBUG: Log file esistenti
+    log_info "File MD esistenti:"
+    ls -lh "$OUTPUT_DIR"/*.md 2>/dev/null || log_warn "Nessun file MD trovato!"
+    
     # Conta dati dai file MD - VERSIONE TABELLA
-    # User count: conta righe tabella escludendo header/separator
-    user_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Utente |" | wc -l 2>/dev/null) + 0 ))
+    # User count: conta righe tabella escludendo header/separator (conta righe dati reali)
+    user_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | grep -v "^\|--" | grep -v "Utente" | tail -n +2 | wc -l 2>/dev/null) + 0 ))
     
     # Group count: conta righe tabella escludendo header/separator
-    group_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Gruppo |" | wc -l 2>/dev/null) + 0 ))
+    group_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null | grep -v "^\|--" | grep -v "Gruppo" | tail -n +2 | wc -l 2>/dev/null) + 0 ))
     
     # Share count: conta righe tabella escludendo header/separator
-    share_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Share |" | wc -l 2>/dev/null) + 0 ))
+    share_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null | grep -v "^\|--" | grep -v "Share" | tail -n +2 | wc -l 2>/dev/null) + 0 ))
     
     # WebTop count: conta righe tabella escludendo header
-    webtop_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | grep -v "^\|---" | grep -v "| Da |" | wc -l 2>/dev/null) + 0 ))
+    webtop_count=$(( $(grep -E "^\|" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | grep -v "^\|--" | grep -v " Da " | tail -n +2 | wc -l 2>/dev/null) + 0 ))
     
     # Conta password critiche: righe con [!] Scaduta
     expired_count=$(( $(grep -c "\[!\] Scaduta" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
     
     # Conta password in scadenza: righe con [*] In scadenza
     expiring_count=$(( $(grep -c "\[\*\] In scadenza" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null) + 0 ))
+    
+    # DEBUG: Log conteggi
+    log_info "Conteggi: users=$user_count groups=$group_count shares=$share_count webtop=$webtop_count"
     
     # Inizia file MD
     {
@@ -1401,7 +1408,9 @@ EOF
              --mail-rcpt "$recipient" \
              --user "$smtp_user:$smtp_pass" \
              --upload-file "$email_file" \
-             -v 2>&1 | grep -E "(Connected|250|failed|error)" || true
+             --max-time 60 \
+             --connect-timeout 30 \
+             -v 2>&1 | tee /tmp/curl_email_output.log | grep -E "(Connected|250|failed|error|timed out)"
         
         local exit_code=${PIPESTATUS[0]}
         
