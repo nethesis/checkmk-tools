@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.3.0"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.3.1"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -695,7 +695,49 @@ collect_webtop_sharing() {
         return 1
     fi
     
-    # Query SQL
+    # Query per ottenere mapping UUID → username
+    local mapping_query="SELECT user_uid, user_id FROM core.users;"
+    local temp_mapping="/tmp/webtop_mapping_$$.txt"
+    local mapping_file="/tmp/webtop_uuid_map_$$.txt"
+    
+    # Funzione helper per risolvere UUID → username
+    resolve_uuid() {
+        local uuid="$1"
+        local username=$(grep "^$uuid|" "$mapping_file" 2>/dev/null | cut -d'|' -f2 | xargs)
+        if [[ -n "$username" ]]; then
+            echo "$username"
+        else
+            echo "$uuid"
+        fi
+    }
+    
+    # Esegui query mapping e processa risultati
+    if echo "$mapping_query" | runagent -m "$WEBTOP_MODULE" podman exec -i "$postgres_container" \
+        psql -U postgres -d "$webtop_db" -t > "$temp_mapping" 2>/dev/null; then
+        
+        # Crea file mapping pulito: UUID|username
+        grep -E "^\s*[a-f0-9]{8}-" "$temp_mapping" 2>/dev/null | \
+            sed 's/|/\t/g' | \
+            awk -F'\t' '{
+                uuid = $1
+                username = $2
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", uuid)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", username)
+                if (uuid != "" && username != "") {
+                    print uuid "|" username
+                }
+            }' > "$mapping_file"
+        
+        local map_count=$(wc -l < "$mapping_file" 2>/dev/null || echo 0)
+        log_info "Caricati $map_count mapping UUID → username"
+    else
+        log_warn "Impossibile caricare mapping UUID, saranno mostrati UUID raw"
+        touch "$mapping_file"  # Crea file vuoto per evitare errori
+    fi
+    
+    rm -f "$temp_mapping"
+    
+    # Query SQL shares
     local query="SELECT s.share_id, s.user_uid AS owner, s.service_id, s.key AS mailbox_path, s.instance, sd.user_uid AS shared_with, sd.value AS permissions FROM core.shares s LEFT JOIN core.shares_data sd ON s.share_id = sd.share_id WHERE s.service_id LIKE '%mail%' ORDER BY s.user_uid, s.share_id, sd.user_uid;"
     
     local temp_output="/tmp/webtop_raw_$$.txt"
@@ -737,8 +779,8 @@ collect_webtop_sharing() {
         echo ""
         echo "## 📋 Tutte le Condivisioni"
         echo ""
-        echo "| Share ID | Owner | Mailbox | Condiviso Con | Permessi |"
-        echo "|----------|-------|---------|---------------|----------|"
+        echo "| Share ID | Proprietario | Mailbox | Condiviso Con | Permessi |"
+        echo "|----------|--------------|---------|---------------|----------|"
     } > "$output_md"
     
     # Processa righe output PostgreSQL e scrivi MD
@@ -768,14 +810,18 @@ collect_webtop_sharing() {
         [[ -z "$share_id" ]] && continue
         record_count=$((record_count + 1))  # Safe increment
         
-        echo "| $share_id | $owner | $mailbox | $shared_with | $perms |" >> "$output_md"
+        # Risolvi UUID → username
+        owner_user=$(resolve_uuid "$owner")
+        shared_user=$(resolve_uuid "$shared_with")
+        
+        echo "| $share_id | $owner_user | $mailbox | $shared_user | $perms |" >> "$output_md"
     done
     
     set -e  # Ri-abilita set -e
     
     echo "" >> "$output_md"
     
-    rm -f "$temp_output"
+    rm -f "$temp_output" "$mapping_file"
     
     log_success "Report condivisioni WebTop generato → 03_webtop_shares.md ($record_count condivisioni)"
     return 0
