@@ -38,7 +38,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.6.2"   # Versione script - SENZA EMOJI
+VERSION="2.6.3"   # Versione script - SENZA EMOJI
 
 # Gruppi AD di sistema da escludere dal report
 EXCLUDE_GROUPS=(
@@ -1423,64 +1423,6 @@ EOF
 }
 
 # ============================================================================
-# SALVATAGGIO LOCALE SCP
-# ============================================================================
-
-save_local_copy_interactive() {
-    local report_dir="$1"
-    
-    echo ""
-    echo "================================================================================"
-    read -p "Vuoi salvare i report sul tuo computer locale? (s/n): " save_local
-    
-    if [[ "$save_local" =~ ^[sS]$ ]]; then
-        echo ""
-        log_info "Istruzioni per copiare i report sul tuo computer locale"
-        echo ""
-        echo "════════════════════════════════════════════════════════════════════════════"
-        echo "Esegui questo comando da un ALTRO TERMINALE sul tuo computer locale:"
-        echo "════════════════════════════════════════════════════════════════════════════"
-        echo ""
-        
-        # Rileva username e hostname correnti
-        local current_user=$(whoami)
-        local current_host=$(hostname)
-        local report_name=$(basename "$report_dir")
-        
-        # Comando Linux/macOS
-        echo "📋 Linux/macOS:"
-        echo "   scp -r ${current_user}@${current_host}:${report_dir} ~/Documents/NS8-Reports/"
-        echo ""
-        
-        # Comando Windows PowerShell/WSL
-        echo "📋 Windows PowerShell (con WSL):"
-        echo "   wsl -- scp -r ${current_user}@${current_host}:${report_dir} /mnt/c/Users/\$env:USERNAME/Documents/NS8-Reports/"
-        echo ""
-        
-        # Comando Windows nativo (se OpenSSH installato)
-        echo "📋 Windows PowerShell (OpenSSH nativo):"
-        echo "   scp -r ${current_user}@${current_host}:${report_dir} \$env:USERPROFILE\\Documents\\NS8-Reports\\"
-        echo ""
-        
-        echo "════════════════════════════════════════════════════════════════════════════"
-        echo ""
-        echo "Contenuto che verrà copiato:"
-        echo "  ✓ 00_REPORT_SUMMARY.md"
-        echo "  ✓ 01_password_expiry.md"
-        echo "  ✓ 02_gruppi_ad.md"
-        echo "  ✓ 03_webtop_shares.md"
-        echo "  ✓ 04_share_permissions.md"
-        echo ""
-        echo "Destinazione locale: ~/Documents/NS8-Reports/${report_name}/"
-        echo ""
-    else
-        log_info "Copia locale saltata."
-    fi
-    
-    return 0
-}
-
-# ============================================================================
 # MAIN EXECUTION
 # ============================================================================
 
@@ -1520,9 +1462,6 @@ main() {
     
     # Fase 5: Invio email opzionale (interattivo)
     send_email_interactive "$OUTPUT_DIR"
-    
-    # Fase 6: Salvataggio locale via SCP (interattivo)
-    save_local_copy_interactive "$OUTPUT_DIR"
     
     return 0
 }
