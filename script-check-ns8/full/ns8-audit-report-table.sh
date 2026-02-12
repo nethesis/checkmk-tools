@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.4.0-table"   # Versione script - TABELLA COMPATTA
+VERSION="2.4.1"   # Versione script - TABELLA CON PADDING
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -284,8 +284,8 @@ collect_password_expiry() {
         echo ""
         echo "## 📋 Tabella Password"
         echo ""
-        echo "| 👤 Utente | 📅 Scade Il | ⏱️ Giorni | 🔔 Status |"
-        echo "|-----------|-------------|-----------|----------|"
+        printf "| %-20s | %-12s | %-10s | %-18s |\n" "👤 Utente" "📅 Scade Il" "⏱️ Giorni" "🔔 Status"
+        printf "|%s|%s|%s|%s|\n" "$(printf '%.0s-' {1..22})" "$(printf '%.0s-' {1..14})" "$(printf '%.0s-' {1..12})" "$(printf '%.0s-' {1..20})"
     } >> "$output_md"
     
     # Scrivi tabella compatta (4 colonne, no scroll)
@@ -307,10 +307,10 @@ collect_password_expiry() {
         
         # Scrivi riga tabella (username bold se critica)
         if [[ "$days" == "N/A" ]] || [[ $days -ge 8 ]]; then
-            echo "| $user | $expires | $days | $status_emoji |" >> "$output_md"
+            printf "| %-20s | %-12s | %-10s | %-18s |\n" "$user" "$expires" "$days" "$status_emoji" >> "$output_md"
         else
             # Bold per password critiche
-            echo "| **$user** | **$expires** | **$days** | **$status_emoji** |" >> "$output_md"
+            printf "| %-20s | %-12s | %-10s | %-18s |\n" "**$user**" "**$expires**" "**$days**" "**$status_emoji**" >> "$output_md"
         fi
     done
     
@@ -747,8 +747,8 @@ collect_webtop_sharing() {
         echo ""
         echo "## 📋 Tabella Condivisioni"
         echo ""
-        echo "| 📨 Da | 📩 A | 🔓 Tipo |"
-        echo "|-------|------|--------|"
+        printf "| %-22s | %-22s | %-10s |\n" "📨 Da" "📩 A" "🔓 Tipo"
+        printf "|%s|%s|%s|\n" "$(printf '%.0s-' {1..24})" "$(printf '%.0s-' {1..24})" "$(printf '%.0s-' {1..12})"
     } > "$output_md"
     
     # Processa righe output PostgreSQL e scrivi tabella compatta (3 colonne)
@@ -788,8 +788,8 @@ collect_webtop_sharing() {
             perm_icon="👁️ RO"
         fi
         
-        # Scrivi riga tabella compatta
-        echo "| $owner_user | $shared_user | $perm_icon |" >> "$output_md"
+        # Scrivi riga tabella compatta con padding
+        printf "| %-22s | %-22s | %-10s |\n" "$owner_user" "$shared_user" "$perm_icon" >> "$output_md"
     done
     
     set -e  # Ri-abilita set -e
