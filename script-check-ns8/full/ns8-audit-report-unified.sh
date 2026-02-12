@@ -36,7 +36,7 @@ OUTPUT_BASE="${OUTPUT_DIR:-/tmp}"
 OUTPUT_DIR="${OUTPUT_BASE}/ns8-audit-${REPORT_DATE}"
 MAX_PWD_AGE_DAYS=42
 SHOW_ACL_REPORT=1  # Default: mostra report ACL
-VERSION="2.2.5"   # Versione script (aggiornare ad ogni modifica)
+VERSION="2.2.6"   # Versione script (aggiornare ad ogni modifica)
 
 # Cache globale per conversione SID → Username (usata da sid_to_name)
 declare -gA SID_CACHE
@@ -790,14 +790,14 @@ generate_summary_report() {
     # DISABILITA set -e (grep -c può ritornare 1 se no match)
     set +e
     
-    # Conta dati dai file MD
-    local user_count=$(grep -c "^|" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | tail -1 || echo "0")
+    # Conta dati dai file MD (usa wc -l invece di grep -c per evitare multi-line output)
+    local user_count=$(grep -E "^\|" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null | grep -v "^\|---" | grep -v "^\| \*\*Utente\*\*" | wc -l)
     local group_count=$(grep -c "^## 📁" "$OUTPUT_DIR/02_gruppi_ad.md" 2>/dev/null || echo "0")
     local share_count=$(grep -c "^## 📁" "$OUTPUT_DIR/04_share_permissions.md" 2>/dev/null || echo "0")
-    local webtop_count=$(grep -c "^|" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | tail -1 || echo "0")
+    local webtop_count=$(grep -E "^\|" "$OUTPUT_DIR/03_webtop_shares.md" 2>/dev/null | grep -v "^\|---" | grep -v "^\| \*\*Share ID\*\*" | wc -l)
     
-    # Conta password critiche
-    local expired_count=$(grep -c "⚠️" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null || echo "0")
+    # Conta password critiche (righe con bold username, indicano password scadute)
+    local expired_count=$(grep -c "| \*\*" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null || echo "0")
     local expiring_count=$(grep -c "⏰" "$OUTPUT_DIR/01_password_expiry.md" 2>/dev/null || echo "0")
     
     # Inizia file MD
