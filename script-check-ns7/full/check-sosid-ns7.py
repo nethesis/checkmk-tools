@@ -55,7 +55,7 @@ def get_session_id() -> Optional[str]:
             ["don", "status"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            universal_newlines=True,
             timeout=5
         )
         

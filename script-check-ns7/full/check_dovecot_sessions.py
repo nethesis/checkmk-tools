@@ -28,7 +28,7 @@ def get_active_sessions() -> int:
             ["doveadm", "who"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            universal_newlines=True,
             timeout=5
         )
         

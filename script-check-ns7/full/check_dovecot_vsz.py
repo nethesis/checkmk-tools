@@ -29,7 +29,7 @@ def get_vsz_limit() -> str:
             ["config", "show", "dovecot"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            universal_newlines=True,
             timeout=5
         )
         

@@ -29,7 +29,7 @@ def get_max_user_connections() -> str:
             ["doveconf", "-a"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            universal_newlines=True,
             timeout=5
         )
         
