@@ -92,13 +92,13 @@ def main() -> int:
         
         if session_id:
             state = 1
-            msg = f"SOS attivo - ID {session_id}"
+            msg = f"SOS active - ID {session_id}"
         else:
             state = 2
-            msg = "SOS attivo ma ID non trovato"
+            msg = "SOS active but ID not found"
     else:
         state = 0
-        msg = "SOS non attivo"
+        msg = "SOS not active"
     
     print(f"{state} {SERVICE_NAME} - {msg}")
     return 0

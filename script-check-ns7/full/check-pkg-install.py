@@ -121,7 +121,7 @@ def main() -> int:
     event = get_last_yum_event()
     
     if not event:
-        print("0 PKG_INSTALL - OK: nessuna attività pacchetti")
+        print("0 PKG_INSTALL - OK: no package activity")
         return 0
     
     date_str, event_desc = event
@@ -130,7 +130,7 @@ def main() -> int:
     event_ts = parse_yum_date(date_str)
     
     if event_ts is None:
-        print(f"0 PKG_INSTALL - OK: nessuna attività recente (ultimo: {date_str})")
+        print(f"0 PKG_INSTALL - OK: no recent activity (last: {date_str})")
         return 0
     
     # Load last saved timestamp
@@ -149,9 +149,9 @@ def main() -> int:
     event_clean = re.sub(r'^[A-Z][a-z]{2}\s+\d+\s+[\d:]+\s+', '', event_desc)
     
     if elapsed_min < WARN_TIMEOUT_MINUTES:
-        print(f"1 PKG_INSTALL - WARN: attività recente ({date_str}): {event_clean}")
+        print(f"1 PKG_INSTALL - WARN: recent activity ({date_str}): {event_clean}")
     else:
-        print(f"0 PKG_INSTALL - OK: nessuna nuova attività nelle ultime {WARN_TIMEOUT_MINUTES} min (Ultima: {date_str})")
+        print(f"0 PKG_INSTALL - OK: no new activity in last {WARN_TIMEOUT_MINUTES} min (Last: {date_str})")
     
     return 0
 

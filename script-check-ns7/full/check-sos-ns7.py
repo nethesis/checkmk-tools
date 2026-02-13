@@ -54,13 +54,13 @@ def main() -> int:
     
     if vpn_status == 1 and ssh_status == 1:
         state = 1
-        msg = "SOS attivo"
+        msg = "SOS active"
     elif vpn_status == 0 and ssh_status == 0:
         state = 0
-        msg = "SOS disattivo"
+        msg = "SOS inactive"
     else:
         state = 2
-        msg = f"SOS PARZIALE: VPN={vpn_status} SSH={ssh_status}"
+        msg = f"SOS PARTIAL: VPN={vpn_status} SSH={ssh_status}"
     
     print(f"{state} {SERVICE_NAME} - {msg} | vpn={vpn_status} ssh={ssh_status}")
     return 0
