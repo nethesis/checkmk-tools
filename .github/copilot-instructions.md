@@ -1193,6 +1193,7 @@ wsl -- ssh <host> "rm /usr/lib/check_mk_agent/local/rssh_service_name_old 2>/dev
 - ✅ Check appare in `check_mk_agent` output
 - ✅ NO duplicati (solo 1 istanza del check nell'output agent)
 - ✅ Comportamento identico a versione bash (stessi state codes, stessi messaggi)
+- ✅ **BACKUP OBBLIGATORIO**: Dopo conversione completa (full + remote deployato e testato) → `.\backup-simple.ps1 --unattended`
 
 ### 9. Esempio Completo Real World
 
