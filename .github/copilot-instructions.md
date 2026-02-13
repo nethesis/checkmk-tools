@@ -934,7 +934,275 @@ systemctl reset-failed cmk-agent-ctl-daemon.service
 
 ---
 
-## 🔌 Accesso Remoto SSH - VPS e Server Locali
+## � Conversione Script Bash → Python - Best Practices
+
+**⚠️ WORKFLOW COMPLETO per conversione script esistenti:**
+
+### 1. Strategia Conversione
+
+**Quando convertire bash → Python:**
+- ✅ Script con parsing complesso (output comandi, regex, testo strutturato)
+- ✅ Script con logica condizionale articolata
+- ✅ Necessità di error handling robusto
+- ✅ Script che beneficiano di type hints e modularità
+- ✅ Script destinati a evolversi (più feature nel tempo)
+
+**Vantaggi Python:**
+- ✅ Parsing più robusto (regex, split, strip vs sed/awk/grep)
+- ✅ Error handling elegante (try/except vs if/then)
+- ✅ Type hints per sicurezza e documentazione
+- ✅ Modularità con funzioni documentate (docstring)
+- ✅ Testing più facile (unit tests, mock)
+- ✅ Libreria standard ricca (subprocess, urllib, json, etc.)
+
+### 2. Template Script Python CheckMK Local Check
+
+```python
+#!/usr/bin/env python3
+"""
+check_service_name.py - CheckMK Local Check per <descrizione>
+
+<Descrizione funzionalità dettagliata>
+
+Version: 1.0.0
+"""
+
+import subprocess
+import sys
+import re
+from typing import Tuple, List, Optional
+
+VERSION = "1.0.0"
+SERVICE = "ServiceName"
+
+
+def run_command(cmd: List[str]) -> Tuple[int, str, str]:
+    """
+    Execute a shell command and return exit code, stdout, stderr.
+    
+    Args:
+        cmd: Command as list of strings
+        
+    Returns:
+        Tuple of (exit_code, stdout, stderr)
+    """
+    try:
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=10
+        )
+        return result.returncode, result.stdout, result.stderr
+    except subprocess.TimeoutExpired:
+        return 1, "", "Command timeout"
+    except FileNotFoundError:
+        return 127, "", "Command not found"
+    except Exception as e:
+        return 1, "", str(e)
+
+
+def main() -> int:
+    """
+    Main check logic.
+    
+    Returns:
+        Exit code (always 0 for CheckMK local checks)
+    """
+    # Check logic here
+    # Output format: <STATE> <SERVICE> - <message>
+    # STATE: 0=OK, 1=WARNING, 2=CRITICAL, 3=UNKNOWN
+    
+    print(f"0 {SERVICE} - OK message")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+### 3. Pattern CheckMK Output
+
+**Format obbligatorio local check:**
+
+```text
+<STATE> <SERVICE_NAME> - <message>
+```
+
+**State codes:**
+
+- `0` = OK (verde)
+- `1` = WARNING (giallo)
+- `2` = CRITICAL (rosso)
+- `3` = UNKNOWN (arancione)
+
+**Exit code script:**
+
+- SEMPRE `0` per local checks (CheckMK ignora exit code, legge solo primo campo output)
+
+### 4. Launcher Remoti Python Puri
+
+⚠️ **IMPORTANTE: Preferire launcher Python puri (no bash wrapper!)**
+
+**Template launcher remoto Python (`remote/rssh_service_name.py`):**
+
+```python
+#!/usr/bin/env python3
+"""
+Remote launcher per check_service_name.py
+Scarica e esegue la versione Python completa da repository
+"""
+
+import urllib.request
+import sys
+
+REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-check-<categoria>/full/check_service_name.py"
+
+try:
+    # Download ed esegui lo script remoto
+    with urllib.request.urlopen(REPO_URL, timeout=10) as response:
+        script_code = response.read().decode('utf-8')
+    
+    # Esegui nel namespace globale (come se fosse lo script principale)
+    exec(script_code, {'__name__': '__main__'})
+    
+except Exception as e:
+    print(f"3 ServiceName - Failed to download/execute remote script: {e}")
+    sys.exit(0)
+```
+
+**Vantaggi launcher Python vs Bash:**
+
+- ✅ Coerenza: tutto Python, no dipendenza da bash/curl
+- ✅ Error handling: try/except invece di exit codes
+- ✅ Timeout integrato: urllib.request.urlopen(timeout=10)
+- ✅ Output fallback: messaggio CheckMK-compliant in caso errore
+- ✅ Portabilità: funziona ovunque ci sia Python3
+
+### 5. Workflow Completo Conversione
+
+**Step OBBLIGATORI (seguire SEMPRE):**
+
+```bash
+# 1. Crea script Python completo (full/)
+vim script-check-ubuntu/full/check_service_name.py
+# Implementa funzionalità con template sopra
+
+# 2. Valida sintassi Python
+python -m py_compile script-check-ubuntu/full/check_service_name.py
+# EXIT CODE deve essere 0
+
+# 3. Crea launcher remoto Python (remote/)
+vim script-check-ubuntu/remote/rssh_service_name.py
+# Usa template launcher sopra
+
+# 4. Valida sintassi launcher
+python -m py_compile script-check-ubuntu/remote/rssh_service_name.py
+# EXIT CODE deve essere 0
+
+# 5. Rendi eseguibili entrambi
+git add script-check-ubuntu/full/check_service_name.py
+git add script-check-ubuntu/remote/rssh_service_name.py
+git update-index --chmod=+x script-check-ubuntu/full/check_service_name.py
+git update-index --chmod=+x script-check-ubuntu/remote/rssh_service_name.py
+
+# 6. Verifica permessi (devono mostrare 100755)
+git ls-files -s script-check-ubuntu/full/check_service_name.py
+git ls-files -s script-check-ubuntu/remote/rssh_service_name.py
+
+# 7. Commit & Push
+git commit -m "feat(ubuntu): converti check_service_name in Python v1.0.0 + launcher remoto"
+git push
+
+# 8. Deploy su host remoto
+wsl -- ssh <host> "cd /opt/checkmk-tools && git pull"
+
+# 9. Test script completo
+wsl -- ssh <host> "/opt/checkmk-tools/script-check-ubuntu/full/check_service_name.py"
+
+# 10. Test launcher remoto
+wsl -- ssh <host> "/opt/checkmk-tools/script-check-ubuntu/remote/rssh_service_name.py"
+
+# 11. Deploy come local check
+wsl -- ssh <host> "cp /opt/checkmk-tools/script-check-ubuntu/remote/rssh_service_name.py /usr/lib/check_mk_agent/local/rssh_service_name && chmod +x /usr/lib/check_mk_agent/local/rssh_service_name"
+
+# 12. Test local check deployato
+wsl -- ssh <host> "/usr/lib/check_mk_agent/local/rssh_service_name"
+
+# 13. Verifica output agent CheckMK
+wsl -- ssh <host> "check_mk_agent 2>/dev/null | grep ServiceName"
+# Deve mostrare UNA SOLA riga con output check
+
+# 14. ✅ Se tutto OK → Rimuovi vecchio launcher bash (se esisteva)
+wsl -- ssh <host> "rm /usr/lib/check_mk_agent/local/rssh_service_name_old 2>/dev/null || true"
+```
+
+### 6. Naming Convention
+
+**File nel repository:**
+
+- `script-check-<categoria>/full/check_service_name.py` → Script completo Python
+- `script-check-<categoria>/full/check_service_name.sh` → Script bash OLD (deprecato)
+- `script-check-<categoria>/remote/rssh_service_name.py` → Launcher remoto Python
+- `script-check-<categoria>/remote/rssh_service_name.sh` → Launcher bash OLD (deprecato)
+
+**File deployati su host (local checks):**
+
+- `/usr/lib/check_mk_agent/local/rssh_service_name` → Launcher deployato (SENZA estensione)
+- Convenzione: mantenere nome `rssh_` per identificare launcher remoti
+- NON usare `.py` in nome file deployato (CheckMK esegue tutti i file eseguibili)
+
+### 7. Migrazione Graduale
+
+**Quando converti uno script bash esistente:**
+
+1. ✅ Mantieni versione bash originale (`.sh`) nel repository
+2. ✅ Crea nuova versione Python (`.py`)
+3. ✅ Crea launcher remoto Python
+4. ✅ Testa launcher Python su host pilota
+5. ✅ Se tutto OK → sostituisci launcher bash deployato con Python
+6. ✅ OPZIONALE: Rimuovi `.sh` dal repository dopo periodo transizione
+
+**NON eliminare mai script bash senza test completo Python!**
+
+### 8. Testing Obbligatorio
+
+**Checklist test prima di dichiarare conversione completata:**
+
+- ✅ Validazione sintassi Python (py_compile)
+- ✅ Esecuzione script completo su host remoto
+- ✅ Esecuzione launcher remoto su host remoto
+- ✅ Output compatibile CheckMK format (`<STATE> <SERVICE> - <msg>`)
+- ✅ Check appare in `check_mk_agent` output
+- ✅ NO duplicati (solo 1 istanza del check nell'output agent)
+- ✅ Comportamento identico a versione bash (stessi state codes, stessi messaggi)
+
+### 9. Esempio Completo Real World
+
+**Caso studio: check_fail2ban_status.sh → check_fail2ban_status.py**
+
+**Commit History:**
+
+- `c0e26d5`: Creazione `check_fail2ban_status.py` (script completo)
+- `64bfdee`: Creazione `rssh_fail2ban_status_py.sh` (launcher bash - deprecato)
+- `f108044`: Refactor `rssh_fail2ban_status.py` (launcher Python puro)
+
+**Path finali:**
+
+- Repository: `script-check-ubuntu/full/check_fail2ban_status.py` (script completo)
+- Repository: `script-check-ubuntu/remote/rssh_fail2ban_status.py` (launcher Python)
+- Deployato: `/usr/lib/check_mk_agent/local/rssh_fail2ban_status` (launcher senza .py)
+
+**Output produzione:**
+
+```text
+0 Fail2ban - running, no banned IPs
+```
+
+---
+
+## �🔌 Accesso Remoto SSH - VPS e Server Locali
 
 ### Setup WSL SSH
 
