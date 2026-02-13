@@ -40,7 +40,7 @@ FLAPPING_WINDOW = 600  # 10 minuti
 AGGREGATE_BY_HOST = int(os.getenv("AGGREGATE_BY_HOST", "1"))
 RESOLVE_ON_SERVICE_OK = int(os.getenv("RESOLVE_ON_SERVICE_OK", "0"))
 YDEA_CATEGORY_ID = int(os.getenv("YDEA_CATEGORY_ID", "147"))
-YDEA_USER_ID = int(os.getenv("YDEA_USER_ID", "12336"))
+YDEA_USER_ID = int(os.getenv("YDEA_USER_ID", "12336"))  # Lorenzo Angelini (LA)
 YDEA_TOOLKIT_TIMEOUT = int(os.getenv("YDEA_TOOLKIT_TIMEOUT", "25"))
 DEBUG_YDEA = os.getenv("DEBUG_YDEA", "0") == "1"
 
