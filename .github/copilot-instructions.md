@@ -1140,17 +1140,21 @@ wsl -- ssh <host> "/opt/checkmk-tools/script-check-ubuntu/full/check_service_nam
 # 10. Test launcher remoto
 wsl -- ssh <host> "/opt/checkmk-tools/script-check-ubuntu/remote/rssh_service_name.py"
 
-# 11. Deploy come local check
+# 11. ⚠️ VERIFICA presenza versione bash PRIMA del deploy
+wsl -- ssh <host> "ls -la /usr/lib/check_mk_agent/local/<nome_check_bash>"
+# Se NON esiste versione bash → SKIP deploy Python su questo host
+
+# 12. Deploy come local check (SOLO se bash esisteva)
 wsl -- ssh <host> "cp /opt/checkmk-tools/script-check-ubuntu/remote/rssh_service_name.py /usr/lib/check_mk_agent/local/rssh_service_name && chmod +x /usr/lib/check_mk_agent/local/rssh_service_name"
 
-# 12. Test local check deployato
+# 13. Test local check deployato
 wsl -- ssh <host> "/usr/lib/check_mk_agent/local/rssh_service_name"
 
-# 13. Verifica output agent CheckMK
+# 14. Verifica output agent CheckMK
 wsl -- ssh <host> "check_mk_agent 2>/dev/null | grep ServiceName"
 # Deve mostrare UNA SOLA riga con output check
 
-# 14. ✅ Se tutto OK → Rimuovi vecchio launcher bash (se esisteva)
+# 15. ✅ Se tutto OK → Rimuovi vecchio launcher bash (se esisteva)
 wsl -- ssh <host> "rm /usr/lib/check_mk_agent/local/rssh_service_name_old 2>/dev/null || true"
 ```
 
@@ -1193,7 +1197,20 @@ wsl -- ssh <host> "rm /usr/lib/check_mk_agent/local/rssh_service_name_old 2>/dev
 - ✅ Check appare in `check_mk_agent` output
 - ✅ NO duplicati (solo 1 istanza del check nell'output agent)
 - ✅ Comportamento identico a versione bash (stessi state codes, stessi messaggi)
-- ✅ **BACKUP OBBLIGATORIO**: Dopo conversione completa (full + remote deployato e testato) → `.\backup-simple.ps1 --unattended`
+
+**⚠️ REGOLA DEPLOY CONDIZIONALE:**
+
+- ❌ **NON deployare** lo script Python se sulla macchina remota **NON esiste** la versione bash
+- ✅ Deploy solo se il check bash è già presente su quel host
+- ✅ Verificare presenza: `ls -la /usr/lib/check_mk_agent/local/<nome_check_bash>`
+- ⚠️ Se bash non trovato → skip deploy Python su quell'host
+
+**⚠️ BACKUP A FINE CATEGORIA:**
+
+- ✅ **BACKUP OBBLIGATORIO**: A fine conversione **intera categoria/cartella**
+- ✅ Esempio: dopo aver completato TUTTI gli script di `script-check-ubuntu/` → `.\backup-simple.ps1 --unattended`
+- ❌ NON eseguire backup dopo ogni singolo script
+- ✅ Eseguire backup solo quando categoria completa è testata e deployata
 
 ### 9. Esempio Completo Real World
 
