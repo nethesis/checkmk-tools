@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+"""
+check-proxmox_vm_disks.py - CheckMK Local Check for Proxmox VM Disks
+
+Monitor disk configuration for VMs and containers.
+
+Proxmox VE
+
+Version: 1.0.0
+"""
+
+import subprocess
+import sys
+import re
+
+VERSION = "1.0.0"
+PVE_TIMEOUT = 30
+
+
+def run_cmd(cmd, timeout=PVE_TIMEOUT):
+    """Run command with timeout."""
+    try:
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            timeout=timeout
+        )
+        return result.returncode, result.stdout
+    except subprocess.TimeoutExpired:
+        return 124, ""
+    except FileNotFoundError:
+        return 127, ""
+
+
+def sanitize_name(name):
+    """Sanitize name for CheckMK service."""
+    return re.sub(r'[^A-Za-z0-9_-]', '', name.upper().replace(' ', '_'))
+
+
+def parse_size_to_gb(size_str):
+    """Convert size string (123G, 4096M, etc.) to GB."""
+    if not size_str:
+        return 0
+    
+    match = re.match(r'^(\d+)([GMK])?$', size_str)
+    if not match:
+        return 0
+    
+    value, unit = match.groups()
+    value = int(value)
+    
+    if unit == 'G':
+        return value
+    elif unit == 'M':
+        return value // 1024
+    elif unit == 'K':
+        return value // 1048576
+    else:
+        return value
+
+
+def main():
+    # Check qm and pct commands exist
+    rc_qm, _ = run_cmd(["qm", "--version"], timeout=5)
+    rc_pct, _ = run_cmd(["pct", "--version"], timeout=5)
+    
+    if rc_qm != 0 and rc_pct != 0:
+        print("3 PVE_VM_Disks - qm/pct commands not found")
+        return 0
+    
+    # Check VMs
+    if rc_qm == 0:
+        rc, out = run_cmd(["qm", "list"])
+        if rc == 0:
+            for line in out.splitlines()[1:]:  # Skip header
+                parts = line.split()
+                if len(parts) < 2:
+                    continue
+                
+                vmid, name = parts[0], parts[1]
+                
+                # Get VM config
+                rc_cfg, cfg = run_cmd(["qm", "config", vmid])
+                if rc_cfg != 0:
+                    continue
+                
+                # Find disk lines (scsi0:, ide0:, sata0:, virtio0:)
+                disk_lines = []
+                for cfg_line in cfg.splitlines():
+                    if re.match(r'^(scsi|ide|sata|virtio)\d+:', cfg_line):
+                        disk_lines.append(cfg_line)
+                
+                if not disk_lines:
+                    continue
+                
+                disk_count = len(disk_lines)
+                total_size_gb = 0
+                
+                for disk_line in disk_lines:
+                    # Extract size=123G
+                    size_match = re.search(r'size=(\d+[GMK]?)', disk_line)
+                    if size_match:
+                        size_str = size_match.group(1)
+                        total_size_gb += parse_size_to_gb(size_str)
+                
+                safe_name = sanitize_name(name)
+                svc = f"DISKS_VM_{vmid}_{safe_name}"
+                metrics = f"disks={disk_count} size_gb={total_size_gb}"
+                msg = f"{disk_count} disks, Total: {total_size_gb}GB"
+                print(f"0 {svc} {metrics} - {msg}")
+    
+    # Check LXC
+    if rc_pct == 0:
+        rc, out = run_cmd(["pct", "list"])
+        if rc == 0:
+            for line in out.splitlines()[1:]:  # Skip header
+                parts = line.split()
+                if len(parts) < 2:
+                    continue
+                
+                ctid, name = parts[0], parts[1]
+                
+                # Get CT config
+                rc_cfg, cfg = run_cmd(["pct", "config", ctid])
+                if rc_cfg != 0:
+                    continue
+                
+                # Find rootfs line
+                rootfs_line = ""
+                for cfg_line in cfg.splitlines():
+                    if cfg_line.startswith("rootfs:"):
+                        rootfs_line = cfg_line
+                        break
+                
+                if not rootfs_line:
+                    continue
+                
+                # Extract size
+                size_match = re.search(r'size=(\d+[GMK]?)', rootfs_line)
+                if not size_match:
+                    continue
+                
+                size_str = size_match.group(1)
+                size_gb = parse_size_to_gb(size_str)
+                
+                safe_name = sanitize_name(name)
+                svc = f"DISKS_CT_{ctid}_{safe_name}"
+                metrics = f"size_gb={size_gb}"
+                msg = f"RootFS: {size_gb}GB"
+                print(f"0 {svc} {metrics} - {msg}")
+    
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
