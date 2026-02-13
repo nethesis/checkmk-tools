@@ -63,9 +63,28 @@ def log_ticket_event(event_type: str, ticket_id: int, details: str = ""):
 
 
 def toolkit_cmd(args: List[str], timeout: Optional[int] = None) -> Tuple[int, str, str]:
-    """Execute ydea-toolkit command."""
+    """Execute ydea-toolkit command with environment loaded from YDEA_ENV."""
     if timeout is None:
         timeout = YDEA_TOOLKIT_TIMEOUT
+    
+    # Load environment variables from YDEA_ENV file
+    env = os.environ.copy()
+    if os.path.exists(YDEA_ENV):
+        try:
+            with open(YDEA_ENV, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        # Parse export VAR="value" or VAR=value
+                        line = line.replace('export ', '', 1).strip()
+                        key, value = line.split('=', 1)
+                        # Remove quotes if present
+                        value = value.strip().strip('"').strip("'")
+                        # Handle ${HOME} expansion
+                        value = value.replace('${HOME}', os.path.expanduser('~'))
+                        env[key.strip()] = value
+        except Exception as e:
+            log(f"WARNING: Failed to load {YDEA_ENV}: {e}")
     
     cmd = [YDEA_TOOLKIT] + args
     try:
@@ -74,7 +93,8 @@ def toolkit_cmd(args: List[str], timeout: Optional[int] = None) -> Tuple[int, st
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            timeout=timeout
+            timeout=timeout,
+            env=env
         )
         return result.returncode, result.stdout, result.stderr
     except subprocess.TimeoutExpired:
