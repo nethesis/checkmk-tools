@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ydea_ag_host_down: Versione migliorata di ydea_ag con SMART DETECTION
+# Ydea AG
 # Copia completa di ydea_ag + funzioni intelligenti per rilevare e descrivere
 # problemi HOST DOWN (connection refused, network unreachable, timeout) e NO DATA
 # Genera descrizioni dettagliate con cause probabili e troubleshooting specifico
