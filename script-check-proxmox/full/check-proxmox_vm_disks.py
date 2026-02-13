@@ -63,8 +63,8 @@ def parse_size_to_gb(size_str):
 
 def main():
     # Check qm and pct commands exist
-    rc_qm, _ = run_cmd(["qm", "--version"], timeout=5)
-    rc_pct, _ = run_cmd(["pct", "--version"], timeout=5)
+    rc_qm, _ = run_cmd(["/usr/sbin/qm", "--version"], timeout=5)
+    rc_pct, _ = run_cmd(["/usr/sbin/pct", "--version"], timeout=5)
     
     if rc_qm != 0 and rc_pct != 0:
         print("3 PVE_VM_Disks - qm/pct commands not found")
@@ -72,7 +72,7 @@ def main():
     
     # Check VMs
     if rc_qm == 0:
-        rc, out = run_cmd(["qm", "list"])
+        rc, out = run_cmd(["/usr/sbin/qm", "list"])
         if rc == 0:
             for line in out.splitlines()[1:]:  # Skip header
                 parts = line.split()
@@ -82,7 +82,7 @@ def main():
                 vmid, name = parts[0], parts[1]
                 
                 # Get VM config
-                rc_cfg, cfg = run_cmd(["qm", "config", vmid])
+                rc_cfg, cfg = run_cmd(["/usr/sbin/qm", "config", vmid])
                 if rc_cfg != 0:
                     continue
                 
@@ -113,7 +113,7 @@ def main():
     
     # Check LXC
     if rc_pct == 0:
-        rc, out = run_cmd(["pct", "list"])
+        rc, out = run_cmd(["/usr/sbin/pct", "list"])
         if rc == 0:
             for line in out.splitlines()[1:]:  # Skip header
                 parts = line.split()
@@ -123,7 +123,7 @@ def main():
                 ctid, name = parts[0], parts[1]
                 
                 # Get CT config
-                rc_cfg, cfg = run_cmd(["pct", "config", ctid])
+                rc_cfg, cfg = run_cmd(["/usr/sbin/pct", "config", ctid])
                 if rc_cfg != 0:
                     continue
                 

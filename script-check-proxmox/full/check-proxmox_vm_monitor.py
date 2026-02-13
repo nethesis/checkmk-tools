@@ -41,8 +41,8 @@ def sanitize_name(name):
 
 def main():
     # Check qm and pct commands exist
-    rc_qm, _ = run_cmd(["qm", "--version"], timeout=5)
-    rc_pct, _ = run_cmd(["pct", "--version"], timeout=5)
+    rc_qm, _ = run_cmd(["/usr/sbin/qm", "--version"], timeout=5)
+    rc_pct, _ = run_cmd(["/usr/sbin/pct", "--version"], timeout=5)
     
     if rc_qm != 0 and rc_pct != 0:
         print("3 Proxmox_VM_Summary - qm/pct commands not found")
@@ -51,7 +51,7 @@ def main():
     # VMs
     total_vms = 0
     running_vms = 0
-    rc, out = run_cmd(["qm", "list"])
+    rc, out = run_cmd(["/usr/sbin/qm", "list"])
     if rc == 0:
         for line in out.splitlines()[1:]:  # Skip header
             parts = line.split()
@@ -65,7 +65,7 @@ def main():
     # LXC
     total_lxc = 0
     running_lxc = 0
-    rc, out = run_cmd(["pct", "list"])
+    rc, out = run_cmd(["/usr/sbin/pct", "list"])
     if rc == 0:
         for line in out.splitlines()[1:]:  # Skip header
             parts = line.split()
@@ -89,7 +89,7 @@ def main():
     print(f"{status} Proxmox_VM_Summary {metrics} {status_text} - {msg}")
     
     # Individual VM checks
-    rc, out = run_cmd(["qm", "list"])
+    rc, out = run_cmd(["/usr/sbin/qm", "list"])
     if rc == 0:
         for line in out.splitlines()[1:]:
             parts = line.split()
@@ -106,7 +106,7 @@ def main():
                 print(f"1 {svc} - {status_vm}")
     
     # Individual LXC checks
-    rc, out = run_cmd(["pct", "list"])
+    rc, out = run_cmd(["/usr/sbin/pct", "list"])
     if rc == 0:
         for line in out.splitlines()[1:]:
             parts = line.split()
