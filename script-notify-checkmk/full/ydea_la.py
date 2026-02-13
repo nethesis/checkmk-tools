@@ -481,10 +481,16 @@ def add_private_note(ticket_id: int, note: str) -> int:
     """Add private note to ticket. Returns: 0=success, 1=error, 2=404."""
     debug(f"Adding private note to ticket #{ticket_id}")
     
-    exitcode, stdout, stderr = toolkit_cmd(['comment', str(ticket_id), note])
-    
-    if exitcode != 0:
-        output_lower = (stdout + stderr).lower()
+    # Prima verifica che il ticket esista (workaround API che non ritorna 404)
+    exitcode_check, stdout_check, stderr_check = toolkit_cmd(['get', str(ticket_id)])
+    if exitcode_check != 0:
+        output_lower = (stdout_check + stderr_check).lower()
+        if '404' in output_lower or 'not found' in output_lower or 'ticket non trovato' in output_lower:
+            log(f"WARN: Ticket #{ticket_id} not found (404) during pre-check")
+            return 2
+        log(f"ERROR: Ticket validation failed: {stderr_check}")
+        return 1
+
         if '404' in output_lower or 'not found' in output_lower or 'ticket non trovato' in output_lower:
             log(f"WARN: Ticket #{ticket_id} not found (404)")
             return 2
