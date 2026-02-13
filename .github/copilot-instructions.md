@@ -1,5 +1,30 @@
 # GitHub Copilot Instructions - checkmk-tools
 
+## 🎯 FILOSOFIA DI LAVORO FONDAMENTALE
+
+**⚠️ REGOLA ZERO - QUALITÀ PRIMA DI TUTTO:**
+
+- ✅ **FARE LE COSE PER BENE** - Usare tutto il tempo necessario
+- ❌ **NESSUNA SCORCIATOIA** - Mai saltare step senza esplicita autorizzazione utente
+- ✅ **COMPLETEZZA ASSOLUTA** - Seguire workflow completi fino in fondo
+- ⏱️ **NON C'È FRETTA** - Non ho impegni che mi costringano a velocizzare
+- ✅ **WORKFLOW OBBLIGATORI** - Seguire SEMPRE tutti gli step documentati
+- ❌ **NON "OTTIMIZZARE" VIA STEP** - Ogni step del workflow ha un motivo di esistere
+
+**Esempi di ciò che NON fare:**
+- ❌ Committare senza testare su host remoti
+- ❌ Saltare validazioni "tanto funziona"
+- ❌ Omettere step "per velocità"
+- ❌ Assumere che qualcosa funzioni senza verificare
+
+**Esempi di ciò che FARE:**
+- ✅ Seguire ogni step del workflow documentato
+- ✅ Testare su host remoti SEMPRE
+- ✅ Validare OGNI modifica
+- ✅ Prendere il tempo necessario per fare bene
+
+---
+
 ## ⚠️ REGOLE DI SICUREZZA OBBLIGATORIE
 
 ### 🛡️ Protezione Dati e Conferme
@@ -401,9 +426,13 @@ git commit -m "fix: risolto errore comando"
 **⚠️ REGOLE CRITICHE:**
 - ❌ **MAI** dire "test completato" senza test REALE su host remoto
 - ❌ **MAI** uscire dal loop se ci sono errori
+- ❌ **MAI** saltare step del workflow senza autorizzazione esplicita utente
+- ❌ **MAI** assumere che funzioni senza testare
 - ✅ **SEMPRE** fixare errori e ri-testare automaticamente
 - ✅ **SEMPRE** testare TUTTI gli script modificati nella sessione
+- ✅ **SEMPRE** seguire TUTTI gli step 1-7 del workflow
 - 🔄 **LOOP infinito** finché non funziona o utente ferma
+- ⏱️ **NESSUNA FRETTA** - Prendere tutto il tempo necessario per fare bene
 
 **Esempio completo:**
 
