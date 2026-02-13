@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Remote launcher per ydea_la
+# Remote launcher per ydea_la (Python)
 # Scarica e esegue la versione con SMART DETECTION da repository
 # Usa temp file per ereditare correttamente le variabili di ambiente NOTIFY_*
 
-REPO_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-notify-checkmk/full/ydea_la"
+REPO_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-notify-checkmk/full/ydea_la.py"
 
 # Usa temp file per ereditare correttamente le variabili di ambiente NOTIFY_*
-TEMP_SCRIPT=$(mktemp)
+TEMP_SCRIPT=$(mktemp --suffix=.py)
 curl -fsSL "$REPO_URL" -o "$TEMP_SCRIPT"
-bash "$TEMP_SCRIPT" "$@"
+python3 "$TEMP_SCRIPT" "$@"
 EXIT_CODE=$?
 rm -f "$TEMP_SCRIPT"
 exit $EXIT_CODE
