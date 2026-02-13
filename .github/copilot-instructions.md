@@ -934,7 +934,23 @@ systemctl reset-failed cmk-agent-ctl-daemon.service
 
 ---
 
-## � Conversione Script Bash → Python - Best Practices
+## 🐍 Conversione Script Bash → Python - Best Practices
+
+**⚠️ POLICY PYTHON-FIRST (dal 13 Febbraio 2026):**
+
+- ✅ **TUTTI i nuovi script DEVONO essere scritti in Python**
+- ✅ Python è la lingua ufficiale per nuovi check/tool/automation
+- ❌ Bash solo per wrapper minimali o casi eccezionali giustificati
+- ✅ Script bash esistenti vanno gradualmente convertiti in Python
+- ✅ Launcher remoti: SEMPRE Python puri (urllib + exec), NO bash+curl
+
+**Motivazioni:**
+
+- Robustezza parsing e error handling superiore
+- Type hints per sicurezza e manutenibilità
+- Testing più facile e completo
+- Portabilità e consistenza codebase
+- Unico linguaggio significa unica expertise da mantenere
 
 **⚠️ WORKFLOW COMPLETO per conversione script esistenti:**
 
