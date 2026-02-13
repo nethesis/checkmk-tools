@@ -882,9 +882,108 @@ curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script
 
 ---
 
+## 📚 Strumenti di Backup Repository
+
+### backup-simple.ps1 - Backup Completo con Controllo Integrità
+
+**Quando usare:**
+- Backup scheduled automatici (task schedulato)
+- Backup periodici completi con validazione
+- Quando non è stato eseguito recentemente `check-integrity.ps1`
+
+**Caratteristiche:**
+- ✅ Controllo integrità completo di tutti gli script (PS1, Bash, Python)
+- ✅ Validazione sintassi con PSParser e `bash -n`
+- ✅ Blocco automatico se corruzione >15% (protezione propagazione errori)
+- ✅ Report dettagliato errori via email
+- ✅ Backup locale + rete
+- ✅ Retention policy automatica (20 backup)
+
+**Comandi:**
+
+```powershell
+# Modalità interattiva
+.\backup-simple.ps1
+
+# Modalità automatica (scheduled task)
+.\backup-simple.ps1 -Unattended
+```
+
+**Tempo esecuzione:** ~2-5 minuti (dipende da numero script)
+
+---
+
+### backup-quick.ps1 - Backup Veloce senza Controllo Integrità
+
+**Quando usare:**
+- Durante workflow conversione Python (dopo ogni categoria completata)
+- Backup rapidi post-commit quando integrità già verificata
+- Situazioni dove velocità è prioritaria
+
+**Caratteristiche:**
+- ✅ Backup immediato senza validazione sintassi
+- ✅ Backup locale + rete
+- ✅ Retention policy automatica (20 backup)
+- ✅ Report via email (senza sezione integrità)
+- ⚠️ Presuppone che `check-integrity.ps1` sia stato eseguito separatamente
+
+**Comandi:**
+
+```powershell
+# Modalità interattiva
+.\backup-quick.ps1
+
+# Modalità automatica (workflow Python)
+.\backup-quick.ps1 -Unattended
+```
+
+**Tempo esecuzione:** ~30-60 secondi
+
+---
+
+### Confronto Script Backup
+
+| Caratteristica | backup-simple.ps1 | backup-quick.ps1 |
+|----------------|-------------------|------------------|
+| Controllo integrità | ✅ Sì | ❌ No |
+| Validazione sintassi | ✅ PSParser + bash -n | ❌ No |
+| Blocco corruzione >15% | ✅ Sì | ❌ No |
+| Backup locale | ✅ Sì | ✅ Sì |
+| Backup rete | ✅ Sì | ✅ Sì |
+| Retention policy | ✅ Sì | ✅ Sì |
+| Email report | ✅ Con integrità | ✅ Senza integrità |
+| Tempo esecuzione | 2-5 min | 30-60 sec |
+| Uso consigliato | Task periodici | Workflow conversione |
+
+---
+
+### Workflow Consigliato
+
+**Conversione Python (categoria completa):**
+```powershell
+# 1. Converti tutti gli script della categoria
+# 2. Testa e deploya tutti
+# 3. Backup veloce
+.\backup-quick.ps1 -Unattended
+```
+
+**Backup periodico completo:**
+```powershell
+# Task schedulato (es: ogni notte)
+.\backup-simple.ps1 -Unattended
+```
+
+**Verifica integrità on-demand:**
+```powershell
+# Controllo manuale senza backup
+.\check-integrity.ps1 -Detailed
+```
+
+---
+
 ## 📚 Strumenti Correlati
 
-- **backup-simple.ps1**: Usa stessa logica per backup sicuri
+- **check-integrity.ps1**: Controllo integrità senza backup
 - **repair-corrupted-scripts.ps1**: Riparazione automatica script corrotti
 - **WSL**: Necessario per validazione Bash (`bash -n`)
 
@@ -1208,9 +1307,11 @@ wsl -- ssh <host> "rm /usr/lib/check_mk_agent/local/rssh_service_name_old 2>/dev
 **⚠️ BACKUP A FINE CATEGORIA:**
 
 - ✅ **BACKUP OBBLIGATORIO**: A fine conversione **intera categoria/cartella**
-- ✅ Esempio: dopo aver completato TUTTI gli script di `script-check-ubuntu/` → `.\backup-simple.ps1 --unattended`
+- ✅ Esempio: dopo aver completato TUTTI gli script di `script-check-ubuntu/` → `.\backup-quick.ps1 -Unattended`
 - ❌ NON eseguire backup dopo ogni singolo script
 - ✅ Eseguire backup solo quando categoria completa è testata e deployata
+- ✅ `backup-quick.ps1` è ottimizzato per workflow conversione (NO controllo integrità)
+- ℹ️ Controllo integrità eseguito separatamente con `.\check-integrity.ps1` quando necessario
 
 ### 9. Esempio Completo Real World
 
