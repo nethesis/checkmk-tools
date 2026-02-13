@@ -403,13 +403,17 @@ git commit -m "fix: risolto errore comando"
 └─────────────────────────────────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────────────┐
-│ 6. COLLEGATI WSL                                        │
-│    wsl -- ssh <host>                                    │
+│ 6. VERIFICA E AGGIORNA REPO LOCALE                      │
+│    - Verifica esistenza /opt/checkmk-tools/             │
+│    - Se NON esiste → git clone                          │
+│    - Se esiste → cd /opt/checkmk-tools && git pull      │
+│    ✓ OBBLIGATORIO prima di ogni test                    │
 └─────────────────────────────────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────────────┐
 │ 7. TEST FUNZIONAMENTO COMPLETO                          │
-│    - Esegui script da GitHub raw                        │
+│    - Esegui script da REPO LOCALE                       │
+│    - Path: /opt/checkmk-tools/script-check-*/full/xxx   │
 │    - Verifica output/log                                │
 │    - Controlla exit code                                │
 │    - Valida risultato atteso                            │
@@ -460,19 +464,20 @@ git push
 # 5. Chiedi host
 "Su quale host testo? [nsec8-stable]"
 
-# 6. Collegati
-wsl -- ssh nsec8-stable
+# 6. Verifica e aggiorna repo locale
+wsl -- ssh nsec8-stable "[ -d /opt/checkmk-tools ] && echo 'EXISTS' || echo 'MISSING'"
+# Se MISSING → git clone https://github.com/Coverup20/checkmk-tools.git /opt/checkmk-tools
+# Se EXISTS → wsl -- ssh nsec8-stable "cd /opt/checkmk-tools && git pull"
 
-# 7. Test
-curl -fsSL .../install-script.sh | bash
+# 7. Test da REPO LOCALE (NON GitHub!)
+wsl -- ssh nsec8-stable "/opt/checkmk-tools/script-tools/full/install-script.sh"
 # Output: ERRORE linea 45
 
 # ❌ ERRORE → TORNA A 1 (fix + ritest)
 # Fix errore linea 45, ricommit, ritest...
 
 # ✅ OK → Test completato, ESCI DAL LOOP
-
-```text
+```
 
 17. **Script eseguibili - Verifica SEMPRE permessi Git**
    - ⚠️ **Windows (NTFS) NON preserva il bit eseguibile Unix**
@@ -891,10 +896,59 @@ curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script
 - ✅ Sempre ultima versione GitHub
 - ✅ Utile per host remoti o bootstrap
 
+**⚠️ WORKFLOW TEST OBBLIGATORIO - Repository Locale**
+
+**REGOLA FONDAMENTALE (da seguire SEMPRE durante test):**
+
+1. **PRIMA di ogni test su host remoto**:
+   - ✅ Verifica presenza `/opt/checkmk-tools/`
+   - ✅ Se NON esiste → clonalo manualmente
+   - ✅ Se esiste → aggiornalo con `git pull`
+   - ✅ Usa SEMPRE path locale per test (NO GitHub raw)
+
+2. **Workflow corretto test:**
+
+```bash
+# STEP 1: Verifica + crea/aggiorna repo locale
+wsl -- ssh <host> "[ -d /opt/checkmk-tools ] && echo 'REPO EXISTS' || echo 'REPO MISSING'"
+
+# Se REPO MISSING → clona
+wsl -- ssh <host> "git clone https://github.com/Coverup20/checkmk-tools.git /opt/checkmk-tools"
+
+# Se REPO EXISTS → aggiorna
+wsl -- ssh <host> "cd /opt/checkmk-tools && git pull"
+
+# STEP 2: Esegui test da repo LOCALE (NON da GitHub!)
+wsl -- ssh <host> "/opt/checkmk-tools/script-check-ns7/full/check-sos-ns7.py"
+
+# ✅ VANTAGGI:
+# - Nessun problema cache GitHub
+# - Versione garantita post-commit
+# - Più veloce (no download)
+```
+
+3. **Test con launcher remoto:**
+
+```bash
+# Aggiorna repo
+wsl -- ssh <host> "cd /opt/checkmk-tools && git pull"
+
+# Test launcher da repo locale
+wsl -- ssh <host> "/opt/checkmk-tools/script-check-ns7/remote/rcheck-sos-ns7.py"
+
+# ✅ Launcher scarica full/ da GitHub (comportamento normale)
+# ✅ Ma launcher stesso viene da repo locale aggiornato
+```
+
+**⚠️ QUANDO usare GitHub raw:**
+- ❌ **MAI** per test durante sviluppo (cache 5 min!)
+- ✅ Solo per bootstrap iniziale (host senza repo)
+- ✅ Solo per esempi documentazione
+
 **⚠️ REGOLA IMPORTANTE: Modifiche al repository**
 - ✅ Modifiche SOLO su VSCode locale (Windows)
 - ✅ Commit e push da VSCode
-- ✅ Git pull automatico distribuisce a tutti i server
+- ✅ Git pull manuale/automatico distribuisce a tutti i server
 - ❌ **MAI modificare file in `/opt/checkmk-tools/` sui server remoti**
 - ❌ Modifiche locali vengono perse al prossimo git pull
 
