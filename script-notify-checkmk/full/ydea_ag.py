@@ -591,8 +591,14 @@ def main():
     """Main notification handler."""
     log(f"✅ Ydea AG Notification v{VERSION} - START (hostname={os.getenv('NOTIFY_HOSTNAME','?')})")
     
-    init_cache()
-    log("✅ Cache initialized OK")
+    try:
+        init_cache()
+        log("✅ Cache initialized OK")
+    except Exception as e:
+        log(f"❌ FATAL: init_cache() failed: {e}")
+        import traceback
+        log(traceback.format_exc())
+        return 1
     
     # Get CheckMK variables
     hostname = os.getenv("NOTIFY_HOSTNAME", "unknown")
