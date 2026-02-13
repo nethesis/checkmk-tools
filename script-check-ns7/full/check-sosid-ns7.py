@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-check-sosid-ns7.py - CheckMK Local Check per ID sessione SOS
+check-sosid-ns7.py - CheckMK Local Check for SOS session ID
 
-Mostra l'ID della sessione SOS se attiva su NethServer 7.
-Controlla servizi systemd e interroga 'don status' per ID.
+Show SOS session ID if active on NethServer 7.
+Check systemd services and query 'don status' for ID.
 
 NethServer 7.9
 

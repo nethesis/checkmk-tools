@@ -2,8 +2,8 @@
 """
 check-pkg-install.py - CheckMK Local Check per installazioni pacchetti YUM
 
-Monitora attività YUM recenti (Installed/Updated/Erased/Removed).
-Controlla il log /var/log/yum.log e mantiene timestamp ultimo evento.
+Monitor recent YUM activity (Installed/Updated/Erased/Removed).
+Check /var/log/yum.log and track last event timestamp.
 
 NethServer 7.9
 

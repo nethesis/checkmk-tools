@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-check-sos-ns7.py - CheckMK Local Check per stato sessione SOS
+check-sos-ns7.py - CheckMK Local Check for SOS session status
 
-Verifica stato sessione SOS (WindMill VPN + SSH) su NethServer 7.
-Controlla i servizi systemd don-openvpn e don-sshd.
+Check SOS session status (WindMill VPN + SSH) on NethServer 7.
+Monitor systemd services don-openvpn and don-sshd.
 
 NethServer 7.9
 
