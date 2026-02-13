@@ -1443,6 +1443,18 @@ wsl -- ssh <host> "rm /usr/lib/check_mk_agent/local/rssh_service_name_old 2>/dev
 - ⚠️ Se vedi `password:` nell'output → FERMARSI e attendere conferma utente
 - ✅ SSH session timeout dopo inattività → riconnettersi con comando singolo prima di operazioni multiple
 
+**⚠️ REGOLA CRITICA - Timeout Comandi SSH Remoti:**
+- ⚠️ **PROBLEMA**: Agent SSH va troppo veloce e pensa che utente abbia interrotto (^C), ma in realtà comando stava ancora elaborando
+- ✅ **SOLUZIONE**: Usare timeout GENEROSI per comandi remoti
+- ✅ **Timeout consigliati**:
+  - Comandi semplici (ls, cat, echo): `timeout: 10000` (10 sec)
+  - Comandi SSH normali (script execution): `timeout: 30000` (30 sec)
+  - Comandi SSH complessi (check_mk_agent, git operations): `timeout: 60000` (60 sec)
+  - Backup/restore/operazioni massive: `timeout: 120000` (2 min)
+- ⚠️ **MAI usare timeout < 10000** per comandi SSH
+- ✅ **ASPETTARE completamento** anche se sembra lento - il comando sta lavorando
+- ❌ **NON assumere** che ^C nell'output significhi interruzione utente - potrebbe essere timeout tool troppo breve
+
 **Host disponibili:**
 
 ```bash
@@ -1493,11 +1505,20 @@ redteam           # redteam.security.nethesis.it (root)
 **1. Comando singolo SSH:**
 
 ```powershell
-# Da PowerShell → esegui comando su VPS
+# Da PowerShell → esegui comando su VPS (con timeout generoso)
 wsl -- ssh checkmk-vps-01 "omd version"
-wsl -- ssh checkmk-vps-02 "omd sites"
+# timeout: 30000 (30 sec) - comando SSH normale
 
-```text
+wsl -- ssh checkmk-vps-02 "omd sites"
+# timeout: 30000 (30 sec)
+
+# Comando complesso (check_mk_agent, git pull)
+wsl -- ssh ns-lab00 "check_mk_agent"
+# timeout: 60000 (60 sec) - comando complesso, output lungo
+
+wsl -- ssh ns-lab00 "cd /opt/checkmk-tools && git pull"
+# timeout: 60000 (60 sec) - operazione git remota
+```
 
 **2. Esecuzione script da GitHub:**
 
