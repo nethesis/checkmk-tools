@@ -589,16 +589,7 @@ Output: {output}
 
 def main():
     """Main notification handler."""
-    log(f"✅ Ydea AG Notification v{VERSION} - START (hostname={os.getenv('NOTIFY_HOSTNAME','?')})")
-    
-    try:
-        init_cache()
-        log("✅ Cache initialized OK")
-    except Exception as e:
-        log(f"❌ FATAL: init_cache() failed: {e}")
-        import traceback
-        log(traceback.format_exc())
-        return 1
+    init_cache()
     
     # Get CheckMK variables
     hostname = os.getenv("NOTIFY_HOSTNAME", "unknown")
@@ -627,7 +618,6 @@ def main():
     
     # Get existing ticket
     ticket_id = get_ticket_id(ticket_key)
-    log(f"Ticket ID for {ticket_key}: {ticket_id}")
     
     if ticket_id:
         # Update existing ticket
@@ -709,7 +699,6 @@ def main():
         else:
             log("❌ Failed to create ticket")
     
-    log("Main handler completed successfully")
     return 0
 
 
