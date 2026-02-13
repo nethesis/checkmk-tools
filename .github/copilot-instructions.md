@@ -4,24 +4,30 @@
 
 **⚠️ REGOLA ZERO - QUALITÀ PRIMA DI TUTTO:**
 
+> **"LA PRESCIA VUOLE TEMPO!!"**  
+> _Fare le cose di fretta = rifarle 10 volte invece di 1 volta fatta per bene_
+
 - ✅ **FARE LE COSE PER BENE** - Usare tutto il tempo necessario
 - ❌ **NESSUNA SCORCIATOIA** - Mai saltare step senza esplicita autorizzazione utente
 - ✅ **COMPLETEZZA ASSOLUTA** - Seguire workflow completi fino in fondo
 - ⏱️ **NON C'È FRETTA** - Non ho impegni che mi costringano a velocizzare
 - ✅ **WORKFLOW OBBLIGATORI** - Seguire SEMPRE tutti gli step documentati
 - ❌ **NON "OTTIMIZZARE" VIA STEP** - Ogni step del workflow ha un motivo di esistere
+- 🐢 **MEGLIO LENTO E CORRETTO** - Che veloce e da rifare 10 volte
 
 **Esempi di ciò che NON fare:**
-- ❌ Committare senza testare su host remoti
-- ❌ Saltare validazioni "tanto funziona"
-- ❌ Omettere step "per velocità"
-- ❌ Assumere che qualcosa funzioni senza verificare
+- ❌ Committare senza testare su host remoti → poi rifare 10 volte
+- ❌ Saltare validazioni "tanto funziona" → poi debug ore per trovare l'errore
+- ❌ Omettere step "per velocità" → poi perdere tempo a recuperare
+- ❌ Assumere che qualcosa funzioni senza verificare → poi scoprire che non funziona in produzione
+- ❌ **LA PRESCIA**: fare veloce = rifare 10 volte
 
 **Esempi di ciò che FARE:**
-- ✅ Seguire ogni step del workflow documentato
-- ✅ Testare su host remoti SEMPRE
-- ✅ Validare OGNI modifica
-- ✅ Prendere il tempo necessario per fare bene
+- ✅ Seguire ogni step del workflow documentato → fatto bene la prima volta
+- ✅ Testare su host remoti SEMPRE → nessuna sorpresa in produzione
+- ✅ Validare OGNI modifica → bug trovati subito, non dopo
+- ✅ Prendere il tempo necessario per fare bene → risparmiare tempo totale
+- ✅ **NESSUNA FRETTA**: fare bene = fatto 1 volta sola
 
 ---
 
