@@ -589,6 +589,8 @@ Output: {output}
 
 def main():
     """Main notification handler."""
+    log(f"✅ Ydea LA Notification v{VERSION} - START (hostname={os.getenv('NOTIFY_HOSTNAME','?')})")
+    
     init_cache()
     
     # Get CheckMK variables
