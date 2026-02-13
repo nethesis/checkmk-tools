@@ -40,12 +40,12 @@ def sanitize_name(name):
 
 
 def main():
-    # Check qm and pct commands exist
-    rc_qm, _ = run_cmd(["/usr/sbin/qm", "--version"], timeout=5)
-    rc_pct, _ = run_cmd(["/usr/sbin/pct", "--version"], timeout=5)
+    # Check qm and pct commands exist (use 'list' as validation)
+    rc_qm, _ = run_cmd(["/usr/sbin/qm", "list"], timeout=5)
+    rc_pct, _ = run_cmd(["/usr/sbin/pct", "list"], timeout=5)
     
     if rc_qm != 0 and rc_pct != 0:
-        print("3 Proxmox_VM_Summary - qm/pct commands not found")
+        print("3 Proxmox_VM_Summary - qm/pct commands failed")
         return 0
     
     # VMs
