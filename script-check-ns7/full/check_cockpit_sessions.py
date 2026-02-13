@@ -21,7 +21,7 @@ STATE_FILE = "/var/lib/check_mk_agent/cockpit_sessions.state"
 LOG_FILE = "/var/log/messages"
 
 
-def get_last_line_processed() -> int:
+def get_last_line_processed():
     """
     Get last log line number processed.
     
@@ -38,7 +38,7 @@ def get_last_line_processed() -> int:
         return 0
 
 
-def save_last_line_processed(line_num: int) -> None:
+def save_last_line_processed(line_num):
     """
     Save last log line number processed.
     
@@ -53,7 +53,7 @@ def save_last_line_processed(line_num: int) -> None:
         pass
 
 
-def extract_ip(line: str) -> str:
+def extract_ip(line):
     """
     Extract IP address from log line.
     
@@ -69,7 +69,7 @@ def extract_ip(line: str) -> str:
     return ""
 
 
-def get_new_cockpit_events(last_line: int) -> list:
+def get_new_cockpit_events(last_line):
     """
     Get new Cockpit events from log file.
     
@@ -94,7 +94,7 @@ def get_new_cockpit_events(last_line: int) -> list:
     return events
 
 
-def count_active_sessions() -> int:
+def count_active_sessions():
     """
     Count active Cockpit sessions via ss command.
     
@@ -124,7 +124,7 @@ def count_active_sessions() -> int:
         return 0
 
 
-def main() -> int:
+def main():
     """
     Main check logic.
     
