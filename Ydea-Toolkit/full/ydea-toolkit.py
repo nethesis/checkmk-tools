@@ -430,8 +430,19 @@ class TicketOperations:
             raise ValueError("ticket_id obbligatorio")
         
         logger.info(f"Recupero ticket #{ticket_id}...")
-        response, _ = api.api_call("GET", f"/tickets/{ticket_id}")
-        return response
+        
+        # L'endpoint /tickets/{id} non è accessibile, usiamo list e filtriamo
+        all_tickets_response = TicketOperations.list_tickets(limit=100)
+        ticket_data = next(
+            (t for t in all_tickets_response.get('objs', []) if t.get('id') == ticket_id),
+            None
+        )
+        
+        if not ticket_data:
+            logger.error(f"Ticket #{ticket_id} non trovato")
+            raise ValueError(f"Ticket {ticket_id} non trovato")
+        
+        return ticket_data
     
     @staticmethod
     def create_ticket(
