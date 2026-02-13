@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mail_realip - HTML Mail Notification with Real IP Support
+# Mail
 # Bulk: yes
 set -euo pipefail
 
