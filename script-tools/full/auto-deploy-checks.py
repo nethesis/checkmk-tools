@@ -10,7 +10,7 @@ Menu interattivo per:
 
 Modalità CLI disponibile per automazione via curl.
 
-Version: 1.4.0
+Version: 1.5.0
 """
 
 import os
@@ -22,7 +22,7 @@ import argparse
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -425,16 +425,144 @@ def show_main_menu() -> str:
         return 'exit'
 
 
+def check_agent_installed() -> Tuple[bool, str]:
+    """
+    Controlla se CheckMK Agent è installato.
+    
+    Returns:
+        (is_installed, version_info)
+    """
+    try:
+        result = subprocess.run(
+            ['check_mk_agent'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=5
+        )
+        
+        if result.returncode == 0:
+            # Estrai versione da output
+            for line in result.stdout.split('\n'):
+                if 'Version:' in line:
+                    version = line.split('Version:')[1].strip()
+                    return True, version
+            return True, "(versione sconosciuta)"
+        else:
+            return False, ""
+    
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False, ""
+
+
+def check_frpc_installed() -> Tuple[bool, str]:
+    """
+    Controlla se FRPC è installato e attivo.
+    
+    Returns:
+        (is_installed, status_info)
+    """
+    # Controlla se binario esiste
+    if not Path("/usr/local/bin/frpc").exists():
+        return False, "non installato"
+    
+    try:
+        # Controlla servizio systemd
+        result = subprocess.run(
+            ['systemctl', 'is-active', 'frpc'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=5
+        )
+        
+        status = result.stdout.strip()
+        if status == "active":
+            return True, "attivo"
+        elif status == "inactive":
+            return True, "installato (non attivo)"
+        else:
+            return True, f"installato ({status})"
+    
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        # Se systemctl non funziona, controlla solo file
+        return True, "installato (stato sconosciuto)"
+
+
+def show_current_status() -> Tuple[bool, bool]:
+    """
+    Mostra stato attuale CheckMK Agent e FRPC.
+    
+    Returns:
+        (agent_installed, frpc_installed)
+    """
+    print(f"\n{Colors.CYAN}╔═══════════════════════════════════════════════════════════╗{Colors.NC}")
+    print(f"{Colors.CYAN}║  📊 Stato Attuale Sistema                                ║{Colors.NC}")
+    print(f"{Colors.CYAN}╚═══════════════════════════════════════════════════════════╝{Colors.NC}\n")
+    
+    # CheckMK Agent
+    agent_installed, agent_info = check_agent_installed()
+    if agent_installed:
+        print(f"  {Colors.GREEN}✓ CheckMK Agent:{Colors.NC} Installato - {agent_info}")
+    else:
+        print(f"  {Colors.RED}✗ CheckMK Agent:{Colors.NC} Non installato")
+    
+    # FRPC
+    frpc_installed, frpc_info = check_frpc_installed()
+    if frpc_installed:
+        print(f"  {Colors.GREEN}✓ FRPC Client:{Colors.NC} {frpc_info}")
+    else:
+        print(f"  {Colors.RED}✗ FRPC Client:{Colors.NC} {frpc_info}")
+    
+    print()
+    return agent_installed, frpc_installed
+
+
 def install_checkmk_agent() -> int:
     """
-    Installa CheckMK Agent eseguendo install-agent-interactive.sh da GitHub.
+    Installa CheckMK Agent + FRPC eseguendo install-agent-interactive.sh da GitHub.
+    Controlla prima lo stato attuale e offre opzioni appropriate.
     
     Returns:
         0 se successo, 1 se errore
     """
     print(f"\n{Colors.MAGENTA}╔═══════════════════════════════════════════════════════════╗{Colors.NC}")
-    print(f"{Colors.MAGENTA}║  🔧 Installazione CheckMK Agent                          ║{Colors.NC}")
-    print(f"{Colors.MAGENTA}╚═══════════════════════════════════════════════════════════╝{Colors.NC}\n")
+    print(f"{Colors.MAGENTA}║  🔧 Installazione CheckMK Agent + FRPC                   ║{Colors.NC}")
+    print(f"{Colors.MAGENTA}╚═══════════════════════════════════════════════════════════╝{Colors.NC}")
+    
+    # Mostra stato attuale
+    agent_installed, frpc_installed = show_current_status()
+    
+    # Se entrambi già installati, chiedi conferma reinstallazione
+    if agent_installed and frpc_installed:
+        print(f"{Colors.YELLOW}⚠ CheckMK Agent e FRPC sono già installati.{Colors.NC}")
+        print(f"\nOpzioni:")
+        print(f"  {Colors.GREEN}1.{Colors.NC} Reinstalla (sovrascrive configurazione)")
+        print(f"  {Colors.YELLOW}2.{Colors.NC} Salta (mantieni installazione attuale)")
+        print(f"  {Colors.RED}0.{Colors.NC} Annulla\n")
+        
+        try:
+            print(f"{Colors.YELLOW}Scelta:{Colors.NC} ", end='', flush=True)
+            choice = input().strip()
+        except EOFError:
+            print(f"{Colors.YELLOW}Annullato{Colors.NC}")
+            return 0
+        
+        if choice == '2':
+            print(f"{Colors.GREEN}✓ Mantengo installazione attuale{Colors.NC}\n")
+            return 0
+        elif choice != '1':
+            print(f"{Colors.YELLOW}Annullato{Colors.NC}\n")
+            return 0
+    
+    elif agent_installed:
+        print(f"{Colors.YELLOW}ℹ CheckMK Agent già installato. Lo script installerà/configurerà FRPC.{Colors.NC}\n")
+    
+    elif frpc_installed:
+        print(f"{Colors.YELLOW}ℹ FRPC già installato. Lo script installerà CheckMK Agent.{Colors.NC}\n")
+    
+    else:
+        print(f"{Colors.GREEN}✓ Sistema pulito. Procedo con installazione completa.{Colors.NC}\n")
     
     installer_url = f"{REPO_URL}/script-tools/full/install-agent-interactive.sh"
     
@@ -460,17 +588,23 @@ def install_checkmk_agent() -> int:
         os.chmod(tmp_script, 0o755)
         
         print(f"{Colors.GREEN}✓ Download completato{Colors.NC}\n")
-        print(f"{Colors.YELLOW}Esecuzione install-agent-interactive.sh...{Colors.NC}\n")
-        print(f"{Colors.CYAN}─────────────────────────────────────────────────────────{Colors.NC}")
+        print(f"{Colors.YELLOW}═══════════════════════════════════════════════════════════{Colors.NC}")
+        print(f"{Colors.CYAN}Esecuzione install-agent-interactive.sh...{Colors.NC}")
+        print(f"{Colors.YELLOW}Lo script chiederà:{Colors.NC}")
+        print(f"  - Conferma installazione CheckMK Agent")
+        print(f"  - Se installare FRPC (tunnel per monitoraggio remoto)")
+        print(f"  - Configurazione FRPC (server, porta, token)")
+        print(f"{Colors.YELLOW}═══════════════════════════════════════════════════════════{Colors.NC}\n")
         
-        # Esegui script con bash
+        # Esegui script con bash in modalità interattiva
         result = subprocess.run(
             ['bash', tmp_script],
+            stdin=sys.stdin,
             stdout=sys.stdout,
             stderr=sys.stderr
         )
         
-        print(f"{Colors.CYAN}─────────────────────────────────────────────────────────{Colors.NC}\n")
+        print(f"\n{Colors.YELLOW}═══════════════════════════════════════════════════════════{Colors.NC}\n")
         
         # Cleanup
         try:
@@ -479,10 +613,13 @@ def install_checkmk_agent() -> int:
             pass
         
         if result.returncode == 0:
-            print(f"{Colors.GREEN}✓ Installazione CheckMK Agent completata con successo{Colors.NC}\n")
+            print(f"{Colors.GREEN}✓ Installazione completata con successo{Colors.NC}")
+            
+            # Mostra nuovo stato
+            show_current_status()
             return 0
         else:
-            print(f"{Colors.RED}✗ Installazione CheckMK Agent fallita (exit code: {result.returncode}){Colors.NC}\n")
+            print(f"{Colors.RED}✗ Installazione fallita (exit code: {result.returncode}){Colors.NC}\n")
             return 1
     
     except urllib.error.URLError as e:
