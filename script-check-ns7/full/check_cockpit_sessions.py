@@ -96,24 +96,33 @@ def get_new_cockpit_events(last_line):
 
 
 def count_active_sessions():
-    return 777  # DEBUG: Fake value to verify script execution
-    
+    """Count active Cockpit sessions via ss command.
+
+    Returns:
+        Number of active sessions
     """
-    # Count active Cockpit sessions via ss command.
     try:
-        # Use absolute path for ss to avoid PATH issues in cron/agent
+        # Usa path assoluto se disponibile, altrimenti fallback su "ss" nel PATH
         ss_cmd = "/usr/sbin/ss" if os.path.exists("/usr/sbin/ss") else "ss"
-        
+
         result = subprocess.run(
             [ss_cmd, "-tnp"],
-        
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            timeout=10,
+        )
+
+        if result.returncode != 0:
+            return 0
+
         count = 0
         for line in result.stdout.splitlines():
             if "cockpit-ws" in line:
                 count += 1
-        
+
         return count
-        
+
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return 0
 
