@@ -10,7 +10,7 @@ Menu interattivo per:
 
 Modalità CLI disponibile per automazione via curl.
 
-Version: 1.3.1
+Version: 1.4.0
 """
 
 import os
@@ -22,7 +22,7 @@ import argparse
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.3.1"
+VERSION = "1.4.0"
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -396,13 +396,14 @@ def show_main_menu() -> str:
     Mostra menu principale e restituisce azione scelta.
     
     Returns:
-        'install', 'uninstall', o 'exit'
+        'install_agent', 'install', 'uninstall', o 'exit'
     """
     print(f"\n{Colors.CYAN}╔═══════════════════════════════════════╗{Colors.NC}")
     print(f"{Colors.CYAN}║  Cosa vuoi fare?                      ║{Colors.NC}")
     print(f"{Colors.CYAN}╚═══════════════════════════════════════╝{Colors.NC}\n")
-    print(f"  {Colors.GREEN}1.{Colors.NC} Installa script CheckMK")
-    print(f"  {Colors.RED}2.{Colors.NC} Rimuovi script installati")
+    print(f"  {Colors.MAGENTA}1.{Colors.NC} Installa CheckMK Agent (prerequisito)")
+    print(f"  {Colors.GREEN}2.{Colors.NC} Installa script CheckMK")
+    print(f"  {Colors.RED}3.{Colors.NC} Rimuovi script installati")
     print(f"  {Colors.YELLOW}0.{Colors.NC} Esci\n")
     
     try:
@@ -412,14 +413,84 @@ def show_main_menu() -> str:
         return 'exit'
     
     if choice == '1':
-        return 'install'
+        return 'install_agent'
     elif choice == '2':
+        return 'install'
+    elif choice == '3':
         return 'uninstall'
     elif choice == '0':
         return 'exit'
     else:
         print(f"{Colors.YELLOW}Scelta non valida{Colors.NC}")
         return 'exit'
+
+
+def install_checkmk_agent() -> int:
+    """
+    Installa CheckMK Agent eseguendo install-agent-interactive.sh da GitHub.
+    
+    Returns:
+        0 se successo, 1 se errore
+    """
+    print(f"\n{Colors.MAGENTA}╔═══════════════════════════════════════════════════════════╗{Colors.NC}")
+    print(f"{Colors.MAGENTA}║  🔧 Installazione CheckMK Agent                          ║{Colors.NC}")
+    print(f"{Colors.MAGENTA}╚═══════════════════════════════════════════════════════════╝{Colors.NC}\n")
+    
+    installer_url = f"{REPO_URL}/script-tools/full/install-agent-interactive.sh"
+    
+    print(f"{Colors.CYAN}Scarico script installazione da:{Colors.NC}")
+    print(f"  {installer_url}\n")
+    
+    try:
+        # Scarica script in /tmp
+        tmp_script = "/tmp/install-agent-interactive.sh"
+        
+        print(f"{Colors.YELLOW}Download in corso...{Colors.NC}")
+        request = urllib.request.Request(
+            installer_url,
+            headers={'Cache-Control': 'no-cache'}
+        )
+        
+        with urllib.request.urlopen(request, timeout=30) as response:
+            script_content = response.read().decode('utf-8')
+        
+        with open(tmp_script, 'w') as f:
+            f.write(script_content)
+        
+        os.chmod(tmp_script, 0o755)
+        
+        print(f"{Colors.GREEN}✓ Download completato{Colors.NC}\n")
+        print(f"{Colors.YELLOW}Esecuzione install-agent-interactive.sh...{Colors.NC}\n")
+        print(f"{Colors.CYAN}─────────────────────────────────────────────────────────{Colors.NC}")
+        
+        # Esegui script con bash
+        result = subprocess.run(
+            ['bash', tmp_script],
+            stdout=sys.stdout,
+            stderr=sys.stderr
+        )
+        
+        print(f"{Colors.CYAN}─────────────────────────────────────────────────────────{Colors.NC}\n")
+        
+        # Cleanup
+        try:
+            os.remove(tmp_script)
+        except OSError:
+            pass
+        
+        if result.returncode == 0:
+            print(f"{Colors.GREEN}✓ Installazione CheckMK Agent completata con successo{Colors.NC}\n")
+            return 0
+        else:
+            print(f"{Colors.RED}✗ Installazione CheckMK Agent fallita (exit code: {result.returncode}){Colors.NC}\n")
+            return 1
+    
+    except urllib.error.URLError as e:
+        print(f"{Colors.RED}✗ Errore download script: {e}{Colors.NC}\n")
+        return 1
+    except Exception as e:
+        print(f"{Colors.RED}✗ Errore durante installazione: {e}{Colors.NC}\n")
+        return 1
 
 
 def ask_script_type() -> str:
@@ -518,6 +589,10 @@ Esempi:
         if action == 'exit':
             print(f"{Colors.YELLOW}Uscita{Colors.NC}")
             return 0
+        
+        elif action == 'install_agent':
+            # Installa CheckMK Agent
+            return install_checkmk_agent()
         
         elif action == 'uninstall':
             # Forza modalità uninstall
