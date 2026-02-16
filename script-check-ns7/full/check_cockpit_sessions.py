@@ -156,4 +156,10 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        main()
+        sys.stdout.flush()
+    except Exception as e:
+        # Fallback output in case of catastrophe
+        print(f"2 Cockpit-Sessions - Script crash: {e}")
+        sys.exit(0)
