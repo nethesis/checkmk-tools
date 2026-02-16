@@ -11,7 +11,7 @@ Report completo ambiente NethServer 8 con visualizzazione tabellare:
 
 Output: Directory /tmp/ns8-audit-YYYYMMDD-HHMMSS/
 
-Version: 2.8.0
+Version: 2.8.1
 """
 
 import subprocess
@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import List, Tuple, Optional, Dict
 import tempfile
 
-VERSION = "2.8.0"
+VERSION = "2.8.1"
 MAX_PWD_AGE_DAYS = 42
 
 # Cache globale SID
@@ -417,8 +417,8 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
     print(f"{'GRUPPO':<40} {'MEMBRI':<40}")
     print(f"{'-'*40} {'-'*40}")
     
-    # Collect members for each group (display first 15 on console)
-    displayed = 0
+    # Collect members for each group (display first 50 member rows on console)
+    displayed_rows = 0
     group_member_data = []
     
     for idx, groupname in enumerate(groups, 1):
@@ -449,19 +449,21 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
         # Store data for MD file
         group_member_data.append((groupname, members, computers))
         
-        # Display first 15 groups on console
-        if displayed < 15:
+        # Display on console: one row per member (limit to 50 rows total)
+        if displayed_rows < 50:
             if members:
-                # Show first member inline
-                print(f"{groupname[:39]:<40} {members[0][:39]:<40}")
-                displayed += 1
+                for member in members:
+                    if displayed_rows >= 50:
+                        break
+                    print(f"{groupname[:39]:<40} {member[:39]:<40}")
+                    displayed_rows += 1
             elif not computers:
                 print(f"{groupname[:39]:<40} {'(nessun membro)':<40}")
-                displayed += 1
+                displayed_rows += 1
     
     print()
     print("=" * 80)
-    log_success(f"Gruppi AD raccolti: {len(groups)} (mostrati {min(displayed, 15)})")
+    log_success(f"Gruppi AD raccolti: {len(groups)} ({displayed_rows} membri mostrati)")
     
     # Write MD file with ALL groups and members
     md_file = output_dir / "02_gruppi_ad.md"
@@ -549,12 +551,12 @@ def collect_shares_table(samba_module: str, output_dir: Path) -> int:
     
     # Print table header
     print()
-    print("=" * 100)
+    print("=" * 130)
     print("  SHARE SAMBA")
-    print("=" * 100)
+    print("=" * 130)
     print()
-    print(f"{'SHARE':<30} {'PERCORSO':<40} {'PERMESSI':<30}")
-    print(f"{'-'*30} {'-'*40} {'-'*30}")
+    print(f"{'SHARE':<30} {'PERCORSO':<40} {'UTENTE/GRUPPO':<20} {'PERM':<10}")
+    print(f"{'-'*30} {'-'*40} {'-'*20} {'-'*10}")
     
     # Collect ACL for each share
     share_data = []
@@ -635,21 +637,40 @@ def collect_shares_table(samba_module: str, output_dir: Path) -> int:
         
         share_data.append((share_name, share_path, users_rw, users_ro))
     
-    # Display first few shares on console
-    displayed = 0
-    for share_name, share_path, users_rw, users_ro in share_data[:10]:
-        if users_rw or users_ro:
-            perms_summary = f"RW:{len(users_rw)} RO:{len(users_ro)}"
-        else:
-            perms_summary = "Configurati"
+    # Display on console: show permissions details (limit to 50 rows)
+    displayed_rows = 0
+    for share_name, share_path, users_rw, users_ro in share_data:
+        if displayed_rows >= 50:
+            break
         
         path_display = share_path[:39] if len(share_path) > 39 else share_path
-        print(f"{share_name:<30} {path_display:<40} {perms_summary:<30}")
-        displayed += 1
+        
+        # Display one row per permission
+        if users_rw:
+            for user in users_rw:
+                if displayed_rows >= 50:
+                    break
+                user_display = user[:29] if len(user) > 29 else user
+                print(f"{share_name:<30} {path_display:<40} {user_display:<20} RW")
+                displayed_rows += 1
+        
+        if users_ro:
+            for user in users_ro:
+                if displayed_rows >= 50:
+                    break
+                user_display = user[:29] if len(user) > 29 else user
+                print(f"{share_name:<30} {path_display:<40} {user_display:<20} RO")
+                displayed_rows += 1
+        
+        # If no permissions, show one row
+        if not users_rw and not users_ro:
+            if displayed_rows < 50:
+                print(f"{share_name:<30} {path_display:<40} {'(nessun permesso)':<20} -")
+                displayed_rows += 1
     
     print()
-    print("=" * 100)
-    log_success(f"Share raccolte: {len(shares)} (ACL: {acl_success} OK, {acl_failed} errori)")
+    print("=" * 130)
+    log_success(f"Share raccolte: {len(shares)} ({displayed_rows} permessi mostrati, ACL: {acl_success} OK, {acl_failed} errori)")
     
     # Write MD file with ALL share permissions
     md_file = output_dir / "04_share_permissions.md"
