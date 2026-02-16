@@ -260,7 +260,7 @@ def main():
     
     # Aggiorna stati ticket
     try:
-        tracking.update_tracking()
+        tracking.update_tracked_tickets()
     except Exception as e:
         Logger.error(f"Errore aggiornamento tracking: {e}")
         sys.exit(1)
