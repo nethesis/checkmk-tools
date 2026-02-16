@@ -15,7 +15,7 @@ import sys
 from typing import Tuple
 
 VERSION = "1.0.0"
-SERVICE_NAME = "SOS_Session"
+SERVICE_NAME = "SOS-Session"
 VPN_UNIT = "don-openvpn"
 SSH_UNIT = "don-sshd"
 

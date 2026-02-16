@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 VERSION = "1.0.0"
-SERVICE_NAME = "WebTop_status"
+SERVICE_NAME = "WebTop-status"
 
 
 def is_webtop_running():

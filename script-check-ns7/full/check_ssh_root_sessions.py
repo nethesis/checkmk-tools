@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import List, Set
 
 VERSION = "1.0.0"
-SERVICE_NAME = "SSH_root_session"
+SERVICE_NAME = "SSH-root-session"
 STATE_FILE = "/var/lib/check_mk_agent/ssh_root_sessions.state"
 
 

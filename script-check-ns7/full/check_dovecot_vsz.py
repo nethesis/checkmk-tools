@@ -14,7 +14,7 @@ import sys
 import re
 
 VERSION = "1.0.0"
-SERVICE_NAME = "Dovecot_vsz_limit"
+SERVICE_NAME = "Dovecot-vsz-limit"
 
 
 def get_vsz_limit() -> str:

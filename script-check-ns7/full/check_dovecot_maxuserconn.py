@@ -14,7 +14,7 @@ import sys
 import re
 
 VERSION = "1.0.0"
-SERVICE_NAME = "Dovecot_maxuserconn"
+SERVICE_NAME = "Dovecot-maxuserconn"
 
 
 def get_max_user_connections() -> str:

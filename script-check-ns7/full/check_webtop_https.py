@@ -14,7 +14,7 @@ import sys
 import socket
 
 VERSION = "1.0.0"
-SERVICE_NAME = "WebTop_https"
+SERVICE_NAME = "WebTop-https"
 
 
 def get_hostname_fqdn():

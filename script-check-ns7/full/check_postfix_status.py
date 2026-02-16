@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 VERSION = "1.0.0"
-SERVICE_NAME = "Postfix_status"
+SERVICE_NAME = "Postfix-status"
 
 
 def is_service_active(service: str) -> bool:

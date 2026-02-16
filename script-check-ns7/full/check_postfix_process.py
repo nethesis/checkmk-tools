@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 VERSION = "1.0.0"
-SERVICE_NAME = "Postfix_processes"
+SERVICE_NAME = "Postfix-processes"
 
 
 def count_postfix_processes() -> int:

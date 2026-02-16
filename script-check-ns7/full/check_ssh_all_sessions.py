@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 VERSION = "1.0.0"
-SERVICE_NAME = "SSH_all_sessions"
+SERVICE_NAME = "SSH-all-sessions"
 
 
 def get_all_sessions() -> tuple:

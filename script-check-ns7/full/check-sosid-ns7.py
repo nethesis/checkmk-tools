@@ -16,7 +16,7 @@ import re
 from typing import Tuple, Optional
 
 VERSION = "1.0.0"
-SERVICE_NAME = "SOS_Session_ID"
+SERVICE_NAME = "SOS-Session-ID"
 VPN_UNIT = "don-openvpn"
 SSH_UNIT = "don-sshd"
 

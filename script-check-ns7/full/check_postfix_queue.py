@@ -15,7 +15,7 @@ import sys
 import re
 
 VERSION = "1.0.0"
-SERVICE_NAME = "Postfix_queue"
+SERVICE_NAME = "Postfix-queue"
 
 
 def get_queue_size() -> int:

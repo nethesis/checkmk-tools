@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 VERSION = "1.0.0"
-SERVICE_NAME = "SSH_sessions_count"
+SERVICE_NAME = "SSH-sessions-count"
 
 
 def get_root_sessions() -> tuple:

@@ -14,7 +14,7 @@ import sys
 import re
 
 VERSION = "1.0.0"
-SERVICE_NAME = "WebTop_maxmemory"
+SERVICE_NAME = "WebTop-maxmemory"
 
 
 def get_maxmemory():

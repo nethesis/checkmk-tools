@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 VERSION = "1.0.0"
-SERVICE_NAME = "Dovecot_status"
+SERVICE_NAME = "Dovecot-status"
 
 
 def is_service_active(service: str) -> bool:

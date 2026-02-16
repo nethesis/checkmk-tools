@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 VERSION = "1.0.0"
-SERVICE_NAME = "Dovecot_sessions"
+SERVICE_NAME = "Dovecot-sessions"
 
 
 def get_active_sessions() -> int:
