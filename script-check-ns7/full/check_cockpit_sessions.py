@@ -102,16 +102,11 @@ def count_active_sessions():
         Number of active sessions
     """
     try:
-        result = subprocess.run(
-            ["ss", "-tnp"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,
-            timeout=10
-        )
+        # Use absolute path for ss to avoid PATH issues in cron/agent
+        ss_cmd = "/usr/sbin/ss" if os.path.exists("/usr/sbin/ss") else "ss"
         
-        if result.returncode != 0:
-            return 0
+        result = subprocess.run(
+            [ss_cmd, "-tnp"],
         
         count = 0
         for line in result.stdout.splitlines():
