@@ -10,7 +10,7 @@ Menu interattivo per:
 
 Modalità CLI disponibile per automazione via curl.
 
-Version: 1.6.0
+Version: 1.7.0
 """
 
 import os
@@ -20,10 +20,11 @@ import urllib.request
 import json
 import argparse
 import platform
+import re
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.6.0"
+VERSION = "1.7.1"
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -538,7 +539,29 @@ def install_checkmk_agent() -> int:
     
     if agent_installed:
         print(f"  {Colors.GREEN}✓ CheckMK Agent:{Colors.NC} Già installato - {agent_info}")
-        print(f"  {Colors.YELLOW}⤷ Salto installazione agent{Colors.NC}\n")
+        print(f"\n{Colors.YELLOW}Vuoi aggiornare/reinstallare CheckMK Agent?{Colors.NC}")
+        print(f"  {Colors.GREEN}s{Colors.NC} = Sì, aggiorna agent")
+        print(f"  {Colors.YELLOW}n{Colors.NC} = No, mantieni versione attuale\n")
+        
+        try:
+            print(f"{Colors.YELLOW}Scelta [s/N]:{Colors.NC} ", end='', flush=True)
+            choice = input().strip().lower()
+        except EOFError:
+            choice = 'n'
+        
+        if choice == 's':
+            print(f"\n  {Colors.GREEN}⤷ Procedo con aggiornamento...{Colors.NC}\n")
+            result = install_agent_only()
+            if result != 0:
+                print(f"{Colors.RED}✗ Aggiornamento agent fallito{Colors.NC}")
+                return 1
+            
+            # Ricontrolla versione
+            agent_installed, agent_info = check_agent_installed()
+            if agent_installed:
+                print(f"\n  {Colors.GREEN}✓ CheckMK Agent aggiornato - {agent_info}{Colors.NC}\n")
+        else:
+            print(f"  {Colors.YELLOW}⤷ Mantengo versione attuale{Colors.NC}\n")
     else:
         print(f"  {Colors.RED}✗ CheckMK Agent:{Colors.NC} Non installato")
         print(f"  {Colors.GREEN}⤷ Procedo con installazione...{Colors.NC}\n")
@@ -611,55 +634,164 @@ def install_checkmk_agent() -> int:
 
 def install_agent_only() -> int:
     """
-    Installa solo CheckMK Agent (senza chiedere troppe conferme).
+    Installa CheckMK Agent direttamente (senza script esterno).
+    Rileva OS, scarica pacchetto corretto e lo installa.
     
     Returns:
         0 se successo, 1 se errore
     """
-    installer_url = f"{REPO_URL}/script-tools/full/install-agent-interactive.sh"
+    print(f"{Colors.YELLOW}Download e installazione CheckMK Agent...{Colors.NC}\n")
     
     try:
-        # Scarica script
-        tmp_script = "/tmp/install-agent-interactive.sh"
+        # Rileva tipo OS
+        if Path("/etc/os-release").exists():
+            with open("/etc/os-release", 'r') as f:
+                os_release = f.read()
+            
+            if any(x in os_release.lower() for x in ["debian", "ubuntu"]):
+                pkg_type = "deb"
+                pkg_manager = "apt"
+            elif any(x in os_release.lower() for x in ["centos", "rhel", "rocky", "almalinux", "nethserver"]):
+                pkg_type = "rpm"
+                pkg_manager = "yum"
+            else:
+                print(f"{Colors.RED}✗ OS non supportato{Colors.NC}")
+                return 1
+        elif Path("/etc/nethserver-release").exists():
+            pkg_type = "rpm"
+            pkg_manager = "yum"
+        else:
+            print(f"{Colors.RED}✗ Impossibile rilevare sistema operativo{Colors.NC}")
+            return 1
         
-        print(f"{Colors.YELLOW}Download installer...{Colors.NC}")
-        request = urllib.request.Request(
-            installer_url,
-            headers={'Cache-Control': 'no-cache'}
-        )
+        print(f"  Tipo pacchetto: {pkg_type}")
         
+        # URL base CheckMK agents
+        base_url = "https://monitoring.nethlab.it/monitoring/check_mk/agents"
+        
+        # Scarica listing agent
+        print(f"  Recupero lista agent da CheckMK server...")
+        
+        request = urllib.request.Request(base_url + "/", headers={'Cache-Control': 'no-cache'})
         with urllib.request.urlopen(request, timeout=30) as response:
-            script_content = response.read().decode('utf-8')
+            listing = response.read().decode('utf-8')
         
-        with open(tmp_script, 'w') as f:
-            f.write(script_content)
+        # Trova ultima versione
+        if pkg_type == "deb":
+            pattern = r'check-mk-agent_[\d.]+p[\d]+-[\d]+_all\.deb'
+        else:  # rpm
+            pattern = r'check-mk-agent-[\d.]+p[\d]+-[\d]+\.noarch\.rpm'
         
-        os.chmod(tmp_script, 0o755)
+        matches = re.findall(pattern, listing)
+        if not matches:
+            print(f"{Colors.RED}✗ Nessun pacchetto agent trovato{Colors.NC}")
+            return 1
+        
+        # Prendi ultima versione (sort)
+        latest_pkg = sorted(matches)[-1]
+        pkg_url = f"{base_url}/{latest_pkg}"
+        
+        print(f"  Versione: {latest_pkg}")
+        print(f"  Download da: {pkg_url}\n")
+        
+        # Scarica pacchetto
+        tmp_pkg = f"/tmp/{latest_pkg}"
+        
+        print(f"{Colors.YELLOW}Download in corso...{Colors.NC}")
+        request = urllib.request.Request(pkg_url, headers={'Cache-Control': 'no-cache'})
+        with urllib.request.urlopen(request, timeout=60) as response:
+            with open(tmp_pkg, 'wb') as f:
+                f.write(response.read())
         
         print(f"{Colors.GREEN}✓ Download completato{Colors.NC}\n")
-        print(f"{Colors.YELLOW}═══════════════════════════════════════════════════════════{Colors.NC}")
-        print(f"{Colors.CYAN}Installazione CheckMK Agent in corso...{Colors.NC}")
-        print(f"{Colors.YELLOW}(Lo script chiederà conferma per procedere){Colors.NC}")
-        print(f"{Colors.YELLOW}═══════════════════════════════════════════════════════════{Colors.NC}\n")
         
-        # Esegui script - chiederà solo conferma iniziale
-        result = subprocess.run(
-            ['bash', tmp_script],
-            stdin=sys.stdin,
-            stdout=sys.stdout,
-            stderr=sys.stderr
-        )
+        # Installa pacchetto
+        print(f"{Colors.YELLOW}Installazione pacchetto...{Colors.NC}")
+        
+        if pkg_type == "deb":
+            result = subprocess.run(
+                ['dpkg', '-i', tmp_pkg],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True
+            )
+            
+            if result.returncode != 0:
+                # Fix dipendenze
+                subprocess.run(['apt-get', 'install', '-f', '-y'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        else:  # rpm
+            result = subprocess.run(
+                ['rpm', '-Uvh', '--replacepkgs', tmp_pkg],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True
+            )
         
         # Cleanup
         try:
-            os.remove(tmp_script)
+            os.remove(tmp_pkg)
         except OSError:
             pass
         
-        return result.returncode
+        if result.returncode != 0 and "already installed" not in result.stderr.lower():
+            print(f"{Colors.RED}✗ Errore installazione: {result.stderr}{Colors.NC}")
+            return 1
+        
+        print(f"{Colors.GREEN}✓ Pacchetto installato{Colors.NC}\n")
+        
+        # Configura socket systemd
+        print(f"{Colors.YELLOW}Configurazione socket systemd...{Colors.NC}")
+        
+        # Disabilita servizi old-style
+        subprocess.run(['systemctl', 'stop', 'check-mk-agent.socket', 'cmk-agent-ctl-daemon.service'], 
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(['systemctl', 'disable', 'check-mk-agent.socket', 'cmk-agent-ctl-daemon.service'],
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        # Crea socket plain TCP
+        socket_config = """[Unit]
+Description=Checkmk Agent (TCP 6556 plain)
+Documentation=https://docs.checkmk.com/
+
+[Socket]
+ListenStream=6556
+Accept=yes
+
+[Install]
+WantedBy=sockets.target
+"""
+        
+        service_config = """[Unit]
+Description=Checkmk Agent Service (plain)
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/check_mk_agent
+StandardInput=socket
+User=root
+"""
+        
+        with open('/etc/systemd/system/check-mk-agent-plain.socket', 'w') as f:
+            f.write(socket_config)
+        
+        with open('/etc/systemd/system/check-mk-agent-plain@.service', 'w') as f:
+            f.write(service_config)
+        
+        # Abilita e avvia socket
+        subprocess.run(['systemctl', 'daemon-reload'], check=True)
+        subprocess.run(['systemctl', 'enable', 'check-mk-agent-plain.socket'], 
+                      check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(['systemctl', 'start', 'check-mk-agent-plain.socket'], check=True)
+        
+        print(f"{Colors.GREEN}✓ Socket systemd configurato e attivo (porta 6556){Colors.NC}\n")
+        
+        return 0
     
     except Exception as e:
         print(f"{Colors.RED}✗ Errore: {e}{Colors.NC}\n")
+        import traceback
+        traceback.print_exc()
         return 1
 
 
