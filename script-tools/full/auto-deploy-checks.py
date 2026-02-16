@@ -16,7 +16,7 @@ import argparse
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -97,6 +97,15 @@ class HostDetector:
                     self.script_category = "script-check-nsec8"
                     return
         
+        # CheckMK Server (OMD)
+        if Path("/omd").exists() or Path("/opt/omd").exists():
+            # Verifica presenza siti OMD
+            exit_code, stdout, _ = self._run_command(["omd", "sites"])
+            if exit_code == 0:
+                self.host_type = "CheckMK Server (OMD)"
+                self.script_category = "script-check-ubuntu"  # Usa check generici Linux
+                return
+        
         # Proxmox VE
         if Path("/etc/pve").exists() and Path("/usr/bin/pvesh").exists():
             self.host_type = "Proxmox VE"
@@ -135,20 +144,27 @@ def print_header() -> None:
     print()
 
 
-def list_available_scripts(category: str) -> List[Tuple[str, str]]:
+def list_available_scripts(category: str, script_type: str = 'both') -> List[Tuple[str, str]]:
     """
     Lista script disponibili nella categoria via GitHub API.
     
     Args:
         category: Nome categoria (es: script-check-ns7)
+        script_type: 'remote', 'full', o 'both'
         
     Returns:
         Lista di tuple (filename, url_raw)
     """
     scripts = []
     
-    # Prova prima remote/, poi full/
-    for subdir in ["remote", "full"]:
+    # Determina quali subdirectory scansionare
+    subdirs = []
+    if script_type in ['remote', 'both']:
+        subdirs.append('remote')
+    if script_type in ['full', 'both']:
+        subdirs.append('full')
+    
+    for subdir in subdirs:
         api_url = f"{GITHUB_API}/{category}/{subdir}"
         
         try:
@@ -167,6 +183,23 @@ def list_available_scripts(category: str) -> List[Tuple[str, str]]:
             continue
     
     return scripts
+
+
+def list_installed_scripts() -> List[str]:
+    """
+    Lista script già installati in /usr/lib/check_mk_agent/local/.
+    
+    Returns:
+        Lista nomi file installati
+    """
+    installed = []
+    
+    if CHECKMK_LOCAL_PATH.exists():
+        for item in CHECKMK_LOCAL_PATH.iterdir():
+            if item.is_file() and os.access(item, os.X_OK):
+                installed.append(item.name)
+    
+    return sorted(installed)
 
 
 def download_script(url: str, dest_path: Path) -> bool:
@@ -295,6 +328,73 @@ def install_scripts(scripts: List[Tuple[str, str]], selected_indices: List[int])
     return installed
 
 
+def uninstall_scripts(script_names: List[str]) -> int:
+    """
+    Rimuove script installati.
+    
+    Args:
+        script_names: Lista nomi file da rimuovere
+        
+    Returns:
+        Numero script rimossi con successo
+    """
+    if not CHECKMK_LOCAL_PATH.exists():
+        print(f"{Colors.RED}✗ Path CheckMK non trovato: {CHECKMK_LOCAL_PATH}{Colors.NC}")
+        return 0
+    
+    removed = 0
+    
+    for script_name in script_names:
+        script_path = CHECKMK_LOCAL_PATH / script_name
+        
+        if not script_path.exists():
+            print(f"{Colors.YELLOW}⚠ Non trovato:{Colors.NC} {script_name}")
+            continue
+        
+        print(f"{Colors.CYAN}Rimozione:{Colors.NC} {script_name}... ", end='', flush=True)
+        
+        try:
+            script_path.unlink()
+            print(f"{Colors.GREEN}✓{Colors.NC}")
+            removed += 1
+        except OSError as e:
+            print(f"{Colors.RED}✗ {e}{Colors.NC}")
+    
+    return removed
+
+
+def ask_script_type() -> str:
+    """
+    Chiede all'utente quale tipo di script installare.
+    
+    Returns:
+        'remote', 'full', o 'both'
+    """
+    print(f"\n{Colors.CYAN}Quale tipo di script vuoi installare?{Colors.NC}")
+    print(f"  {Colors.GREEN}1.{Colors.NC} Remote launchers (eseguono script da GitHub)")
+    print(f"  {Colors.GREEN}2.{Colors.NC} Full scripts (script completi locali)")
+    print(f"  {Colors.GREEN}3.{Colors.NC} Entrambi")
+    print(f"  {Colors.YELLOW}0.{Colors.NC} Annulla\n")
+    
+    try:
+        print(f"{Colors.YELLOW}Scelta:{Colors.NC} ", end='', flush=True)
+        choice = input().strip()
+    except EOFError:
+        return 'remote'  # Default per pipe execution
+    
+    if choice == '1':
+        return 'remote'
+    elif choice == '2':
+        return 'full'
+    elif choice == '3':
+        return 'both'
+    elif choice == '0':
+        return 'cancel'
+    else:
+        print(f"{Colors.YELLOW}Scelta non valida, uso remote{Colors.NC}")
+        return 'remote'
+
+
 def main() -> int:
     """Main entry point."""
     
@@ -307,26 +407,33 @@ Esempi:
   # Modalità interattiva (menu)
   %(prog)s
   
-  # Installa tutti gli script
-  %(prog)s --install-all --yes
+  # Installa tutti remote launchers
+  %(prog)s --type remote --install-all --yes
   
-  # Installa solo remote launchers
-  %(prog)s --install-remote --yes
+  # Installa tutti full scripts
+  %(prog)s --type full --install-all --yes
   
   # Installa script specifici
   %(prog)s --install "1,3,5" --yes
   
+  # Rimuovi script installati (interattivo)
+  %(prog)s --uninstall
+  
   # One-liner via curl
-  curl -fsSL URL | sudo python3 - --install-remote --yes
+  curl -fsSL URL | sudo python3 - --type remote --install-all --yes
 """
     )
     
     parser.add_argument('--install-all', action='store_true',
                         help='Installa tutti gli script senza menu')
     parser.add_argument('--install-remote', action='store_true',
-                        help='Installa solo remote launchers')
+                        help='[DEPRECATO] Usa --type remote --install-all')
     parser.add_argument('--install', type=str, metavar='INDICES',
                         help='Installa script specifici (es: "1,2,3")')
+    parser.add_argument('--type', type=str, choices=['remote', 'full', 'both'],
+                        help='Tipo script da installare (remote/full/both)')
+    parser.add_argument('--uninstall', action='store_true',
+                        help='Rimuovi script installati')
     parser.add_argument('--yes', '-y', action='store_true',
                         help='Conferma automaticamente senza chiedere')
     parser.add_argument('--version', action='version',
@@ -342,6 +449,75 @@ Esempi:
         print(f"{Colors.YELLOW}  Esegui con: sudo {sys.argv[0]}{Colors.NC}\n")
         return 1
     
+    # ===== MODALITÀ RIMOZIONE =====
+    if args.uninstall:
+        print(f"{Colors.YELLOW}Modalità: Rimozione script installati{Colors.NC}\n")
+        
+        installed = list_installed_scripts()
+        
+        if not installed:
+            print(f"{Colors.YELLOW}Nessuno script installato in {CHECKMK_LOCAL_PATH}{Colors.NC}")
+            return 0
+        
+        print(f"{Colors.GREEN}Script installati ({len(installed)}):{Colors.NC}\n")
+        for i, name in enumerate(installed, 1):
+            print(f"  {Colors.GREEN}{i:2d}.{Colors.NC} {name}")
+        
+        print(f"\n{Colors.YELLOW}Seleziona script da rimuovere{Colors.NC}")
+        print(f"  {Colors.CYAN}Esempio:{Colors.NC} 1,3,5 oppure 1-3 oppure all")
+        print(f"  {Colors.YELLOW}0.{Colors.NC} Annulla\n")
+        
+        try:
+            print(f"{Colors.YELLOW}Selezione:{Colors.NC} ", end='', flush=True)
+            selection = input().strip().lower()
+        except EOFError:
+            print(f"\n{Colors.RED}✗ Input non disponibile{Colors.NC}")
+            return 1
+        
+        if selection == '0':
+            print(f"{Colors.YELLOW}Rimozione annullata{Colors.NC}")
+            return 0
+        
+        # Parse selezione
+        if selection == 'all':
+            to_remove = installed
+        else:
+            indices = parse_selection(selection, len(installed))
+            to_remove = [installed[i - 1] for i in indices]
+        
+        if not to_remove:
+            print(f"{Colors.RED}✗ Nessuno script selezionato{Colors.NC}")
+            return 1
+        
+        # Conferma rimozione
+        print(f"\n{Colors.RED}⚠ Verranno rimossi {len(to_remove)} script{Colors.NC}")
+        for name in to_remove:
+            print(f"  - {name}")
+        
+        if not args.yes:
+            try:
+                print(f"\n{Colors.YELLOW}Confermi rimozione? (s/n):{Colors.NC} ", end='', flush=True)
+                confirm = input().strip().lower()
+            except EOFError:
+                confirm = 'n'
+            
+            if confirm not in ['s', 'si', 'y', 'yes']:
+                print(f"{Colors.YELLOW}Rimozione annullata{Colors.NC}")
+                return 0
+        
+        # Esegui rimozione
+        print(f"\n{Colors.RED}▶ Rimozione in corso...{Colors.NC}\n")
+        removed = uninstall_scripts(to_remove)
+        
+        print(f"\n{Colors.BLUE}{'='*60}{Colors.NC}")
+        print(f"{Colors.GREEN}✓ Rimozione completata{Colors.NC}")
+        print(f"  Script rimossi: {removed}/{len(to_remove)}")
+        print(f"{Colors.BLUE}{'='*60}{Colors.NC}\n")
+        
+        return 0
+    
+    # ===== MODALITÀ INSTALLAZIONE =====
+    
     # Rileva host
     print(f"{Colors.YELLOW}Rilevamento sistema in corso...{Colors.NC}\n")
     detector = HostDetector()
@@ -354,15 +530,41 @@ Esempi:
         print(f"\n{Colors.RED}✗ Impossibile determinare categoria script appropriata{Colors.NC}")
         return 1
     
+    # Determina tipo script (da args o chiedi)
+    script_type = args.type
+    
+    # Backward compatibility con --install-remote
+    if args.install_remote:
+        script_type = 'remote'
+        print(f"\n{Colors.YELLOW}[DEPRECATO] Usa --type remote al posto di --install-remote{Colors.NC}")
+    
+    # Chiedi tipo se non specificato e modalità interattiva
+    if not script_type and not (args.install_all or args.install):
+        script_type = ask_script_type()
+        
+        if script_type == 'cancel':
+            print(f"{Colors.YELLOW}Installazione annullata{Colors.NC}")
+            return 0
+    
+    # Default a 'both' se ancora non specificato
+    if not script_type:
+        script_type = 'both'
+    
     # Lista script disponibili
     print(f"\n{Colors.YELLOW}Recupero lista script da GitHub...{Colors.NC}")
-    scripts = list_available_scripts(detector.script_category)
+    scripts = list_available_scripts(detector.script_category, script_type)
     
     if not scripts:
-        print(f"{Colors.RED}✗ Nessuno script trovato per categoria: {detector.script_category}{Colors.NC}")
+        print(f"{Colors.RED}✗ Nessuno script trovato per categoria: {detector.script_category} (tipo: {script_type}){Colors.NC}")
         return 1
     
-    print(f"{Colors.GREEN}✓ Trovati {len(scripts)} script disponibili{Colors.NC}")
+    type_label = {
+        'remote': 'remote launchers',
+        'full': 'full scripts',
+        'both': 'script (remote + full)'
+    }.get(script_type, script_type)
+    
+    print(f"{Colors.GREEN}✓ Trovati {len(scripts)} {type_label}{Colors.NC}")
     
     # Determina selezione (da args o input interattivo)
     selected_indices: List[int] = []
@@ -370,13 +572,7 @@ Esempi:
     if args.install_all:
         # Installa tutti
         selected_indices = list(range(1, len(scripts) + 1))
-        print(f"\n{Colors.CYAN}Modalità: Installa TUTTI gli script{Colors.NC}")
-    
-    elif args.install_remote:
-        # Installa solo remote launchers
-        remote_indices = [i for i, (name, url) in enumerate(scripts, 1) if '/remote/' in url]
-        selected_indices = remote_indices
-        print(f"\n{Colors.CYAN}Modalità: Installa solo remote launchers{Colors.NC}")
+        print(f"\n{Colors.CYAN}Modalità: Installa TUTTI gli script ({type_label}){Colors.NC}")
     
     elif args.install:
         # Installa script specifici
@@ -392,20 +588,15 @@ Esempi:
             selection = input().strip()
         except EOFError:
             print(f"\n{Colors.RED}✗ Input non disponibile (esegui interattivamente o usa --install-*)${Colors.NC}")
-            print(f"{Colors.YELLOW}Suggerimento:{Colors.NC} Usa --install-remote --yes per installazione automatica")
+            print(f"{Colors.YELLOW}Suggerimento:{Colors.NC} Usa --type remote --install-all --yes per installazione automatica")
             return 1
         
         if selection == '0':
             print(f"{Colors.YELLOW}Installazione annullata{Colors.NC}")
             return 0
         
-        # Gestione selezione "r" (solo remote)
-        if selection.lower() == 'r':
-            remote_indices = [i for i, (name, url) in enumerate(scripts, 1) if '/remote/' in url]
-            selected_indices = remote_indices
-        else:
-            # Parse normale
-            selected_indices = parse_selection(selection, len(scripts))
+        # Parse selezione
+        selected_indices = parse_selection(selection, len(scripts))
     
     if not selected_indices:
         print(f"{Colors.RED}✗ Nessuno script selezionato{Colors.NC}")

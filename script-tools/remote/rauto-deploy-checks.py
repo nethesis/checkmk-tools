@@ -2,7 +2,7 @@
 """
 Remote launcher per auto-deploy-checks.py
 Scarica e esegue la versione completa da repository
-Default: --install-remote --yes (installa solo remote launchers automaticamente)
+Default: --type remote --install-all --yes (installa solo remote launchers automaticamente)
 """
 
 import urllib.request
@@ -18,7 +18,7 @@ try:
     # Aggiungi argomenti default se non specificati
     if len(sys.argv) == 1:
         # Nessun argomento → modalità automatica (solo remote launchers)
-        sys.argv.extend(['--install-remote', '--yes'])
+        sys.argv.extend(['--type', 'remote', '--install-all', '--yes'])
     
     # Esegui nel namespace globale (come se fosse lo script principale)
     exec(script_code, {'__name__': '__main__'})
