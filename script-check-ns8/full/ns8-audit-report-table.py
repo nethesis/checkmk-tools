@@ -317,9 +317,8 @@ def collect_password_expiry_table(samba_module: str, output_dir: Path) -> None:
     print(f"{'UTENTE':<25} {'ULTIMO CAMBIO':<20} {'SCADENZA':<20} {'GIORNI RIMANENTI':<20}")
     print(f"{'-'*25} {'-'*20} {'-'*20} {'-'*20}")
     
-    # Display table (show only first 10 on console, but process all for MD file)
-    displayed = 0
-    for username, last_change, expires_str, days_left in pwd_data[:10]:
+    # Display ALL users on console
+    for username, last_change, expires_str, days_left in pwd_data:
         # Color coding
         if days_left == "N/A" or days_left == "Errore":
             days_display = str(days_left)
@@ -336,11 +335,10 @@ def collect_password_expiry_table(samba_module: str, output_dir: Path) -> None:
             days_display = str(days_left)
         
         print(f"{username:<25} {last_change:<20} {expires_str:<20} {days_display:<20}")
-        displayed += 1
     
     print()
     print("=" * 120)
-    log_success(f"Tabella password completata ({len(pwd_data)} utenti totali, mostrati {displayed})")
+    log_success(f"Tabella password completata ({len(pwd_data)} utenti totali)")
     
     # Write MD file with ALL data
     md_file = output_dir / "01_password_expiry.md"
@@ -449,19 +447,16 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
     print(f"{'GRUPPO':<40} {'MEMBRI':<40}")
     print(f"{'-'*40} {'-'*40}")
     
-    # Display on console: one row per member (limit to 50 rows total)
+    # Display on console: one row per member (ALL members shown)
     displayed_rows = 0
     for groupname, members, computers in group_member_data:
-        if displayed_rows < 50:
-            if members:
-                for member in members:
-                    if displayed_rows >= 50:
-                        break
-                    print(f"{groupname[:39]:<40} {member[:39]:<40}")
-                    displayed_rows += 1
-            elif not computers:
-                print(f"{groupname[:39]:<40} {'(nessun membro)':<40}")
+        if members:
+            for member in members:
+                print(f"{groupname[:39]:<40} {member[:39]:<40}")
                 displayed_rows += 1
+        elif not computers:
+            print(f"{groupname[:39]:<40} {'(nessun membro)':<40}")
+            displayed_rows += 1
     
     print()
     print("=" * 80)
@@ -639,36 +634,28 @@ def collect_shares_table(samba_module: str, output_dir: Path) -> int:
     print(f"{'SHARE':<30} {'PERCORSO':<40} {'UTENTE/GRUPPO':<20} {'PERM':<10}")
     print(f"{'-'*30} {'-'*40} {'-'*20} {'-'*10}")
     
-    # Display on console: show permissions details (limit to 50 rows)
+    # Display on console: show ALL permissions details
     displayed_rows = 0
     for share_name, share_path, users_rw, users_ro in share_data:
-        if displayed_rows >= 50:
-            break
-        
         path_display = share_path[:39] if len(share_path) > 39 else share_path
         
         # Display one row per permission
         if users_rw:
             for user in users_rw:
-                if displayed_rows >= 50:
-                    break
                 user_display = user[:29] if len(user) > 29 else user
                 print(f"{share_name:<30} {path_display:<40} {user_display:<20} RW")
                 displayed_rows += 1
         
         if users_ro:
             for user in users_ro:
-                if displayed_rows >= 50:
-                    break
                 user_display = user[:29] if len(user) > 29 else user
                 print(f"{share_name:<30} {path_display:<40} {user_display:<20} RO")
                 displayed_rows += 1
         
         # If no permissions, show one row
         if not users_rw and not users_ro:
-            if displayed_rows < 50:
-                print(f"{share_name:<30} {path_display:<40} {'(nessun permesso)':<20} -")
-                displayed_rows += 1
+            print(f"{share_name:<30} {path_display:<40} {'(nessun permesso)':<20} -")
+            displayed_rows += 1
     
     print()
     print("=" * 130)
