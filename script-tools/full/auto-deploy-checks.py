@@ -222,6 +222,13 @@ def download_script(url: str, dest_path: Path) -> bool:
         True se successo, False altrimenti
     """
     try:
+        # Aggiungi cache buster
+        import time
+        if '?' in url:
+            url += f"&v={int(time.time())}"
+        else:
+            url += f"?v={int(time.time())}"
+
         with urllib.request.urlopen(url, timeout=30) as response:
             content = response.read()
         
