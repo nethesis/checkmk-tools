@@ -266,7 +266,7 @@ def parse_selection(selection: str, max_idx: int) -> List[int]:
     Parsea input utente per selezione multipla.
     
     Args:
-        selection: Input utente (es: "1,3,5" o "a" o "r")
+        selection: Input utente (es: "1,3,5" o "1-5" o "a" o "r")
         max_idx: Numero massimo script
         
     Returns:
@@ -281,12 +281,28 @@ def parse_selection(selection: str, max_idx: int) -> List[int]:
     indices = []
     for part in selection.split(','):
         part = part.strip()
-        if part.isdigit():
+        
+        # Gestione range: "1-5" → [1,2,3,4,5]
+        if '-' in part:
+            try:
+                start, end = part.split('-', 1)
+                start = int(start.strip())
+                end = int(end.strip())
+                
+                # Valida range
+                if 1 <= start <= max_idx and 1 <= end <= max_idx and start <= end:
+                    indices.extend(range(start, end + 1))
+            except (ValueError, AttributeError):
+                # Ignora range malformati
+                pass
+        
+        # Gestione singoli numeri: "3" → [3]
+        elif part.isdigit():
             idx = int(part)
             if 1 <= idx <= max_idx:
                 indices.append(idx)
     
-    return indices
+    return sorted(set(indices))  # Rimuovi duplicati e ordina
 
 
 def install_scripts(scripts: List[Tuple[str, str]], selected_indices: List[int]) -> int:
