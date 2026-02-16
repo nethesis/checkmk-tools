@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 -u
 """
 check_cockpit_sessions.py - CheckMK Local Check for Cockpit session events
 
@@ -13,6 +13,7 @@ import subprocess
 import sys
 import os
 import re
+import traceback
 from datetime import datetime
 
 VERSION = "1.0.1"
@@ -157,7 +158,8 @@ if __name__ == "__main__":
     try:
         main()
         sys.stdout.flush()
-    except Exception as e:
+    except Exception:
         # Fallback output in case of catastrophe
-        print(f"2 Cockpit-Sessions - Script crash: {e}")
+        err_msg = traceback.format_exc().replace('\n', ' || ')
+        print(f"2 Cockpit-Sessions - OVERALL-CRASH: {err_msg}")
         sys.exit(0)
