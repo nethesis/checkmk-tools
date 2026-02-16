@@ -16,6 +16,8 @@ Example:
 Version: 1.0.0 (convertito da Bash)
 """
 
+VERSION = "1.0.0"  # Versione script (aggiornare ad ogni modifica)
+
 import sys
 import os
 from pathlib import Path

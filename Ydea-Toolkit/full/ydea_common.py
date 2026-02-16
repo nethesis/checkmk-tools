@@ -12,6 +12,8 @@ Fornisce funzionalità comuni utilizzate da tutti gli script:
 Version: 1.0.0
 """
 
+VERSION = "1.0.0"  # Versione modulo (aggiornare ad ogni modifica)
+
 import os
 import sys
 import json
