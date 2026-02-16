@@ -11,10 +11,6 @@ import os
 
 # Forza encoding UTF-8 per gestire caratteri speciali nei log
 os.environ['PYTHONIOENCODING'] = 'utf-8'
-if sys.stdout.encoding != 'utf-8':
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-if sys.stderr.encoding != 'utf-8':
-    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-check-ns7/full/check-ssh-failures.py"
 
