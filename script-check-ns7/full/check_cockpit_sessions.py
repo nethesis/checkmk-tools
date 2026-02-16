@@ -85,7 +85,8 @@ def get_new_cockpit_events(last_line):
     
     events = []
     try:
-        with open(LOG_FILE, 'r') as f:
+        # Usa esplicitamente UTF-8 e sostituisci i caratteri non validi per evitare UnicodeDecodeError
+        with open(LOG_FILE, 'r', encoding='utf-8', errors='replace') as f:
             for i, line in enumerate(f, start=1):
                 if i > last_line and 'cockpit-ws:' in line:
                     events.append((i, line.strip()))
