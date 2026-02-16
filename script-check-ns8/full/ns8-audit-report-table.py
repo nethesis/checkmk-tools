@@ -30,7 +30,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 
-VERSION = "2.11.0"
+VERSION = "2.12.0"
 MAX_PWD_AGE_DAYS = 42
 
 # Cache globale SID
@@ -520,12 +520,16 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
                 f.write(f"| {groupname[:35]:<35} | {'(nessun membro)':<35} |\n")
         
         f.write("\n")
-        
-        # Domain Computers section
-        total_computers = sum(len(comps) for _, _, comps in group_member_data)
-        if total_computers > 0:
-            f.write("---\n\n")
+    
+    # Calculate total computers for global counter
+    total_computers = sum(len(comps) for _, _, comps in group_member_data)
+    
+    # Create separate Domain Computers MD file
+    if total_computers > 0:
+        computers_md_file = output_dir / "05_domain_computers.md"
+        with open(computers_md_file, 'w', encoding='utf-8') as f:
             f.write("# Domain Computer\n\n")
+            f.write(f"Report generato: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n\n")
             f.write(f"**Totale computer a dominio:** {total_computers}\n\n")
             f.write("---\n\n")
             f.write("## Tabella Computer A Dominio\n\n")
@@ -537,6 +541,8 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
                     f.write(f"| {groupname[:35]:<35} | {computer[:35]:<35} |\n")
             
             f.write("\n")
+        
+        log_success(f"Report computer generato → 05_domain_computers.md")
     
     global GLOBAL_GROUP_COUNT, GLOBAL_COMPUTER_COUNT
     GLOBAL_GROUP_COUNT = len(groups)
@@ -1047,7 +1053,8 @@ def send_email_interactive(output_dir: Path) -> bool:
         "01_password_expiry.md",
         "02_gruppi_ad.md",
         "03_webtop_shares.md",
-        "04_share_permissions.md"
+        "04_share_permissions.md",
+        "05_domain_computers.md"
     ]
     
     attached_count = 0
