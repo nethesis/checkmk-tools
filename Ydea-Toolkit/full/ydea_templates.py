@@ -477,7 +477,7 @@ def main():
         sys.exit(1)
     
     command = sys.argv[1]
-    args = sys.argv[2:]
+    args = sys.argv[2:]  # type: ignore
     
     template = None
     
