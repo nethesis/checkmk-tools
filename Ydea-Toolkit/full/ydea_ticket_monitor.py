@@ -29,13 +29,16 @@ from typing import Optional, Dict, Any, List
 script_dir = Path(__file__).resolve().parent
 sys.path.insert(0, str(script_dir))
 
-from ydea_common import Logger
+from ydea_common import Logger  # type: ignore
 
 # Import ydea-toolkit.py (nome con trattino richiede importlib)
 ydea_toolkit_path = script_dir / "ydea-toolkit.py"
 spec = importlib.util.spec_from_file_location("ydea_toolkit", ydea_toolkit_path)
-ydea_toolkit = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(ydea_toolkit)
+if spec and spec.loader:
+    ydea_toolkit = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ydea_toolkit)
+else:
+    raise ImportError("Cannot load ydea-toolkit.py")
 
 # Estrai classi necessarie
 YdeaAPI = ydea_toolkit.YdeaAPI
@@ -230,7 +233,7 @@ def get_hours_until_next_cleanup() -> int:
         last_cleanup = int(CLEANUP_MARKER.read_text().strip())
         now = int(time.time())
         hours_since = (now - last_cleanup) / 3600
-        hours_remaining = max(0, CLEANUP_INTERVAL_HOURS - hours_since)
+        hours_remaining = max(0.0, CLEANUP_INTERVAL_HOURS - hours_since)
         return int(hours_remaining)
     except Exception:
         return 0
