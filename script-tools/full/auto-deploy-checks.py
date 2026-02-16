@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.8.2"
+VERSION = "2.0.0"  # Breaking change: solo script full, no più launcher remoti
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -1110,11 +1110,8 @@ Esempi:
   # Modalità interattiva (menu)
   %(prog)s
   
-  # Installa tutti remote launchers
-  %(prog)s --type remote --install-all --yes
-  
-  # Installa tutti full scripts
-  %(prog)s --type full --install-all --yes
+  # Installa tutti gli script automaticamente
+  %(prog)s --install-all --yes
   
   # Installa script specifici
   %(prog)s --install "1,3,5" --yes
@@ -1123,18 +1120,20 @@ Esempi:
   %(prog)s --uninstall
   
   # One-liner via curl
-  curl -fsSL URL | sudo python3 - --type remote --install-all --yes
+  curl -fsSL URL | sudo python3 - --install-all --yes
+  
+Nota: Ora vengono installati SOLO script completi (full/), non più launcher remoti.
 """
     )
     
     parser.add_argument('--install-all', action='store_true',
                         help='Installa tutti gli script senza menu')
     parser.add_argument('--install-remote', action='store_true',
-                        help='[DEPRECATO] Usa --type remote --install-all')
+                        help='[OBSOLETO] Ora installa sempre script full')
     parser.add_argument('--install', type=str, metavar='INDICES',
                         help='Installa script specifici (es: "1,2,3")')
     parser.add_argument('--type', type=str, choices=['remote', 'full', 'both'],
-                        help='Tipo script da installare (remote/full/both)')
+                        help='[OBSOLETO] Ignorato - installa sempre script full')
     parser.add_argument('--uninstall', action='store_true',
                         help='Rimuovi script installati')
     parser.add_argument('--yes', '-y', action='store_true',
@@ -1316,25 +1315,12 @@ Esempi:
         print(f"\n{Colors.RED}✗ Impossibile determinare categoria script appropriata{Colors.NC}")
         return 1
     
-    # Determina tipo script (da args o chiedi)
-    script_type = args.type
+    # USA SEMPRE SCRIPT FULL (non più launcher remote)
+    script_type = 'full'
     
-    # Backward compatibility con --install-remote
-    if args.install_remote:
-        script_type = 'remote'
-        print(f"\n{Colors.YELLOW}[DEPRECATO] Usa --type remote al posto di --install-remote{Colors.NC}")
-    
-    # Chiedi tipo se non specificato e modalità interattiva
-    if not script_type and not (args.install_all or args.install):
-        script_type = ask_script_type()
-        
-        if script_type == 'cancel':
-            print(f"{Colors.YELLOW}Installazione annullata{Colors.NC}")
-            return 0
-    
-    # Default a 'both' se ancora non specificato
-    if not script_type:
-        script_type = 'both'
+    # Backward compatibility: ignora --type e --install-remote
+    if args.type or args.install_remote:
+        print(f"\n{Colors.YELLOW}[INFO] Ora vengono installati SOLO script completi (full/), non più launcher{Colors.NC}")
     
     # Lista script disponibili
     print(f"\n{Colors.YELLOW}Recupero lista script da GitHub...{Colors.NC}")
@@ -1344,13 +1330,7 @@ Esempi:
         print(f"{Colors.RED}✗ Nessuno script trovato per categoria: {detector.script_category} (tipo: {script_type}){Colors.NC}")
         return 1
     
-    type_label = {
-        'remote': 'remote launchers',
-        'full': 'full scripts',
-        'both': 'script (remote + full)'
-    }.get(script_type, script_type)
-    
-    print(f"{Colors.GREEN}✓ Trovati {len(scripts)} {type_label}{Colors.NC}")
+    print(f"{Colors.GREEN}✓ Trovati {len(scripts)} script completi{Colors.NC}")
     
     # Determina selezione (da args o input interattivo)
     selected_indices: List[int] = []
@@ -1374,7 +1354,7 @@ Esempi:
             selection = input().strip()
         except EOFError:
             print(f"\n{Colors.RED}✗ Input non disponibile (esegui interattivamente o usa --install-*)${Colors.NC}")
-            print(f"{Colors.YELLOW}Suggerimento:{Colors.NC} Usa --type remote --install-all --yes per installazione automatica")
+            print(f"{Colors.YELLOW}Suggerimento:{Colors.NC} Usa --install-all --yes per installazione automatica")
             return 1
         
         if selection == '0':
