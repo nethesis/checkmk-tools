@@ -30,7 +30,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 
-VERSION = "2.9.0"
+VERSION = "2.11.0"
 MAX_PWD_AGE_DAYS = 42
 
 # Cache globale SID
@@ -39,6 +39,7 @@ SID_CACHE: Dict[str, str] = {}
 # Contatori globali
 GLOBAL_USER_COUNT = 0
 GLOBAL_GROUP_COUNT = 0
+GLOBAL_COMPUTER_COUNT = 0
 GLOBAL_SHARE_COUNT = 0
 GLOBAL_WEBTOP_COUNT = 0
 
@@ -469,6 +470,36 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
     print("=" * 80)
     log_success(f"Gruppi AD raccolti: {len(groups)} ({displayed_rows} membri mostrati)")
     
+    # Domain Computers console table
+    total_computers = sum(len(comps) for _, _, comps in group_member_data)
+    if total_computers > 0:
+        # Collect all computers with their groups
+        computer_list = []
+        for groupname, _, computers in group_member_data:
+            for computer in computers:
+                computer_list.append((groupname, computer))
+        
+        # Sort by group name
+        computer_list.sort()
+        
+        # Print console table
+        print()
+        print("=" * 80)
+        print("  DOMAIN COMPUTER")
+        print("=" * 80)
+        print()
+        print(f"Totale computer a dominio: {total_computers}")
+        print()
+        print(f"{'GRUPPO':<40} {'COMPUTER':<40}")
+        print(f"{'-'*40} {'-'*40}")
+        
+        for groupname, computer in computer_list:
+            print(f"{groupname[:39]:<40} {computer[:39]:<40}")
+        
+        print()
+        print("=" * 80)
+        log_success(f"Domain Computer: {total_computers} computer joinati al dominio")
+    
     # Write MD file with ALL groups and members
     md_file = output_dir / "02_gruppi_ad.md"
     with open(md_file, 'w', encoding='utf-8') as f:
@@ -507,8 +538,9 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
             
             f.write("\n")
     
-    global GLOBAL_GROUP_COUNT
+    global GLOBAL_GROUP_COUNT, GLOBAL_COMPUTER_COUNT
     GLOBAL_GROUP_COUNT = len(groups)
+    GLOBAL_COMPUTER_COUNT = total_computers
     
     return len(groups)
 
@@ -881,7 +913,7 @@ def collect_webtop_sharing(webtop_module: Optional[str], samba_module: str, outp
 
 def generate_summary_table(output_dir: Path) -> None:
     """Generate summary in table format."""
-    global GLOBAL_USER_COUNT, GLOBAL_GROUP_COUNT, GLOBAL_SHARE_COUNT, GLOBAL_WEBTOP_COUNT
+    global GLOBAL_USER_COUNT, GLOBAL_GROUP_COUNT, GLOBAL_COMPUTER_COUNT, GLOBAL_SHARE_COUNT, GLOBAL_WEBTOP_COUNT
     
     print()
     print("=" * 80)
@@ -892,6 +924,7 @@ def generate_summary_table(output_dir: Path) -> None:
     print(f"{'-'*30} {'-'*20}")
     print(f"{'Utenti AD':<30} {GLOBAL_USER_COUNT:<20}")
     print(f"{'Gruppi AD':<30} {GLOBAL_GROUP_COUNT:<20}")
+    print(f"{'Computer A Dominio':<30} {GLOBAL_COMPUTER_COUNT:<20}")
     print(f"{'Share Samba':<30} {GLOBAL_SHARE_COUNT:<20}")
     print(f"{'Condivisioni WebTop':<30} {GLOBAL_WEBTOP_COUNT:<20}")
     print()
@@ -905,6 +938,7 @@ def generate_summary_table(output_dir: Path) -> None:
         f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
         f.write(f"Utenti AD: {GLOBAL_USER_COUNT}\n")
         f.write(f"Gruppi AD: {GLOBAL_GROUP_COUNT}\n")
+        f.write(f"Computer A Dominio: {GLOBAL_COMPUTER_COUNT}\n")
         f.write(f"Share Samba: {GLOBAL_SHARE_COUNT}\n")
         f.write(f"Condivisioni WebTop: {GLOBAL_WEBTOP_COUNT}\n")
     
@@ -1062,7 +1096,7 @@ def send_email_interactive(output_dir: Path) -> bool:
 
 def main() -> int:
     """Main entry point."""
-    global GLOBAL_USER_COUNT, GLOBAL_GROUP_COUNT, GLOBAL_SHARE_COUNT, GLOBAL_WEBTOP_COUNT
+    global GLOBAL_USER_COUNT, GLOBAL_GROUP_COUNT, GLOBAL_COMPUTER_COUNT, GLOBAL_SHARE_COUNT, GLOBAL_WEBTOP_COUNT
     
     print("=" * 80)
     print(f"NS8 Audit Report - Table Version v{VERSION}")
