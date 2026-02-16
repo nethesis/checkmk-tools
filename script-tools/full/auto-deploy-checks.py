@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """
-Auto Deploy CheckMK Checks - Rileva host e installa script corretti
-Rileva automaticamente il tipo di sistema e propone l'installazione
-degli script CheckMK appropriati dal repository.
+Auto Deploy CheckMK Checks - Installazione/Rimozione interattiva script CheckMK
 
-Version: 1.1.0
+Menu interattivo per:
+- Installare script CheckMK (remote/full/both)
+- Rimuovere script installati
+- Rilevamento automatico tipo host
+
+Modalità CLI disponibile per automazione via curl.
+
+Version: 1.3.0
 """
 
 import os
@@ -16,7 +21,7 @@ import argparse
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -379,6 +384,37 @@ def uninstall_scripts(script_names: List[str]) -> int:
     return removed
 
 
+def show_main_menu() -> str:
+    """
+    Mostra menu principale e restituisce azione scelta.
+    
+    Returns:
+        'install', 'uninstall', o 'exit'
+    """
+    print(f"\n{Colors.CYAN}╔═══════════════════════════════════════╗{Colors.NC}")
+    print(f"{Colors.CYAN}║  Cosa vuoi fare?                      ║{Colors.NC}")
+    print(f"{Colors.CYAN}╚═══════════════════════════════════════╝{Colors.NC}\n")
+    print(f"  {Colors.GREEN}1.{Colors.NC} Installa script CheckMK")
+    print(f"  {Colors.RED}2.{Colors.NC} Rimuovi script installati")
+    print(f"  {Colors.YELLOW}0.{Colors.NC} Esci\n")
+    
+    try:
+        print(f"{Colors.YELLOW}Scelta:{Colors.NC} ", end='', flush=True)
+        choice = input().strip()
+    except EOFError:
+        return 'exit'
+    
+    if choice == '1':
+        return 'install'
+    elif choice == '2':
+        return 'uninstall'
+    elif choice == '0':
+        return 'exit'
+    else:
+        print(f"{Colors.YELLOW}Scelta non valida{Colors.NC}")
+        return 'exit'
+
+
 def ask_script_type() -> str:
     """
     Chiede all'utente quale tipo di script installare.
@@ -386,10 +422,12 @@ def ask_script_type() -> str:
     Returns:
         'remote', 'full', o 'both'
     """
-    print(f"\n{Colors.CYAN}Quale tipo di script vuoi installare?{Colors.NC}")
+    print(f"\n{Colors.CYAN}╔═══════════════════════════════════════╗{Colors.NC}")
+    print(f"{Colors.CYAN}║  Quale tipo di script?                ║{Colors.NC}")
+    print(f"{Colors.CYAN}╚═══════════════════════════════════════╝{Colors.NC}\n")
     print(f"  {Colors.GREEN}1.{Colors.NC} Remote launchers (eseguono script da GitHub)")
     print(f"  {Colors.GREEN}2.{Colors.NC} Full scripts (script completi locali)")
-    print(f"  {Colors.GREEN}3.{Colors.NC} Entrambi")
+    print(f"  {Colors.GREEN}3.{Colors.NC} Entrambi (remote + full)")
     print(f"  {Colors.YELLOW}0.{Colors.NC} Annulla\n")
     
     try:
@@ -465,9 +503,27 @@ Esempi:
         print(f"{Colors.YELLOW}  Esegui con: sudo {sys.argv[0]}{Colors.NC}\n")
         return 1
     
+    # ===== MENU INTERATTIVO (se nessun argomento CLI specificato) =====
+    if not any([args.uninstall, args.install_all, args.install, args.type, args.install_remote]):
+        # Modalità interattiva con menu principale
+        action = show_main_menu()
+        
+        if action == 'exit':
+            print(f"{Colors.YELLOW}Uscita{Colors.NC}")
+            return 0
+        
+        elif action == 'uninstall':
+            # Forza modalità uninstall
+            args.uninstall = True
+        
+        elif action == 'install':
+            # Modalità interattiva installazione
+            # Il tipo verrà chiesto più avanti nel flusso
+            pass
+    
     # ===== MODALITÀ RIMOZIONE =====
     if args.uninstall:
-        print(f"{Colors.YELLOW}Modalità: Rimozione script installati{Colors.NC}\n")
+        print(f"\n{Colors.YELLOW}Modalità: Rimozione script installati{Colors.NC}\n")
         
         installed = list_installed_scripts()
         
@@ -486,8 +542,6 @@ Esempi:
         try:
             print(f"{Colors.YELLOW}Selezione:{Colors.NC} ", end='', flush=True)
             selection = input().strip().lower()
-            # Debug: mostra cosa abbiamo letto
-            print(f"\nDEBUG: selection='{selection}' len={len(selection)} repr={repr(selection)}")
         except EOFError:
             print(f"\n{Colors.RED}✗ Input non disponibile{Colors.NC}")
             return 1
@@ -501,8 +555,6 @@ Esempi:
             to_remove = installed
         else:
             indices = parse_selection(selection, len(installed))
-            # Debug: mostra indici parsati
-            print(f"DEBUG: indices={indices}")
             to_remove = [installed[i - 1] for i in indices]
         
         if not to_remove:
