@@ -33,7 +33,7 @@ ydea_toolkit_path = script_dir / "ydea-toolkit.py"
 spec = importlib.util.spec_from_file_location("ydea_toolkit", ydea_toolkit_path)
 if spec and spec.loader:
     ydea_toolkit = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(ydea_toolkit)
+    spec.loader.exec_module(ydea_toolkit)  # type: ignore
 else:
     raise ImportError("Cannot load ydea-toolkit.py")
 
