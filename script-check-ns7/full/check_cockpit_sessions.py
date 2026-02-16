@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 """
 check_cockpit_sessions.py - CheckMK Local Check for Cockpit session events
 
