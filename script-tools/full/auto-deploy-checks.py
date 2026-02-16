@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.7.1"
+VERSION = "1.7.2"
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -438,7 +438,7 @@ def check_agent_installed() -> Tuple[bool, str]:
         result = subprocess.run(
             ['check_mk_agent'],
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,  # Fix Python 3.6 compatibility
             universal_newlines=True,
             timeout=5
         )
