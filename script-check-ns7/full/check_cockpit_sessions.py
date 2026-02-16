@@ -15,8 +15,8 @@ import os
 import re
 from datetime import datetime
 
-VERSION = "1.0.0"
-SERVICE_NAME = "Cockpit_sessions"
+VERSION = "1.0.1"
+SERVICE_NAME = "Cockpit-Sessions"
 STATE_FILE = "/var/lib/check_mk_agent/cockpit_sessions.state"
 LOG_FILE = "/var/log/messages"
 
