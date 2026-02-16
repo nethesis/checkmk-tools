@@ -6,10 +6,11 @@ Menu interattivo per:
 - Installare script CheckMK (remote/full/both)
 - Rimuovere script installati
 - Rilevamento automatico tipo host
+- Forzatura permessi eseguibili garantita
 
 Modalità CLI disponibile per automazione via curl.
 
-Version: 1.3.0
+Version: 1.3.1
 """
 
 import os
@@ -21,7 +22,7 @@ import argparse
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -341,6 +342,12 @@ def install_scripts(scripts: List[Tuple[str, str]], selected_indices: List[int])
         print(f"{Colors.CYAN}Installazione:{Colors.NC} {filename} → {dest_path}... ", end='', flush=True)
         
         if download_script(url, dest_path):
+            # Forza permessi eseguibili (doppia sicurezza)
+            try:
+                os.chmod(dest_path, 0o755)
+            except OSError:
+                pass  # Ignora errori chmod, già gestito in download_script
+            
             print(f"{Colors.GREEN}✓{Colors.NC}")
             installed += 1
         else:
@@ -696,10 +703,18 @@ Esempi:
     print(f"\n{Colors.GREEN}▶ Installazione in corso...{Colors.NC}\n")
     installed = install_scripts(scripts, selected_indices)
     
+    # Verifica permessi eseguibili post-installazione
+    executable_count = 0
+    if CHECKMK_LOCAL_PATH.exists():
+        for item in CHECKMK_LOCAL_PATH.iterdir():
+            if item.is_file() and os.access(item, os.X_OK):
+                executable_count += 1
+    
     # Riepilogo
     print(f"\n{Colors.BLUE}{'='*60}{Colors.NC}")
     print(f"{Colors.GREEN}✓ Installazione completata{Colors.NC}")
     print(f"  Script installati: {installed}/{len(selected_indices)}")
+    print(f"  Script eseguibili: {executable_count}")
     print(f"  Path: {CHECKMK_LOCAL_PATH}")
     print(f"{Colors.BLUE}{'='*60}{Colors.NC}\n")
     
