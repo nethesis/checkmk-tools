@@ -116,11 +116,10 @@ def cleanup_cache():
     now = int(datetime.now().timestamp())
     max_age_seconds = CACHE_MAX_AGE_HOURS * 3600
     
-    all_keys = list(cache.cache.keys())
+    all_data = cache.get_all()
     removed_count = 0
     
-    for key in all_keys:
-        ticket_data = cache.get(key)
+    for key, ticket_data in all_data.items():
         if ticket_data and isinstance(ticket_data, dict):
             created_at = ticket_data.get("created_at", 0)
             if now - created_at > max_age_seconds:
