@@ -486,6 +486,8 @@ Esempi:
         try:
             print(f"{Colors.YELLOW}Selezione:{Colors.NC} ", end='', flush=True)
             selection = input().strip().lower()
+            # Debug: mostra cosa abbiamo letto
+            print(f"\nDEBUG: selection='{selection}' len={len(selection)} repr={repr(selection)}")
         except EOFError:
             print(f"\n{Colors.RED}✗ Input non disponibile{Colors.NC}")
             return 1
@@ -499,6 +501,8 @@ Esempi:
             to_remove = installed
         else:
             indices = parse_selection(selection, len(installed))
+            # Debug: mostra indici parsati
+            print(f"DEBUG: indices={indices}")
             to_remove = [installed[i - 1] for i in indices]
         
         if not to_remove:
