@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.7.3"
+VERSION = "1.8.0"
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -398,7 +398,7 @@ def show_main_menu() -> str:
     Mostra menu principale e restituisce azione scelta.
     
     Returns:
-        'install_agent', 'install', 'uninstall', o 'exit'
+        'install_agent', 'install', 'uninstall', 'uninstall_all', o 'exit'
     """
     print(f"\n{Colors.CYAN}╔═══════════════════════════════════════╗{Colors.NC}")
     print(f"{Colors.CYAN}║  Cosa vuoi fare?                      ║{Colors.NC}")
@@ -406,6 +406,7 @@ def show_main_menu() -> str:
     print(f"  {Colors.MAGENTA}1.{Colors.NC} Installa CheckMK Agent (prerequisito)")
     print(f"  {Colors.GREEN}2.{Colors.NC} Installa script CheckMK")
     print(f"  {Colors.RED}3.{Colors.NC} Rimuovi script installati")
+    print(f"  {Colors.RED}4.{Colors.NC} Rimuovi tutto (Agent + FRPC + Script)")
     print(f"  {Colors.YELLOW}0.{Colors.NC} Esci\n")
     
     try:
@@ -420,11 +421,128 @@ def show_main_menu() -> str:
         return 'install'
     elif choice == '3':
         return 'uninstall'
+    elif choice == '4':
+        return 'uninstall_all'
     elif choice == '0':
         return 'exit'
     else:
         print(f"{Colors.YELLOW}Scelta non valida{Colors.NC}")
         return 'exit'
+
+
+def uninstall_agent() -> int:
+    """
+    Rimuove CheckMK Agent dal sistema.
+    
+    Returns:
+        0 = successo, 1 = errore
+    """
+    print(f"\n{Colors.YELLOW}Rimozione CheckMK Agent...{Colors.NC}\n")
+    
+    # Verifica se installato
+    if not os.path.exists('/usr/bin/check_mk_agent'):
+        print(f"  {Colors.YELLOW}CheckMK Agent non installato{Colors.NC}")
+        return 0
+    
+    try:
+        # Stop servizi
+        subprocess.run(
+            ['systemctl', 'stop', 'check-mk-agent-plain.socket'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        subprocess.run(
+            ['systemctl', 'disable', 'check-mk-agent-plain.socket'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        
+        # Rimuovi pacchetto
+        # Prova rpm
+        result = subprocess.run(
+            ['rpm', '-e', 'check-mk-agent'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        
+        if result.returncode != 0:
+            # Prova dpkg
+            result = subprocess.run(
+                ['dpkg', '-r', 'check-mk-agent'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        
+        if result.returncode == 0:
+            print(f"  {Colors.GREEN}✓ CheckMK Agent rimosso{Colors.NC}")
+            return 0
+        else:
+            print(f"  {Colors.RED}✗ Errore rimozione CheckMK Agent{Colors.NC}")
+            return 1
+            
+    except Exception as e:
+        print(f"  {Colors.RED}✗ Errore: {e}{Colors.NC}")
+        return 1
+
+
+def uninstall_frpc() -> int:
+    """
+    Rimuove FRPC Client dal sistema.
+    
+    Returns:
+        0 = successo, 1 = errore
+    """
+    print(f"\n{Colors.YELLOW}Rimozione FRPC Client...{Colors.NC}\n")
+    
+    # Verifica se installato
+    if not os.path.exists('/usr/local/bin/frpc'):
+        print(f"  {Colors.YELLOW}FRPC Client non installato{Colors.NC}")
+        return 0
+    
+    try:
+        # Stop e disable servizio
+        subprocess.run(
+            ['systemctl', 'stop', 'frpc'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        subprocess.run(
+            ['systemctl', 'disable', 'frpc'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        
+        # Rimuovi file
+        files_to_remove = [
+            '/usr/local/bin/frpc',
+            '/etc/systemd/system/frpc.service',
+            '/etc/frp/frpc.toml'
+        ]
+        
+        for file_path in files_to_remove:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        
+        # Rimuovi directory se vuota
+        if os.path.exists('/etc/frp'):
+            try:
+                os.rmdir('/etc/frp')
+            except OSError:
+                pass  # Directory non vuota, lasciala
+        
+        # Reload systemd
+        subprocess.run(
+            ['systemctl', 'daemon-reload'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        
+        print(f"  {Colors.GREEN}✓ FRPC Client rimosso{Colors.NC}")
+        return 0
+        
+    except Exception as e:
+        print(f"  {Colors.RED}✗ Errore: {e}{Colors.NC}")
+        return 1
 
 
 def check_agent_installed() -> Tuple[bool, str]:
@@ -1051,6 +1169,45 @@ Esempi:
         elif action == 'uninstall':
             # Forza modalità uninstall
             args.uninstall = True
+        
+        elif action == 'uninstall_all':
+            # Rimozione completa: Script → FRPC → Agent
+            print(f"\n{Colors.YELLOW}╔═══════════════════════════════════════════════════════════╗{Colors.NC}")
+            print(f"{Colors.YELLOW}║  ⚠️  RIMOZIONE COMPLETA SISTEMA CHECKMK                  ║{Colors.NC}")
+            print(f"{Colors.YELLOW}╚═══════════════════════════════════════════════════════════╝{Colors.NC}\n")
+            print(f"{Colors.RED}Verranno rimossi:{Colors.NC}")
+            print(f"  • Tutti gli script CheckMK installati")
+            print(f"  • FRPC Client (tunnel remoto)")
+            print(f"  • CheckMK Agent\n")
+            
+            if not args.yes:
+                print(f"{Colors.YELLOW}Sei sicuro di voler procedere? [s/N]:{Colors.NC} ", end='', flush=True)
+                try:
+                    confirm = input().strip().lower()
+                except EOFError:
+                    confirm = 'n'
+                
+                if confirm != 's':
+                    print(f"{Colors.YELLOW}Rimozione annullata{Colors.NC}")
+                    return 0
+            
+            print(f"\n{Colors.CYAN}━━━ STEP 1: Rimozione Script CheckMK ━━━{Colors.NC}")
+            installed = list_installed_scripts()
+            if installed:
+                result = uninstall_scripts(installed)
+                if result == 0:
+                    print(f"  {Colors.GREEN}✓ Script rimossi: {len(installed)}{Colors.NC}")
+            else:
+                print(f"  {Colors.YELLOW}Nessuno script installato{Colors.NC}")
+            
+            print(f"\n{Colors.CYAN}━━━ STEP 2: Rimozione FRPC Client ━━━{Colors.NC}")
+            uninstall_frpc()
+            
+            print(f"\n{Colors.CYAN}━━━ STEP 3: Rimozione CheckMK Agent ━━━{Colors.NC}")
+            uninstall_agent()
+            
+            print(f"\n{Colors.GREEN}✓ Rimozione completa terminata{Colors.NC}\n")
+            return 0
         
         elif action == 'install':
             # Modalità interattiva installazione
