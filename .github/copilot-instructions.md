@@ -1,5 +1,21 @@
 # GitHub Copilot Instructions - checkmk-tools
 
+## 🔴 REGOLA PRELIMINARE OBBLIGATORIA
+
+**⚠️ PRIMA DI INIZIARE QUALSIASI LAVORO:**
+
+- ✅ **SEMPRE leggere QUESTO file** (`.github/copilot-instructions.md`) all'inizio di OGNI conversazione
+- ✅ **SEMPRE consultare** questo file prima di iniziare qualsiasi task
+- ⚠️ Questo file contiene **TUTTE le regole, workflow e procedure obbligatorie**
+- ❌ **NON iniziare a lavorare** senza aver letto e compreso le istruzioni
+- ✅ In caso di dubbio su come procedere → **rileggi questo file**
+
+**File correlati:**
+- `.copilot-preferences.md` → Sommario/quick reference (220 righe)
+- `.github/copilot-instructions.md` → **QUESTO FILE** - Regole complete (2105 righe)
+
+---
+
 ## 🎯 FILOSOFIA DI LAVORO FONDAMENTALE
 
 **⚠️ REGOLA ZERO - QUALITÀ PRIMA DI TUTTO:**
