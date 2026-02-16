@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.8.0"
+VERSION = "1.8.1"
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -416,17 +416,22 @@ def show_main_menu() -> str:
         return 'exit'
     
     if choice == '1':
+        print(f"\n{Colors.GREEN}✓ Hai scelto:{Colors.NC} Installa CheckMK Agent\n")
         return 'install_agent'
     elif choice == '2':
+        print(f"\n{Colors.GREEN}✓ Hai scelto:{Colors.NC} Installa script CheckMK\n")
         return 'install'
     elif choice == '3':
+        print(f"\n{Colors.GREEN}✓ Hai scelto:{Colors.NC} Rimuovi script installati\n")
         return 'uninstall'
     elif choice == '4':
+        print(f"\n{Colors.GREEN}✓ Hai scelto:{Colors.NC} Rimuovi tutto (Agent + FRPC + Script)\n")
         return 'uninstall_all'
     elif choice == '0':
+        print(f"\n{Colors.YELLOW}✓ Uscita in corso...{Colors.NC}\n")
         return 'exit'
     else:
-        print(f"{Colors.YELLOW}Scelta non valida{Colors.NC}")
+        print(f"\n{Colors.RED}✗ Scelta non valida: '{choice}'{Colors.NC}\n")
         return 'exit'
 
 
@@ -684,7 +689,8 @@ def install_checkmk_agent() -> int:
             choice = 'n'
         
         if choice == 's':
-            print(f"\n  {Colors.GREEN}⤷ Procedo con aggiornamento...{Colors.NC}\n")
+            print(f"\n{Colors.GREEN}✓ Hai scelto:{Colors.NC} Aggiorna agent\n")
+            print(f"  {Colors.GREEN}⤷ Procedo con aggiornamento...{Colors.NC}\n")
             result = install_agent_only()
             if result != 0:
                 print(f"{Colors.RED}✗ Aggiornamento agent fallito{Colors.NC}")
@@ -695,6 +701,7 @@ def install_checkmk_agent() -> int:
             if agent_installed:
                 print(f"\n  {Colors.GREEN}✓ CheckMK Agent aggiornato - {agent_info}{Colors.NC}\n")
         else:
+            print(f"\n{Colors.YELLOW}✓ Hai scelto:{Colors.NC} Mantieni versione attuale\n")
             print(f"  {Colors.YELLOW}⤷ Mantengo versione attuale{Colors.NC}\n")
     else:
         print(f"  {Colors.RED}✗ CheckMK Agent:{Colors.NC} Non installato")
@@ -733,7 +740,8 @@ def install_checkmk_agent() -> int:
             choice = 'n'
         
         if choice == 's':
-            print(f"\n  {Colors.GREEN}⤷ Procedo con installazione FRPC...{Colors.NC}\n")
+            print(f"\n{Colors.GREEN}✓ Hai scelto:{Colors.NC} Installa FRPC\n")
+            print(f"  {Colors.GREEN}⤷ Procedo con installazione FRPC...{Colors.NC}\n")
             result = install_frpc_only()
             if result == 0:
                 frpc_installed, frpc_info = check_frpc_installed()
@@ -742,6 +750,7 @@ def install_checkmk_agent() -> int:
             else:
                 print(f"\n  {Colors.YELLOW}⚠ FRPC non installato{Colors.NC}\n")
         else:
+            print(f"\n{Colors.YELLOW}✓ Hai scelto:{Colors.NC} Salta FRPC\n")
             print(f"  {Colors.YELLOW}⤷ Installazione FRPC saltata{Colors.NC}\n")
     
     # ===== STEP 3: Deploy Script CheckMK =====
@@ -758,11 +767,13 @@ def install_checkmk_agent() -> int:
         choice = 'n'
     
     if choice == 's':
-        print(f"\n{Colors.GREEN}✓ Setup base completato. Passo al deploy script...{Colors.NC}\n")
+        print(f"\n{Colors.GREEN}✓ Hai scelto:{Colors.NC} Procedi con deploy script\n")
+        print(f"{Colors.GREEN}✓ Setup base completato. Passo al deploy script...{Colors.NC}\n")
         # Ritorna 2 come segnale per continuare con deploy script
         return 2
     else:
-        print(f"\n{Colors.GREEN}✓ Setup completato{Colors.NC}\n")
+        print(f"\n{Colors.YELLOW}✓ Hai scelto:{Colors.NC} Esci senza deploy script\n")
+        print(f"{Colors.GREEN}✓ Setup completato{Colors.NC}\n")
         return 0
 
 
@@ -1071,15 +1082,19 @@ def ask_script_type() -> str:
         return 'remote'  # Default per pipe execution
     
     if choice == '1':
+        print(f"\n{Colors.GREEN}✓ Hai scelto:{Colors.NC} Remote launchers\n")
         return 'remote'
     elif choice == '2':
+        print(f"\n{Colors.GREEN}✓ Hai scelto:{Colors.NC} Full scripts\n")
         return 'full'
     elif choice == '3':
+        print(f"\n{Colors.GREEN}✓ Hai scelto:{Colors.NC} Entrambi (remote + full)\n")
         return 'both'
     elif choice == '0':
+        print(f"\n{Colors.YELLOW}✓ Annullato{Colors.NC}\n")
         return 'cancel'
     else:
-        print(f"{Colors.YELLOW}Scelta non valida, uso remote{Colors.NC}")
+        print(f"\n{Colors.YELLOW}⚠ Scelta non valida '{choice}', uso default: Remote launchers{Colors.NC}\n")
         return 'remote'
 
 
@@ -1188,10 +1203,13 @@ Esempi:
                     confirm = 'n'
                 
                 if confirm != 's':
+                    print(f"\n{Colors.YELLOW}✓ Hai scelto:{Colors.NC} Annulla rimozione completa\n")
                     print(f"{Colors.YELLOW}Rimozione annullata{Colors.NC}")
                     return 0
+                else:
+                    print(f"\n{Colors.GREEN}✓ Hai scelto:{Colors.NC} Conferma rimozione completa\n")
             
-            print(f"\n{Colors.CYAN}━━━ STEP 1: Rimozione Script CheckMK ━━━{Colors.NC}")
+            print(f"{Colors.CYAN}━━━ STEP 1: Rimozione Script CheckMK ━━━{Colors.NC}")
             installed = list_installed_scripts()
             if installed:
                 result = uninstall_scripts(installed)
@@ -1267,11 +1285,14 @@ Esempi:
                 confirm = 'n'
             
             if confirm not in ['s', 'si', 'y', 'yes']:
+                print(f"\n{Colors.YELLOW}✓ Hai scelto:{Colors.NC} Annulla rimozione\n")
                 print(f"{Colors.YELLOW}Rimozione annullata{Colors.NC}")
                 return 0
+            else:
+                print(f"\n{Colors.GREEN}✓ Hai scelto:{Colors.NC} Conferma rimozione\n")
         
         # Esegui rimozione
-        print(f"\n{Colors.RED}▶ Rimozione in corso...{Colors.NC}\n")
+        print(f"{Colors.RED}▶ Rimozione in corso...{Colors.NC}\n")
         removed = uninstall_scripts(to_remove)
         
         print(f"\n{Colors.BLUE}{'='*60}{Colors.NC}")
