@@ -408,16 +408,7 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
     all_groups = [g.strip() for g in stdout.splitlines() if g.strip()]
     groups = [g for g in all_groups if g not in EXCLUDE_GROUPS]
     
-    # Print table header
-    print()
-    print("=" * 80)
-    print("  GRUPPI ACTIVE DIRECTORY")
-    print("=" * 80)
-    print()
-    print(f"{'GRUPPO':<40} {'MEMBRI':<40}")
-    print(f"{'-'*40} {'-'*40}")
-    
-    # Collect members for each group (display first 50 member rows on console)
+    # Collect members for each group (header printed AFTER data collection)
     displayed_rows = 0
     group_member_data = []
     
@@ -448,8 +439,19 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
         
         # Store data for MD file
         group_member_data.append((groupname, members, computers))
-        
-        # Display on console: one row per member (limit to 50 rows total)
+    
+    # Print table header AFTER all data collected
+    print()
+    print("=" * 80)
+    print("  GRUPPI ACTIVE DIRECTORY")
+    print("=" * 80)
+    print()
+    print(f"{'GRUPPO':<40} {'MEMBRI':<40}")
+    print(f"{'-'*40} {'-'*40}")
+    
+    # Display on console: one row per member (limit to 50 rows total)
+    displayed_rows = 0
+    for groupname, members, computers in group_member_data:
         if displayed_rows < 50:
             if members:
                 for member in members:
@@ -549,16 +551,7 @@ def collect_shares_table(samba_module: str, output_dir: Path) -> int:
     
     log_info(f"Trovati {len(shares)} share")
     
-    # Print table header
-    print()
-    print("=" * 130)
-    print("  SHARE SAMBA")
-    print("=" * 130)
-    print()
-    print(f"{'SHARE':<30} {'PERCORSO':<40} {'UTENTE/GRUPPO':<20} {'PERM':<10}")
-    print(f"{'-'*30} {'-'*40} {'-'*20} {'-'*10}")
-    
-    # Collect ACL for each share
+    # Collect ACL for each share (header printed AFTER data collection)
     share_data = []
     acl_success = 0
     acl_failed = 0
@@ -636,6 +629,15 @@ def collect_shares_table(samba_module: str, output_dir: Path) -> int:
                     current_sid = None
         
         share_data.append((share_name, share_path, users_rw, users_ro))
+    
+    # Print table header AFTER all data collected
+    print()
+    print("=" * 130)
+    print("  SHARE SAMBA")
+    print("=" * 130)
+    print()
+    print(f"{'SHARE':<30} {'PERCORSO':<40} {'UTENTE/GRUPPO':<20} {'PERM':<10}")
+    print(f"{'-'*30} {'-'*40} {'-'*20} {'-'*10}")
     
     # Display on console: show permissions details (limit to 50 rows)
     displayed_rows = 0
