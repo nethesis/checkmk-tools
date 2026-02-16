@@ -158,6 +158,7 @@ def optimize_db():
     backup_file(conf_file)
     
     # Read and filter old block
+    assert conf_file is not None
     lines = conf_file.read_text().splitlines()
     new_lines = []
     skip = False
