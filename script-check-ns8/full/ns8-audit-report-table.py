@@ -263,16 +263,7 @@ def collect_password_expiry_table(samba_module: str, output_dir: Path) -> None:
     
     users = [line.strip() for line in users_file.read_text().splitlines() if line.strip()]
     
-    # Print table header
-    print()
-    print("=" * 120)
-    print("  SCADENZE PASSWORD UTENTI AD")
-    print("=" * 120)
-    print()
-    print(f"{'UTENTE':<25} {'ULTIMO CAMBIO':<20} {'SCADENZA':<20} {'GIORNI RIMANENTI':<20}")
-    print(f"{'-'*25} {'-'*20} {'-'*20} {'-'*20}")
-    
-    # Collect data for ALL users
+    # Collect data for ALL users (header printed AFTER data collection)
     pwd_data = []
     user_count = 0
     
@@ -316,6 +307,15 @@ def collect_password_expiry_table(samba_module: str, output_dir: Path) -> None:
             
         except (ValueError, OverflowError, OSError):
             pwd_data.append((username, "Errore", "N/A", "N/A"))
+    
+    # Print table header AFTER all data collected
+    print()
+    print("=" * 120)
+    print("  SCADENZE PASSWORD UTENTI AD")
+    print("=" * 120)
+    print()
+    print(f"{'UTENTE':<25} {'ULTIMO CAMBIO':<20} {'SCADENZA':<20} {'GIORNI RIMANENTI':<20}")
+    print(f"{'-'*25} {'-'*20} {'-'*20} {'-'*20}")
     
     # Display table (show only first 10 on console, but process all for MD file)
     displayed = 0
