@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.7.2"
+VERSION = "1.7.3"
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -434,27 +434,43 @@ def check_agent_installed() -> Tuple[bool, str]:
     Returns:
         (is_installed, version_info)
     """
+    # Metodo 1: Verifica file eseguibile
+    if not os.path.exists('/usr/bin/check_mk_agent'):
+        return False, ""
+    
+    # Metodo 2: Ottieni versione da package manager
     try:
+        # Prova rpm (RHEL/CentOS/NethServer)
         result = subprocess.run(
-            ['check_mk_agent'],
+            ['rpm', '-q', '--queryformat', '%{VERSION}-%{RELEASE}', 'check-mk-agent'],
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,  # Fix Python 3.6 compatibility
+            stderr=subprocess.DEVNULL,
             universal_newlines=True,
             timeout=5
         )
         
         if result.returncode == 0:
-            # Estrai versione da output
-            for line in result.stdout.split('\n'):
-                if 'Version:' in line:
-                    version = line.split('Version:')[1].strip()
-                    return True, version
-            return True, "(versione sconosciuta)"
-        else:
-            return False, ""
-    
+            return True, result.stdout.strip()
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False, ""
+        pass
+    
+    try:
+        # Prova dpkg (Debian/Ubuntu)
+        result = subprocess.run(
+            ['dpkg-query', '-W', '-f=${Version}', 'check-mk-agent'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            universal_newlines=True,
+            timeout=5
+        )
+        
+        if result.returncode == 0:
+            return True, result.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    
+    # Se file esiste ma non riusciamo a ottenere versione
+    return True, "(versione sconosciuta)"
 
 
 def check_frpc_installed() -> Tuple[bool, str]:
