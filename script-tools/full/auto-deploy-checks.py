@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "2.0.0"  # Breaking change: solo script full, no più launcher remoti
+VERSION = "2.0.1"  # Fix critico: converti underscore → dash (CheckMK ignora file con _)
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -339,6 +339,10 @@ def install_scripts(scripts: List[Tuple[str, str]], selected_indices: List[int])
         
         # Rimuovi estensione per deployment (CheckMK convention)
         deploy_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
+        
+        # CRITICO: CheckMK ignora file con underscore! Converti _ → -
+        deploy_name = deploy_name.replace('_', '-')
+        
         dest_path = CHECKMK_LOCAL_PATH / deploy_name
         
         print(f"{Colors.CYAN}Installazione:{Colors.NC} {filename} → {dest_path}... ", end='', flush=True)
