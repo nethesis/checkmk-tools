@@ -1,36 +1,36 @@
 # AI HANDOVER DOCUMENT
 
-## 1. Obiettivo tecnico
+## OBIETTIVO_TECNICO
 Descrizione precisa dell'obiettivo attuale.
 
-## 2. Ambiente
+## AMBIENTE
 OS:
 Versioni:
 Dipendenze:
 Vincoli (systemd assente? container? raw edition?):
 
-## 3. Stato attuale del codice
+## STATO_ATTUALE
 File coinvolti:
 Funzioni già implementate:
 Parti incomplete:
 
-## 4. Problemi emersi
+## PROBLEMI
 Errori specifici:
 Exit code:
 Stacktrace:
 Comportamenti anomali:
 
-## 5. Tentativi già fatti
+## TENTATIVI GIA' FATTI
 Soluzione 1:
 Soluzione 2:
 Risultato:
 
-## 6. Decisioni prese
+## DECISINIONI PRESE
 Scelte architetturali deliberate.
 
-## 7. Rischi noti
+## RISCHI NOTI
 Possibili regressioni.
 Impatto su produzione.
 
-## 8. Prossimo step richiesto
+## PROSSIMI STEP RICHIESTI
 Cosa deve fare l’AI ora.
