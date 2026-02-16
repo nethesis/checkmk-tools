@@ -22,8 +22,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict
 import tempfile
+import socket
+import getpass
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 
-VERSION = "2.8.1"
+VERSION = "2.9.0"
 MAX_PWD_AGE_DAYS = 42
 
 # Cache globale SID
@@ -904,6 +911,155 @@ def generate_summary_table(output_dir: Path) -> None:
     log_success("Summary table generato")
 
 
+def send_email_interactive(output_dir: Path) -> bool:
+    """
+    Send report via email with interactive prompts.
+    
+    Args:
+        output_dir: Report output directory
+        
+    Returns:
+        True if email sent successfully, False otherwise
+    """
+    print()
+    print("=" * 80)
+    
+    try:
+        send_prompt = input("Vuoi inviare il report via email? (s/n): ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        log_info("Invio email saltato.")
+        return False
+    
+    if send_prompt not in ['s', 'si', 'y', 'yes']:
+        log_info("Invio email saltato.")
+        return False
+    
+    print()
+    log_info("Configurazione invio email...")
+    
+    try:
+        # Email destinatario
+        print()
+        recipient = input("Email destinatario: ").strip()
+        if not recipient:
+            log_error("Email destinatario obbligatoria")
+            return False
+        
+        # Mittente (From)
+        print()
+        hostname = socket.gethostname()
+        from_default = f"root@{hostname}"
+        from_email = input(f"Mostra come mittente (From) [{from_default}]: ").strip()
+        if not from_email:
+            from_email = from_default
+        
+        # Server SMTP
+        print()
+        smtp_server = input("Server SMTP [smtp.example.com]: ").strip()
+        if not smtp_server:
+            log_error("Server SMTP obbligatorio")
+            return False
+        
+        # Porta SMTP
+        print()
+        smtp_port_str = input("Porta SMTP [587]: ").strip()
+        smtp_port = int(smtp_port_str) if smtp_port_str else 587
+        
+        # Username SMTP
+        print()
+        smtp_user = input("Username SMTP: ").strip()
+        if not smtp_user:
+            log_error("Username SMTP obbligatorio")
+            return False
+        
+        # Password SMTP (nascosta)
+        print()
+        smtp_pass = getpass.getpass("Password SMTP: ")
+        if not smtp_pass:
+            log_error("Password SMTP obbligatoria")
+            return False
+        
+    except (EOFError, KeyboardInterrupt):
+        print()
+        log_error("Input interrotto dall'utente")
+        return False
+    
+    print()
+    log_info("Preparazione email...")
+    
+    # Subject con hostname e data
+    subject = f"NS8 Audit Report - {hostname} - {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    
+    # Costruisci email MIME multipart
+    msg = MIMEMultipart()
+    msg['From'] = from_email
+    msg['To'] = recipient
+    msg['Subject'] = subject
+    
+    # Body: contenuto di 00_REPORT_SUMMARY.md (se esiste)
+    summary_file = output_dir / "00_REPORT_SUMMARY.md"
+    if summary_file.exists():
+        body_text = summary_file.read_text(encoding='utf-8')
+    else:
+        body_text = f"NS8 Audit Report - {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
+        body_text += "Report allegato in formato Markdown.\n"
+    
+    msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
+    
+    # Allegati: tutti i file .md
+    md_files = [
+        "00_REPORT_SUMMARY.md",
+        "01_password_expiry.md",
+        "02_gruppi_ad.md",
+        "03_webtop_shares.md",
+        "04_share_permissions.md"
+    ]
+    
+    attached_count = 0
+    for md_filename in md_files:
+        md_path = output_dir / md_filename
+        if md_path.exists():
+            with open(md_path, 'rb') as f:
+                part = MIMEBase('text', 'markdown')
+                part.set_payload(f.read())
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', f'attachment; filename="{md_filename}"')
+                msg.attach(part)
+                attached_count += 1
+    
+    log_info(f"Allegati: {attached_count} file")
+    
+    # Invia email via SMTP
+    log_info(f"Invio email a {recipient} tramite {smtp_server}:{smtp_port}...")
+    
+    try:
+        # Connessione SMTP con STARTTLS
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=30)
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
+        server.quit()
+        
+        log_success(f"Email inviata con successo a {recipient}")
+        return True
+        
+    except smtplib.SMTPAuthenticationError:
+        log_error("Errore autenticazione SMTP - Verifica username e password")
+        return False
+    except smtplib.SMTPException as e:
+        log_error(f"Errore SMTP: {e}")
+        return False
+    except socket.timeout:
+        log_error(f"Timeout connessione a {smtp_server}:{smtp_port}")
+        return False
+    except Exception as e:
+        log_error(f"Errore invio email: {e}")
+        return False
+
+
 def main() -> int:
     """Main entry point."""
     global GLOBAL_USER_COUNT, GLOBAL_GROUP_COUNT, GLOBAL_SHARE_COUNT, GLOBAL_WEBTOP_COUNT
@@ -952,6 +1108,9 @@ def main() -> int:
     print()
     log_success("Report completato!")
     log_info(f"Output: {output_dir}")
+    
+    # Send email (interactive prompt)
+    send_email_interactive(output_dir)
     
     return 0
 
