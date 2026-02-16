@@ -10,7 +10,7 @@ Menu interattivo per:
 
 Modalità CLI disponibile per automazione via curl.
 
-Version: 1.5.0
+Version: 1.6.0
 """
 
 import os
@@ -19,10 +19,11 @@ import subprocess
 import urllib.request
 import json
 import argparse
+import platform
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -520,60 +521,108 @@ def show_current_status() -> Tuple[bool, bool]:
 
 def install_checkmk_agent() -> int:
     """
-    Installa CheckMK Agent + FRPC eseguendo install-agent-interactive.sh da GitHub.
-    Controlla prima lo stato attuale e offre opzioni appropriate.
+    Workflow completo: Agent → FRPC → Deploy Script.
+    Controlla stato, installa componenti mancanti, poi offre deploy script.
     
     Returns:
         0 se successo, 1 se errore
     """
     print(f"\n{Colors.MAGENTA}╔═══════════════════════════════════════════════════════════╗{Colors.NC}")
-    print(f"{Colors.MAGENTA}║  🔧 Installazione CheckMK Agent + FRPC                   ║{Colors.NC}")
+    print(f"{Colors.MAGENTA}║  🚀 Setup Completo Sistema CheckMK                       ║{Colors.NC}")
     print(f"{Colors.MAGENTA}╚═══════════════════════════════════════════════════════════╝{Colors.NC}")
     
-    # Mostra stato attuale
-    agent_installed, frpc_installed = show_current_status()
+    # ===== STEP 1: Controlla e installa CheckMK Agent =====
+    print(f"\n{Colors.CYAN}━━━ STEP 1: CheckMK Agent ━━━{Colors.NC}\n")
     
-    # Se entrambi già installati, chiedi conferma reinstallazione
-    if agent_installed and frpc_installed:
-        print(f"{Colors.YELLOW}⚠ CheckMK Agent e FRPC sono già installati.{Colors.NC}")
-        print(f"\nOpzioni:")
-        print(f"  {Colors.GREEN}1.{Colors.NC} Reinstalla (sovrascrive configurazione)")
-        print(f"  {Colors.YELLOW}2.{Colors.NC} Salta (mantieni installazione attuale)")
-        print(f"  {Colors.RED}0.{Colors.NC} Annulla\n")
+    agent_installed, agent_info = check_agent_installed()
+    
+    if agent_installed:
+        print(f"  {Colors.GREEN}✓ CheckMK Agent:{Colors.NC} Già installato - {agent_info}")
+        print(f"  {Colors.YELLOW}⤷ Salto installazione agent{Colors.NC}\n")
+    else:
+        print(f"  {Colors.RED}✗ CheckMK Agent:{Colors.NC} Non installato")
+        print(f"  {Colors.GREEN}⤷ Procedo con installazione...{Colors.NC}\n")
+        
+        result = install_agent_only()
+        if result != 0:
+            print(f"{Colors.RED}✗ Installazione agent fallita{Colors.NC}")
+            return 1
+        
+        # Ricontrolla
+        agent_installed, agent_info = check_agent_installed()
+        if agent_installed:
+            print(f"\n  {Colors.GREEN}✓ CheckMK Agent installato con successo - {agent_info}{Colors.NC}\n")
+        else:
+            print(f"\n  {Colors.YELLOW}⚠ Agent potrebbe non essere stato installato{Colors.NC}\n")
+    
+    # ===== STEP 2: Controlla e installa FRPC =====
+    print(f"{Colors.CYAN}━━━ STEP 2: FRPC Client (tunnel remoto) ━━━{Colors.NC}\n")
+    
+    frpc_installed, frpc_info = check_frpc_installed()
+    
+    if frpc_installed:
+        print(f"  {Colors.GREEN}✓ FRPC Client:{Colors.NC} {frpc_info}")
+        print(f"  {Colors.YELLOW}⤷ Salto installazione FRPC{Colors.NC}\n")
+    else:
+        print(f"  {Colors.RED}✗ FRPC Client:{Colors.NC} Non installato")
+        print(f"\n{Colors.YELLOW}Vuoi installare FRPC per monitoraggio remoto tramite tunnel?{Colors.NC}")
+        print(f"  {Colors.GREEN}s{Colors.NC} = Sì, installa FRPC")
+        print(f"  {Colors.YELLOW}n{Colors.NC} = No, salta\n")
         
         try:
-            print(f"{Colors.YELLOW}Scelta:{Colors.NC} ", end='', flush=True)
-            choice = input().strip()
+            print(f"{Colors.YELLOW}Scelta [s/N]:{Colors.NC} ", end='', flush=True)
+            choice = input().strip().lower()
         except EOFError:
-            print(f"{Colors.YELLOW}Annullato{Colors.NC}")
-            return 0
+            choice = 'n'
         
-        if choice == '2':
-            print(f"{Colors.GREEN}✓ Mantengo installazione attuale{Colors.NC}\n")
-            return 0
-        elif choice != '1':
-            print(f"{Colors.YELLOW}Annullato{Colors.NC}\n")
-            return 0
+        if choice == 's':
+            print(f"\n  {Colors.GREEN}⤷ Procedo con installazione FRPC...{Colors.NC}\n")
+            result = install_frpc_only()
+            if result == 0:
+                frpc_installed, frpc_info = check_frpc_installed()
+                if frpc_installed:
+                    print(f"\n  {Colors.GREEN}✓ FRPC installato con successo - {frpc_info}{Colors.NC}\n")
+            else:
+                print(f"\n  {Colors.YELLOW}⚠ FRPC non installato{Colors.NC}\n")
+        else:
+            print(f"  {Colors.YELLOW}⤷ Installazione FRPC saltata{Colors.NC}\n")
     
-    elif agent_installed:
-        print(f"{Colors.YELLOW}ℹ CheckMK Agent già installato. Lo script installerà/configurerà FRPC.{Colors.NC}\n")
+    # ===== STEP 3: Deploy Script CheckMK =====
+    print(f"{Colors.CYAN}━━━ STEP 3: Deploy Script CheckMK ━━━{Colors.NC}\n")
     
-    elif frpc_installed:
-        print(f"{Colors.YELLOW}ℹ FRPC già installato. Lo script installerà CheckMK Agent.{Colors.NC}\n")
-    
-    else:
-        print(f"{Colors.GREEN}✓ Sistema pulito. Procedo con installazione completa.{Colors.NC}\n")
-    
-    installer_url = f"{REPO_URL}/script-tools/full/install-agent-interactive.sh"
-    
-    print(f"{Colors.CYAN}Scarico script installazione da:{Colors.NC}")
-    print(f"  {installer_url}\n")
+    print(f"{Colors.YELLOW}Vuoi procedere con l'installazione degli script CheckMK?{Colors.NC}")
+    print(f"  {Colors.GREEN}s{Colors.NC} = Sì, vai al deploy script")
+    print(f"  {Colors.YELLOW}n{Colors.NC} = No, esci\n")
     
     try:
-        # Scarica script in /tmp
+        print(f"{Colors.YELLOW}Scelta [s/N]:{Colors.NC} ", end='', flush=True)
+        choice = input().strip().lower()
+    except EOFError:
+        choice = 'n'
+    
+    if choice == 's':
+        print(f"\n{Colors.GREEN}✓ Setup base completato. Passo al deploy script...{Colors.NC}\n")
+        # Ritorna 2 come segnale per continuare con deploy script
+        return 2
+    else:
+        print(f"\n{Colors.GREEN}✓ Setup completato{Colors.NC}\n")
+        return 0
+
+
+def install_agent_only() -> int:
+    """
+    Installa solo CheckMK Agent (senza chiedere troppe conferme).
+    
+    Returns:
+        0 se successo, 1 se errore
+    """
+    installer_url = f"{REPO_URL}/script-tools/full/install-agent-interactive.sh"
+    
+    try:
+        # Scarica script
         tmp_script = "/tmp/install-agent-interactive.sh"
         
-        print(f"{Colors.YELLOW}Download in corso...{Colors.NC}")
+        print(f"{Colors.YELLOW}Download installer...{Colors.NC}")
         request = urllib.request.Request(
             installer_url,
             headers={'Cache-Control': 'no-cache'}
@@ -589,14 +638,11 @@ def install_checkmk_agent() -> int:
         
         print(f"{Colors.GREEN}✓ Download completato{Colors.NC}\n")
         print(f"{Colors.YELLOW}═══════════════════════════════════════════════════════════{Colors.NC}")
-        print(f"{Colors.CYAN}Esecuzione install-agent-interactive.sh...{Colors.NC}")
-        print(f"{Colors.YELLOW}Lo script chiederà:{Colors.NC}")
-        print(f"  - Conferma installazione CheckMK Agent")
-        print(f"  - Se installare FRPC (tunnel per monitoraggio remoto)")
-        print(f"  - Configurazione FRPC (server, porta, token)")
+        print(f"{Colors.CYAN}Installazione CheckMK Agent in corso...{Colors.NC}")
+        print(f"{Colors.YELLOW}(Lo script chiederà conferma per procedere){Colors.NC}")
         print(f"{Colors.YELLOW}═══════════════════════════════════════════════════════════{Colors.NC}\n")
         
-        # Esegui script con bash in modalità interattiva
+        # Esegui script - chiederà solo conferma iniziale
         result = subprocess.run(
             ['bash', tmp_script],
             stdin=sys.stdin,
@@ -604,29 +650,136 @@ def install_checkmk_agent() -> int:
             stderr=sys.stderr
         )
         
-        print(f"\n{Colors.YELLOW}═══════════════════════════════════════════════════════════{Colors.NC}\n")
-        
         # Cleanup
         try:
             os.remove(tmp_script)
         except OSError:
             pass
         
-        if result.returncode == 0:
-            print(f"{Colors.GREEN}✓ Installazione completata con successo{Colors.NC}")
-            
-            # Mostra nuovo stato
-            show_current_status()
-            return 0
-        else:
-            print(f"{Colors.RED}✗ Installazione fallita (exit code: {result.returncode}){Colors.NC}\n")
-            return 1
+        return result.returncode
     
-    except urllib.error.URLError as e:
-        print(f"{Colors.RED}✗ Errore download script: {e}{Colors.NC}\n")
-        return 1
     except Exception as e:
-        print(f"{Colors.RED}✗ Errore durante installazione: {e}{Colors.NC}\n")
+        print(f"{Colors.RED}✗ Errore: {e}{Colors.NC}\n")
+        return 1
+
+
+def install_frpc_only() -> int:
+    """
+    Installa solo FRPC Client (chiede configurazione).
+    
+    Returns:
+        0 se successo, 1 se errore
+    """
+    print(f"{Colors.YELLOW}═══════════════════════════════════════════════════════════{Colors.NC}")
+    print(f"{Colors.CYAN}Configurazione FRPC{Colors.NC}")
+    print(f"{Colors.YELLOW}═══════════════════════════════════════════════════════════{Colors.NC}\n")
+    
+    try:
+        # Ottieni hostname
+        hostname_result = subprocess.run(
+            ['hostname'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            timeout=5
+        )
+        default_hostname = hostname_result.stdout.strip() if hostname_result.returncode == 0 else "host"
+        
+        # Chiedi configurazione
+        print(f"Nome host [{default_hostname}]: ", end='', flush=True)
+        frpc_hostname = input().strip() or default_hostname
+        
+        print(f"Server FRP remoto [monitor.nethlab.it]: ", end='', flush=True)
+        frp_server = input().strip() or "monitor.nethlab.it"
+        
+        while True:
+            print(f"Porta remota (es: 20001): ", end='', flush=True)
+            remote_port = input().strip()
+            if remote_port.isdigit():
+                break
+            print(f"{Colors.RED}Porta deve essere un numero{Colors.NC}")
+        
+        while True:
+            print(f"Token FRP: ", end='', flush=True)
+            auth_token = input().strip()
+            if auth_token:
+                break
+            print(f"{Colors.RED}Token obbligatorio{Colors.NC}")
+        
+        print(f"\n{Colors.YELLOW}Installazione FRPC...{Colors.NC}\n")
+        
+        # Crea directory configurazione
+        os.makedirs("/etc/frp", exist_ok=True)
+        
+        # Scrivi configurazione
+        config = f"""[common]
+server_addr = "{frp_server}"
+server_port = 7000
+auth.method = "token"
+auth.token  = "{auth_token}"
+tls.enable  = true
+log.to      = "/var/log/frpc.log"
+log.level   = "info"
+
+[{frpc_hostname}]
+type        = "tcp"
+local_ip    = "127.0.0.1"
+local_port  = 6556
+remote_port = {remote_port}
+"""
+        
+        with open("/etc/frp/frpc.toml", 'w') as f:
+            f.write(config)
+        
+        # Scarica FRPC binary se non esiste
+        if not Path("/usr/local/bin/frpc").exists():
+            frp_version = "0.64.0"
+            import platform
+            arch = platform.machine()
+            if arch == "x86_64":
+                arch = "amd64"
+            
+            frpc_url = f"https://github.com/fatedier/frp/releases/download/v{frp_version}/frp_{frp_version}_linux_{arch}.tar.gz"
+            
+            print(f"Download FRPC {frp_version}...")
+            subprocess.run(['wget', '-q', '-O', '/tmp/frpc.tar.gz', frpc_url], check=True)
+            subprocess.run(['tar', '-xzf', '/tmp/frpc.tar.gz', '-C', '/tmp'], check=True)
+            subprocess.run(['cp', f'/tmp/frp_{frp_version}_linux_{arch}/frpc', '/usr/local/bin/frpc'], check=True)
+            subprocess.run(['chmod', '+x', '/usr/local/bin/frpc'], check=True)
+            os.remove('/tmp/frpc.tar.gz')
+        
+        # Crea servizio systemd
+        service = """[Unit]
+Description=FRP Client Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/frpc -c /etc/frp/frpc.toml
+Restart=on-failure
+RestartSec=5s
+User=root
+
+[Install]
+WantedBy=multi-user.target
+"""
+        
+        with open("/etc/systemd/system/frpc.service", 'w') as f:
+            f.write(service)
+        
+        # Abilita e avvia servizio
+        subprocess.run(['systemctl', 'daemon-reload'], check=True)
+        subprocess.run(['systemctl', 'enable', 'frpc'], check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(['systemctl', 'start', 'frpc'], check=True)
+        
+        print(f"{Colors.GREEN}✓ FRPC configurato e avviato{Colors.NC}")
+        print(f"  Tunnel: {frp_server}:{remote_port} → localhost:6556")
+        
+        return 0
+    
+    except Exception as e:
+        print(f"{Colors.RED}✗ Errore installazione FRPC: {e}{Colors.NC}\n")
         return 1
 
 
@@ -728,8 +881,24 @@ Esempi:
             return 0
         
         elif action == 'install_agent':
-            # Installa CheckMK Agent
-            return install_checkmk_agent()
+            # Setup completo: Agent → FRPC → Deploy Script
+            result = install_checkmk_agent()
+            
+            if result == 2:
+                # Utente vuole continuare con deploy script
+                # Chiedi tipo script
+                script_type = ask_script_type()
+                if script_type == 'cancel':
+                    print(f"{Colors.YELLOW}Annullato{Colors.NC}")
+                    return 0
+                
+                # Forza modalità install-all
+                args.install_all = True
+                args.type = script_type
+                # Continua il flusso sotto
+            else:
+                # Setup completato o errore
+                return result
         
         elif action == 'uninstall':
             # Forza modalità uninstall
