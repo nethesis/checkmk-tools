@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.8.1"
+VERSION = "1.8.2"
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -182,8 +182,8 @@ def list_available_scripts(category: str, script_type: str = 'both') -> List[Tup
             for item in data:
                 if item['type'] == 'file':
                     filename = item['name']
-                    # Filtra solo script Python o Bash
-                    if filename.endswith(('.py', '.sh')):
+                    # Filtra SOLO script Python (.py) - ESCLUDI bash (.sh)
+                    if filename.endswith('.py'):
                         download_url = item['download_url']
                         scripts.append((filename, download_url))
         
