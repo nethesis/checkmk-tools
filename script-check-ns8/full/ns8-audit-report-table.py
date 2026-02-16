@@ -30,7 +30,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 
-VERSION = "2.12.0"
+VERSION = "2.12.1"
 MAX_PWD_AGE_DAYS = 42
 
 # Cache globale SID
@@ -1037,13 +1037,32 @@ def send_email_interactive(output_dir: Path) -> bool:
     msg['To'] = recipient
     msg['Subject'] = subject
     
-    # Body: contenuto di 00_REPORT_SUMMARY.md (se esiste)
-    summary_file = output_dir / "00_REPORT_SUMMARY.md"
-    if summary_file.exists():
-        body_text = summary_file.read_text(encoding='utf-8')
-    else:
-        body_text = f"NS8 Audit Report - {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
-        body_text += "Report allegato in formato Markdown.\n"
+    # Body: riepilogo testuale senza emoji
+    body_text = f"""NS8 Audit Report - {hostname}
+Data: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+
+================================================================================
+RIEPILOGO REPORT
+================================================================================
+
+Utenti AD:              {GLOBAL_USER_COUNT}
+Gruppi AD:              {GLOBAL_GROUP_COUNT}
+Computer A Dominio:     {GLOBAL_COMPUTER_COUNT}
+Share Samba:            {GLOBAL_SHARE_COUNT}
+Condivisioni WebTop:    {GLOBAL_WEBTOP_COUNT}
+
+================================================================================
+
+I dettagli completi sono disponibili nei file allegati in formato Markdown.
+
+File allegati:
+- 00_REPORT_SUMMARY.md (riepilogo generale)
+- 01_password_expiry.md (password in scadenza)
+- 02_gruppi_ad.md (gruppi e membri)
+- 03_webtop_shares.md (condivisioni WebTop)
+- 04_share_permissions.md (permessi share Samba)
+- 05_domain_computers.md (computer a dominio)
+"""
     
     msg.attach(MIMEText(body_text, 'plain', 'utf-8'))
     
