@@ -116,7 +116,7 @@ def cleanup_cache():
     now = int(datetime.now().timestamp())
     max_age_seconds = CACHE_MAX_AGE_HOURS * 3600
     
-    all_data = cache.get_all()
+    all_data = cache.load()
     removed_count = 0
     
     for key, ticket_data in all_data.items():
