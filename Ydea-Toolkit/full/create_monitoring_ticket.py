@@ -20,6 +20,7 @@ VERSION = "1.0.0"  # Versione script (aggiornare ad ogni modifica)
 
 import sys
 import os
+import importlib.util
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, Any
@@ -29,7 +30,17 @@ script_dir = Path(__file__).resolve().parent
 sys.path.insert(0, str(script_dir))
 
 from ydea_common import Logger, ConfigLoader
-from ydea_toolkit import YdeaAPI, TicketOperations, TrackingSystem
+
+# Import ydea-toolkit.py (nome con trattino richiede importlib)
+ydea_toolkit_path = script_dir / "ydea-toolkit.py"
+spec = importlib.util.spec_from_file_location("ydea_toolkit", ydea_toolkit_path)
+ydea_toolkit = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(ydea_toolkit)
+
+# Estrai classi necessarie
+YdeaAPI = ydea_toolkit.YdeaAPI
+TicketOperations = ydea_toolkit.TicketOperations
+TrackingSystem = ydea_toolkit.TrackingSystem
 
 
 # ===== CONFIGURAZIONE =====
