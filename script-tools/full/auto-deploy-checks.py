@@ -4,7 +4,7 @@ Auto Deploy CheckMK Checks - Rileva host e installa script corretti
 Rileva automaticamente il tipo di sistema e propone l'installazione
 degli script CheckMK appropriati dal repository.
 
-Version: 1.0.0
+Version: 1.1.0
 """
 
 import os
@@ -12,10 +12,11 @@ import sys
 import subprocess
 import urllib.request
 import json
+import argparse
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -296,6 +297,43 @@ def install_scripts(scripts: List[Tuple[str, str]], selected_indices: List[int])
 
 def main() -> int:
     """Main entry point."""
+    
+    # Parse argomenti CLI
+    parser = argparse.ArgumentParser(
+        description='Auto Deploy CheckMK Checks - Rileva host e installa script corretti',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Esempi:
+  # Modalità interattiva (menu)
+  %(prog)s
+  
+  # Installa tutti gli script
+  %(prog)s --install-all --yes
+  
+  # Installa solo remote launchers
+  %(prog)s --install-remote --yes
+  
+  # Installa script specifici
+  %(prog)s --install "1,3,5" --yes
+  
+  # One-liner via curl
+  curl -fsSL URL | sudo python3 - --install-remote --yes
+"""
+    )
+    
+    parser.add_argument('--install-all', action='store_true',
+                        help='Installa tutti gli script senza menu')
+    parser.add_argument('--install-remote', action='store_true',
+                        help='Installa solo remote launchers')
+    parser.add_argument('--install', type=str, metavar='INDICES',
+                        help='Installa script specifici (es: "1,2,3")')
+    parser.add_argument('--yes', '-y', action='store_true',
+                        help='Conferma automaticamente senza chiedere')
+    parser.add_argument('--version', action='version',
+                        version=f'%(prog)s {VERSION}')
+    
+    args = parser.parse_args()
+    
     print_header()
     
     # Verifica root
@@ -326,24 +364,48 @@ def main() -> int:
     
     print(f"{Colors.GREEN}✓ Trovati {len(scripts)} script disponibili{Colors.NC}")
     
-    # Mostra menu
-    show_scripts_menu(scripts, detector.script_category)
+    # Determina selezione (da args o input interattivo)
+    selected_indices: List[int] = []
     
-    # Input utente
-    print(f"\n{Colors.YELLOW}Selezione:{Colors.NC} ", end='')
-    selection = input().strip()
+    if args.install_all:
+        # Installa tutti
+        selected_indices = list(range(1, len(scripts) + 1))
+        print(f"\n{Colors.CYAN}Modalità: Installa TUTTI gli script{Colors.NC}")
     
-    if selection == '0':
-        print(f"{Colors.YELLOW}Installazione annullata{Colors.NC}")
-        return 0
-    
-    # Gestione selezione "r" (solo remote)
-    if selection.lower() == 'r':
+    elif args.install_remote:
+        # Installa solo remote launchers
         remote_indices = [i for i, (name, url) in enumerate(scripts, 1) if '/remote/' in url]
         selected_indices = remote_indices
+        print(f"\n{Colors.CYAN}Modalità: Installa solo remote launchers{Colors.NC}")
+    
+    elif args.install:
+        # Installa script specifici
+        selected_indices = parse_selection(args.install, len(scripts))
+        print(f"\n{Colors.CYAN}Modalità: Installa script specifici{Colors.NC}")
+    
     else:
-        # Parse normale
-        selected_indices = parse_selection(selection, len(scripts))
+        # Modalità interattiva
+        show_scripts_menu(scripts, detector.script_category)
+        
+        try:
+            print(f"\n{Colors.YELLOW}Selezione:{Colors.NC} ", end='', flush=True)
+            selection = input().strip()
+        except EOFError:
+            print(f"\n{Colors.RED}✗ Input non disponibile (esegui interattivamente o usa --install-*)${Colors.NC}")
+            print(f"{Colors.YELLOW}Suggerimento:{Colors.NC} Usa --install-remote --yes per installazione automatica")
+            return 1
+        
+        if selection == '0':
+            print(f"{Colors.YELLOW}Installazione annullata{Colors.NC}")
+            return 0
+        
+        # Gestione selezione "r" (solo remote)
+        if selection.lower() == 'r':
+            remote_indices = [i for i, (name, url) in enumerate(scripts, 1) if '/remote/' in url]
+            selected_indices = remote_indices
+        else:
+            # Parse normale
+            selected_indices = parse_selection(selection, len(scripts))
     
     if not selected_indices:
         print(f"{Colors.RED}✗ Nessuno script selezionato{Colors.NC}")
@@ -352,12 +414,20 @@ def main() -> int:
     # Conferma installazione
     print(f"\n{Colors.YELLOW}Verranno installati {len(selected_indices)} script in:{Colors.NC}")
     print(f"  {CHECKMK_LOCAL_PATH}\n")
-    print(f"{Colors.YELLOW}Confermi? (s/n):{Colors.NC} ", end='')
-    confirm = input().strip().lower()
     
-    if confirm not in ['s', 'si', 'y', 'yes']:
-        print(f"{Colors.YELLOW}Installazione annullata{Colors.NC}")
-        return 0
+    if not args.yes:
+        try:
+            print(f"{Colors.YELLOW}Confermi? (s/n):{Colors.NC} ", end='', flush=True)
+            confirm = input().strip().lower()
+        except EOFError:
+            print(f"\n{Colors.YELLOW}Conferma automatica (usa --yes per evitare prompt){Colors.NC}")
+            confirm = 's'
+        
+        if confirm not in ['s', 'si', 'y', 'yes']:
+            print(f"{Colors.YELLOW}Installazione annullata{Colors.NC}")
+            return 0
+    else:
+        print(f"{Colors.GREEN}Conferma automatica (--yes){Colors.NC}")
     
     # Installazione
     print(f"\n{Colors.GREEN}▶ Installazione in corso...{Colors.NC}\n")
