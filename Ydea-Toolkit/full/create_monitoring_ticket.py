@@ -219,8 +219,9 @@ def main():
     
     Logger.info(f"Titolo: {titolo}")
     
-    # Inizializza API
+    # Inizializza API e tracking
     api = YdeaAPI()
+    tracking = TrackingSystem()
     
     # Costruisci body ticket base
     ticket_body = {
@@ -283,7 +284,7 @@ def main():
                 Logger.warn(f"⚠️  Nota privata non aggiunta (ticket comunque creato): {e}")
             
             # Traccia il ticket
-            TrackingSystem.track_ticket(
+            tracking.track_ticket(
                 ticket_id,
                 ticket_code or f"TK-{ticket_id}",
                 cmk_host,
