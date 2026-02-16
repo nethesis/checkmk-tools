@@ -437,7 +437,7 @@ def check_agent_installed() -> Tuple[bool, str]:
             ['check_mk_agent'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            universal_newlines=True,
             timeout=5
         )
         
@@ -472,7 +472,7 @@ def check_frpc_installed() -> Tuple[bool, str]:
             ['systemctl', 'is-active', 'frpc'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            universal_newlines=True,
             timeout=5
         )
         
