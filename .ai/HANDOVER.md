@@ -1,35 +1,46 @@
-# AI HANDOVER DOCUMENT
+## OBIETTIVO_TECNICO
+Conversione completa degli script Bash della cartella `Ydea-Toolkit` in Python per migliorare manutenibilità, gestione errori e portabilità cross-platform.
 
-## 1. Obiettivo tecnico
-- **Sostituzione sistema notifiche**: Eliminazione dei vecchi launcher Python che causavano errori di encoding (`ascii codec`) su `checkmk-vps-01`.
-- **Standardizzazione script**: Passaggio a script Bash puri per `mail`, `telegram` e integrazioni `ydea`.
-- **Pulizia Server**: Rimozione vecchi file, rinomina script (rimosso prefisso `r`), aggiornamento descrizioni interne.
+## AMBIENTE
+- **Repository**: `checkmk-tools` (Branch: `main`)
+- **Path Ydea-Toolkit**: `Ydea-Toolkit/full/`
+- **Python Version Target**: Python 3.8+
+- **Dipendenze**: `requests`, `python-dotenv`
 
-## 2. Ambiente
-- **Server**: `checkmk-vps-01` (10.155.100.22)
-- **Path Notifiche**: `/omd/sites/monitoring/local/share/check_mk/notifications/`
-- **CheckMK Site**: `monitoring`
-- **Repo Locale**: `checkmk-tools` (branch `main`)
+## STATO_ATTUALE
+- **Script Già Convertiti**:
+  - `ydea-toolkit.py` (1328 righe) - Toolkit principale API Ydea v2 con feature parity completa
+- **Script Bash da Convertire** (33 file):
+  - Script integrazione CheckMK (`ydea-monitoring-integration.sh`, `create-monitoring-ticket.sh`)
+  - Script monitoring (`ydea-health-monitor.sh`, `ydea-ticket-monitor.sh`)
+  - Script discovery (`ydea-discover-sla-ids.sh`, `search-sla-in-contracts.sh`)
+  - Script installazione (`install-ydea-checkmk-integration.sh`)
+  - Script test e utility (27 file)
 
-## 3. Stato attuale del codice
-- **Script Deployati su Server**:
-  1. `mail_realip` (Bash, Descrizione: "Mail", Bulk: yes)
-  2. `telegram_realip` (Bash, Descrizione: "Telegram")
-  3. `telegram_selfmon` (Bash, Descrizione: "Telegram Self-Monitoring")
-  4. `ydea_ag` (Bash, Descrizione: "Ydea AG")
-  5. `ydea_la` (Bash, Descrizione: "Ydea LA")
-- **Modifiche Repository**:
-  - Aggiornate shebang e descrizioni in `script-notify-checkmk/full/`.
-  - Rimossi riferimenti ai vecchi launcher python.
-- **Azioni Completate**:
-  - `omd restart` eseguito con successo su `checkmk-vps-01`.
-  - Verifica carico server post-restart: OK.
+## PROBLEMI_EMERSI
+Nessun problema emerso. Conversione in fase di pianificazione.
 
-## 4. Problemi emersi
-- **Risolto**: Errore `ascii codec cant decode byte 0xe2` nei log di notifica (causato dai vecchi launcher Python).
-- **Risolto**: Disallineamento nomi script (`rmail` vs `mail`).
+## TENTATIVI_ESEGUITI
+1. Analisi struttura directory Ydea-Toolkit
+2. Identificazione script già convertiti (`ydea-toolkit.py`)
+3. Conteggio script Bash rimanenti (33 file)
 
-## 5. Prossimi Passi (TODO)
-- [ ] Verificare il funzionamento effettivo delle notifiche (attendere primo alert reale o generare test).
-- [ ] Controllare se necessario aggiornare regole WATO in CheckMK per riflettere i nuovi nomi degli script (es. se la regola cercava `rmail_realip` ora deve cercare `mail_realip` o il nome visualizzato "Mail").
-- [ ] Monitorare `/omd/sites/monitoring/var/log/notify.log` per eventuali errori residui.
+## DECISIONI_PRESE
+- **Toolkit Principale**: `ydea-toolkit.py` è già stato convertito con feature parity completa
+- **Approccio Incrementale**: Convertire script per priorità (core → utility → test)
+- **Modularità**: Creare moduli Python condivisi per evitare duplicazione codice
+
+## RISCHI_NOTI
+- **Compatibilità**: Alcuni script potrebbero dipendere da tool Unix-specific (jq, curl)
+- **Testing**: Necessario verificare parità funzionale tra versioni Bash e Python
+- **Deployment**: Gestire transizione da script Bash a Python su server produzione
+
+## PROSSIMI_PASSI
+- [ ] Identificare script prioritari da convertire (core vs utility)
+- [ ] Analizzare dipendenze tra script
+- [ ] Creare piano di conversione dettagliato
+- [ ] Definire architettura moduli Python condivisi
+
+## NEXT_ACTION_FOR_AI
+Analizza gli script Bash per identificare quelli prioritari (core functionality) e crea un piano di conversione dettagliato con priorità, dipendenze e stima complessità.
+
