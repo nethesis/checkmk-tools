@@ -161,4 +161,11 @@ def main():
 
 
 if __name__ == "__main__":
+    # DEBUG: Log start execution
+    try:
+        with open("/tmp/check_cockpit_debug.log", "a") as log:
+            log.write(f"{datetime.now()} - Script matched/started. User: {os.getlogin()} UID: {os.getuid()}\n")
+    except Exception as e:
+        pass
+    
     sys.exit(main())
