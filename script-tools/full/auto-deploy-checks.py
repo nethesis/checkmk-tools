@@ -1338,7 +1338,7 @@ Nota: Ora vengono installati SOLO script completi (full/), non più launcher rem
     if args.install_all:
         # Installa tutti
         selected_indices = list(range(1, len(scripts) + 1))
-        print(f"\n{Colors.CYAN}Modalità: Installa TUTTI gli script ({type_label}){Colors.NC}")
+        print(f"\n{Colors.CYAN}Modalità: Installa TUTTI gli script completi{Colors.NC}")
     
     elif args.install:
         # Installa script specifici
