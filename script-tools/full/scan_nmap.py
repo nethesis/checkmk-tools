@@ -24,6 +24,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+VERSION = "1.0.0"
+
 # --- Configurazione ---
 DEFAULT_OUTDIR = Path("./scans")
 DEFAULT_PORTS = "1-1024"
@@ -57,7 +59,7 @@ def main():
     if not shutil.which("nmap"):
         Console.error("Nmap non trovato")
         
-    print("NMAP INTERACTIVE SCANNER")
+    print(f"NMAP INTERACTIVE SCANNER v{VERSION}")
     
     # 1. Target
     mode = Console.input_sel("Target Mode: (1) Host/Range, (2) File", ["1", "2"], "1")

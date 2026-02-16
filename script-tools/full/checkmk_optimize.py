@@ -27,6 +27,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+VERSION = "1.0.0"
+
 # --- Configurazione ---
 LOG_FILE = "/var/log/checkmk-optimize.log"
 TS_LOG = "/var/log/timeshift-rotation.log"
@@ -140,7 +142,7 @@ def optimize_db():
     Console.log("Ottimizzazione DB...")
     
     service = None
-    conf_file = None
+    conf_file: Path | None = None
     
     if shutil.which("mariadbd") or Path("/etc/mysql/mariadb.conf.d").exists():
         service = "mariadb"
@@ -174,6 +176,7 @@ query_cache_size = 32M
 query_cache_type = 1
 # END CHECKMK_OPTIMIZE
 """
+    assert conf_file is not None
     with open(conf_file, "w") as f:
         f.write("\n".join(new_lines) + block)
         
@@ -225,7 +228,7 @@ def main():
         
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     
-    print("CheckMK Optimize Tool")
+    print(f"CheckMK Optimize Tool - v{VERSION}")
     print(f"Log: {LOG_FILE}")
     
     if Console.ask("Creare Snapshot PRE?"):

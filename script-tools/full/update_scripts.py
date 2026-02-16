@@ -92,6 +92,7 @@ def resolve_src(repo_dir: Path, src_rel: str) -> Optional[Path]:
     return None
 
 def update_files(repo_dir: Path, src_rel: str, dest_dir: str, backup_dir: Path):
+    update_count: int = 0
     dest = Path(dest_dir)
     if not dest.exists():
         # Console.warn(f"Destinazione non trovata: {dest}")
@@ -103,7 +104,6 @@ def update_files(repo_dir: Path, src_rel: str, dest_dir: str, backup_dir: Path):
         return 0
 
     Console.log(f"Aggiorno {dest} da {src_rel}...")
-    updated = 0
     
     # Iterate over files in DESTINATION
     # Logic: update only what is already installed
@@ -131,7 +131,7 @@ def update_files(repo_dir: Path, src_rel: str, dest_dir: str, backup_dir: Path):
             shutil.copy2(source_file, existing)
             os.chown(existing, stat.st_uid, stat.st_gid)
             os.chmod(existing, stat.st_mode)
-            updated += 1
+            update_count = update_count + 1 # type: ignore
             print(f"  Updated: {existing.name}")
         except Exception as e:
             Console.error(f"Errore aggiornamento {existing.name}: {e}")
@@ -140,7 +140,7 @@ def update_files(repo_dir: Path, src_rel: str, dest_dir: str, backup_dir: Path):
     # Or simply: if source has .py corresponding to .sh in dest, maybe replace?
     # For now, simplistic approach from original bash script: iterate destination.
     
-    return updated
+    return update_count
 
 def main():
     repo_dir_str = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_REPO_DIR
@@ -156,9 +156,9 @@ def main():
     
     update_repo(repo_dir)
     
-    total_updated = 0
+    total_updated: int = 0
     for src, dest in MAPPINGS:
-        total_updated += update_files(repo_dir, src, dest, backup_dir)
+        total_updated = total_updated + update_files(repo_dir, src, dest, backup_dir)
         
     Console.success(f"Totale file aggiornati: {total_updated}")
     Console.log(f"Backup salvato in: {backup_dir}")

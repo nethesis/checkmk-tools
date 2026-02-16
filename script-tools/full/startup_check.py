@@ -24,6 +24,8 @@ import time
 import glob
 from pathlib import Path
 
+VERSION = "1.0.0"
+
 # --- Configurazione ---
 LOG_FILE = "/var/log/rocksolid-startup.log"
 BACKUP_DIR = Path("/opt/checkmk-backups/binaries")
@@ -166,7 +168,7 @@ def check_qemu_ga():
                  run_cmd(["systemctl", "restart", "qemu-guest-agent"])
 
 def main():
-    Console.log("--- Startup Check ---")
+    Console.log(f"--- Startup Check v{VERSION} ---")
     
     restore_critical_binaries()
     check_nodejs_nginx()
