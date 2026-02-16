@@ -25,5 +25,5 @@ try:
     exec(script_code, {'__name__': '__main__'})
     
 except Exception as e:
-    print(f"3 WebtopMaxmemory - Failed to download/execute remote script: {{e}}")
+    print(f"3 WebtopMaxmemory - Failed to download/execute remote script: {e}")
     sys.exit(0)
