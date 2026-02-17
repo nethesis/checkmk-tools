@@ -40,8 +40,11 @@ class LauncherData:
         self.scripts: List[str] = []
         self.script_paths: List[str] = []
         self.script_descriptions: List[str] = []
+        self.script_extensions: List[str] = []
         self.favorites: Dict[str, bool] = {}
         self.stats: Dict[str, int] = {}
+        self.categories: Dict[str, List[int]] = {}
+        self.category_order: List[str] = []
         self.load_favorites()
         self.load_stats()
     
@@ -89,14 +92,29 @@ class LauncherData:
         """Calcola totale esecuzioni."""
         return sum(self.stats.values())
 
+    def build_categories(self) -> None:
+        """Costruisce la mappatura categorie -> indici script."""
+        self.categories = {}
+        self.category_order = []
+
+        for idx, script in enumerate(self.scripts):
+            if '[' in script and ']' in script:
+                category = script.split('[', 1)[1].split(']', 1)[0]
+            else:
+                category = "Altro"
+
+            if category not in self.categories:
+                self.categories[category] = []
+                self.category_order.append(category)
+
+            self.categories[category].append(idx)
+
 
 def print_header(data: LauncherData) -> None:
     """Stampa header del launcher."""
-    print(f"{Colors.BLUE}╔═══════════════════════════════════════════════════════════╗{Colors.NC}")
-    print(f"{Colors.BLUE}║{Colors.NC}  🚀 {Colors.GREEN}Interactive Launcher - CheckMK Tools Repository{Colors.NC}  {Colors.BLUE}║{Colors.NC}")
-    print(f"{Colors.BLUE}╠═══════════════════════════════════════════════════════════╣{Colors.NC}")
-    print(f"{Colors.BLUE}║{Colors.NC}  {Colors.CYAN}⭐ Preferiti: {len(data.favorites)}{Colors.NC}  {Colors.MAGENTA}📊 Script eseguiti: {data.get_total_runs()}{Colors.NC}         {Colors.BLUE}║{Colors.NC}")
-    print(f"{Colors.BLUE}╚═══════════════════════════════════════════════════════════╝{Colors.NC}")
+    print(f"{Colors.BLUE}═══════════════════════════════════════════════════════════{Colors.NC}")
+    print(f"{Colors.GREEN}🚀 Interactive Launcher - CheckMK Tools Repository{Colors.NC}")
+    print(f"{Colors.CYAN}⭐ Preferiti: {len(data.favorites)}{Colors.NC}    {Colors.MAGENTA}📊 Script eseguiti: {data.get_total_runs()}{Colors.NC}")
     print()
 
 
@@ -133,30 +151,33 @@ def get_script_description(script_path: Path) -> str:
 
 
 def scan_remote_scripts(data: LauncherData) -> None:
-    """
-    Scansiona repository locale per trovare script remoti.
-    
-    Args:
-        data: Oggetto LauncherData per memorizzare risultati
-    """
-    print(f"{Colors.YELLOW}📂 Scansione script remoti in corso...{Colors.NC}\n")
-    
-    # Trova tutti gli script nelle directory remote/
-    remote_scripts = sorted(SCRIPT_DIR.glob("*/remote/r*.sh"))
-    
-    for idx, script in enumerate(remote_scripts, start=1):
+    """Scansiona repository locale per trovare script COMPLETI (no remote)."""
+    print(f"{Colors.YELLOW}📂 Scansione script completi (full/) in corso...{Colors.NC}\n")
+
+    # Trova tutti gli script completi nelle directory full/
+    full_scripts: List[Path] = []
+
+    # Script Python completi
+    full_scripts.extend(sorted(SCRIPT_DIR.glob("*/full/*.py")))
+    # Script Bash completi (per tool non ancora convertiti)
+    full_scripts.extend(sorted(SCRIPT_DIR.glob("*/full/*.sh")))
+
+    for script in full_scripts:
         rel_path = script.relative_to(SCRIPT_DIR)
         category = rel_path.parts[0]
         script_name = script.stem
-        
-        # Rimuovi prefisso 'r' se presente
-        display_name = script_name[1:] if script_name.startswith('r') else script_name
-        
+
+        display_name = script_name
+
         data.scripts.append(f"[{category}] {display_name}")
         data.script_paths.append(str(rel_path))
         data.script_descriptions.append(get_script_description(script))
-    
-    print(f"{Colors.GREEN}✓ Trovati {len(data.scripts)} script remoti{Colors.NC}\n")
+        data.script_extensions.append(script.suffix.lower())
+
+    # Costruisce la mappatura categorie -> script
+    data.build_categories()
+
+    print(f"{Colors.GREEN}✓ Trovati {len(data.scripts)} script completi{Colors.NC}\n")
 
 
 def search_scripts(data: LauncherData, query: str) -> None:
@@ -270,40 +291,73 @@ def show_statistics(data: LauncherData) -> None:
 
 
 def show_menu(data: LauncherData) -> None:
-    """Mostra menu principale con tutti gli script."""
+    """Mostra menu principale con le categorie compresse."""
     print(f"{Colors.BLUE}═══════════════════════════════════════════════════════════{Colors.NC}")
-    print(f"{Colors.GREEN}Script disponibili:{Colors.NC}")
+    print(f"{Colors.GREEN}Categorie disponibili:{Colors.NC}")
     print(f"{Colors.CYAN}Comandi: {Colors.YELLOW}s){Colors.NC}Cerca {Colors.YELLOW}f){Colors.NC}Preferiti {Colors.YELLOW}i){Colors.NC}Info {Colors.YELLOW}t){Colors.NC}Stats {Colors.YELLOW}*+){Colors.NC}Aggiungi/Rimuovi ⭐{Colors.NC}\n")
-    
-    current_category = ""
-    for i, script in enumerate(data.scripts):
-        # Estrai categoria
-        if '[' in script and ']' in script:
-            category = script.split('[', 1)[1].split(']', 1)[0]
-        else:
-            category = "Altro"
-        
-        # Stampa intestazione categoria se cambia
-        if category != current_category:
-            print(f"\n{Colors.YELLOW}▶ {category}{Colors.NC}")
-            current_category = category
-        
-        # Stella se preferito
-        star = f"{Colors.YELLOW}⭐{Colors.NC} " if str(i) in data.favorites else ""
-        
-        # Numero di utilizzi
-        uses = ""
-        if str(i) in data.stats:
-            uses = f" {Colors.CYAN}({data.stats[str(i)]}){Colors.NC}"
-        
-        # Nome script senza categoria
-        script_name = script.split('] ', 1)[1] if '] ' in script else script
-        
-        print(f"  {Colors.BLUE}{i:3d}){Colors.NC} {star}{script_name}{uses}")
-    
+
+    if not data.category_order:
+        print(f"{Colors.RED}✗ Nessuna categoria trovata{Colors.NC}")
+    else:
+        for idx, category in enumerate(data.category_order, start=1):
+            scripts_idx = data.categories.get(category, [])
+            count = len(scripts_idx)
+            # Calcola utilizzi totali per la categoria
+            total_uses = sum(data.stats.get(str(i), 0) for i in scripts_idx)
+            print(f"  {Colors.BLUE}{idx:3d}){Colors.NC} {category} {Colors.CYAN}({count} script, {total_uses} run){Colors.NC}")
+
     print(f"\n{Colors.BLUE}═══════════════════════════════════════════════════════════{Colors.NC}")
     print(f"  {Colors.RED}0){Colors.NC} Esci  {Colors.YELLOW}s){Colors.NC}Cerca  {Colors.YELLOW}f){Colors.NC}Preferiti  {Colors.YELLOW}i){Colors.NC}Info  {Colors.YELLOW}t){Colors.NC}Stats")
     print(f"{Colors.BLUE}═══════════════════════════════════════════════════════════{Colors.NC}\n")
+
+
+def show_category_scripts_menu(data: LauncherData, category: str, filter_ext: Optional[str] = None) -> List[int]:
+    """Mostra gli script di una singola categoria.
+
+    Restituisce la lista degli indici globali visualizzati (dopo il filtro),
+    in modo che il chiamante possa mappare la scelta locale → indice globale.
+    """
+    scripts_idx = data.categories.get(category, [])
+
+    # Applica filtro per estensione se richiesto
+    if filter_ext:
+        filtered_idx = [i for i in scripts_idx if data.script_extensions[i] == filter_ext]
+    else:
+        filtered_idx = list(scripts_idx)
+
+    print(f"{Colors.BLUE}═══════════════════════════════════════════════════════════{Colors.NC}")
+    if filter_ext == '.py':
+        suffix_label = "solo Python (.py)"
+    elif filter_ext == '.sh':
+        suffix_label = "solo Bash (.sh)"
+    else:
+        suffix_label = "tutti gli script"
+
+    print(f"{Colors.GREEN}Categoria:{Colors.NC} {category} {Colors.CYAN}({len(filtered_idx)} script, {suffix_label}){Colors.NC}")
+    print(f"{Colors.CYAN}Comandi: numero script, 0=indietro, p=solo .py, s=solo .sh, a=tutti{Colors.NC}\n")
+
+    for local_idx, global_idx in enumerate(filtered_idx, start=1):
+        # Stella se preferito
+        star = f"{Colors.YELLOW}⭐{Colors.NC} " if str(global_idx) in data.favorites else ""
+
+        # Numero di utilizzi
+        uses = ""
+        if str(global_idx) in data.stats:
+            uses = f" {Colors.CYAN}({data.stats[str(global_idx)]}){Colors.NC}"
+
+        script = data.scripts[global_idx]
+        script_name = script.split('] ', 1)[1] if '] ' in script else script
+
+        # Aggiungi estensione visibile
+        ext = data.script_extensions[global_idx]
+
+        print(f"  {Colors.BLUE}{local_idx:3d}){Colors.NC} {star}{script_name} {Colors.MAGENTA}[{ext}]{Colors.NC}{uses}")
+
+    print(f"\n{Colors.BLUE}═══════════════════════════════════════════════════════════{Colors.NC}")
+    print(f"  {Colors.RED}0){Colors.NC} Torna al menu categorie   {Colors.YELLOW}p){Colors.NC}.py   {Colors.YELLOW}s){Colors.NC}.sh   {Colors.YELLOW}a){Colors.NC}tutti")
+    print(f"{Colors.BLUE}═══════════════════════════════════════════════════════════{Colors.NC}\n")
+
+    return filtered_idx
 
 
 def execute_script(data: LauncherData, selection: int) -> bool:
@@ -329,7 +383,7 @@ def execute_script(data: LauncherData, selection: int) -> bool:
     data.increment_usage(str(selection))
     
     print(f"\n{Colors.GREEN}▶ Esecuzione:{Colors.NC} {script_name}")
-    print(f"{Colors.BLUE}   URL:{Colors.NC} {remote_url}\n")
+    print(f"{Colors.BLUE}   URL (full script):{Colors.NC} {remote_url}\n")
     
     # Chiedi parametri aggiuntivi
     print(f"{Colors.YELLOW}Parametri aggiuntivi (invio per nessuno):{Colors.NC}")
@@ -337,25 +391,35 @@ def execute_script(data: LauncherData, selection: int) -> bool:
     
     print(f"\n{Colors.BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{Colors.NC}\n")
     
-    # Scarica script in file temporaneo
+    # Scarica script completo in file temporaneo
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as temp_file:
+        # Determina tipo di script in base all'estensione
+        script_suffix = Path(script_path).suffix.lower()
+
+        # Estensione file temporaneo coerente con il tipo di script
+        temp_suffix = script_suffix if script_suffix in ['.py', '.sh'] else '.sh'
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix=temp_suffix, delete=False) as temp_file:
             temp_script = temp_file.name
-            
+
         with urllib.request.urlopen(remote_url, timeout=30) as response:
             script_content = response.read().decode('utf-8')
-        
+
         with open(temp_script, 'w', encoding='utf-8') as f:
             f.write(script_content)
-        
+
         # Rendi eseguibile
         os.chmod(temp_script, 0o755)
-        
-        # Esegui script
-        cmd = ['bash', temp_script]
+
+        # Costruisci comando di esecuzione in base al tipo
+        if script_suffix == '.py':
+            cmd = ['python3', temp_script]
+        else:
+            cmd = ['bash', temp_script]
+
         if params:
             cmd.extend(params.split())
-        
+
         # Determina se serve sudo/su
         is_root = os.geteuid() == 0 if hasattr(os, 'geteuid') else False
         
@@ -422,7 +486,7 @@ def main() -> int:
         print_header(data)
         show_menu(data)
         
-        print(f"{Colors.YELLOW}Seleziona uno script o comando:{Colors.NC} ", end='')
+        print(f"{Colors.YELLOW}Seleziona una categoria o comando:{Colors.NC} ", end='')
         selection = input().strip()
         
         # Comandi speciali
@@ -469,7 +533,55 @@ def main() -> int:
                 time.sleep(2)
         
         elif selection.isdigit():
-            execute_script(data, int(selection))
+            # Selezione di una categoria dal menu principale
+            cat_idx = int(selection)
+
+            if 1 <= cat_idx <= len(data.category_order):
+                category = data.category_order[cat_idx - 1]
+
+                # Sottomenu per la categoria scelta (con filtro per estensione)
+                current_filter: Optional[str] = None  # None=tutti, '.py', '.sh'
+
+                while True:
+                    clear_screen()
+                    print_header(data)
+                    visible_idx = show_category_scripts_menu(data, category, current_filter)
+
+                    print(f"{Colors.YELLOW}Seleziona uno script (0/p/s/a):{Colors.NC} ", end='')
+                    script_sel = input().strip().lower()
+
+                    if script_sel == '0':
+                        break
+
+                    # Cambia filtro estensione
+                    if script_sel == 'p':
+                        current_filter = '.py'
+                        continue
+                    if script_sel == 's':
+                        current_filter = '.sh'
+                        continue
+                    if script_sel == 'a':
+                        current_filter = None
+                        continue
+
+                    if script_sel.isdigit():
+                        local_idx = int(script_sel)
+
+                        if 1 <= local_idx <= len(visible_idx):
+                            global_idx = visible_idx[local_idx - 1]
+                            execute_script(data, global_idx)
+                        else:
+                            print(f"{Colors.RED}✗ Numero script non valido{Colors.NC}")
+                            import time
+                            time.sleep(2)
+                    else:
+                        print(f"{Colors.RED}✗ Selezione non valida{Colors.NC}")
+                        import time
+                        time.sleep(2)
+            else:
+                print(f"{Colors.RED}✗ Categoria non valida{Colors.NC}")
+                import time
+                time.sleep(2)
         
         else:
             print(f"{Colors.RED}✗ Comando non riconosciuto!{Colors.NC}\n")
