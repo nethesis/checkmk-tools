@@ -51,12 +51,13 @@ def git_pull_repo(repo_dir: Path) -> None:
 
     try:
         result = subprocess.run(
-            ["git", "-C", str(repo_dir), "pull", "--ff-only"],
+            ["git", "pull", "--ff-only"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
             timeout=60,
             check=False,
+            cwd=str(repo_dir),
         )
     except (subprocess.SubprocessError, OSError) as exc:
         warn(f"git pull non eseguito: {exc}")
