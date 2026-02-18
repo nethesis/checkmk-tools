@@ -270,77 +270,157 @@ def prompt_value(label: str, current_value: str = "", required: bool = False, se
         warn(f"{label} è obbligatorio")
 
 
-def setup_env():
-    """Configura file .env"""
-    info("Configurazione file .env...")
-    
-    env_file = YDEA_TOOLKIT_DIR / ".env"
-    
+def normalize_existing_value(key: str, value: str) -> str:
+    """Tratta placeholder come valori vuoti per forzare input reale quando richiesto."""
+    if not value:
+        return ""
+    normalized = value.strip().strip('"').strip("'")
+    placeholder_tokens = {
+        "INSERISCI_ID",
+        "INSERISCI_API_KEY",
+        "INSERISCI_USER_ID",
+        "INSERISCI_CONTRATTO_ID",
+        "ID",
+        "TOKEN",
+        "il_tuo_id",
+        "la_tua_api_key",
+    }
+    if normalized in placeholder_tokens:
+        return ""
+    if key == "YDEA_API_KEY" and normalized.upper().startswith("INSERISCI"):
+        return ""
+    return normalized
+
+
+def prepare_env_profile_file(env_name: str, template_candidates: list) -> Path:
+    """Prepara il file env copiando template e facendo backup se necessario."""
+    env_file = YDEA_TOOLKIT_DIR / env_name
     if env_file.exists():
-        warn("File .env già esistente, salvo backup")
+        warn(f"File {env_name} già esistente, salvo backup")
         backup_file = env_file.with_suffix(f".backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}")
         shutil.copy(env_file, backup_file)
-    
-    # Copia .env template se esiste (supporta più path)
-    env_candidates = [
-        SCRIPT_DIR / ".env",
-        SCRIPT_DIR / ".env.la",
-        SCRIPT_DIR / ".env.ag",
-        SCRIPT_DIR.parent / ".env",
-        SCRIPT_DIR.parent / ".env.la",
-        SCRIPT_DIR.parent / ".env.ag",
-        SCRIPT_DIR / "Ydea-Toolkit" / ".env",
-    ]
 
-    env_template = next((candidate for candidate in env_candidates if candidate.exists()), None)
+    env_template = next((candidate for candidate in template_candidates if candidate.exists()), None)
     if env_template:
         shutil.copy(env_template, env_file)
-        success(f"Template .env copiato da: {env_template}")
+        success(f"Template {env_name} copiato da: {env_template}")
     else:
-        warn(f"Nessun template .env trovato, creo file vuoto: {env_file}")
+        warn(f"Nessun template trovato per {env_name}, creo file vuoto: {env_file}")
         env_file.write_text("")
 
+    return env_file
+
+
+def configure_env_profile(env_file: Path, profile_label: str):
+    """Configura interattivamente un profilo env specifico."""
     current_values = read_env_exports(env_file)
-    
+
     print()
-    warn("⚠️  IMPORTANTE: inserisci ora le credenziali Ydea")
-    print(f"  {env_file}")
-    print()
+    info(f"Configurazione interattiva profilo {profile_label}: {env_file}")
     print("Campi richiesti: YDEA_ID, YDEA_API_KEY, YDEA_USER_ID")
     print("Campi opzionali: YDEA_USER_NAME, YDEA_CONTRATTO_ID, YDEA_ALERT_EMAIL")
     print()
-    
-    response = input("Vuoi inserire i dati ora in modo interattivo? (y/n) ")
-    if response.lower() == 'y':
-        ydea_id = prompt_value("YDEA_ID", current_values.get("YDEA_ID", ""), required=True)
-        ydea_api_key = prompt_value("YDEA_API_KEY", current_values.get("YDEA_API_KEY", ""), required=True, secret=True)
-        default_user_id = current_values.get("YDEA_USER_ID", current_values.get("YDEA_USER_ID_CREATE_TICKET", ""))
-        ydea_user_id = prompt_value("YDEA_USER_ID", default_user_id, required=True)
-        ydea_user_name = prompt_value("YDEA_USER_NAME", current_values.get("YDEA_USER_NAME", ""), required=False)
-        ydea_contratto_id = prompt_value("YDEA_CONTRATTO_ID", current_values.get("YDEA_CONTRATTO_ID", ""), required=False)
-        ydea_alert_email = prompt_value(
-            "YDEA_ALERT_EMAIL",
-            current_values.get("YDEA_ALERT_EMAIL", "massimo.palazzetti@nethesis.it"),
-            required=False,
-        )
 
-        updates = {
-            "YDEA_ID": ydea_id,
-            "YDEA_API_KEY": ydea_api_key,
-            "YDEA_USER_ID": ydea_user_id,
-            "YDEA_USER_ID_CREATE_NOTE": ydea_user_id,
-            "YDEA_USER_ID_CREATE_TICKET": ydea_user_id,
-            "YDEA_ALERT_EMAIL": ydea_alert_email,
-        }
-        if ydea_user_name:
-            updates["YDEA_USER_NAME"] = ydea_user_name
-        if ydea_contratto_id:
-            updates["YDEA_CONTRATTO_ID"] = ydea_contratto_id
+    ydea_id = prompt_value(
+        f"{profile_label} - YDEA_ID",
+        normalize_existing_value("YDEA_ID", current_values.get("YDEA_ID", "")),
+        required=True,
+    )
+    ydea_api_key = prompt_value(
+        f"{profile_label} - YDEA_API_KEY",
+        normalize_existing_value("YDEA_API_KEY", current_values.get("YDEA_API_KEY", "")),
+        required=True,
+        secret=True,
+    )
+    default_user_id = current_values.get("YDEA_USER_ID", current_values.get("YDEA_USER_ID_CREATE_TICKET", ""))
+    ydea_user_id = prompt_value(
+        f"{profile_label} - YDEA_USER_ID",
+        normalize_existing_value("YDEA_USER_ID", default_user_id),
+        required=True,
+    )
+    ydea_user_name = prompt_value(
+        f"{profile_label} - YDEA_USER_NAME",
+        normalize_existing_value("YDEA_USER_NAME", current_values.get("YDEA_USER_NAME", "")),
+        required=False,
+    )
+    ydea_contratto_id = prompt_value(
+        f"{profile_label} - YDEA_CONTRATTO_ID",
+        normalize_existing_value("YDEA_CONTRATTO_ID", current_values.get("YDEA_CONTRATTO_ID", "")),
+        required=False,
+    )
+    ydea_alert_email = prompt_value(
+        f"{profile_label} - YDEA_ALERT_EMAIL",
+        normalize_existing_value("YDEA_ALERT_EMAIL", current_values.get("YDEA_ALERT_EMAIL", "massimo.palazzetti@nethesis.it")),
+        required=False,
+    )
 
-        update_env_exports(env_file, updates)
-        success(f"Credenziali salvate in {env_file}")
+    updates = {
+        "YDEA_ID": ydea_id,
+        "YDEA_API_KEY": ydea_api_key,
+        "YDEA_USER_ID": ydea_user_id,
+        "YDEA_USER_ID_CREATE_NOTE": ydea_user_id,
+        "YDEA_USER_ID_CREATE_TICKET": ydea_user_id,
+        "YDEA_ALERT_EMAIL": ydea_alert_email,
+    }
+    if ydea_user_name:
+        updates["YDEA_USER_NAME"] = ydea_user_name
+    if ydea_contratto_id:
+        updates["YDEA_CONTRATTO_ID"] = ydea_contratto_id
+
+    update_env_exports(env_file, updates)
+    success(f"Credenziali salvate in {env_file}")
+
+
+def setup_env():
+    """Configura file .env, .env.la e .env.ag"""
+    info("Configurazione file env Ydea (.env, .env.la, .env.ag)...")
+
+    base_candidates = [
+        SCRIPT_DIR / ".env",
+        SCRIPT_DIR.parent / ".env",
+        SCRIPT_DIR / "Ydea-Toolkit" / ".env",
+    ]
+    la_candidates = [
+        SCRIPT_DIR / ".env.la",
+        SCRIPT_DIR.parent / ".env.la",
+        SCRIPT_DIR / ".env",
+        SCRIPT_DIR.parent / ".env",
+    ]
+    ag_candidates = [
+        SCRIPT_DIR / ".env.ag",
+        SCRIPT_DIR.parent / ".env.ag",
+        SCRIPT_DIR / ".env",
+        SCRIPT_DIR.parent / ".env",
+    ]
+
+    env_base = prepare_env_profile_file(".env", base_candidates)
+    env_la = prepare_env_profile_file(".env.la", la_candidates)
+    env_ag = prepare_env_profile_file(".env.ag", ag_candidates)
+
+    print()
+    warn("⚠️  Configurazione interattiva profili Ydea")
+    print(f"  Base: {env_base}")
+    print(f"  LA:   {env_la}")
+    print(f"  AG:   {env_ag}")
+    print()
+
+    configure_base = input("Configurare ora il profilo BASE (.env)? (y/n) ").strip().lower() == "y"
+    if configure_base:
+        configure_env_profile(env_base, "BASE")
     else:
-        warn("Configurazione interattiva saltata: aggiorna manualmente il file .env")
+        warn("Configurazione BASE saltata")
+
+    configure_la = input("Configurare ora il profilo LA (.env.la)? (y/n) ").strip().lower() == "y"
+    if configure_la:
+        configure_env_profile(env_la, "LA")
+    else:
+        warn("Configurazione LA saltata")
+
+    configure_ag = input("Configurare ora il profilo AG (.env.ag)? (y/n) ").strip().lower() == "y"
+    if configure_ag:
+        configure_env_profile(env_ag, "AG")
+    else:
+        warn("Configurazione AG saltata")
 
 
 def test_connection():
