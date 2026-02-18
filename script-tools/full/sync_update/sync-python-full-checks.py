@@ -9,15 +9,17 @@ Version: 1.0.0
 """
 
 import argparse
+import hashlib
 import os
 import shutil
 import stat
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 DEFAULT_REPO = Path("/opt/checkmk-tools")
 DEFAULT_TARGET = Path("/usr/lib/check_mk_agent/local")
 
@@ -28,6 +30,46 @@ def log(message: str) -> None:
 
 def warn(message: str) -> None:
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [WARN] {message}")
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file_obj:
+        while True:
+            chunk = file_obj.read(1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def git_pull_repo(repo_dir: Path) -> None:
+    git_dir = repo_dir / ".git"
+    if not git_dir.exists():
+        warn(f"Repository senza .git, skip git pull: {repo_dir}")
+        return
+
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_dir), "pull", "--ff-only"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    except (subprocess.SubprocessError, OSError) as exc:
+        warn(f"git pull non eseguito: {exc}")
+        return
+
+    output = (result.stdout or "").strip()
+    if result.returncode == 0:
+        if output:
+            log(f"git pull: {output.splitlines()[-1]}")
+        else:
+            log("git pull: OK")
+    else:
+        warn(f"git pull fallito (rc={result.returncode}): {output}")
 
 
 def read_os_release() -> Dict[str, str]:
@@ -100,7 +142,11 @@ def sync_scripts(source_dir: Path, target_dir: Path) -> Tuple[int, int]:
 
     for src in scripts:
         dst = target_dir / src.name
-        should_copy = (not dst.exists()) or (src.stat().st_mtime > dst.stat().st_mtime)
+        should_copy = False
+        if not dst.exists():
+            should_copy = True
+        else:
+            should_copy = file_sha256(src) != file_sha256(dst)
 
         if should_copy:
             shutil.copy2(src, dst)
@@ -175,6 +221,8 @@ def main() -> int:
     log(f"Repository: {repo_dir}")
     log(f"Target: {target_dir}")
     log(f"Categorie: {', '.join(categories)}")
+
+    git_pull_repo(repo_dir)
 
     total_copied = 0
     total_unchanged = 0
