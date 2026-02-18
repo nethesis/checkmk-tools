@@ -75,9 +75,10 @@ def parse_json_response(output: str) -> Optional[Dict[str, Any]]:
 
 def resolve_toolkit_command() -> Optional[List[str]]:
     """Resolve ydea toolkit executable (prefer Python implementation)."""
+    python_cmd = "/usr/bin/python3" if os.path.exists("/usr/bin/python3") else "python3"
     candidates: List[Tuple[str, List[str]]] = [
-        (f"{YDEA_TOOLKIT_DIR}/ydea-toolkit.py", ["python3", f"{YDEA_TOOLKIT_DIR}/ydea-toolkit.py"]),
-        (f"{YDEA_TOOLKIT_DIR}/rydea-toolkit.py", ["python3", f"{YDEA_TOOLKIT_DIR}/rydea-toolkit.py"]),
+        (f"{YDEA_TOOLKIT_DIR}/ydea-toolkit.py", [python_cmd, f"{YDEA_TOOLKIT_DIR}/ydea-toolkit.py"]),
+        (f"{YDEA_TOOLKIT_DIR}/rydea-toolkit.py", [python_cmd, f"{YDEA_TOOLKIT_DIR}/rydea-toolkit.py"]),
         (f"{YDEA_TOOLKIT_DIR}/ydea-toolkit.sh", [f"{YDEA_TOOLKIT_DIR}/ydea-toolkit.sh"]),
         (f"{YDEA_TOOLKIT_DIR}/rydea-toolkit.sh", [f"{YDEA_TOOLKIT_DIR}/rydea-toolkit.sh"]),
     ]
