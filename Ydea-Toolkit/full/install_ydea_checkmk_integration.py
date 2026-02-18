@@ -364,12 +364,11 @@ def normalize_existing_value(key: str, value: str) -> str:
 
 
 def prepare_env_profile_file(env_name: str, template_candidates: list) -> Path:
-    """Prepara il file env copiando template e facendo backup se necessario."""
+    """Prepara il file env senza sovrascrivere configurazioni esistenti."""
     env_file = YDEA_TOOLKIT_DIR / env_name
     if env_file.exists():
-        warn(f"File {env_name} già esistente, salvo backup")
-        backup_file = env_file.with_suffix(f".backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-        shutil.copy(env_file, backup_file)
+        success(f"Profilo esistente mantenuto: {env_file}")
+        return env_file
 
     env_template = next((candidate for candidate in template_candidates if candidate.exists()), None)
     if env_template:
@@ -384,6 +383,11 @@ def prepare_env_profile_file(env_name: str, template_candidates: list) -> Path:
 
 def configure_env_profile(env_file: Path, profile_label: str):
     """Configura interattivamente un profilo env specifico."""
+    if env_file.exists():
+        backup_file = env_file.with_suffix(f".backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        shutil.copy(env_file, backup_file)
+        warn(f"Backup profilo {profile_label} creato: {backup_file}")
+
     current_values = read_env_exports(env_file)
 
     print()
