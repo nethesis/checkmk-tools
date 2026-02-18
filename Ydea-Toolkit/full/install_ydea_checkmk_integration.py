@@ -575,7 +575,7 @@ def setup_cron():
     
     health_cron_line = f"*/15 * * * * {health_monitor} >> /var/log/ydea_health.log 2>&1"
     validator_path = NOTIFY_BIN_DIR / CACHE_VALIDATOR_NAME
-    validator_cron_line = f"*/30 * * * * {validator_path} >> /var/log/ydea_cache_validator.log 2>&1"
+    validator_cron_line = f"* * * * * {validator_path} >> /var/log/ydea_cache_validator.log 2>&1"
     
     try:
         # Controlla se già esiste
@@ -599,10 +599,10 @@ def setup_cron():
                 warn("Cron job cache validator già configurato")
             else:
                 new_crontab += (
-                    f"\n# Ydea Cache Validator - ogni 30 minuti\n"
+                    f"\n# Ydea Cache Validator - ogni 1 minuto\n"
                     f"{validator_cron_line}\n"
                 )
-                success("Cron job cache validator configurato (ogni 30 minuti)")
+                success("Cron job cache validator configurato (ogni 1 minuto)")
         else:
             warn(f"Cache validator non trovato in {validator_path}, skip cron dedicato")
 
@@ -685,6 +685,7 @@ def remove_cron_entries():
             and "Ydea Health Monitor - ogni 15 minuti" not in line
             and "ydea_cache_validator" not in line
             and "Ydea Cache Validator - ogni 30 minuti" not in line
+            and "Ydea Cache Validator - ogni 1 minuto" not in line
         ]
 
         if filtered_lines == original_lines:

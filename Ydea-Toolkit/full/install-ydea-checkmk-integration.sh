@@ -215,7 +215,7 @@ setup_cron() {
   info "Configurazione cron job per health monitor e cache validator..."
   
   local health_cron_line="*/15 * * * * ${YDEA_TOOLKIT_DIR}/ydea-health-monitor.sh >> /var/log/ydea_health.log 2>&1"
-  local validator_cron_line="*/30 * * * * ${NOTIFY_BIN_DIR}/ydea_cache_validator.py >> /var/log/ydea_cache_validator.log 2>&1"
+  local validator_cron_line="* * * * * ${NOTIFY_BIN_DIR}/ydea_cache_validator.py >> /var/log/ydea_cache_validator.log 2>&1"
   local current_crontab
   current_crontab="$(crontab -l 2>/dev/null || true)"
   local new_crontab="$current_crontab"
@@ -235,10 +235,10 @@ setup_cron() {
     if echo "$current_crontab" | grep -q "ydea_cache_validator"; then
       warn "Cron job cache validator già configurato"
     else
-      new_crontab+=$'\n# Ydea Cache Validator - ogni 30 minuti\n'
+      new_crontab+=$'\n# Ydea Cache Validator - ogni 1 minuto\n'
       new_crontab+="$validator_cron_line"
       new_crontab+=$'\n'
-      success "Cron job cache validator configurato (ogni 30 minuti)"
+      success "Cron job cache validator configurato (ogni 1 minuto)"
     fi
   else
     warn "Cache validator non trovato in ${NOTIFY_BIN_DIR}, skip cron dedicato"
