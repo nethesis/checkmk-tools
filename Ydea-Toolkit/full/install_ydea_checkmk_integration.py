@@ -23,6 +23,7 @@ import os
 import shutil
 import subprocess
 import getpass
+import argparse
 from pathlib import Path
 from datetime import datetime
 
@@ -525,6 +526,96 @@ def create_cache_files():
     success("File cache inizializzati")
 
 
+def backup_and_remove(path: Path, label: str):
+    """Backup e rimozione sicura di file/dir"""
+    if not path.exists():
+        return
+
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_path = path.with_name(f"{path.name}.backup_remove_{timestamp}")
+    try:
+        if path.is_dir():
+            shutil.copytree(path, backup_path)
+            shutil.rmtree(path)
+        else:
+            shutil.copy2(path, backup_path)
+            path.unlink()
+        success(f"{label} rimosso (backup: {backup_path})")
+    except Exception as exc:
+        warn(f"Impossibile rimuovere {path}: {exc}")
+
+
+def remove_cron_entries():
+    """Rimuove cron entries ydea-health-monitor"""
+    info("Rimozione cron job Ydea health monitor...")
+    try:
+        result = subprocess.run(
+            ["crontab", "-l"],
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            warn("Nessun crontab utente trovato")
+            return
+
+        original_lines = result.stdout.splitlines()
+        filtered_lines = [
+            line for line in original_lines
+            if "ydea_health_monitor" not in line
+            and "ydea-health-monitor" not in line
+            and "Ydea Health Monitor - ogni 15 minuti" not in line
+        ]
+
+        if filtered_lines == original_lines:
+            warn("Nessun cron job Ydea da rimuovere")
+            return
+
+        new_crontab = "\n".join(filtered_lines).rstrip() + "\n"
+        subprocess.run(["crontab", "-"], input=new_crontab, text=True, check=True)
+        success("Cron job Ydea rimosso")
+    except Exception as exc:
+        warn(f"Errore rimozione cron job: {exc}")
+
+
+def remove_installation():
+    """Rimuove integrazione Ydea installata"""
+    print_header()
+    check_root()
+
+    warn("Modalità REMOVE attiva")
+    print("Verranno rimossi (con backup):")
+    print(f"  - Notifier da {CHECKMK_NOTIFY_DIR}")
+    print(f"  - Profili env e health monitor da {YDEA_TOOLKIT_DIR}")
+    print("  - Cron job ydea-health-monitor")
+    print()
+
+    confirm = input("Confermi la rimozione? (y/n) ").strip().lower()
+    if confirm != "y":
+        warn("Rimozione annullata")
+        return
+
+    info("Rimozione notifier CheckMK...")
+    for notifier in ["ydea_la", "ydea_ag", "ydea_realip", "mail_ydea_down"]:
+        backup_and_remove(CHECKMK_NOTIFY_DIR / notifier, f"Notifier {notifier}")
+
+    info("Rimozione file Ydea Toolkit...")
+    for env_name in [".env", ".env.la", ".env.ag"]:
+        backup_and_remove(YDEA_TOOLKIT_DIR / env_name, f"Profilo {env_name}")
+
+    for monitor_name in ["ydea_health_monitor.py", "ydea-health-monitor.sh"]:
+        backup_and_remove(YDEA_TOOLKIT_DIR / monitor_name, f"Health monitor {monitor_name}")
+
+    for cache_name in ["ydea_checkmk_tickets.json", "ydea_checkmk_flapping.json"]:
+        backup_and_remove(Path("/tmp") / cache_name, f"Cache {cache_name}")
+
+    backup_and_remove(Path("/var/log/ydea_health.log"), "Log ydea_health.log")
+    remove_cron_entries()
+
+    print()
+    success("Rimozione completata")
+
+
 def show_next_steps():
     """Mostra prossimi passi"""
     print()
@@ -561,6 +652,14 @@ def show_next_steps():
 
 def main():
     """Main installation"""
+    parser = argparse.ArgumentParser(description="Installer integrazione CheckMK → Ydea")
+    parser.add_argument("--remove", action="store_true", help="Rimuove integrazione Ydea (con backup file)")
+    args = parser.parse_args()
+
+    if args.remove:
+        remove_installation()
+        return
+
     print_header()
     check_root()
     check_checkmk()
