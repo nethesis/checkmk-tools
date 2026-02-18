@@ -13,10 +13,10 @@ Requirements:
     - CheckMK installato
     - Directory Ydea Toolkit
 
-Version: 1.0.2 (prompt interattivo credenziali)
+Version: 1.0.3 (auto-check dipendenze Python)
 """
 
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 
 import sys
 import os
@@ -24,6 +24,7 @@ import shutil
 import subprocess
 import getpass
 import argparse
+import importlib.util
 from pathlib import Path
 from datetime import datetime
 
@@ -102,6 +103,51 @@ def check_ydea_toolkit():
             sys.exit(1)
     else:
         success(f"Ydea Toolkit trovato: {YDEA_TOOLKIT_DIR}")
+
+
+def ensure_python_dependencies():
+    """Verifica/installa dipendenze Python necessarie al monitor Ydea"""
+    info("Verifica dipendenze Python (requests, python-dotenv)...")
+
+    module_to_package = {
+        "requests": "python3-requests",
+        "dotenv": "python3-dotenv",
+    }
+    missing_modules = [
+        module_name for module_name in module_to_package
+        if importlib.util.find_spec(module_name) is None
+    ]
+
+    if not missing_modules:
+        success("Dipendenze Python già presenti")
+        return
+
+    warn(f"Dipendenze mancanti rilevate: {', '.join(missing_modules)}")
+
+    apt_get = shutil.which("apt-get")
+    if not apt_get:
+        warn("apt-get non disponibile: installa manualmente python3-requests e python3-dotenv")
+        return
+
+    packages_to_install = sorted({module_to_package[module] for module in missing_modules})
+    info(f"Installazione pacchetti: {' '.join(packages_to_install)}")
+
+    try:
+        subprocess.run([apt_get, "update", "-qq"], check=True)
+        subprocess.run([apt_get, "install", "-y", *packages_to_install], check=True)
+    except subprocess.CalledProcessError as exc:
+        warn(f"Installazione dipendenze fallita: {exc}")
+        warn("Procedi manualmente con apt install python3-requests python3-dotenv")
+        return
+
+    still_missing = [
+        module_name for module_name in module_to_package
+        if importlib.util.find_spec(module_name) is None
+    ]
+    if still_missing:
+        warn(f"Dipendenze ancora mancanti dopo install: {', '.join(still_missing)}")
+    else:
+        success("Dipendenze Python installate correttamente")
 
 
 # ===== INSTALLAZIONE =====
@@ -688,6 +734,7 @@ def main():
     check_root()
     check_checkmk()
     check_ydea_toolkit()
+    ensure_python_dependencies()
     install_scripts()
     setup_env()
     create_cache_files()
