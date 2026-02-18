@@ -206,6 +206,30 @@ def install_scripts():
     (YDEA_TOOLKIT_DIR / health_monitor.name).chmod(0o755)
     success(f"{health_monitor.name} installato")
 
+    # Copia dipendenze Python del monitor/toolkit (se disponibili)
+    info("Installazione dipendenze toolkit Ydea...")
+    dependency_candidates = {
+        "ydea_common.py": [
+            SCRIPT_DIR / "ydea_common.py",
+            SCRIPT_DIR / "Ydea-Toolkit" / "ydea_common.py",
+        ],
+        "ydea-toolkit.py": [
+            SCRIPT_DIR / "ydea-toolkit.py",
+            SCRIPT_DIR / "Ydea-Toolkit" / "ydea-toolkit.py",
+        ],
+    }
+
+    for dependency_name, candidates in dependency_candidates.items():
+        source = next((candidate for candidate in candidates if candidate.exists()), None)
+        if not source:
+            warn(f"Dipendenza {dependency_name} non trovata (skip)")
+            continue
+
+        destination = YDEA_TOOLKIT_DIR / dependency_name
+        shutil.copy(source, destination)
+        destination.chmod(0o755)
+        success(f"{dependency_name} installato")
+
 
 def read_env_exports(env_file: Path) -> dict:
     """Legge variabili export da un file .env"""
