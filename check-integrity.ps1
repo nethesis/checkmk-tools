@@ -114,39 +114,36 @@ foreach ($script in $allScripts) {
     $fileName = $script.Name
     $canBeEmpty = $allowedEmptyFiles -contains $fileName
     
-    # Determina tipo tramite estensione o shebang
+    # Determina tipo tramite estensione + shebang (shebang ha precedenza)
     $scriptType = $script.Extension
     $category = 'Unknown'
     
-    if ($script.Extension -eq '') {
-        # File senza estensione: controlla shebang
-        try {
-            $firstLine = Get-Content $script.FullName -First 1 -ErrorAction Stop
-            if ($firstLine -match '^#!/.*bash') {
-                $scriptType = '.sh'
-                $category = 'Bash/Shell'
-            } elseif ($firstLine -match '^#!/.*python') {
-                $scriptType = '.py'
-                $category = 'Python'
-            } else {
-                # Shebang non riconosciuto, salta
-                $validScripts++
-                continue
-            }
-        } catch {
-            # Non può leggere il file, salta
+    try {
+        $firstLine = Get-Content $script.FullName -First 1 -ErrorAction Stop
+        if ($firstLine -match '^#!/.*bash') {
+            $scriptType = '.sh'
+            $category = 'Bash/Shell'
+        } elseif ($firstLine -match '^#!/.*python') {
+            $scriptType = '.py'
+            $category = 'Python'
+        } elseif ($script.Extension -eq '') {
+            # File senza estensione e shebang non riconosciuto: salta
             $validScripts++
             continue
+        } else {
+            # Categorizza per estensione
+            $category = switch ($script.Extension) {
+                '.ps1' { 'PowerShell' }
+                { $_ -in @('.sh', '.bash') } { 'Bash/Shell' }
+                { $_ -in @('.bat', '.cmd') } { 'Batch' }
+                '.py' { 'Python' }
+                default { 'Unknown' }
+            }
         }
-    } else {
-        # Categorizza per estensione
-        $category = switch ($script.Extension) {
-            '.ps1' { 'PowerShell' }
-            { $_ -in @('.sh', '.bash') } { 'Bash/Shell' }
-            { $_ -in @('.bat', '.cmd') } { 'Batch' }
-            '.py' { 'Python' }
-            default { 'Unknown' }
-        }
+    } catch {
+        # Non può leggere il file, salta
+        $validScripts++
+        continue
     }
     
     if ($categoryStats.ContainsKey($category)) {

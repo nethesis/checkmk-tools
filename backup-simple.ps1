@@ -106,27 +106,24 @@ foreach ($script in $scriptFiles) {
         continue
     }
     
-    # Determina tipo tramite estensione o shebang
+    # Determina tipo tramite estensione + shebang (shebang ha precedenza)
     $scriptType = $script.Extension
     
-    if ($script.Extension -eq '') {
-        # File senza estensione: controlla shebang
-        try {
-            $firstLine = Get-Content $script.FullName -First 1 -ErrorAction Stop
-            if ($firstLine -match '^#!/.*bash') {
-                $scriptType = '.sh'
-            } elseif ($firstLine -match '^#!/.*python') {
-                $scriptType = '.py'
-            } else {
-                # Shebang non riconosciuto, salta
-                $validScripts++
-                continue
-            }
-        } catch {
-            # Non può leggere il file, salta
+    try {
+        $firstLine = Get-Content $script.FullName -First 1 -ErrorAction Stop
+        if ($firstLine -match '^#!/.*bash') {
+            $scriptType = '.sh'
+        } elseif ($firstLine -match '^#!/.*python') {
+            $scriptType = '.py'
+        } elseif ($script.Extension -eq '') {
+            # File senza estensione e shebang non riconosciuto: salta
             $validScripts++
             continue
         }
+    } catch {
+        # Non può leggere il file, salta
+        $validScripts++
+        continue
     }
     
     # Verifica sintassi PowerShell con ParseFile
@@ -175,6 +172,21 @@ foreach ($script in $scriptFiles) {
                 $corruptedList += "[LETTURA] $relativePath - $_"
                 continue
             }
+        }
+    }
+
+    # Verifica Python (controllo base sintassi)
+    if ($scriptType -eq ".py") {
+        try {
+            $pythonCheck = python -m py_compile "$($script.FullName)" 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                $corruptedScripts++
+                $errorMsg = if ($pythonCheck) { $pythonCheck -join "; " } else { "Syntax error" }
+                $corruptedList += "[SINTASSI PY] $relativePath - $errorMsg"
+                continue
+            }
+        } catch {
+            # Python non disponibile, skip
         }
     }
     
