@@ -6,7 +6,7 @@ Bulk: no
 CheckMK notification script - integrates with Ydea ticketing system.
 Features: smart detection, flapping protection, host aggregation, cache management.
 
-Version: 1.0.0
+Version: 1.0.1
 """
 
 import os
@@ -20,11 +20,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any, Tuple, List
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 # ===== CONFIG =====
 YDEA_TOOLKIT_DIR = "/opt/ydea-toolkit"
-YDEA_TOOLKIT = f"{YDEA_TOOLKIT_DIR}/rydea-toolkit.sh"
 YDEA_ENV = f"{YDEA_TOOLKIT_DIR}/.env.ag"
 YDEA_CONFIG = f"{YDEA_TOOLKIT_DIR}/premium-mon-config.json"
 YDEA_CACHE_DIR = "/opt/ydea-toolkit/cache"
@@ -43,6 +42,20 @@ YDEA_CATEGORY_ID = int(os.getenv("YDEA_CATEGORY_ID", "147"))
 YDEA_USER_ID = int(os.getenv("YDEA_USER_ID", "4675"))  # Alessandro Gaggiano (AG)
 YDEA_TOOLKIT_TIMEOUT = int(os.getenv("YDEA_TOOLKIT_TIMEOUT", "25"))
 DEBUG_YDEA = os.getenv("DEBUG_YDEA", "0") == "1"
+
+
+def resolve_toolkit_command() -> Optional[List[str]]:
+    """Resolve ydea toolkit executable (prefer Python implementation)."""
+    candidates: List[Tuple[str, List[str]]] = [
+        (f"{YDEA_TOOLKIT_DIR}/ydea-toolkit.py", ["python3", f"{YDEA_TOOLKIT_DIR}/ydea-toolkit.py"]),
+        (f"{YDEA_TOOLKIT_DIR}/rydea-toolkit.py", ["python3", f"{YDEA_TOOLKIT_DIR}/rydea-toolkit.py"]),
+        (f"{YDEA_TOOLKIT_DIR}/ydea-toolkit.sh", [f"{YDEA_TOOLKIT_DIR}/ydea-toolkit.sh"]),
+        (f"{YDEA_TOOLKIT_DIR}/rydea-toolkit.sh", [f"{YDEA_TOOLKIT_DIR}/rydea-toolkit.sh"]),
+    ]
+    for check_path, cmd in candidates:
+        if os.path.exists(check_path):
+            return cmd
+    return None
 
 
 def log(msg: str):
@@ -86,7 +99,16 @@ def toolkit_cmd(args: List[str], timeout: Optional[int] = None) -> Tuple[int, st
         except Exception as e:
             log(f"WARNING: Failed to load {YDEA_ENV}: {e}")
     
-    cmd = [YDEA_TOOLKIT] + args
+    base_cmd = resolve_toolkit_command()
+    if not base_cmd:
+        log(
+            "ERROR: Ydea toolkit not found "
+            f"(checked: {YDEA_TOOLKIT_DIR}/ydea-toolkit.py, {YDEA_TOOLKIT_DIR}/rydea-toolkit.py, "
+            f"{YDEA_TOOLKIT_DIR}/ydea-toolkit.sh, {YDEA_TOOLKIT_DIR}/rydea-toolkit.sh)"
+        )
+        return 127, "", "Command not found"
+
+    cmd = base_cmd + args
     try:
         result = subprocess.run(
             cmd,
@@ -101,7 +123,7 @@ def toolkit_cmd(args: List[str], timeout: Optional[int] = None) -> Tuple[int, st
         log(f"ERROR: toolkit command timeout after {timeout}s")
         return 124, "", "Timeout"
     except FileNotFoundError:
-        log(f"ERROR: {YDEA_TOOLKIT} not found")
+        log(f"ERROR: {' '.join(base_cmd)} not found")
         return 127, "", "Command not found"
     except Exception as e:
         log(f"ERROR: toolkit command failed: {e}")
