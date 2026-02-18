@@ -3,7 +3,7 @@
 
 # Cache buster per forzare download nuova versione
 TIMESTAMP=$(date +%s)
-GITHUB_RAW_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/=${TIMESTAMP}"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/deploy/deploy-plain-agent.sh?t=${TIMESTAMP}"
 
 # Scarica in file temporaneo ed esegui
 TEMP_SCRIPT=$(mktemp)

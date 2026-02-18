@@ -1,48 +1,21 @@
-# Script Remoti (Launcher)
+# Script Tools Documentation
+> **Categoria:** Operativo
 
-Questa cartella contiene i **launcher remoti** (prefisso `r*`) che scaricano ed eseguono gli script completi da GitHub.
+Questa cartella contiene la documentazione operativa per gli script in `script-tools/full`.
 
-## Caratteristiche
+## Punto di partenza consigliato
 
-- **Dimensione minima**: ~7 righe di codice per file
-- **Esecuzione remota**: Usa `bash <(curl -fsSL URL)`
-- **Sempre aggiornati**: Scaricano l'ultima versione da GitHub
-- **Nessuna manutenzione locale**: Non richiedono aggiornamenti sul sistema
+1. `DOCUMENTATION_INDEX.md` → mappa rapida dei documenti davvero utili oggi
+2. `CONVERSION-STATUS-SCRIPT-TOOLS.md` → stato conversione Bash → Python
+3. README specifici (`README-*.md`) → guide operative per singolo script/workflow
 
-## Come funzionano
+## Come usare la documentazione senza perdersi
 
-```bash
-#!/bin/bash
-# Launcher per eseguire SCRIPT remoto dal repo GitHub
-SCRIPT_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/SCRIPT.sh"
-bash <(curl -fsSL "$SCRIPT_URL") "$@"
-```
+- Se devi **eseguire** qualcosa: parti dal README specifico del task.
+- Se devi **capire stato progetto**: usa `CONVERSION-STATUS-SCRIPT-TOOLS.md`.
+- Se trovi file datati (2025 Windows installer), trattali come storico salvo necessità.
 
-## Uso
+## Nota importante
 
-```bash
-# Esegui direttamente il launcher
-./rinstall-auto-git-sync.sh
-
-# Oppure scaricalo ed eseguilo
-curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/remote/rinstall-auto-git-sync.sh | bash
-```
-
-## Vantaggi
-
-1. **Portabilità**: Copia 7 righe invece di centinaia
-2. **Aggiornamenti automatici**: Usa sempre l'ultima versione
-3. **Semplicità**: Non serve git clone o sync
-4. **Affidabilità**: Se GitHub è raggiungibile, funziona
-
-## Script disponibili
-
-- `rauto-git-sync.sh` - Launcher per auto-git-sync
-- `rinstall-auto-git-sync.sh` - Launcher per installer
-- `rupdate-all-scripts.sh` - Launcher per updater
-- `rupgrade-checkmk.sh` - Launcher per upgrade CheckMK
-- E molti altri...
-
----
-
-📁 **Script completi**: Vedi cartella `../full/`
+Alcuni documenti in questa cartella sono storici o nati per sessioni passate.
+L'indice aggiornato in `DOCUMENTATION_INDEX.md` indica chiaramente cosa usare come riferimento corrente.

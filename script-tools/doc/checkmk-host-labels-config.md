@@ -1,4 +1,6 @@
 # CheckMK Host Labels Configuration Template
+> **Categoria:** Operativo
+
 # Template per configurare i label 'real_ip' negli host CheckMK
 
 ## 🎯 OBIETTIVO

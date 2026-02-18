@@ -1,4 +1,5 @@
 # Setup Auto-Updates - Configurazione Aggiornamenti Automatici Sistema
+> **Categoria:** Operativo
 
 ## Descrizione
 
@@ -7,7 +8,7 @@ Script per configurare aggiornamenti automatici del sistema Linux tramite cronta
 ## Componenti
 
 ### 1. Script Full (Interattivo)
-**Path:** `script-tools/full/setup-auto-updates.sh`
+**Path:** `script-tools/full/upgrade_maintenance/setup-auto-updates.sh`
 
 Versione completa con interfaccia interattiva che guida l'utente nella configurazione.
 
@@ -252,7 +253,7 @@ sudo chmod 644 /var/log/auto-updates.log
 
 ```bash
 # Verifica connessione
-curl -I https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/setup-auto-updates.sh
+curl -I https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/upgrade_maintenance/setup-auto-updates.sh
 
 # Usa versione locale
 git clone https://github.com/Coverup20/checkmk-tools.git

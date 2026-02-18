@@ -1,4 +1,5 @@
 # FRPC Installation Fix - Summary
+> **Categoria:** Storico
 
 ## Problem
 The `install-agent-interactive.sh` script failed on OpenWrt systems with:

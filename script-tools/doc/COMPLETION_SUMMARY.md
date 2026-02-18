@@ -1,4 +1,5 @@
 # 🎉 WINDOWS INSTALLER - COMPLETE! 🎉
+> **Categoria:** Storico
 
 ## Summary
 

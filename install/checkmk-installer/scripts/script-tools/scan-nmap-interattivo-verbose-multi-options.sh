@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Wrapper: use canonical implementation from repo.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CANONICAL="$SCRIPT_DIR/../../../../script-tools/full/scan-nmap-interattivo-verbose-multi-options.sh"
+CANONICAL="$SCRIPT_DIR/../../../../script-tools/full/network_scan/scan-nmap-interattivo-verbose-multi-options.sh"
 
 if [[ -x "$CANONICAL" ]]; then
     exec "$CANONICAL" "$@"

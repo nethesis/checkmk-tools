@@ -8,7 +8,7 @@ Default: --type remote --install-all --yes (installa solo remote launchers autom
 import urllib.request
 import sys
 
-REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/auto-deploy-checks.py"
+REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/deploy/auto-deploy-checks.py"
 
 try:
     # Download script remoto

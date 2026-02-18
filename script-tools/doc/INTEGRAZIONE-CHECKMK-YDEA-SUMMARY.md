@@ -1,5 +1,8 @@
 # 🎉 Integrazione CheckMK → Ydea Completata
 
+# 🎉 Integrazione CheckMK → Ydea Completata
+> **Categoria:** Specialistico
+
 ## ✅ File Creati
 
 ### **Script di Notifica CheckMK**

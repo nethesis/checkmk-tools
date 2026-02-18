@@ -1,74 +1,38 @@
-# Script Completi (Full)
+# script-tools/full - Struttura parlante
 
-Questa cartella contiene gli **script completi** che vengono scaricati ed eseguiti dai launcher remoti.
+Questa cartella è organizzata per **uso funzionale**.
 
-## Caratteristiche
+## Sottocartelle
 
-- **Codice completo**: Script standalone con tutte le funzionalità
-- **Auto-contenuti**: Non dipendono da altri file
-- **Eseguibili localmente**: Possono essere usati anche senza launcher
-- **Versionati**: Tracciati da git per vedere la storia
+- `backup_restore/`  
+  Backup, restore, compressione backup, retention, rclone space.
 
-## Script disponibili
+- `deploy/`  
+  Deploy script/check, smart deploy, deploy monitoraggio.
 
-### Gestione Repository
-- `auto-git-sync.sh` - Sync automatico del repository
-- `install-auto-git-sync.sh` - Installa servizio systemd per auto-sync
-- `update-all-scripts.sh` - Aggiorna script esistenti dal repo
-- `update-scripts-from-repo.sh` - Script updater originale
+- `installation/`  
+  Installazione agent, FRPC, componenti e setup correlati.
 
-### CheckMK Management
-- `upgrade-checkmk.sh` - Upgrade versione CheckMK
-- `install-checkmk-log-optimizer.sh` - Ottimizzazione log CheckMK
+- `upgrade_maintenance/`  
+  Upgrade, pre-upgrade, rocksolid startup check, ottimizzazioni e maintenance.
 
-### Deployment & Installation
-- `install-agent-interactive.sh` - Installer agente interattivo
-- `install-and-deploy-plain-agent.sh` - Install + deploy agente
-- `deploy-plain-agent.sh` - Deploy agente plain
-- `deploy-plain-agent-multi.sh` - Deploy multi-host
+- `sync_update/`  
+  Auto-git-sync, update script, update crontab, sync da repo.
 
-### FRPC Installation
-- `install-frpc.sh` - Installer FRPC standard
-- `install-frpc2.sh` - Installer FRPC v2
-- `install-frpc-dryrun.sh` - Test FRPC senza installare
-- `install-checkmk-agent-debtools-frp-nsec8c.sh` - Install completo NS8
+- `monitoring_diagnostics/`  
+  Tuning, diagnostica, debug monitor, distributed monitoring setup.
 
-### Network Tools
-- `scan-nmap-interattivo-verbose.sh` - Scan nmap interattivo
-- `scan-nmap-interattivo-verbose-multi-options.sh` - Scan avanzato
+- `network_scan/`  
+  Script di scansione nmap.
 
-### Smart Deploy
-- `smart-deploy-hybrid.sh` - Deploy ibrido intelligente
-- `smart-wrapper-template.sh` - Template per wrapper
-- `smart-wrapper-example.sh` - Esempio wrapper
+- `wrappers_templates/`  
+  Template e wrapper di esempio.
 
-### CheckMK Tuning
-- `checkmk-tuning-interactive.sh` - Tuning interattivo
-- `checkmk-tuning-interactive-v3.sh` - Versione 3
-- `checkmk-tuning-interactive-v4.sh` - Versione 4
-- `checkmk-tuning-interactive-v5.sh` - Versione 5 (latest)
+- `misc/`  
+  Script non ancora riclassificati in un dominio più specifico.
 
-## Uso Locale
+## Regola operativa
 
-```bash
-# Clone del repository
-git clone https://github.com/Coverup20/checkmk-tools.git
-cd checkmk-tools/script-tools/full
-
-# Esecuzione diretta
-chmod +x auto-git-sync.sh
-./auto-git-sync.sh 60
-```
-
-## Uso Remoto (Consigliato)
-
-Usa i launcher nella cartella `../remote/` per eseguire sempre l'ultima versione:
-
-```bash
-# Scarica ed esegui il launcher
-curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/remote/rauto-git-sync.sh | bash -s 60
-```
-
----
-
-🚀 **Launcher remoti**: Vedi cartella `../remote/`
+- Gli script stanno nelle rispettive sottocartelle categoria.
+- In root `script-tools/full` non devono esserci script `.sh`/`.py`.
+- Niente wrapper legacy: i path da usare sono quelli delle cartelle categoria.

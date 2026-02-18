@@ -881,10 +881,10 @@ $errors = $null; $null = [System.Management.Automation.PSParser]::Tokenize((Get-
 
 ```bash
 # Esecuzione diretta da repo locale
-/opt/checkmk-tools/script-tools/full/install-agent-interactive.sh
+/opt/checkmk-tools/script-tools/full/installation/install-agent-interactive.sh
 
 # Cron job - usa repo locale
-0 3 * * * /opt/checkmk-tools/script-tools/full/cleanup-checkmk-retention.sh >> /var/log/script.log 2>&1
+0 3 * * * /opt/checkmk-tools/script-tools/full/backup_restore/cleanup-checkmk-retention.sh >> /var/log/script.log 2>&1
 
 # Con bash esplicito
 bash /opt/checkmk-tools/script-tools/full/script-name.sh
@@ -895,7 +895,7 @@ bash /opt/checkmk-tools/script-tools/full/script-name.sh
 
 ```bash
 # Cron job - esecuzione diretta da GitHub
-0 3 * * * curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh | bash >> /var/log/script.log 2>&1
+0 3 * * * curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/backup_restore/cleanup-checkmk-retention.sh | bash >> /var/log/script.log 2>&1
 
 # Esecuzione manuale remota
 curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/script-name.sh | bash
@@ -1102,10 +1102,10 @@ wsl -- ssh <host> "/opt/checkmk-tools/script-check-ns7/remote/rcheck-sos-ns7.py"
 
 ```bash
 # Su server remoti CheckMK
-/opt/checkmk-tools/script-tools/full/install-agent-interactive.sh
+/opt/checkmk-tools/script-tools/full/installation/install-agent-interactive.sh
 
 # Da GitHub (se repo non clonato)
-curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/install-agent-interactive.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/installation/install-agent-interactive.sh | bash
 
 ```text
 
@@ -1496,8 +1496,8 @@ rl94ns81          # 10.155.100.41:22 (root, NethServer 8)
                   # Moduli: webtop1 (con Postgres attivo)
                   # Nodo WebTop per test condivisioni email
 nsec8-stable      # 10.155.100.100:22 (root, NethSecurity 8)
-                  # Agent CheckMK installato con: install-checkmk-agent-debtools-frp-nsec8c.sh
-                  # Path: /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c.sh
+                  # Agent CheckMK installato con: install-checkmk-agent-persistent-nsec8.sh
+                  # Path: /opt/checkmk-tools/script-tools/full/installation/install-checkmk-agent-persistent-nsec8.sh
 laboratorio       # 10.155.100.1:2222 (root, NethSecurity 8)
                   # ROCKSOLID Mode validato - resistente major upgrade
 marziodemo        # 10.155.100.61:22 (root, Demo environment)
@@ -1541,7 +1541,7 @@ wsl -- ssh ns-lab00 "cd /opt/checkmk-tools && git pull"
 
 ```powershell
 # Download ed esecuzione diretta script dal repository
-wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh | bash"
+wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/backup_restore/cleanup-checkmk-retention.sh | bash"
 
 # Con parametri
 wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/script.sh | bash -s -- arg1 arg2"
@@ -1567,7 +1567,7 @@ wsl -- ssh checkmk-vps-01 "ls -lh /opt/omd/sites/monitoring/var/check_mk/notify-
 # ❌ SBAGLIATO: scp script.sh checkmk-vps-01:/usr/local/bin/
 # ✅ CORRETTO: esegui da GitHub con curl
 
-wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh | bash"
+wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/backup_restore/cleanup-checkmk-retention.sh | bash"
 
 ```text
 
@@ -1587,7 +1587,7 @@ wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup2
 
 ```powershell
 # Esegui check-integrity su VPS
-wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh | bash -n"
+wsl -- ssh checkmk-vps-01 "curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/backup_restore/cleanup-checkmk-retention.sh | bash -n"
 
 ```text
 
@@ -1659,7 +1659,7 @@ ssh checkmk-vps-01 'su - monitoring -c "rclone copy do:testmonbck/checkmk-backup
 - **monitoring-minimal**: Backup ultra-minimali (~115 KB)
 
 **Script backup automatico:**
-- Script: `/opt/checkmk-tools/script-tools/full/checkmk_rclone_space_dyn.sh`
+- Script: `/opt/checkmk-tools/script-tools/full/backup_restore/checkmk_rclone_space_dyn.sh`
 - Eseguito da: site monitoring (non root)
 - Cron: Configurato dentro il site OMD
 
@@ -1959,7 +1959,7 @@ Copy-Item -Recurse "$env:USERPROFILE\Desktop\VSCode-User-Backup\*" "$env:APPDATA
 **Script validati e production-ready:**
 
 1. **install-checkmk-agent-persistent-nsec8.sh** (commit b29a2cf)
-   - Path: `script-tools/full/install-checkmk-agent-persistent-nsec8.sh`
+   - Path: `script-tools/full/installation/install-checkmk-agent-persistent-nsec8.sh`
    - Funzione: Installazione completa CheckMK Agent + FRP Client + QEMU-GA + Auto Git Sync
    - Fix implementati:
      - ✅ Dynamic package download via `download_openwrt_package()`
@@ -1969,7 +1969,7 @@ Copy-Item -Recurse "$env:USERPROFILE\Desktop\VSCode-User-Backup\*" "$env:APPDATA
    - Test: ✅ nsec8-stable, ✅ laboratorio (da GitHub)
 
 2. **rocksolid-startup-check.sh** (commit ea67364)
-   - Path: `script-tools/full/rocksolid-startup-check.sh`
+   - Path: `script-tools/full/upgrade_maintenance/rocksolid-startup-check.sh`
    - Funzione: Verifica e auto-remediation all'avvio sistema
    - Fix implementati:
      - ✅ Logic reordering: backup restore → corruption check → dependencies install

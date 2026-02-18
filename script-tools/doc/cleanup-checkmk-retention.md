@@ -1,4 +1,5 @@
 # Cleanup Retention CheckMK - Guida Installazione
+> **Categoria:** Operativo
 
 ## 📋 Descrizione
 
@@ -14,7 +15,7 @@ Script automatico per gestione retention dati CheckMK:
 ```bash
 # Su server CheckMK (come utente monitoring)
 cd /omd/sites/monitoring/local/bin
-wget https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh
+wget https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/backup_restore/cleanup-checkmk-retention.sh
 chmod +x cleanup-checkmk-retention.sh
 ```
 
@@ -145,6 +146,6 @@ find /omd/sites/monitoring/var/nagios -type f -printf "%T@ %p\n" | sort -n | hea
 
 ```bash
 cd /omd/sites/monitoring/local/bin
-wget -O cleanup-checkmk-retention.sh https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh
+wget -O cleanup-checkmk-retention.sh https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/backup_restore/cleanup-checkmk-retention.sh
 chmod +x cleanup-checkmk-retention.sh
 ```

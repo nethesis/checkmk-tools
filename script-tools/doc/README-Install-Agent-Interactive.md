@@ -1,4 +1,5 @@
 # 🚀 Install Agent Interactive - Guida Utente
+> **Categoria:** Operativo
 
 Script interattivo per l'installazione/disinstallazione automatizzata di CheckMK Agent con opzione FRPC client.
 

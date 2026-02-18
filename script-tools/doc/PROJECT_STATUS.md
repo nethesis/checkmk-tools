@@ -1,4 +1,5 @@
 # 🎯 WINDOWS INSTALLER - PROJECT STATUS
+> **Categoria:** Storico
 
 **Last Update:** 2025-11-07 15:51 UTC  
 **Project Status:** ✅ **COMPLETE**

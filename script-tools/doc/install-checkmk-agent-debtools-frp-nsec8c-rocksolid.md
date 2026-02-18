@@ -1,4 +1,5 @@
 # install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh
+> **Categoria:** Operativo
 
 ## Descrizione
 
@@ -44,7 +45,7 @@ Script di installazione ROCKSOLID per CheckMK Agent e FRP Client su sistemi Neth
 
 ```bash
 # Download e installazione in un comando
-curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh -o /tmp/install-rocksolid.sh
+curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/installation/install-checkmk-agent-persistent-nsec8.sh -o /tmp/install-rocksolid.sh
 bash /tmp/install-rocksolid.sh
 ```
 
@@ -176,7 +177,7 @@ bash install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh --uninstall
    - NON copia file locale (si corromperebbe)
    - Configura `/etc/rc.local` per eseguire da GitHub:
      ```bash
-     curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/rocksolid-startup-check.sh | bash
+   curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/upgrade_maintenance/rocksolid-startup-check.sh | bash
      ```
 
 2. **Protezione rc.local**
@@ -363,7 +364,7 @@ cat /etc/frp/frpc.toml
 
 ```bash
 # Esegui manualmente autocheck
-curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/rocksolid-startup-check.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/upgrade_maintenance/rocksolid-startup-check.sh | bash
 
 # Verifica log
 tail -50 /var/log/rocksolid-startup.log

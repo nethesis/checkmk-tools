@@ -1,4 +1,5 @@
 # CheckMK Smart Deploy - Sistema Ibrido
+> **Categoria:** Operativo
 
 ## 📁 **File nel Sistema:**
 

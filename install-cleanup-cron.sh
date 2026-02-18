@@ -9,7 +9,7 @@ set -euo pipefail
 #   ./install-cleanup-cron.sh --yes        # Auto-confirm (default time 03:00)
 #   ./install-cleanup-cron.sh --time "0 2 * * *"  # Specific time
 
-SCRIPT_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/cleanup-checkmk-retention.sh"
+SCRIPT_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/backup_restore/cleanup-checkmk-retention.sh"
 LOG_FILE="/var/log/cleanup-checkmk-retention.log"
 CRON_TIME="0 3 * * *"  # Default: 03:00 every day
 AUTO_YES=false

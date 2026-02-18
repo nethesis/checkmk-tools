@@ -488,7 +488,7 @@ Script interattivo per deployment selettivo di monitoring scripts su host remoti
 
 ```bash
 # Download ed esecuzione diretta
-curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/deploy-monitoring-scripts.sh -o /tmp/deploy.sh && bash /tmp/deploy.sh
+curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/deploy/deploy-monitoring-scripts.sh -o /tmp/deploy.sh && bash /tmp/deploy.sh
 
 ```text
 
@@ -497,7 +497,7 @@ curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script
 ```bash
 # Se hai già il repository clonato
 cd /opt/checkmk-tools
-./script-tools/full/deploy-monitoring-scripts.sh
+./script-tools/full/deploy/deploy-monitoring-scripts.sh
 
 ```text
 
@@ -610,7 +610,7 @@ Installazione e configurazione CheckMK Agent.
 
 ```bash
 # Download ed esecuzione diretta
-curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/installation/install-checkmk-agent-persistent-nsec8.sh | bash
 
 # Opzionale: modalità interattiva
 bash install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh
@@ -1254,7 +1254,7 @@ Produzione
 
 1. **Modifica locale** (Windows/Workstation)
 2. **Commit + Push** a GitHub
-3. **Attendi auto-sync** (5-15 minuti) o forzalo: `sudo bash /opt/checkmk-tools/script-tools/full/auto-git-sync.sh`
+3. **Attendi auto-sync** (5-15 minuti) o forzalo: `sudo bash /opt/checkmk-tools/script-tools/full/sync_update/auto-git-sync.sh`
 4. **Script aggiornati** in `/opt/checkmk-tools/`
 5. **Test in produzione**
 
@@ -1270,7 +1270,7 @@ sudo systemctl status auto-git-sync.service
 sudo journalctl -u auto-git-sync.service -n 50
 
 # Forzare sync manuale
-sudo bash /opt/checkmk-tools/script-tools/full/auto-git-sync.sh
+sudo bash /opt/checkmk-tools/script-tools/full/sync_update/auto-git-sync.sh
 
 ```text
 
@@ -1326,7 +1326,7 @@ rclone config
 
 ```text
 
-**File**: `script-tools/full/checkmk_rclone_space_dyn.sh` (794 righe)
+**File**: `script-tools/full/backup_restore/checkmk_rclone_space_dyn.sh` (794 righe)
 
 ---
 
@@ -1361,7 +1361,7 @@ crontab -l
 
 ```text
 
-**File**: `script-tools/full/setup-auto-upgrade-checkmk.sh` (270 righe)
+**File**: `script-tools/full/upgrade_maintenance/setup-auto-upgrade-checkmk.sh` (270 righe)
 
 ---
 

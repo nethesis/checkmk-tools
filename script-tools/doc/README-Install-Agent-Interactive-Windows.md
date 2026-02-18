@@ -1,4 +1,5 @@
 # CheckMK Agent + FRPC Interactive Installer for Windows
+> **Categoria:** Operativo
 
 **Version:** 1.1 (2025-11-07)  
 **Compatibility:** Windows 10, 11, Server 2019, Server 2022  

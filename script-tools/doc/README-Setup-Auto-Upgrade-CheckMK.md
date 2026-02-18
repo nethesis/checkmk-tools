@@ -1,4 +1,5 @@
 # Setup Auto-Upgrade CheckMK - Configurazione Upgrade Automatici
+> **Categoria:** Operativo
 
 ## ⚠️ ATTENZIONE - Script Avanzato
 
@@ -11,7 +12,7 @@ Script per pianificare upgrade automatici di CheckMK RAW Edition. Il sistema ver
 ## Componenti
 
 ### 1. Script Full (Interattivo)
-**Path:** `script-tools/full/setup-auto-upgrade-checkmk.sh`
+**Path:** `script-tools/full/upgrade_maintenance/setup-auto-upgrade-checkmk.sh`
 
 Versione completa con interfaccia interattiva per configurare gli upgrade automatici.
 
@@ -21,7 +22,7 @@ Versione completa con interfaccia interattiva per configurare gli upgrade automa
 Launcher che scarica ed esegue lo script completo direttamente da GitHub.
 
 ### 3. Script di Upgrade
-**Dipendenza:** `script-tools/full/upgrade-checkmk.sh`
+**Dipendenza:** `script-tools/full/upgrade_maintenance/upgrade-checkmk.sh`
 
 Script che esegue effettivamente l'upgrade di CheckMK (deve essere presente).
 
@@ -43,7 +44,7 @@ Script che esegue effettivamente l'upgrade di CheckMK (deve essere presente).
 - Comando `omd` disponibile
 - Permessi root (sudo)
 - `curl`, `wget`, `dpkg` installati
-- Script `upgrade-checkmk.sh` presente in `script-tools/full/`
+- Script `upgrade-checkmk.sh` presente in `script-tools/full/upgrade_maintenance/`
 
 ### Opzionale
 - `mailutils` per notifiche email

@@ -5,7 +5,7 @@ set -euo pipefail
 # Questo evita mismatch tra copie e semplifica la manutenzione.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
-CANONICAL="$REPO_ROOT/script-tools/full/install-agent-interactive.sh"
+CANONICAL="$REPO_ROOT/script-tools/full/installation/install-agent-interactive.sh"
 
 if [[ -x "$CANONICAL" ]]; then
     exec "$CANONICAL" "$@"

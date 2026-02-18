@@ -1,4 +1,5 @@
 # 🚀 CheckMK Smart Deploy - Sistema Ibrido Migliorato
+> **Categoria:** Operativo
 
 ## 📋 **NOVITÀ: Pattern CheckMK Ufficiali Integrati**
 

@@ -1,4 +1,5 @@
 # 🔧 FRPC Service Creation Fix - sc.exe Quoting Issue
+> **Categoria:** Storico
 
 **Date:** 2025-11-07  
 **Status:** ✅ RESOLVED  

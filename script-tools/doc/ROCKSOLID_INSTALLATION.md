@@ -1,4 +1,5 @@
 # CheckMK Agent - ROCKSOLID Installation Guide
+> **Categoria:** Operativo
 
 ## 🛡️ Problema Risolto
 
@@ -80,10 +81,10 @@ Lo script `rocksolid-startup-check.sh` esegue **automaticamente ad ogni riavvio*
 
 ```bash
 # Da repository locale (se disponibile)
-bash /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh
+bash /opt/checkmk-tools/script-tools/full/installation/install-checkmk-agent-persistent-nsec8.sh
 
 # Da GitHub
-curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/installation/install-checkmk-agent-persistent-nsec8.sh | bash
 ```
 
 ### Modalità Non-Interattiva (Boot Automatico)
@@ -93,7 +94,7 @@ Per esecuzioni automatiche (es. boot, cron, automation):
 ```bash
 # Mantiene automaticamente configurazione FRP esistente (se presente)
 # Salta prompt interattivi
-NON_INTERACTIVE=1 bash /opt/checkmk-tools/script-tools/full/install-checkmk-agent-debtools-frp-nsec8c-rocksolid.sh
+NON_INTERACTIVE=1 bash /opt/checkmk-tools/script-tools/full/installation/install-checkmk-agent-persistent-nsec8.sh
 ```
 
 **Comportamento modalità non-interattiva:**

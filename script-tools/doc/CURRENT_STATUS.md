@@ -1,4 +1,5 @@
 # Windows Installer - Current Status Update
+> **Categoria:** Storico
 
 **Date:** 2025-11-07 (Session Continuation)  
 **Status:** ✅ URL Fix Applied & Ready for Testing

@@ -1,4 +1,5 @@
 # 🎉 Windows Installer - Session Complete & All Fixed!
+> **Categoria:** Storico
 
 **Date:** 2025-11-07  
 **Status:** ✅ **ALL ISSUES RESOLVED**

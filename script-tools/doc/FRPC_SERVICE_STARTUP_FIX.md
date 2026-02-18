@@ -1,4 +1,5 @@
 # Windows Installer - FRPC Service Startup Fix
+> **Categoria:** Storico
 
 **Date:** 2025-11-07 (FRPC Diagnostics & Fix)  
 **Status:** ✅ FIXED - Installation Script Updated  

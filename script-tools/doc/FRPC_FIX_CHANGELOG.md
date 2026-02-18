@@ -1,4 +1,5 @@
 # FRPC Installation Fix - Changelog
+> **Categoria:** Storico
 
 **Date**: 2025-11-07  
 **Script**: `install-agent-interactive.sh`  

@@ -1,4 +1,5 @@
 # Installazione CheckMK Agent + FRPC su QNAP NAS
+> **Categoria:** Operativo
 
 ## 📋 Descrizione
 

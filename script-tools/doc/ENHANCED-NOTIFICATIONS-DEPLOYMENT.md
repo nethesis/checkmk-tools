@@ -1,4 +1,5 @@
 # IMPLEMENTATION SUMMARY - Enhanced Notifications for CheckMK
+> **Categoria:** Specialistico
 
 ## 🎯 Cosa è Stato Implementato
 

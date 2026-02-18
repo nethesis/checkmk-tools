@@ -1,4 +1,5 @@
 # FRPC Installation Fix - Before/After Code Comparison
+> **Categoria:** Storico
 
 ## 1. FRPC Download Directory Fix
 

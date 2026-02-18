@@ -1,4 +1,5 @@
 # CheckMK Distributed Monitoring - Setup Guide
+> **Categoria:** Operativo
 
 ## Architettura
 ```

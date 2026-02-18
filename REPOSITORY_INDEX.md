@@ -96,8 +96,8 @@ git clone https://github.com/Coverup20/checkmk-tools.git
 cd checkmk-tools
 
 # Esegui script completo
-chmod +x script-tools/full/install-auto-git-sync.sh
-sudo ./script-tools/full/install-auto-git-sync.sh
+chmod +x script-tools/full/installation/install-auto-git-sync.sh
+sudo ./script-tools/full/installation/install-auto-git-sync.sh
 ```
 
 ---

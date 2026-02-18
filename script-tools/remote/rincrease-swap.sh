@@ -1,11 +1,17 @@
 #!/bin/bash
 # Remote launcher per increase-swap.sh
-# Scarica ed esegue lo script dal repository GitHub
-REPO_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
-SCRIPT_PATH="script-tools/full/increase-swap.sh"
-# Verifica se eseguito come root
+
+TIMESTAMP=$(date +%s)
+SCRIPT_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/misc/increase-swap.sh?t=${TIMESTAMP}"
+
 if [ "$EUID" -ne 0 ]; then
     echo "Questo script deve essere eseguito come root"
     exit 1
-fi # Scarica in file temporaneo ed esegue con flag --yes
-TEMP_SCRIPT=$(mktemp)curl -fsSL "$REPO_URL/$SCRIPT_PATH" -o "$TEMP_SCRIPT"bash "$TEMP_SCRIPT" --yes "$@"rm -f "$TEMP_SCRIPT"
+fi
+
+TEMP_SCRIPT=$(mktemp)
+curl -fsSL "$SCRIPT_URL" -o "$TEMP_SCRIPT"
+bash "$TEMP_SCRIPT" --yes "$@"
+EXIT_CODE=$?
+rm -f "$TEMP_SCRIPT"
+exit $EXIT_CODE
