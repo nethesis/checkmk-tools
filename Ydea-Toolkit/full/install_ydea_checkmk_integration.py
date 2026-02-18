@@ -34,6 +34,8 @@ from datetime import datetime
 CHECKMK_SITE = os.getenv("CHECKMK_SITE", "monitoring")
 CHECKMK_NOTIFY_DIR = Path(f"/omd/sites/{CHECKMK_SITE}/local/share/check_mk/notifications")
 YDEA_TOOLKIT_DIR = Path(os.getenv("YDEA_TOOLKIT_DIR", "/opt/ydea-toolkit"))
+NOTIFY_BIN_DIR = Path("/usr/local/bin/notify-checkmk")
+CACHE_VALIDATOR_NAME = "ydea_cache_validator.py"
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 
@@ -228,6 +230,27 @@ def install_scripts():
         success("mail_ydea_down installato")
     else:
         warn("File mail_ydea_down non trovato (opzionale)")
+
+    # Copia cache validator (obbligatorio)
+    validator_source = None
+    for candidate in ["ydea_cache_validator.py", "ydea_cache_validator"]:
+        candidate_path = notify_script_dir / candidate
+        if candidate_path.exists():
+            validator_source = candidate_path
+            break
+
+    if not validator_source:
+        error(
+            f"File richiesto {CACHE_VALIDATOR_NAME} non trovato in {notify_script_dir}/ "
+            "(attesi: ydea_cache_validator.py oppure ydea_cache_validator)"
+        )
+        sys.exit(1)
+
+    NOTIFY_BIN_DIR.mkdir(parents=True, exist_ok=True)
+    validator_destination = NOTIFY_BIN_DIR / CACHE_VALIDATOR_NAME
+    shutil.copy(validator_source, validator_destination)
+    validator_destination.chmod(0o755)
+    success(f"{CACHE_VALIDATOR_NAME} installato in {NOTIFY_BIN_DIR}")
     
     # Copia health monitor (supporta sia .sh che .py)
     info("Installazione health monitor...")
@@ -537,8 +560,8 @@ def test_connection():
 
 
 def setup_cron():
-    """Configura cron job per health monitor"""
-    info("Configurazione cron job per health monitor...")
+    """Configura cron job per health monitor e cache validator"""
+    info("Configurazione cron job per health monitor e cache validator...")
     
     # Determina quale health monitor usare
     health_monitor = None
@@ -550,7 +573,9 @@ def setup_cron():
         warn("Health monitor non trovato, skip cron setup")
         return
     
-    cron_line = f"*/15 * * * * {health_monitor} >> /var/log/ydea_health.log 2>&1"
+    health_cron_line = f"*/15 * * * * {health_monitor} >> /var/log/ydea_health.log 2>&1"
+    validator_path = NOTIFY_BIN_DIR / CACHE_VALIDATOR_NAME
+    validator_cron_line = f"*/30 * * * * {validator_path} >> /var/log/ydea_cache_validator.log 2>&1"
     
     try:
         # Controlla se già esiste
@@ -560,20 +585,34 @@ def setup_cron():
             text=True
         )
         
-        if "ydea-health-monitor" in result.stdout or "ydea_health_monitor" in result.stdout:
-            warn("Cron job già configurato")
+        current_crontab = result.stdout if result.returncode == 0 else ""
+        new_crontab = current_crontab
+
+        if "ydea-health-monitor" in current_crontab or "ydea_health_monitor" in current_crontab:
+            warn("Cron job health monitor già configurato")
         else:
-            # Aggiungi al crontab
-            new_crontab = result.stdout if result.returncode == 0 else ""
-            new_crontab += f"\n# Ydea Health Monitor - ogni 15 minuti\n{cron_line}\n"
-            
+            new_crontab += f"\n# Ydea Health Monitor - ogni 15 minuti\n{health_cron_line}\n"
+            success("Cron job health monitor configurato (ogni 15 minuti)")
+
+        if validator_path.exists():
+            if "ydea_cache_validator" in current_crontab:
+                warn("Cron job cache validator già configurato")
+            else:
+                new_crontab += (
+                    f"\n# Ydea Cache Validator - ogni 30 minuti\n"
+                    f"{validator_cron_line}\n"
+                )
+                success("Cron job cache validator configurato (ogni 30 minuti)")
+        else:
+            warn(f"Cache validator non trovato in {validator_path}, skip cron dedicato")
+
+        if new_crontab != current_crontab:
             subprocess.run(
                 ["crontab", "-"],
                 input=new_crontab,
                 text=True,
                 check=True
             )
-            success("Cron job configurato (ogni 15 minuti)")
     except Exception as e:
         warn(f"Errore configurazione cron: {e}")
     
@@ -582,6 +621,11 @@ def setup_cron():
     log_file.touch(exist_ok=True)
     log_file.chmod(0o666)
     success("Log file creato: /var/log/ydea_health.log")
+
+    validator_log_file = Path("/var/log/ydea_cache_validator.log")
+    validator_log_file.touch(exist_ok=True)
+    validator_log_file.chmod(0o666)
+    success("Log file creato: /var/log/ydea_cache_validator.log")
 
 
 def create_cache_files():
@@ -639,6 +683,8 @@ def remove_cron_entries():
             if "ydea_health_monitor" not in line
             and "ydea-health-monitor" not in line
             and "Ydea Health Monitor - ogni 15 minuti" not in line
+            and "ydea_cache_validator" not in line
+            and "Ydea Cache Validator - ogni 30 minuti" not in line
         ]
 
         if filtered_lines == original_lines:
@@ -680,10 +726,13 @@ def remove_installation():
     for monitor_name in ["ydea_health_monitor.py", "ydea-health-monitor.sh"]:
         backup_and_remove(YDEA_TOOLKIT_DIR / monitor_name, f"Health monitor {monitor_name}")
 
+    backup_and_remove(NOTIFY_BIN_DIR / CACHE_VALIDATOR_NAME, f"Cache validator {CACHE_VALIDATOR_NAME}")
+
     for cache_name in ["ydea_checkmk_tickets.json", "ydea_checkmk_flapping.json"]:
         backup_and_remove(Path("/tmp") / cache_name, f"Cache {cache_name}")
 
     backup_and_remove(Path("/var/log/ydea_health.log"), "Log ydea_health.log")
+    backup_and_remove(Path("/var/log/ydea_cache_validator.log"), "Log ydea_cache_validator.log")
     remove_cron_entries()
 
     print()
@@ -713,6 +762,7 @@ def show_next_steps():
     print()
     print("4️⃣  Monitora log:")
     print("   → tail -f /var/log/ydea_health.log")
+    print("   → tail -f /var/log/ydea_cache_validator.log")
     print(f"   → tail -f /omd/sites/{CHECKMK_SITE}/var/log/notify.log")
     print()
     print("5️⃣  Documentazione completa:")

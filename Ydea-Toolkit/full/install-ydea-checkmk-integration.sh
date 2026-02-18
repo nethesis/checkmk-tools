@@ -14,6 +14,7 @@ NC='\033[0m' # No Color
 CHECKMK_SITE="${CHECKMK_SITE:-monitoring}"
 CHECKMK_NOTIFY_DIR="/omd/sites/${CHECKMK_SITE}/local/share/check_mk/notifications"
 YDEA_TOOLKIT_DIR="${YDEA_TOOLKIT_DIR:-/opt/ydea-toolkit}"
+NOTIFY_BIN_DIR="/usr/local/bin/notify-checkmk"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}"
@@ -106,6 +107,22 @@ install_scripts() {
   else
     warn "File mail_ydea_down non trovato (opzionale)"
   fi
+
+  # Copia cache validator (obbligatorio)
+  local CACHE_VALIDATOR_SRC=""
+  if [[ -f "${NOTIFY_SCRIPT_DIR}/ydea_cache_validator.py" ]]; then
+    CACHE_VALIDATOR_SRC="${NOTIFY_SCRIPT_DIR}/ydea_cache_validator.py"
+  elif [[ -f "${NOTIFY_SCRIPT_DIR}/ydea_cache_validator" ]]; then
+    CACHE_VALIDATOR_SRC="${NOTIFY_SCRIPT_DIR}/ydea_cache_validator"
+  else
+    error "File richiesto ydea_cache_validator.py non trovato in ${NOTIFY_SCRIPT_DIR}/"
+    exit 1
+  fi
+
+  mkdir -p "$NOTIFY_BIN_DIR"
+  cp "$CACHE_VALIDATOR_SRC" "${NOTIFY_BIN_DIR}/ydea_cache_validator.py"
+  chmod +x "${NOTIFY_BIN_DIR}/ydea_cache_validator.py"
+  success "ydea_cache_validator.py installato in ${NOTIFY_BIN_DIR}"
   
   # Copia health monitor (supporta sia percorso relativo che assoluto)
   info "Installazione health monitor..."
@@ -195,23 +212,50 @@ test_connection() {
 }
 
 setup_cron() {
-  info "Configurazione cron job per health monitor..."
+  info "Configurazione cron job per health monitor e cache validator..."
   
-  local cron_line="*/15 * * * * ${YDEA_TOOLKIT_DIR}/ydea-health-monitor.sh >> /var/log/ydea_health.log 2>&1"
+  local health_cron_line="*/15 * * * * ${YDEA_TOOLKIT_DIR}/ydea-health-monitor.sh >> /var/log/ydea_health.log 2>&1"
+  local validator_cron_line="*/30 * * * * ${NOTIFY_BIN_DIR}/ydea_cache_validator.py >> /var/log/ydea_cache_validator.log 2>&1"
+  local current_crontab
+  current_crontab="$(crontab -l 2>/dev/null || true)"
+  local new_crontab="$current_crontab"
   
-  # Controlla se già esiste
-  if crontab -l 2>/dev/null | grep -q "ydea-health-monitor"; then
-    warn "Cron job già configurato"
+  # Health monitor cron
+  if echo "$current_crontab" | grep -q "ydea-health-monitor"; then
+    warn "Cron job health monitor già configurato"
   else
-    # Aggiungi al crontab
-    (crontab -l 2>/dev/null; echo "# Ydea Health Monitor - ogni 15 minuti"; echo "$cron_line") | crontab -
-    success "Cron job configurato (ogni 15 minuti)"
+    new_crontab+=$'\n# Ydea Health Monitor - ogni 15 minuti\n'
+    new_crontab+="$health_cron_line"
+    new_crontab+=$'\n'
+    success "Cron job health monitor configurato (ogni 15 minuti)"
+  fi
+
+  # Cache validator cron
+  if [[ -x "${NOTIFY_BIN_DIR}/ydea_cache_validator.py" ]]; then
+    if echo "$current_crontab" | grep -q "ydea_cache_validator"; then
+      warn "Cron job cache validator già configurato"
+    else
+      new_crontab+=$'\n# Ydea Cache Validator - ogni 30 minuti\n'
+      new_crontab+="$validator_cron_line"
+      new_crontab+=$'\n'
+      success "Cron job cache validator configurato (ogni 30 minuti)"
+    fi
+  else
+    warn "Cache validator non trovato in ${NOTIFY_BIN_DIR}, skip cron dedicato"
+  fi
+
+  if [[ "$new_crontab" != "$current_crontab" ]]; then
+    printf "%s\n" "$new_crontab" | crontab -
   fi
   
   # Crea file log
   touch /var/log/ydea_health.log
   chmod 666 /var/log/ydea_health.log
   success "Log file creato: /var/log/ydea_health.log"
+
+  touch /var/log/ydea_cache_validator.log
+  chmod 666 /var/log/ydea_cache_validator.log
+  success "Log file creato: /var/log/ydea_cache_validator.log"
 }
 
 create_cache_files() {
@@ -248,6 +292,7 @@ show_next_steps() {
   echo ""
   echo "4️⃣  Monitora log:"
   echo "   → tail -f /var/log/ydea_health.log"
+  echo "   → tail -f /var/log/ydea_cache_validator.log"
   echo "   → tail -f /omd/sites/${CHECKMK_SITE}/var/log/notify.log"
   echo ""
   echo "5️⃣  Documentazione completa:"
