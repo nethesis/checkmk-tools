@@ -110,12 +110,19 @@ def install_scripts():
     
     # Determina percorso script-notify-checkmk
     notify_script_dir = None
-    possible_paths = [
-        SCRIPT_DIR / "script-notify-checkmk" / "full",
-        SCRIPT_DIR.parent / "script-notify-checkmk" / "full",
-        SCRIPT_DIR / "script-notify-checkmk",
-        SCRIPT_DIR.parent / "script-notify-checkmk"
+    candidate_roots = [
+        SCRIPT_DIR,
+        SCRIPT_DIR.parent,
+        SCRIPT_DIR.parent.parent,
+        Path.cwd(),
+        Path.cwd().parent,
     ]
+    possible_paths = []
+    for root in candidate_roots:
+        possible_paths.extend([
+            root / "script-notify-checkmk" / "full",
+            root / "script-notify-checkmk",
+        ])
     
     for path in possible_paths:
         if path.exists():
