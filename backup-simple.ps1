@@ -439,6 +439,11 @@ if ($networkSuccess) {
     Write-Host "  RETE: Non disponibile" -ForegroundColor Yellow
 }
 Write-Host ""
+Write-Host "  RIEPILOGO RAPIDO:" -ForegroundColor Cyan
+Write-Host "    Script verificati: $totalScripts" -ForegroundColor Gray
+Write-Host "    File backuppati (locale): $copiedFiles" -ForegroundColor Gray
+Write-Host "    File backuppati (rete):   $(if ($networkSuccess) { $networkCopied } else { '0 (rete non disponibile)' })" -ForegroundColor Gray
+Write-Host ""
 Write-Host "  Timestamp:        $TIMESTAMP" -ForegroundColor Gray
 Write-Host ""
 
@@ -493,6 +498,7 @@ if ($SEND_EMAIL) {
     
     try {
         $emailSubject = "[CheckMK Backup] Completato - $TIMESTAMP"
+        $networkFilesSummary = if ($networkSuccess) { "$networkCopied" } else { "0 (rete non disponibile)" }
         
         $emailBody = @"
 ===============================================================
@@ -509,6 +515,13 @@ Script verificati:     $totalScripts
 Script validi:         $validScripts
 Script corrotti:       $corruptedScripts
 Stato:                 $(if ($corruptedScripts -eq 0) { "OK" } else { "WARNING" })
+
+---------------------------------------------------------------
+    RIEPILOGO RAPIDO
+---------------------------------------------------------------
+Script verificati:     $totalScripts
+File backuppati (loc): $copiedFiles
+File backuppati (ret): $networkFilesSummary
 
 "@
         
