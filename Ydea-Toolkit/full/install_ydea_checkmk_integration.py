@@ -13,15 +13,16 @@ Requirements:
     - CheckMK installato
     - Directory Ydea Toolkit
 
-Version: 1.0.1 (allineato a ydea_la/ydea_ag)
+Version: 1.0.2 (prompt interattivo credenziali)
 """
 
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 
 import sys
 import os
 import shutil
 import subprocess
+import getpass
 from pathlib import Path
 from datetime import datetime
 
@@ -205,6 +206,70 @@ def install_scripts():
     success(f"{health_monitor.name} installato")
 
 
+def read_env_exports(env_file: Path) -> dict:
+    """Legge variabili export da un file .env"""
+    values = {}
+    if not env_file.exists():
+        return values
+
+    for line in env_file.read_text().splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("export ") or "=" not in stripped:
+            continue
+        key, value = stripped[len("export "):].split("=", 1)
+        values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
+
+def update_env_exports(env_file: Path, updates: dict):
+    """Aggiorna/aggiunge variabili export in un file .env"""
+    existing_lines = env_file.read_text().splitlines() if env_file.exists() else []
+    pending = dict(updates)
+    new_lines = []
+
+    for line in existing_lines:
+        stripped = line.strip()
+        if stripped.startswith("export ") and "=" in stripped:
+            key = stripped[len("export "):].split("=", 1)[0].strip()
+            if key in pending:
+                value = str(pending.pop(key)).replace('"', '\\"')
+                new_lines.append(f'export {key}="{value}"')
+                continue
+        new_lines.append(line)
+
+    for key, value in pending.items():
+        safe_value = str(value).replace('"', '\\"')
+        new_lines.append(f'export {key}="{safe_value}"')
+
+    env_file.write_text("\n".join(new_lines).rstrip() + "\n")
+
+
+def prompt_value(label: str, current_value: str = "", required: bool = False, secret: bool = False) -> str:
+    """Prompt interattivo con default e validazione"""
+    while True:
+        if secret:
+            if current_value:
+                prompt = f"{label} (invio per mantenere valore esistente): "
+            else:
+                prompt = f"{label}: "
+            value = getpass.getpass(prompt).strip()
+        else:
+            prompt = f"{label}"
+            if current_value:
+                prompt += f" [{current_value}]"
+            prompt += ": "
+            value = input(prompt).strip()
+
+        if value:
+            return value
+        if current_value:
+            return current_value
+        if not required:
+            return ""
+
+        warn(f"{label} è obbligatorio")
+
+
 def setup_env():
     """Configura file .env"""
     info("Configurazione file .env...")
@@ -234,21 +299,48 @@ def setup_env():
     else:
         warn(f"Nessun template .env trovato, creo file vuoto: {env_file}")
         env_file.write_text("")
+
+    current_values = read_env_exports(env_file)
     
     print()
-    warn("⚠️  IMPORTANTE: Configura le credenziali Ydea in:")
+    warn("⚠️  IMPORTANTE: inserisci ora le credenziali Ydea")
     print(f"  {env_file}")
     print()
-    print("Modifica le righe:")
-    print('  export YDEA_ID="il_tuo_id"')
-    print('  export YDEA_API_KEY="la_tua_api_key"')
-    print('  export YDEA_ALERT_EMAIL="massimo.palazzetti@nethesis.it"')
+    print("Campi richiesti: YDEA_ID, YDEA_API_KEY, YDEA_USER_ID")
+    print("Campi opzionali: YDEA_USER_NAME, YDEA_CONTRATTO_ID, YDEA_ALERT_EMAIL")
     print()
     
-    response = input("Vuoi modificarlo ora? (y/n) ")
+    response = input("Vuoi inserire i dati ora in modo interattivo? (y/n) ")
     if response.lower() == 'y':
-        editor = os.getenv("EDITOR", "nano")
-        subprocess.run([editor, str(env_file)])
+        ydea_id = prompt_value("YDEA_ID", current_values.get("YDEA_ID", ""), required=True)
+        ydea_api_key = prompt_value("YDEA_API_KEY", current_values.get("YDEA_API_KEY", ""), required=True, secret=True)
+        default_user_id = current_values.get("YDEA_USER_ID", current_values.get("YDEA_USER_ID_CREATE_TICKET", ""))
+        ydea_user_id = prompt_value("YDEA_USER_ID", default_user_id, required=True)
+        ydea_user_name = prompt_value("YDEA_USER_NAME", current_values.get("YDEA_USER_NAME", ""), required=False)
+        ydea_contratto_id = prompt_value("YDEA_CONTRATTO_ID", current_values.get("YDEA_CONTRATTO_ID", ""), required=False)
+        ydea_alert_email = prompt_value(
+            "YDEA_ALERT_EMAIL",
+            current_values.get("YDEA_ALERT_EMAIL", "massimo.palazzetti@nethesis.it"),
+            required=False,
+        )
+
+        updates = {
+            "YDEA_ID": ydea_id,
+            "YDEA_API_KEY": ydea_api_key,
+            "YDEA_USER_ID": ydea_user_id,
+            "YDEA_USER_ID_CREATE_NOTE": ydea_user_id,
+            "YDEA_USER_ID_CREATE_TICKET": ydea_user_id,
+            "YDEA_ALERT_EMAIL": ydea_alert_email,
+        }
+        if ydea_user_name:
+            updates["YDEA_USER_NAME"] = ydea_user_name
+        if ydea_contratto_id:
+            updates["YDEA_CONTRATTO_ID"] = ydea_contratto_id
+
+        update_env_exports(env_file, updates)
+        success(f"Credenziali salvate in {env_file}")
+    else:
+        warn("Configurazione interattiva saltata: aggiorna manualmente il file .env")
 
 
 def test_connection():
