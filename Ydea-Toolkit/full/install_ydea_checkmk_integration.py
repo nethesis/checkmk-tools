@@ -13,10 +13,10 @@ Requirements:
     - CheckMK installato
     - Directory Ydea Toolkit
 
-Version: 1.0.0 (convertito da Bash)
+Version: 1.0.1 (allineato a ydea_la/ydea_ag)
 """
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 import sys
 import os
@@ -111,6 +111,8 @@ def install_scripts():
     # Determina percorso script-notify-checkmk
     notify_script_dir = None
     possible_paths = [
+        SCRIPT_DIR / "script-notify-checkmk" / "full",
+        SCRIPT_DIR.parent / "script-notify-checkmk" / "full",
         SCRIPT_DIR / "script-notify-checkmk",
         SCRIPT_DIR.parent / "script-notify-checkmk"
     ]
@@ -131,15 +133,37 @@ def install_scripts():
     # Crea directory notifiche se non esiste
     CHECKMK_NOTIFY_DIR.mkdir(parents=True, exist_ok=True)
     
-    # Copia ydea_realip
+    # Copia notifier Ydea principali (con ID persona dedicato)
+    required_notifiers = {
+        "ydea_la": ["ydea_la.py", "ydea_la"],
+        "ydea_ag": ["ydea_ag.py", "ydea_ag"],
+    }
+
+    for destination_name, candidates in required_notifiers.items():
+        source = None
+        for candidate in candidates:
+            candidate_path = notify_script_dir / candidate
+            if candidate_path.exists():
+                source = candidate_path
+                break
+
+        if not source:
+            error(
+                f"File richiesto {destination_name} non trovato in {notify_script_dir}/ "
+                f"(attesi: {', '.join(candidates)})"
+            )
+            sys.exit(1)
+
+        shutil.copy(source, CHECKMK_NOTIFY_DIR / destination_name)
+        (CHECKMK_NOTIFY_DIR / destination_name).chmod(0o755)
+        success(f"{destination_name} installato da {source.name}")
+
+    # Copia eventuale notifier legacy (opzionale)
     ydea_realip = notify_script_dir / "ydea_realip"
     if ydea_realip.exists():
         shutil.copy(ydea_realip, CHECKMK_NOTIFY_DIR / "ydea_realip")
         (CHECKMK_NOTIFY_DIR / "ydea_realip").chmod(0o755)
-        success("ydea_realip installato")
-    else:
-        error(f"File ydea_realip non trovato in {notify_script_dir}/")
-        sys.exit(1)
+        warn("ydea_realip installato (legacy opzionale)")
     
     # Copia mail_ydea_down (opzionale)
     mail_ydea_down = notify_script_dir / "mail_ydea_down"
@@ -185,11 +209,24 @@ def setup_env():
         backup_file = env_file.with_suffix(f".backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}")
         shutil.copy(env_file, backup_file)
     
-    # Copia .env template se esiste
-    env_template = SCRIPT_DIR / "Ydea-Toolkit" / ".env"
-    if env_template.exists():
+    # Copia .env template se esiste (supporta più path)
+    env_candidates = [
+        SCRIPT_DIR / ".env",
+        SCRIPT_DIR / ".env.la",
+        SCRIPT_DIR / ".env.ag",
+        SCRIPT_DIR.parent / ".env",
+        SCRIPT_DIR.parent / ".env.la",
+        SCRIPT_DIR.parent / ".env.ag",
+        SCRIPT_DIR / "Ydea-Toolkit" / ".env",
+    ]
+
+    env_template = next((candidate for candidate in env_candidates if candidate.exists()), None)
+    if env_template:
         shutil.copy(env_template, env_file)
-        success("Template .env copiato")
+        success(f"Template .env copiato da: {env_template}")
+    else:
+        warn(f"Nessun template .env trovato, creo file vuoto: {env_file}")
+        env_file.write_text("")
     
     print()
     warn("⚠️  IMPORTANTE: Configura le credenziali Ydea in:")
@@ -320,7 +357,7 @@ def show_next_steps():
     print()
     print("1️⃣  Configura notification rule in CheckMK:")
     print("   → Setup → Notifications → Add rule")
-    print("   → Script: ydea_realip")
+    print("   → Script: ydea_la / ydea_ag")
     print()
     print("2️⃣  Verifica credenziali Ydea:")
     print(f"   → {YDEA_TOOLKIT_DIR}/.env")

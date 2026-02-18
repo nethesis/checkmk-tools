@@ -79,14 +79,23 @@ install_scripts() {
   
   info "Usando script da: ${NOTIFY_SCRIPT_DIR}"
   
-  # Copia ydea_realip
+  # Copia notifier Ydea principali (con ID persona dedicato)
+  for notifier in ydea_la ydea_ag; do
+    if [[ -f "${NOTIFY_SCRIPT_DIR}/${notifier}" ]]; then
+      cp "${NOTIFY_SCRIPT_DIR}/${notifier}" "$CHECKMK_NOTIFY_DIR/"
+      chmod +x "${CHECKMK_NOTIFY_DIR}/${notifier}"
+      success "${notifier} installato"
+    else
+      error "File ${notifier} non trovato in ${NOTIFY_SCRIPT_DIR}/"
+      exit 1
+    fi
+  done
+
+  # Copia eventuale notifier legacy (opzionale)
   if [[ -f "${NOTIFY_SCRIPT_DIR}/ydea_realip" ]]; then
     cp "${NOTIFY_SCRIPT_DIR}/ydea_realip" "$CHECKMK_NOTIFY_DIR/"
     chmod +x "${CHECKMK_NOTIFY_DIR}/ydea_realip"
-    success "ydea_realip installato"
-  else
-    error "File ydea_realip non trovato in ${NOTIFY_SCRIPT_DIR}/"
-    exit 1
+    warn "ydea_realip installato (legacy opzionale)"
   fi
   
   # Copia mail_ydea_down
@@ -125,10 +134,31 @@ setup_env() {
     cp "$env_file" "${env_file}.backup.$(date +%Y%m%d_%H%M%S)"
   fi
   
-  # Copia .env template se esiste
-  if [[ -f "${SCRIPT_DIR}/Ydea-Toolkit/.env" ]]; then
-    cp "${SCRIPT_DIR}/Ydea-Toolkit/.env" "$env_file"
-    success "Template .env copiato"
+  # Copia .env template se esiste (supporta più path)
+  local env_template=""
+  local env_candidates=(
+    "${SCRIPT_DIR}/.env"
+    "${SCRIPT_DIR}/.env.la"
+    "${SCRIPT_DIR}/.env.ag"
+    "${SCRIPT_DIR}/../.env"
+    "${SCRIPT_DIR}/../.env.la"
+    "${SCRIPT_DIR}/../.env.ag"
+    "${SCRIPT_DIR}/Ydea-Toolkit/.env"
+  )
+
+  for candidate in "${env_candidates[@]}"; do
+    if [[ -f "$candidate" ]]; then
+      env_template="$candidate"
+      break
+    fi
+  done
+
+  if [[ -n "$env_template" ]]; then
+    cp "$env_template" "$env_file"
+    success "Template .env copiato da: $env_template"
+  else
+    warn "Nessun template .env trovato, creo file vuoto: $env_file"
+    : > "$env_file"
   fi
   
   echo ""
@@ -206,7 +236,7 @@ show_next_steps() {
   echo ""
   echo "1️⃣  Configura notification rule in CheckMK:"
   echo "   → Setup → Notifications → Add rule"
-  echo "   → Script: ydea_realip"
+  echo "   → Script: ydea_la / ydea_ag"
   echo ""
   echo "2️⃣  Verifica credenziali Ydea:"
   echo "   → ${YDEA_TOOLKIT_DIR}/.env"
