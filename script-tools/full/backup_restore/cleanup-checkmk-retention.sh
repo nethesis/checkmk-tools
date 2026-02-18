@@ -485,13 +485,21 @@ generate_report() {
     log_info "Dimensioni attuali:"
     du -sh "${SITE_PATH}/var/pnp4nagios/perfdata" 2>/dev/null | awk '{print "  - RRD: " $1}'
     du -sh "${SITE_PATH}/var/nagios" 2>/dev/null | awk '{print "  - Nagios: " $1}'
-    du -sh "${SITE_PATH}/var/notify-backup" 2>/dev/null | awk '{print "  - Notify: " $1}'
+    if [ -d "${SITE_PATH}/var/notify-backup" ]; then
+        du -sh "${SITE_PATH}/var/notify-backup" 2>/dev/null | awk '{print "  - Notify: " $1}'
+    else
+        echo "  - Notify: N/A (directory non presente)"
+    fi
     
     log_info ""
     log_info "Conta file:"
     find "${SITE_PATH}/var/pnp4nagios/perfdata" -name "*.rrd" 2>/dev/null | wc -l | awk '{print "  - File RRD: " $1}'
     find "${SITE_PATH}/var/nagios" -type f 2>/dev/null | wc -l | awk '{print "  - File Nagios: " $1}'
-    find "${SITE_PATH}/var/notify-backup" -type f 2>/dev/null | wc -l | awk '{print "  - File Notify: " $1}'
+    if [ -d "${SITE_PATH}/var/notify-backup" ]; then
+        find "${SITE_PATH}/var/notify-backup" -type f 2>/dev/null | wc -l | awk '{print "  - File Notify: " $1}'
+    else
+        echo "  - File Notify: 0 (directory non presente)"
+    fi
 }
 
 # ================================================================
