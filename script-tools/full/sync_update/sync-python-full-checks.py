@@ -54,7 +54,7 @@ def git_pull_repo(repo_dir: Path) -> None:
             ["git", "-C", str(repo_dir), "pull", "--ff-only"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True,
+            universal_newlines=True,
             timeout=60,
             check=False,
         )
