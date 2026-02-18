@@ -44,6 +44,35 @@ YDEA_TOOLKIT_TIMEOUT = int(os.getenv("YDEA_TOOLKIT_TIMEOUT", "25"))
 DEBUG_YDEA = os.getenv("DEBUG_YDEA", "0") == "1"
 
 
+def parse_json_response(output: str) -> Optional[Dict[str, Any]]:
+    """Parse JSON object from toolkit output (supports multiline pretty JSON)."""
+    text = (output or "").strip()
+    if not text:
+        return None
+
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, dict):
+            return parsed
+    except Exception:
+        pass
+
+    start = text.find('{')
+    end = text.rfind('}')
+    if start == -1 or end == -1 or end <= start:
+        return None
+
+    snippet = text[start:end + 1]
+    try:
+        parsed = json.loads(snippet)
+        if isinstance(parsed, dict):
+            return parsed
+    except Exception:
+        return None
+
+    return None
+
+
 def resolve_toolkit_command() -> Optional[List[str]]:
     """Resolve ydea toolkit executable (prefer Python implementation)."""
     candidates: List[Tuple[str, List[str]]] = [
@@ -464,39 +493,35 @@ def create_ydea_ticket(title: str, description: str, priority: str,
                                             str(YDEA_USER_ID)])
     
     if exitcode != 0:
+        err_text = (stderr or stdout or "").strip()
         if exitcode == 124:
             log(f"ERROR: Create ticket timeout after {YDEA_TOOLKIT_TIMEOUT}s")
         else:
-            log(f"ERROR: Create ticket failed: {stderr}")
+            log(f"ERROR: Create ticket failed (code {exitcode}): {err_text}")
         return None
     
-    # Parse JSON response
-    try:
-        # Find last JSON line
-        json_lines = [line for line in stdout.strip().split('\n') if line.strip().startswith('{')]
-        if not json_lines:
-            log(f"ERROR: No JSON in response: {stdout}")
-            return None
-        
-        response = json.loads(json_lines[-1])
-        ticket_id = response.get('ticket_id') or response.get('id') or response.get('data', {}).get('id')
-        
-        if not ticket_id:
-            log(f"ERROR: No ticket_id in response: {stdout}")
-            return None
-        
-        ticket_id = int(ticket_id)
-        
-        # Add description as public comment
-        if description:
-            debug(f"Adding description as public comment to ticket #{ticket_id}")
-            toolkit_cmd(['comment', str(ticket_id), description, 'true'])
-        
-        return ticket_id
-        
-    except Exception as e:
-        log(f"ERROR: Parse create response failed: {e}")
+    response = parse_json_response(stdout)
+    if not response:
+        log(f"ERROR: Parse create response failed: invalid JSON output: {(stdout or '').strip()}")
         return None
+
+    ticket_id = response.get('ticket_id') or response.get('id') or response.get('data', {}).get('id')
+    if not ticket_id:
+        log(f"ERROR: No ticket_id in response: {(stdout or '').strip()}")
+        return None
+
+    try:
+        ticket_id = int(ticket_id)
+    except Exception:
+        log(f"ERROR: Invalid ticket_id in response: {ticket_id}")
+        return None
+
+    # Add description as public comment
+    if description:
+        debug(f"Adding description as public comment to ticket #{ticket_id}")
+        toolkit_cmd(['comment', str(ticket_id), description, 'true'])
+
+    return ticket_id
 
 
 def add_private_note(ticket_id: int, note: str) -> int:
