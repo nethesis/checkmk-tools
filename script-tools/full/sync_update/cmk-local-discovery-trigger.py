@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -R`
 
-Version: 1.0.0
+Version: 1.0.1
 """
 
 import argparse
@@ -24,7 +24,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 
 def log(message: str) -> None:
@@ -159,6 +159,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Inizializza stato corrente senza discovery/reload",
     )
+    parser.add_argument(
+        "--agent-timeout",
+        type=int,
+        default=90,
+        help="Timeout in secondi per singolo 'cmk -d <host>' (default: 90)",
+    )
     return parser.parse_args()
 
 
@@ -188,7 +194,13 @@ def main() -> int:
     successful_discovery = 0
 
     for host in hosts:
-        result = run_site_cmd(args.site, f"cmk -d {host}", timeout=180)
+        log(f"Probe host: {host}")
+        try:
+            result = run_site_cmd(args.site, f"cmk -d {host}", timeout=args.agent_timeout)
+        except subprocess.TimeoutExpired:
+            warn(f"cmk -d timeout per {host} (> {args.agent_timeout}s), skip")
+            continue
+
         if result.returncode != 0:
             warn(f"cmk -d fallito per {host} (rc={result.returncode}), skip")
             continue
