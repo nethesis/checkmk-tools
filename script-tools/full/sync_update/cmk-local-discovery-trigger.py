@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -O` (se `--activate`)
 
-Version: 1.3.0
+Version: 1.3.1
 """
 
 import argparse
@@ -29,7 +29,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.3.0"
+VERSION = "1.3.1"
+DEBUG = False
 
 
 def log(message: str) -> None:
@@ -38,6 +39,11 @@ def log(message: str) -> None:
 
 def warn(message: str) -> None:
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [WARN] {message}")
+
+
+def debug(message: str) -> None:
+    if DEBUG:
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [DEBUG] {message}")
 
 
 def run_site_cmd(site: str, cmk_command: str, timeout: int = 180) -> subprocess.CompletedProcess:
@@ -157,6 +163,7 @@ def discovered_local_services(site: str, host: str) -> Set[str]:
     cmd = f"cmk -D {shlex.quote(host)}"
     result = run_site_cmd(site, cmd, timeout=180)
     if result.returncode != 0:
+        debug(f"cmk -D failed for {host} rc={result.returncode}")
         return set()
 
     discovered: Set[str] = set()
@@ -168,6 +175,8 @@ def discovered_local_services(site: str, host: str) -> Set[str]:
         service_name = match.group(1).strip()
         if service_name:
             discovered.add(service_name)
+
+    debug(f"Discovered local services on {host}: count={len(discovered)}")
 
     return discovered
 
@@ -242,6 +251,11 @@ def parse_args() -> argparse.Namespace:
         default="/tmp/cmk-local-discovery-trigger.lock",
         help="Path lock file per evitare esecuzioni sovrapposte.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Abilita log debug dettagliati per troubleshooting.",
+    )
     return parser.parse_args()
 
 
@@ -270,7 +284,9 @@ def acquire_lock(lock_file: str):
 
 
 def main() -> int:
+    global DEBUG
     args = parse_args()
+    DEBUG = args.debug
 
     lock_handle = None
     try:
@@ -289,6 +305,7 @@ def main() -> int:
     log(f"Site: {args.site}")
     log(f"State: {state_path}")
     log(f"Lock: {active_lock}")
+    debug(f"Args: hosts='{args.hosts}', detect_plugins='{args.detect_plugins}', activate={args.activate}, initialize_state={args.initialize_state}")
 
     try:
         hosts = parse_hosts(args.site, args.hosts)
@@ -326,6 +343,13 @@ def main() -> int:
         services = extract_local_services(result.stdout or "")
         current_hash = services_hash(services)
         previous_hash = state.get(host, "")
+        debug(
+            f"Host={host} local_count={len(services)} prev_hash={(previous_hash[:12] if previous_hash else 'none')} curr_hash={current_hash[:12]}"
+        )
+        if services:
+            debug(f"Host={host} local sample: {', '.join(services[:6])}{' ...' if len(services) > 6 else ''}")
+        else:
+            warn(f"Nessun local service estratto da cmk -d per {host} (payload local vuoto)")
 
         if previous_hash != current_hash:
             changed_hosts.append(host)
@@ -344,6 +368,9 @@ def main() -> int:
             if services:
                 discovered = discovered_local_services(args.site, host)
                 missing_services = sorted(set(services) - discovered)
+                debug(
+                    f"Host={host} discovered_count={len(discovered)} missing_count={len(missing_services)}"
+                )
                 if missing_services:
                     warn(
                         f"Inventory mismatch su {host}: {len(missing_services)} local service mancanti in discovery, forzo rediscovery"
@@ -361,6 +388,8 @@ def main() -> int:
     if successful_discovery > 0:
         if args.activate:
             activate_changes(args.site, args.dry_run)
+        else:
+            log("Discovery completata: activate disabilitato (skip cmk -O)")
     else:
         log("Nessuna discovery riuscita: skip cmk -O")
 

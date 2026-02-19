@@ -8,7 +8,7 @@ Crea:
 - /etc/systemd/system/checkmk-local-discovery-trigger.service
 - /etc/systemd/system/checkmk-local-discovery-trigger.timer
 
-Version: 1.1.2
+Version: 1.1.3
 """
 
 import argparse
@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 from typing import List
 
-VERSION = "1.1.2"
+VERSION = "1.1.3"
 SYSTEMD_DIR = Path("/etc/systemd/system")
 SERVICE_NAME = "checkmk-local-discovery-trigger.service"
 TIMER_NAME = "checkmk-local-discovery-trigger.timer"
@@ -58,6 +58,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--runtime-max-min", type=int, default=25, help="RuntimeMaxSec in minuti")
     parser.add_argument("--accuracy-sec", type=int, default=60, help="AccuracySec del timer")
     parser.add_argument("--hosts", default="", help="Lista host separati da virgola (vuoto = tutti gli host del site)")
+    parser.add_argument("--debug", action="store_true", help="Abilita log debug dettagliati nel trigger")
     return parser.parse_args()
 
 
@@ -86,6 +87,9 @@ def main() -> int:
 
     if args.hosts.strip():
         exec_cmd.extend(["--hosts", args.hosts.strip()])
+
+    if args.debug:
+        exec_cmd.append("--debug")
 
     service_content = f"""[Unit]
 Description=CheckMK local services change detector (discovery trigger)
