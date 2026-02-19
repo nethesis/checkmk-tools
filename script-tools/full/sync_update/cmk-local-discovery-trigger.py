@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -R`
 
-Version: 1.1.0
+Version: 1.1.1
 """
 
 import argparse
@@ -27,7 +27,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 
 def log(message: str) -> None:
@@ -114,7 +114,7 @@ def extract_local_services(agent_output: str) -> List[str]:
         line = raw.strip()
 
         if line.startswith("<<<"):
-            in_local = line.startswith("<<<local>>>")
+            in_local = line.startswith("<<<local")
             continue
 
         if not in_local or not line:
