@@ -12,12 +12,14 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -R`
 
-Version: 1.0.4
+Version: 1.0.5
 """
 
 import argparse
 import hashlib
 import json
+import os
+import pwd
 import shlex
 import subprocess
 import sys
@@ -25,7 +27,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 
 
 def log(message: str) -> None:
@@ -39,6 +41,23 @@ def warn(message: str) -> None:
 def run_site_cmd(site: str, cmk_command: str, timeout: int = 180) -> subprocess.CompletedProcess:
     site_path = f"/omd/sites/{site}/bin"
     shell_cmd = f"export PATH={site_path}:$PATH; {cmk_command}"
+
+    current_user = ""
+    try:
+        current_user = pwd.getpwuid(os.geteuid()).pw_name
+    except Exception:
+        current_user = ""
+
+    if current_user == site:
+        return subprocess.run(
+            ["sh", "-lc", shell_cmd],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            timeout=timeout,
+            check=False,
+        )
+
     return subprocess.run(
         ["su", "-", site, "-c", shell_cmd],
         stdout=subprocess.PIPE,
