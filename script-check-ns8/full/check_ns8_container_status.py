@@ -2,7 +2,7 @@
 """
 check_ns8_container_status.py - Stato container NS8 per CheckMK
 
-Version: 1.2.0
+Version: 1.3.0
 """
 
 import subprocess
@@ -10,9 +10,9 @@ import sys
 import time
 from typing import List, Tuple
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 SERVICE = "NS8_Container_Status"
-SCRIPT_TIMEOUT_SECONDS = 8
+SCRIPT_TIMEOUT_SECONDS = 10
 COMMAND_TIMEOUT_SECONDS = 4
 _SCRIPT_START = time.monotonic()
 
@@ -79,11 +79,6 @@ def get_containers(instance: str) -> List[Tuple[str, str]]:
     return rows
 
 
-def is_instance_active(instance: str) -> bool:
-    code, _, _ = run_command(["runagent", "-m", instance, "true"])
-    return code == 0
-
-
 def is_running(status: str) -> bool:
     return status.startswith("Up")
 
@@ -101,19 +96,16 @@ def main() -> int:
     critical_problems: List[str] = []
     warning_notes: List[str] = []
     checked = 0
+    timed_out = False
 
     for instance in instances:
         if (time.monotonic() - _SCRIPT_START) >= SCRIPT_TIMEOUT_SECONDS:
-            print(f"1 {SERVICE} - WARNING: timeout budget raggiunto durante scansione")
-            return 0
-
-        if not is_instance_active(instance):
-            warning_notes.append(f"{instance}:instance-inactive")
-            continue
+            timed_out = True
+            break
 
         containers = get_containers(instance)
         if not containers:
-            warning_notes.append(f"{instance}:no-containers")
+            warning_notes.append(f"{instance}:no-containers-or-inactive")
             continue
 
         for container_name, container_status in containers:
@@ -121,23 +113,25 @@ def main() -> int:
             if not is_running(container_status):
                 critical_problems.append(f"{instance}:{container_name}({container_status})")
 
+    partial = " (partial scan)" if timed_out else ""
+
     if checked == 0:
         detail = ", ".join(warning_notes[:8]) if warning_notes else "nessun dato"
-        print(f"1 {SERVICE} - WARNING: nessun container rilevato | {detail}")
+        print(f"1 {SERVICE} - WARNING: nessun container rilevato{partial} | {detail}")
         return 0
 
     if critical_problems:
         detail = ", ".join(critical_problems[:10])
         if len(critical_problems) > 10:
             detail = f"{detail}, ... (+{len(critical_problems) - 10} altri)"
-        print(f"2 {SERVICE} - CRIT: problematici={len(critical_problems)}/{checked} | {detail}")
+        print(f"2 {SERVICE} - CRIT: problematici={len(critical_problems)}/{checked}{partial} | {detail}")
     elif warning_notes:
         detail = ", ".join(warning_notes[:10])
         if len(warning_notes) > 10:
             detail = f"{detail}, ... (+{len(warning_notes) - 10} altri)"
-        print(f"1 {SERVICE} - WARNING: running={checked}, note={len(warning_notes)} | {detail}")
+        print(f"1 {SERVICE} - WARNING: running={checked}, note={len(warning_notes)}{partial} | {detail}")
     else:
-        print(f"0 {SERVICE} - OK: tutti i container sono running ({checked}/{checked})")
+        print(f"0 {SERVICE} - OK: tutti i container sono running ({checked}/{checked}){partial}")
 
     return 0
 

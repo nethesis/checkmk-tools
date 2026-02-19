@@ -5,7 +5,7 @@ check_ns8_containers.py - CheckMK Local Check per Container NS8
 Monitora stato e risorse dei container NethServer 8 via runagent.
 Include controllo attività, CPU/RAM usage, e sessioni IMAP per Mail.
 
-Version: 1.1.0
+Version: 1.2.0
 """
 
 import subprocess
@@ -14,8 +14,8 @@ import re
 import time
 from typing import Tuple, List, Optional, Dict
 
-VERSION = "1.1.0"
-SCRIPT_TIMEOUT_SECONDS = 8
+VERSION = "1.2.0"
+SCRIPT_TIMEOUT_SECONDS = 10
 COMMAND_TIMEOUT_SECONDS = 4
 _SCRIPT_START = time.monotonic()
 
@@ -199,16 +199,18 @@ def main() -> int:
         # No instances found, silent exit
         return 0
     
+    timed_out = False
+
     for instance in instances:
         if (time.monotonic() - _SCRIPT_START) >= SCRIPT_TIMEOUT_SECONDS:
-            print("1 NS8_Containers - WARNING: timeout budget raggiunto durante scansione")
-            return 0
+            timed_out = True
+            break
 
         name = get_friendly_name(instance)
         
         # Check instance active
         if not check_instance_active(instance):
-            print(f"2 {name} - {name} NON attivo")
+            print(f"1 {name} - {name} non raggiungibile o inattivo")
             continue
         
         print(f"0 {name} - {name} attivo")
@@ -221,6 +223,10 @@ def main() -> int:
         
         # IMAP sessions for Mail instances
         if name == 'Mail':
+            if (time.monotonic() - _SCRIPT_START) >= SCRIPT_TIMEOUT_SECONDS:
+                print("1 Mail_IMAP - Check parziale: timeout budget raggiunto")
+                continue
+
             imap_count = get_imap_sessions(instance)
             
             if imap_count > 0:
@@ -228,6 +234,9 @@ def main() -> int:
             else:
                 print(f"1 Mail_IMAP - Nessuna sessione IMAP attiva")
     
+    if timed_out and not instances:
+        print("3 NS8_Containers - UNKNOWN: timeout senza dati")
+
     return 0
 
 
