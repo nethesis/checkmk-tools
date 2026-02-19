@@ -17,9 +17,9 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 DEFAULT_REPO = Path("/opt/checkmk-tools")
 DEFAULT_TARGET = Path("/usr/lib/check_mk_agent/local")
 
@@ -170,6 +170,34 @@ def sync_scripts(source_dir: Path, target_dir: Path) -> Tuple[int, int]:
     return copied, unchanged
 
 
+def quarantine_extra_python_scripts(target_dir: Path, expected_names: Set[str]) -> int:
+    if not target_dir.exists():
+        return 0
+
+    extras = [
+        p
+        for p in sorted(target_dir.glob("*.py"))
+        if p.is_file() and not p.name.startswith(".") and p.name not in expected_names
+    ]
+
+    if not extras:
+        return 0
+
+    backup_dir = target_dir / (
+        "cleanup_nonrepo_python_backup_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    )
+    backup_dir.mkdir(parents=True, exist_ok=True)
+
+    moved = 0
+    for extra in extras:
+        destination = backup_dir / extra.name
+        shutil.move(str(extra), str(destination))
+        moved += 1
+        log(f"Prune extra: {extra.name} -> {destination}")
+
+    return moved
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Sync automatico script Python CheckMK (full)"
@@ -237,7 +265,9 @@ def main() -> int:
 
     total_copied = 0
     total_unchanged = 0
+    total_pruned = 0
     categories_found = 0
+    expected_names: Set[str] = set()
 
     for category in categories:
         source_dir = repo_dir / category / "full"
@@ -247,6 +277,7 @@ def main() -> int:
 
         categories_found += 1
         log(f"Sincronizzazione categoria: {category}")
+        expected_names.update([p.name for p in list_python_full_scripts(source_dir)])
         copied, unchanged = sync_scripts(source_dir, target_dir)
         total_copied += copied
         total_unchanged += unchanged
@@ -255,7 +286,11 @@ def main() -> int:
         print("[ERROR] Nessuna categoria valida trovata nel repository", file=sys.stderr)
         return 1
 
-    log(f"Completato: copied={total_copied}, unchanged={total_unchanged}")
+    total_pruned = quarantine_extra_python_scripts(target_dir, expected_names)
+
+    log(
+        f"Completato: copied={total_copied}, unchanged={total_unchanged}, pruned={total_pruned}"
+    )
     return 0
 
 
