@@ -17,15 +17,27 @@ import sys
 from pathlib import Path
 from typing import List
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 SYSTEMD_DIR = Path("/etc/systemd/system")
 SERVICE_NAME = "checkmk-python-full-sync.service"
 TIMER_NAME = "checkmk-python-full-sync.timer"
 DEFAULT_SYNC_SCRIPT = Path("/opt/checkmk-tools/script-tools/full/sync_update/sync-python-full-checks.py")
+DEFAULT_REPO_URL = "https://github.com/Coverup20/checkmk-tools.git"
 
 
 def run(cmd: List[str]) -> None:
     subprocess.run(cmd, check=True)
+
+
+def run_capture(cmd: List[str], cwd: str = "") -> subprocess.CompletedProcess:
+    return subprocess.run(
+        cmd,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True,
+        cwd=cwd or None,
+    )
 
 
 def require_root() -> None:
@@ -47,6 +59,74 @@ def ensure_python_executable(script_path: Path) -> None:
     script_path.chmod(current_mode | 0o111)
 
 
+def detect_package_manager() -> str:
+    if shutil.which("apt-get"):
+        return "apt"
+    if shutil.which("dnf"):
+        return "dnf"
+    if shutil.which("yum"):
+        return "yum"
+    return ""
+
+
+def ensure_git_installed() -> None:
+    if shutil.which("git"):
+        return
+
+    package_manager = detect_package_manager()
+    if not package_manager:
+        print("[ERROR] git non trovato e package manager non supportato", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"[INFO] git non trovato, installazione via {package_manager}...")
+    if package_manager == "apt":
+        run(["apt-get", "update", "-y"])
+        run(["apt-get", "install", "-y", "git"])
+    elif package_manager == "dnf":
+        run(["dnf", "-y", "makecache"])
+        run(["dnf", "install", "-y", "git"])
+    elif package_manager == "yum":
+        run(["yum", "-y", "makecache"])
+        run(["yum", "install", "-y", "git"])
+
+
+def ensure_repo(repo_path: Path, repo_url: str) -> None:
+    git_dir = repo_path / ".git"
+    if git_dir.exists():
+        return
+
+    if repo_path.exists() and any(repo_path.iterdir()):
+        print(f"[ERROR] Path repo esiste ma non è git: {repo_path}", file=sys.stderr)
+        sys.exit(1)
+
+    repo_path.parent.mkdir(parents=True, exist_ok=True)
+    print(f"[INFO] Clonazione repository in {repo_path}...")
+    run(["git", "clone", repo_url, str(repo_path)])
+
+
+def update_repo(repo_path: Path) -> None:
+    result = run_capture(["git", "-C", str(repo_path), "pull", "--ff-only"])
+    output = (result.stdout or "").strip()
+    if result.returncode == 0:
+        if output:
+            print(f"[INFO] git pull: {output.splitlines()[-1]}")
+        else:
+            print("[INFO] git pull: OK")
+        return
+
+    if "Unknown option: -C" in output:
+        legacy = run_capture(["git", "pull", "--ff-only"], cwd=str(repo_path))
+        if legacy.returncode == 0:
+            legacy_out = (legacy.stdout or "").strip()
+            if legacy_out:
+                print(f"[INFO] git pull: {legacy_out.splitlines()[-1]}")
+            else:
+                print("[INFO] git pull: OK")
+            return
+
+    print(f"[WARN] git pull fallito: {output}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Installa timer systemd per sync script Python full")
     parser.add_argument(
@@ -58,6 +138,11 @@ def parse_args() -> argparse.Namespace:
         "--repo",
         default="/opt/checkmk-tools",
         help="Path repository locale",
+    )
+    parser.add_argument(
+        "--repo-url",
+        default=DEFAULT_REPO_URL,
+        help="URL repository git da clonare se assente",
     )
     parser.add_argument(
         "--target",
@@ -81,7 +166,17 @@ def main() -> int:
     args = parse_args()
     require_root()
 
+    repo_path = Path(args.repo)
+    ensure_git_installed()
+    ensure_repo(repo_path, args.repo_url)
+    update_repo(repo_path)
+
     sync_script = Path(args.sync_script)
+    if not sync_script.exists() and repo_path.exists():
+        candidate = repo_path / "script-tools/full/sync_update/sync-python-full-checks.py"
+        if candidate.exists():
+            sync_script = candidate
+
     ensure_python_executable(sync_script)
 
     py_bin = shutil.which("python3")
@@ -93,7 +188,7 @@ def main() -> int:
         py_bin,
         str(sync_script),
         "--repo",
-        args.repo,
+        str(repo_path),
         "--target",
         args.target,
     ]
@@ -136,6 +231,7 @@ WantedBy=timers.target
     run(["systemctl", "start", SERVICE_NAME])
 
     print(f"[OK] install-python-full-sync.py v{VERSION}")
+    print(f"[OK] Repo:    {repo_path}")
     print(f"[OK] Service: {service_path}")
     print(f"[OK] Timer:   {timer_path}")
     print(f"[OK] Verifica: systemctl status {TIMER_NAME} --no-pager")
