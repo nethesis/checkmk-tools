@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -O` (se `--activate`)
 
-Version: 1.2.0
+Version: 1.2.1
 """
 
 import argparse
@@ -28,7 +28,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 
 
 def log(message: str) -> None:
@@ -225,17 +225,41 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def acquire_lock(lock_file: str):
+    primary = Path(lock_file)
+    fallback = Path(f"/tmp/cmk-local-discovery-trigger.{os.geteuid()}.lock")
+    candidates = [primary]
+    if fallback != primary:
+        candidates.append(fallback)
+
+    for candidate in candidates:
+        try:
+            handle = open(candidate, "a+", encoding="utf-8")
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            handle.seek(0)
+            handle.truncate(0)
+            handle.write(f"pid={os.getpid()} started={datetime.now().isoformat()}\n")
+            handle.flush()
+            return handle, str(candidate)
+        except BlockingIOError:
+            raise
+        except PermissionError:
+            continue
+
+    raise PermissionError(f"Impossibile scrivere lock file: {primary}")
+
+
 def main() -> int:
     args = parse_args()
 
     lock_handle = None
     try:
-        lock_handle = open(args.lock_file, "w", encoding="utf-8")
-        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        lock_handle.write(f"pid={os.getpid()} started={datetime.now().isoformat()}\n")
-        lock_handle.flush()
-    except OSError:
+        lock_handle, active_lock = acquire_lock(args.lock_file)
+    except BlockingIOError:
         warn(f"Altra esecuzione in corso (lock: {args.lock_file}), skip")
+        return 0
+    except PermissionError as exc:
+        warn(str(exc))
         return 0
 
     state_path = Path(args.state_file) if args.state_file else default_state_file(args.site)
@@ -244,6 +268,7 @@ def main() -> int:
     log(f"cmk-local-discovery-trigger.py v{VERSION}")
     log(f"Site: {args.site}")
     log(f"State: {state_path}")
+    log(f"Lock: {active_lock}")
 
     try:
         hosts = parse_hosts(args.site, args.hosts)
