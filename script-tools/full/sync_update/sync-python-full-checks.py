@@ -112,6 +112,9 @@ def detect_category() -> str:
     if Path("/etc/pve").exists() and Path("/usr/bin/pvesh").exists():
         return "script-check-proxmox"
 
+    if Path("/omd").exists() or Path("/opt/omd").exists():
+        return "script-check-ubuntu"
+
     os_id = os_info.get("ID", "").lower()
     if os_id in {"ubuntu", "debian"}:
         return "script-check-ubuntu"
