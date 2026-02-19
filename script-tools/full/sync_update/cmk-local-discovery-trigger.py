@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -R`
 
-Version: 1.0.5
+Version: 1.1.0
 """
 
 import argparse
@@ -27,7 +27,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.0.5"
+VERSION = "1.1.0"
 
 
 def log(message: str) -> None:
@@ -141,8 +141,12 @@ def services_hash(services: List[str]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def discover_host(site: str, host: str, dry_run: bool) -> bool:
-    cmd = f"cmk -IIv {host}"
+def discover_host(site: str, host: str, dry_run: bool, detect_plugins: str) -> bool:
+    plugins_opt = ""
+    if detect_plugins.strip():
+        plugins_opt = f" --detect-plugins {shlex.quote(detect_plugins.strip())}"
+
+    cmd = f"cmk -IIv{plugins_opt} {shlex.quote(host)}"
     if dry_run:
         log(f"[DRY-RUN] {cmd}")
         return True
@@ -175,6 +179,23 @@ def reload_core(site: str, dry_run: bool) -> bool:
     return False
 
 
+def activate_changes(site: str, dry_run: bool) -> bool:
+    cmd = "cmk -O"
+    if dry_run:
+        log(f"[DRY-RUN] {cmd}")
+        return True
+
+    result = run_site_cmd(site, cmd, timeout=240)
+    if result.returncode == 0:
+        log("Activate changes OK")
+        return True
+
+    warn(f"Activate changes FAIL (rc={result.returncode})")
+    if result.stdout:
+        warn(result.stdout.strip())
+    return False
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Trigger discovery CheckMK su cambi local checks")
     parser.add_argument("--site", default="monitoring", help="Nome site OMD")
@@ -191,6 +212,16 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=90,
         help="Timeout in secondi per singolo 'cmk -d <host>' (default: 90)",
+    )
+    parser.add_argument(
+        "--detect-plugins",
+        default="local",
+        help="Plugin discovery target (default: local). Vuoto = tutti i plugin.",
+    )
+    parser.add_argument(
+        "--activate",
+        action="store_true",
+        help="Esegue anche 'cmk -O' a fine ciclo se ci sono discovery riuscite.",
     )
     return parser.parse_args()
 
@@ -250,7 +281,7 @@ def main() -> int:
                 state[host] = current_hash
                 continue
 
-            if discover_host(args.site, host, args.dry_run):
+            if discover_host(args.site, host, args.dry_run, args.detect_plugins):
                 successful_discovery += 1
                 state[host] = current_hash
         else:
@@ -263,6 +294,8 @@ def main() -> int:
 
     if successful_discovery > 0:
         reload_core(args.site, args.dry_run)
+        if args.activate:
+            activate_changes(args.site, args.dry_run)
     else:
         log("Nessuna discovery riuscita: skip cmk -R")
 
