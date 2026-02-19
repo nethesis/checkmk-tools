@@ -5,7 +5,7 @@ sync-python-full-checks.py - Sync automatico script Python CheckMK (full)
 Rileva il tipo host, individua la categoria corretta nel repository locale
 e copia/aggiorna tutti gli script Python da full/ verso la cartella local checks.
 
-Version: 1.0.0
+Version: 1.3.0
 """
 
 import argparse
@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 DEFAULT_REPO = Path("/opt/checkmk-tools")
 DEFAULT_TARGET = Path("/usr/lib/check_mk_agent/local")
 
@@ -41,6 +41,39 @@ def file_sha256(path: Path) -> str:
                 break
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def extract_version(path: Path) -> str:
+    try:
+        content = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return ""
+
+    for raw in content.splitlines():
+        line = raw.strip()
+        if not line.startswith("VERSION"):
+            continue
+        if "=" not in line:
+            continue
+        _, value = line.split("=", 1)
+        return value.strip().strip('"').strip("'")
+    return ""
+
+
+def parse_semver(version: str) -> Tuple[int, int, int]:
+    parts = [p.strip() for p in version.split(".") if p.strip()]
+    if len(parts) != 3:
+        raise ValueError("invalid semver")
+    return int(parts[0]), int(parts[1]), int(parts[2])
+
+
+def is_source_newer(src_version: str, dst_version: str) -> bool:
+    if not src_version or not dst_version:
+        return False
+    try:
+        return parse_semver(src_version) > parse_semver(dst_version)
+    except ValueError:
+        return False
 
 
 def git_pull_repo(repo_dir: Path) -> None:
@@ -140,14 +173,15 @@ def ensure_executable(file_path: Path) -> None:
     file_path.chmod(current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
-def sync_scripts(source_dir: Path, target_dir: Path) -> Tuple[int, int]:
+def sync_scripts(source_dir: Path, target_dir: Path) -> Tuple[int, int, int]:
     copied = 0
     unchanged = 0
+    skipped = 0
     scripts = list_python_full_scripts(source_dir)
 
     if not scripts:
         warn(f"Nessuno script Python trovato in {source_dir}")
-        return copied, unchanged
+        return copied, unchanged, skipped
 
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -156,18 +190,37 @@ def sync_scripts(source_dir: Path, target_dir: Path) -> Tuple[int, int]:
         should_copy = False
         if not dst.exists():
             should_copy = True
+            log(f"Deploy new: {src.name}")
         else:
-            should_copy = file_sha256(src) != file_sha256(dst)
+            src_hash = file_sha256(src)
+            dst_hash = file_sha256(dst)
+            if src_hash == dst_hash:
+                unchanged += 1
+                continue
+
+            src_version = extract_version(src)
+            dst_version = extract_version(dst)
+            if is_source_newer(src_version, dst_version):
+                should_copy = True
+                log(f"Upgrade: {src.name} v{dst_version or 'unknown'} -> v{src_version or 'unknown'}")
+            elif not dst_version and src_version:
+                should_copy = True
+                log(f"Deploy changed: {src.name} (target without VERSION)")
+            else:
+                skipped += 1
+                warn(
+                    f"Skip changed (not newer): {src.name} "
+                    f"src={src_version or 'unknown'} dst={dst_version or 'unknown'}"
+                )
+                continue
 
         if should_copy:
             shutil.copy2(src, dst)
             ensure_executable(dst)
             copied += 1
             log(f"Deploy: {src.name}")
-        else:
-            unchanged += 1
 
-    return copied, unchanged
+    return copied, unchanged, skipped
 
 
 def quarantine_extra_python_scripts(target_dir: Path, expected_names: Set[str]) -> int:
@@ -266,6 +319,7 @@ def main() -> int:
     total_copied = 0
     total_unchanged = 0
     total_pruned = 0
+    total_skipped = 0
     categories_found = 0
     expected_names: Set[str] = set()
 
@@ -278,9 +332,10 @@ def main() -> int:
         categories_found += 1
         log(f"Sincronizzazione categoria: {category}")
         expected_names.update([p.name for p in list_python_full_scripts(source_dir)])
-        copied, unchanged = sync_scripts(source_dir, target_dir)
+        copied, unchanged, skipped = sync_scripts(source_dir, target_dir)
         total_copied += copied
         total_unchanged += unchanged
+        total_skipped += skipped
 
     if categories_found == 0:
         print("[ERROR] Nessuna categoria valida trovata nel repository", file=sys.stderr)
@@ -289,7 +344,7 @@ def main() -> int:
     total_pruned = quarantine_extra_python_scripts(target_dir, expected_names)
 
     log(
-        f"Completato: copied={total_copied}, unchanged={total_unchanged}, pruned={total_pruned}"
+        f"Completato: copied={total_copied}, unchanged={total_unchanged}, skipped={total_skipped}, pruned={total_pruned}"
     )
     return 0
 
