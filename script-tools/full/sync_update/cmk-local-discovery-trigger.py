@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -O` (se `--activate`)
 
-Version: 1.2.1
+Version: 1.3.0
 """
 
 import argparse
@@ -21,6 +21,7 @@ import hashlib
 import json
 import os
 import pwd
+import re
 import shlex
 import subprocess
 import sys
@@ -28,7 +29,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.2.1"
+VERSION = "1.3.0"
 
 
 def log(message: str) -> None:
@@ -150,6 +151,25 @@ def extract_local_services(agent_output: str) -> List[str]:
 def services_hash(services: List[str]) -> str:
     payload = "\n".join(services)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def discovered_local_services(site: str, host: str) -> Set[str]:
+    cmd = f"cmk -D {shlex.quote(host)}"
+    result = run_site_cmd(site, cmd, timeout=180)
+    if result.returncode != 0:
+        return set()
+
+    discovered: Set[str] = set()
+    for raw in (result.stdout or "").splitlines():
+        line = raw.rstrip()
+        match = re.match(r"^\s*local\s+(.+?)\s+\{", line)
+        if not match:
+            continue
+        service_name = match.group(1).strip()
+        if service_name:
+            discovered.add(service_name)
+
+    return discovered
 
 
 def discover_host(site: str, host: str, dry_run: bool, detect_plugins: str) -> bool:
@@ -320,6 +340,18 @@ def main() -> int:
                 state[host] = current_hash
         else:
             log(f"Nessun cambio: {host}")
+
+            if services:
+                discovered = discovered_local_services(args.site, host)
+                missing_services = sorted(set(services) - discovered)
+                if missing_services:
+                    warn(
+                        f"Inventory mismatch su {host}: {len(missing_services)} local service mancanti in discovery, forzo rediscovery"
+                    )
+                    warn(f"Missing: {', '.join(missing_services[:8])}{' ...' if len(missing_services) > 8 else ''}")
+                    if discover_host(args.site, host, args.dry_run, args.detect_plugins):
+                        successful_discovery += 1
+                        state[host] = current_hash
 
     if args.initialize_state:
         save_state(state_path, state)
