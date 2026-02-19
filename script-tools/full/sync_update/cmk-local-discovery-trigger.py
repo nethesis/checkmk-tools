@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -R`
 
-Version: 1.0.3
+Version: 1.0.4
 """
 
 import argparse
@@ -25,7 +25,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 
 
 def log(message: str) -> None:
@@ -37,8 +37,10 @@ def warn(message: str) -> None:
 
 
 def run_site_cmd(site: str, cmk_command: str, timeout: int = 180) -> subprocess.CompletedProcess:
+    site_path = f"/omd/sites/{site}/bin"
+    shell_cmd = f"export PATH={site_path}:$PATH; {cmk_command}"
     return subprocess.run(
-        ["omd", "su", site, "-c", cmk_command],
+        ["su", "-", site, "-c", shell_cmd],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         universal_newlines=True,
