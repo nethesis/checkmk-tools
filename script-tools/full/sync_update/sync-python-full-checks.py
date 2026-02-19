@@ -123,8 +123,15 @@ def detect_category() -> str:
 
 
 def list_python_full_scripts(source_dir: Path) -> List[Path]:
+    def is_check_script(name: str) -> bool:
+        return name.startswith("check_") or name.startswith("check-")
+
     return sorted(
-        [p for p in source_dir.glob("*.py") if p.is_file() and not p.name.startswith(".")]
+        [
+            p
+            for p in source_dir.glob("*.py")
+            if p.is_file() and not p.name.startswith(".") and is_check_script(p.name)
+        ]
     )
 
 
