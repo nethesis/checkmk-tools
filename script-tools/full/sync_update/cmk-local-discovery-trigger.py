@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -R`
 
-Version: 1.0.2
+Version: 1.0.3
 """
 
 import argparse
@@ -25,7 +25,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 
 
 def log(message: str) -> None:
@@ -72,12 +72,17 @@ def parse_hosts(site: str, hosts_arg: str) -> List[str]:
     if hosts_arg.strip():
         return sorted({h.strip() for h in hosts_arg.split(",") if h.strip()})
 
-    result = run_site_cmd(site, "cmk --list-hosts", timeout=120)
-    if result.returncode != 0:
-        raise RuntimeError(f"cmk --list-hosts failed (rc={result.returncode}): {result.stdout}")
+    for cmd in ("cmk --list-hosts", "cmk -l"):
+        result = run_site_cmd(site, cmd, timeout=120)
+        if result.returncode != 0:
+            continue
 
-    hosts = [line.strip() for line in (result.stdout or "").splitlines() if line.strip()]
-    return sorted(set(hosts))
+        hosts = [line.strip() for line in (result.stdout or "").splitlines() if line.strip()]
+        if hosts:
+            log(f"Host list retrieved via '{cmd}' ({len(hosts)} host)")
+            return sorted(set(hosts))
+
+    raise RuntimeError("unable to retrieve hosts with both 'cmk --list-hosts' and 'cmk -l'")
 
 
 def extract_local_services(agent_output: str) -> List[str]:
