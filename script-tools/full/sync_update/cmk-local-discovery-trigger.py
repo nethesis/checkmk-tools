@@ -12,19 +12,20 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -R`
 
-Version: 1.0.1
+Version: 1.0.2
 """
 
 import argparse
 import hashlib
 import json
+import shlex
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 
 
 def log(message: str) -> None:
@@ -195,10 +196,16 @@ def main() -> int:
 
     for host in hosts:
         log(f"Probe host: {host}")
+        host_quoted = shlex.quote(host)
+        probe_cmd = f"timeout -k 5 {args.agent_timeout}s cmk -d {host_quoted}"
         try:
-            result = run_site_cmd(args.site, f"cmk -d {host}", timeout=args.agent_timeout)
+            result = run_site_cmd(args.site, probe_cmd, timeout=args.agent_timeout + 10)
         except subprocess.TimeoutExpired:
             warn(f"cmk -d timeout per {host} (> {args.agent_timeout}s), skip")
+            continue
+
+        if result.returncode == 124:
+            warn(f"cmk -d timeout (rc=124) per {host} dopo {args.agent_timeout}s, skip")
             continue
 
         if result.returncode != 0:
