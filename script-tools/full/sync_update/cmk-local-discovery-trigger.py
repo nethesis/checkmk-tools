@@ -3,16 +3,16 @@
 cmk-local-discovery-trigger.py
 
 Rileva variazioni nei servizi local check visti da CheckMK (via `cmk -d HOST`) e
-lancia discovery/reload solo quando necessario.
+lancia discovery/activate solo quando necessario.
 
 Workflow:
 1) Legge host dal site (`cmk --list-hosts`) o da `--hosts`
 2) Estrae la sezione <<<local>>> dell'agent output
 3) Calcola hash stabile della lista service name
 4) Se hash cambiato: esegue `cmk -IIv HOST`
-5) Se almeno un host aggiornato: esegue un solo `cmk -R`
+5) Se almeno un host aggiornato: esegue `cmk -O` (se `--activate`)
 
-Version: 1.1.1
+Version: 1.1.2
 """
 
 import argparse
@@ -27,7 +27,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 
 
 def log(message: str) -> None:
@@ -162,23 +162,6 @@ def discover_host(site: str, host: str, dry_run: bool, detect_plugins: str) -> b
     return False
 
 
-def reload_core(site: str, dry_run: bool) -> bool:
-    cmd = "cmk -R"
-    if dry_run:
-        log(f"[DRY-RUN] {cmd}")
-        return True
-
-    result = run_site_cmd(site, cmd, timeout=240)
-    if result.returncode == 0:
-        log("Reload core OK")
-        return True
-
-    warn(f"Reload core FAIL (rc={result.returncode})")
-    if result.stdout:
-        warn(result.stdout.strip())
-    return False
-
-
 def activate_changes(site: str, dry_run: bool) -> bool:
     cmd = "cmk -O"
     if dry_run:
@@ -293,11 +276,10 @@ def main() -> int:
         return 0
 
     if successful_discovery > 0:
-        reload_core(args.site, args.dry_run)
         if args.activate:
             activate_changes(args.site, args.dry_run)
     else:
-        log("Nessuna discovery riuscita: skip cmk -R")
+        log("Nessuna discovery riuscita: skip cmk -O")
 
     save_state(state_path, state)
     log(
