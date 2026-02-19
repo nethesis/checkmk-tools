@@ -5,7 +5,7 @@ sync-python-full-checks.py - Sync automatico script Python CheckMK (full)
 Rileva il tipo host, individua la categoria corretta nel repository locale
 e copia/aggiorna tutti gli script Python da full/ verso la cartella local checks.
 
-Version: 1.3.0
+Version: 1.4.0
 """
 
 import argparse
@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 DEFAULT_REPO = Path("/opt/checkmk-tools")
 DEFAULT_TARGET = Path("/usr/lib/check_mk_agent/local")
 
@@ -198,21 +198,8 @@ def sync_scripts(source_dir: Path, target_dir: Path) -> Tuple[int, int, int]:
                 unchanged += 1
                 continue
 
-            src_version = extract_version(src)
-            dst_version = extract_version(dst)
-            if is_source_newer(src_version, dst_version):
-                should_copy = True
-                log(f"Upgrade: {src.name} v{dst_version or 'unknown'} -> v{src_version or 'unknown'}")
-            elif not dst_version and src_version:
-                should_copy = True
-                log(f"Deploy changed: {src.name} (target without VERSION)")
-            else:
-                skipped += 1
-                warn(
-                    f"Skip changed (not newer): {src.name} "
-                    f"src={src_version or 'unknown'} dst={dst_version or 'unknown'}"
-                )
-                continue
+            should_copy = True
+            log(f"Overwrite changed: {src.name}")
 
         if should_copy:
             shutil.copy2(src, dst)
