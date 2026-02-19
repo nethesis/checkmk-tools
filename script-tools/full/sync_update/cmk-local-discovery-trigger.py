@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -O` (se `--activate`)
 
-Version: 1.3.1
+Version: 1.3.2
 """
 
 import argparse
@@ -29,7 +29,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.3.1"
+VERSION = "1.3.2"
 DEBUG = False
 
 
@@ -181,39 +181,35 @@ def discovered_local_services(site: str, host: str) -> Set[str]:
     return discovered
 
 
-def discover_host(site: str, host: str, dry_run: bool, detect_plugins: str) -> bool:
+def discover_hosts(site: str, hosts: List[str], dry_run: bool, detect_plugins: str, activate: bool) -> bool:
+    if not hosts:
+        return True
+
     plugins_opt = ""
     if detect_plugins.strip():
         plugins_opt = f" --detect-plugins {shlex.quote(detect_plugins.strip())}"
 
-    cmd = f"cmk -IIv{plugins_opt} {shlex.quote(host)}"
+    hosts_part = " ".join(shlex.quote(host) for host in hosts)
+    cmd = f"cmk -IIv{plugins_opt} {hosts_part}"
+    if activate:
+        cmd = f"{cmd} && cmk -O"
+
     if dry_run:
         log(f"[DRY-RUN] {cmd}")
         return True
 
-    result = run_site_cmd(site, cmd, timeout=300)
+    timeout = min(1800, 240 + (120 * len(hosts)))
+    result = run_site_cmd(site, cmd, timeout=timeout)
     if result.returncode == 0:
-        log(f"Discovery OK: {host}")
+        for host in hosts:
+            log(f"Discovery OK: {host}")
+        if activate:
+            log("Activate changes OK")
+        else:
+            log("Discovery completata: activate disabilitato (skip cmk -O)")
         return True
 
-    warn(f"Discovery FAIL: {host} (rc={result.returncode})")
-    if result.stdout:
-        warn(result.stdout.strip())
-    return False
-
-
-def activate_changes(site: str, dry_run: bool) -> bool:
-    cmd = "cmk -O"
-    if dry_run:
-        log(f"[DRY-RUN] {cmd}")
-        return True
-
-    result = run_site_cmd(site, cmd, timeout=240)
-    if result.returncode == 0:
-        log("Activate changes OK")
-        return True
-
-    warn(f"Activate changes FAIL (rc={result.returncode})")
+    warn(f"Discovery/Activate FAIL (rc={result.returncode}) hosts={','.join(hosts)}")
     if result.stdout:
         warn(result.stdout.strip())
     return False
@@ -321,6 +317,7 @@ def main() -> int:
 
     changed_hosts: List[str] = []
     successful_discovery = 0
+    pending_discovery: List[str] = []
 
     for host in hosts:
         log(f"Probe host: {host}")
@@ -359,9 +356,7 @@ def main() -> int:
                 state[host] = current_hash
                 continue
 
-            if discover_host(args.site, host, args.dry_run, args.detect_plugins):
-                successful_discovery += 1
-                state[host] = current_hash
+            pending_discovery.append(host)
         else:
             log(f"Nessun cambio: {host}")
 
@@ -376,20 +371,26 @@ def main() -> int:
                         f"Inventory mismatch su {host}: {len(missing_services)} local service mancanti in discovery, forzo rediscovery"
                     )
                     warn(f"Missing: {', '.join(missing_services[:8])}{' ...' if len(missing_services) > 8 else ''}")
-                    if discover_host(args.site, host, args.dry_run, args.detect_plugins):
-                        successful_discovery += 1
-                        state[host] = current_hash
+                    pending_discovery.append(host)
 
     if args.initialize_state:
         save_state(state_path, state)
         log(f"Stato inizializzato per {len(state)} host")
         return 0
 
-    if successful_discovery > 0:
-        if args.activate:
-            activate_changes(args.site, args.dry_run)
-        else:
-            log("Discovery completata: activate disabilitato (skip cmk -O)")
+    unique_pending = list(dict.fromkeys(pending_discovery))
+    if unique_pending:
+        debug(f"Pending discovery hosts: {', '.join(unique_pending)}")
+        if discover_hosts(args.site, unique_pending, args.dry_run, args.detect_plugins, args.activate):
+            successful_discovery = len(unique_pending)
+            for host in unique_pending:
+                probe_cmd = f"timeout -k 5 {args.agent_timeout}s cmk -d {shlex.quote(host)}"
+                try:
+                    refresh = run_site_cmd(args.site, probe_cmd, timeout=args.agent_timeout + 10)
+                    if refresh.returncode == 0:
+                        state[host] = services_hash(extract_local_services(refresh.stdout or ""))
+                except Exception:
+                    pass
     else:
         log("Nessuna discovery riuscita: skip cmk -O")
 
