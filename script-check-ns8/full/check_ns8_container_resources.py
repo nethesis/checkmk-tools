@@ -2,15 +2,15 @@
 """
 check_ns8_container_resources.py - Risorse container NS8 per CheckMK
 
-Version: 1.0.0
+Version: 1.1.0
 """
 
-import re
 import subprocess
 import sys
 from typing import List, Tuple
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
+SERVICE = "NS8_Container_Resources"
 CPU_WARN = 80.0
 CPU_CRIT = 95.0
 MEM_WARN = 80.0
@@ -55,10 +55,6 @@ def parse_percent(value: str) -> float:
         return float(clean)
     except ValueError:
         return 0.0
-
-
-def sanitize_service(value: str) -> str:
-    return re.sub(r"[^A-Za-z0-9_.-]", "_", value)
 
 
 def get_stats(instance: str) -> List[Tuple[str, float, float, str]]:
@@ -106,30 +102,62 @@ def label_for(state: int) -> str:
     return "OK"
 
 
+def top_entries(entries: List[Tuple[str, float]], size: int = 3) -> str:
+    if not entries:
+        return "n/a"
+    ordered = sorted(entries, key=lambda item: item[1], reverse=True)[:size]
+    return ", ".join(f"{name}:{value:.1f}%" for name, value in ordered)
+
+
 def main() -> int:
     if run_command(["which", "runagent"])[0] != 0:
-        print("3 NS8_Container_Resources - UNKNOWN: runagent non trovato")
+        print(f"3 {SERVICE} - UNKNOWN: runagent non trovato")
         return 0
 
     instances = get_instances()
     if not instances:
-        print("3 NS8_Container_Resources - UNKNOWN: nessuna istanza NS8 trovata")
+        print(f"3 {SERVICE} - UNKNOWN: nessuna istanza NS8 trovata")
         return 0
 
-    lines = 0
+    total = 0
+    warn_count = 0
+    crit_count = 0
+    max_cpu = 0.0
+    max_mem = 0.0
+    cpu_items: List[Tuple[str, float]] = []
+    mem_items: List[Tuple[str, float]] = []
+
     for instance in instances:
         stats = get_stats(instance)
         for container_name, cpu, mem, usage in stats:
-            lines += 1
+            total += 1
             state = state_for(cpu, mem)
-            label = label_for(state)
-            service = sanitize_service(f"NS8_Res_{instance}_{container_name}")
-            print(
-                f"{state} {service} - {label}: cpu={cpu:.2f}% mem={mem:.2f}% usage={usage} | cpu={cpu:.2f};{CPU_WARN};{CPU_CRIT};0;100 mem={mem:.2f};{MEM_WARN};{MEM_CRIT};0;100"
-            )
+            if state == 2:
+                crit_count += 1
+            elif state == 1:
+                warn_count += 1
 
-    if lines == 0:
-        print("1 NS8_Container_Resources - WARNING: nessuna metrica container disponibile")
+            if cpu > max_cpu:
+                max_cpu = cpu
+            if mem > max_mem:
+                max_mem = mem
+
+            cpu_items.append((f"{instance}/{container_name}", cpu))
+            mem_items.append((f"{instance}/{container_name}", mem))
+
+    if total == 0:
+        print(f"1 {SERVICE} - WARNING: nessuna metrica container disponibile")
+        return 0
+
+    overall_state = 2 if crit_count > 0 else 1 if warn_count > 0 else 0
+    label = label_for(overall_state)
+
+    top_cpu = top_entries(cpu_items)
+    top_mem = top_entries(mem_items)
+
+    print(
+        f"{overall_state} {SERVICE} - {label}: total={total} warn={warn_count} crit={crit_count} top_cpu=[{top_cpu}] top_mem=[{top_mem}] | max_cpu={max_cpu:.2f};{CPU_WARN};{CPU_CRIT};0;100 max_mem={max_mem:.2f};{MEM_WARN};{MEM_CRIT};0;100"
+    )
 
     return 0
 
