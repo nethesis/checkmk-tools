@@ -10,12 +10,13 @@ Workflow:
 2) Estrae la sezione <<<local>>> dell'agent output
 3) Calcola hash stabile della lista service name
 4) Se hash cambiato: esegue `cmk -IIv HOST`
-5) Se almeno un host aggiornato: esegue un solo `cmk -R`
+5) Se almeno un host aggiornato: esegue un solo `cmk -O` (se `--activate`)
 
-Version: 1.1.1
+Version: 1.2.0
 """
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
@@ -27,7 +28,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.1.1"
+VERSION = "1.2.0"
 
 
 def log(message: str) -> None:
@@ -129,7 +130,17 @@ def extract_local_services(agent_output: str) -> List[str]:
             continue
 
         rest = parts[1]
-        service_name = rest.split(" - ", 1)[0].strip().strip('"')
+        service_name = ""
+        try:
+            tokens = shlex.split(rest, posix=True)
+            if tokens:
+                service_name = tokens[0].strip()
+        except Exception:
+            service_name = ""
+
+        if not service_name:
+            service_name = rest.split(" - ", 1)[0].strip().strip('"')
+
         if service_name:
             services.add(service_name)
 
@@ -206,11 +217,26 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Esegue anche 'cmk -O' a fine ciclo se ci sono discovery riuscite.",
     )
+    parser.add_argument(
+        "--lock-file",
+        default="/tmp/cmk-local-discovery-trigger.lock",
+        help="Path lock file per evitare esecuzioni sovrapposte.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+
+    lock_handle = None
+    try:
+        lock_handle = open(args.lock_file, "w", encoding="utf-8")
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        lock_handle.write(f"pid={os.getpid()} started={datetime.now().isoformat()}\n")
+        lock_handle.flush()
+    except OSError:
+        warn(f"Altra esecuzione in corso (lock: {args.lock_file}), skip")
+        return 0
 
     state_path = Path(args.state_file) if args.state_file else default_state_file(args.site)
     state = load_state(state_path)
