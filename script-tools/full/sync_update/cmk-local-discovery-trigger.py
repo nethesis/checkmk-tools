@@ -162,23 +162,6 @@ def discover_host(site: str, host: str, dry_run: bool, detect_plugins: str) -> b
     return False
 
 
-def reload_core(site: str, dry_run: bool) -> bool:
-    cmd = "cmk -R"
-    if dry_run:
-        log(f"[DRY-RUN] {cmd}")
-        return True
-
-    result = run_site_cmd(site, cmd, timeout=240)
-    if result.returncode == 0:
-        log("Reload core OK")
-        return True
-
-    warn(f"Reload core FAIL (rc={result.returncode})")
-    if result.stdout:
-        warn(result.stdout.strip())
-    return False
-
-
 def activate_changes(site: str, dry_run: bool) -> bool:
     cmd = "cmk -O"
     if dry_run:
@@ -293,11 +276,10 @@ def main() -> int:
         return 0
 
     if successful_discovery > 0:
-        reload_core(args.site, args.dry_run)
         if args.activate:
             activate_changes(args.site, args.dry_run)
     else:
-        log("Nessuna discovery riuscita: skip cmk -R")
+        log("Nessuna discovery riuscita: skip cmk -O")
 
     save_state(state_path, state)
     log(
