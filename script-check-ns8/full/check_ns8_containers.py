@@ -5,15 +5,19 @@ check_ns8_containers.py - CheckMK Local Check per Container NS8
 Monitora stato e risorse dei container NethServer 8 via runagent.
 Include controllo attività, CPU/RAM usage, e sessioni IMAP per Mail.
 
-Version: 1.0.0
+Version: 1.1.0
 """
 
 import subprocess
 import sys
 import re
+import time
 from typing import Tuple, List, Optional, Dict
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
+SCRIPT_TIMEOUT_SECONDS = 8
+COMMAND_TIMEOUT_SECONDS = 4
+_SCRIPT_START = time.monotonic()
 
 # Mapping nomi container friendly
 FRIENDLY_NAMES = {
@@ -43,12 +47,17 @@ def run_command(cmd: List[str]) -> Tuple[int, str, str]:
         Tuple of (exit_code, stdout, stderr)
     """
     try:
+        remaining = SCRIPT_TIMEOUT_SECONDS - (time.monotonic() - _SCRIPT_START)
+        if remaining <= 0:
+            return 124, "", "Script timeout budget exceeded"
+
+        effective_timeout = min(COMMAND_TIMEOUT_SECONDS, max(1, int(remaining)))
         result = subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            timeout=30
+            timeout=effective_timeout
         )
         return result.returncode, result.stdout.strip(), result.stderr.strip()
     except subprocess.TimeoutExpired:
@@ -191,6 +200,10 @@ def main() -> int:
         return 0
     
     for instance in instances:
+        if (time.monotonic() - _SCRIPT_START) >= SCRIPT_TIMEOUT_SECONDS:
+            print("1 NS8_Containers - WARNING: timeout budget raggiunto durante scansione")
+            return 0
+
         name = get_friendly_name(instance)
         
         # Check instance active

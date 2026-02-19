@@ -2,25 +2,34 @@
 """
 check_ns8_container_status.py - Stato container NS8 per CheckMK
 
-Version: 1.1.0
+Version: 1.2.0
 """
 
 import subprocess
 import sys
+import time
 from typing import List, Tuple
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 SERVICE = "NS8_Container_Status"
+SCRIPT_TIMEOUT_SECONDS = 8
+COMMAND_TIMEOUT_SECONDS = 4
+_SCRIPT_START = time.monotonic()
 
 
 def run_command(cmd: List[str], timeout: int = 30) -> Tuple[int, str, str]:
     try:
+        remaining = SCRIPT_TIMEOUT_SECONDS - (time.monotonic() - _SCRIPT_START)
+        if remaining <= 0:
+            return 124, "", "timeout"
+
+        effective_timeout = min(timeout, COMMAND_TIMEOUT_SECONDS, max(1, int(remaining)))
         result = subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
-            timeout=timeout,
+            timeout=effective_timeout,
         )
         return result.returncode, result.stdout.strip(), result.stderr.strip()
     except subprocess.TimeoutExpired:
@@ -94,6 +103,10 @@ def main() -> int:
     checked = 0
 
     for instance in instances:
+        if (time.monotonic() - _SCRIPT_START) >= SCRIPT_TIMEOUT_SECONDS:
+            print(f"1 {SERVICE} - WARNING: timeout budget raggiunto durante scansione")
+            return 0
+
         if not is_instance_active(instance):
             warning_notes.append(f"{instance}:instance-inactive")
             continue
