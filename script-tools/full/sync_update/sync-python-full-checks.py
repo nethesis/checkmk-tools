@@ -106,7 +106,7 @@ def detect_category() -> str:
     if Path("/etc/nethserver-release").exists():
         return "script-check-ns7"
 
-    if Path("/usr/bin/runagent").exists() or Path("/usr/bin/api-cli").exists():
+    if shutil.which("runagent") or shutil.which("api-cli"):
         return "script-check-ns8"
 
     if Path("/etc/pve").exists() and Path("/usr/bin/pvesh").exists():
