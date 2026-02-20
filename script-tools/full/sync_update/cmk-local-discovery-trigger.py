@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -O` (se `--activate`)
 
-Version: 1.3.4
+Version: 1.3.5
 """
 
 import argparse
@@ -28,9 +28,9 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Any, Dict, List, Set
 
-VERSION = "1.3.4"
+VERSION = "1.3.5"
 DEBUG = False
 LOG_FILE = Path(os.getenv("CHECKMK_AUTOHEAL_LOG_FILE", "/var/log/checkmk_server_autoheal.log"))
 
@@ -112,21 +112,72 @@ def default_state_file(site: str) -> Path:
     return Path(f"/opt/omd/sites/{site}/var/check_mk/autodiscovery_local_state.json")
 
 
-def load_state(path: Path) -> Dict[str, str]:
+def load_state(path: Path) -> Dict[str, Dict[str, Any]]:
     if not path.exists():
         return {}
+
+    normalized: Dict[str, Dict[str, Any]] = {}
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
         if isinstance(raw, dict):
-            return {str(k): str(v) for k, v in raw.items()}
+            for host_raw, value in raw.items():
+                host = str(host_raw)
+
+                if isinstance(value, dict):
+                    host_hash = str(value.get("hash", ""))
+                    services_raw = value.get("services", [])
+                    if isinstance(services_raw, list):
+                        services = sorted({str(service).strip() for service in services_raw if str(service).strip()})
+                    else:
+                        services = []
+                else:
+                    host_hash = str(value)
+                    services = []
+
+                normalized[host] = {"hash": host_hash, "services": services}
     except Exception:
-        pass
-    return {}
+        return {}
+
+    return normalized
 
 
-def save_state(path: Path, state: Dict[str, str]) -> None:
+def save_state(path: Path, state: Dict[str, Dict[str, Any]]) -> None:
+    serializable: Dict[str, Dict[str, Any]] = {}
+    for host, data in state.items():
+        host_hash = str(data.get("hash", ""))
+        services_raw = data.get("services", [])
+        if isinstance(services_raw, list):
+            services = sorted({str(service).strip() for service in services_raw if str(service).strip()})
+        else:
+            services = []
+
+        serializable[str(host)] = {
+            "hash": host_hash,
+            "services": services,
+        }
+
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
+    path.write_text(json.dumps(serializable, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def get_host_hash(state: Dict[str, Dict[str, Any]], host: str) -> str:
+    data = state.get(host, {})
+    return str(data.get("hash", ""))
+
+
+def get_host_services(state: Dict[str, Dict[str, Any]], host: str) -> List[str]:
+    data = state.get(host, {})
+    services_raw = data.get("services", [])
+    if not isinstance(services_raw, list):
+        return []
+    return sorted({str(service).strip() for service in services_raw if str(service).strip()})
+
+
+def set_host_state(state: Dict[str, Dict[str, Any]], host: str, host_hash: str, services: List[str]) -> None:
+    state[host] = {
+        "hash": str(host_hash),
+        "services": sorted({str(service).strip() for service in services if str(service).strip()}),
+    }
 
 
 def parse_hosts(site: str, hosts_arg: str) -> List[str]:
@@ -376,7 +427,18 @@ def main() -> int:
 
         services = extract_local_services(result.stdout or "")
         current_hash = services_hash(services)
-        previous_hash = state.get(host, "")
+        previous_hash = get_host_hash(state, host)
+        previous_services = get_host_services(state, host)
+        new_services = sorted(set(services) - set(previous_services))
+        vanished_services = sorted(set(previous_services) - set(services))
+
+        if new_services:
+            log(f"Nuovi servizi local su {host}: {', '.join(new_services[:10])}{' ...' if len(new_services) > 10 else ''}")
+        if vanished_services:
+            warn(
+                f"Servizi local vanished su {host}: {', '.join(vanished_services[:10])}{' ...' if len(vanished_services) > 10 else ''}"
+            )
+
         debug(
             f"Host={host} local_count={len(services)} prev_hash={(previous_hash[:12] if previous_hash else 'none')} curr_hash={current_hash[:12]}"
         )
@@ -392,7 +454,7 @@ def main() -> int:
             )
 
             if args.initialize_state:
-                state[host] = current_hash
+                set_host_state(state, host, current_hash, services)
                 continue
 
             pending_discovery.append(host)
@@ -428,8 +490,10 @@ def main() -> int:
                 try:
                     refresh = run_site_cmd(args.site, probe_cmd, timeout=args.agent_timeout + 10)
                     if refresh.returncode == 0:
-                        state[host] = services_hash(extract_local_services(refresh.stdout or ""))
-                        debug(f"State refreshed: {host} hash={state[host][:12]}")
+                        refreshed_services = extract_local_services(refresh.stdout or "")
+                        refreshed_hash = services_hash(refreshed_services)
+                        set_host_state(state, host, refreshed_hash, refreshed_services)
+                        debug(f"State refreshed: {host} hash={refreshed_hash[:12]} services={len(refreshed_services)}")
                     else:
                         warn(f"State refresh fallito per {host} (rc={refresh.returncode})")
                 except Exception:
