@@ -46,7 +46,7 @@ PROXMOX_INTERVAL_200 = {
     "check-proxmox_snapshots_status.py",
     "check-proxmox_backup_status.py",
 }
-MANAGED_INTERVAL_DIRS = {"60", "100", "150", "200", "300", "450", "600", "900"}
+MANAGED_INTERVAL_DIRS = {"60", "100", "150", "200"}
 
 
 def log(message: str) -> None:
