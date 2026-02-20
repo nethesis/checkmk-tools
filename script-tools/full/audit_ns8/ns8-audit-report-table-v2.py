@@ -31,7 +31,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 
-VERSION = "2.13.0"
+VERSION = "2.13.1"
 MAX_PWD_AGE_DAYS = 42
 
 # Cache globale SID
@@ -348,12 +348,12 @@ def collect_user_status_table(samba_module: str, output_dir: Path) -> int:
         if is_disabled:
             disabled_count += 1
             status = "Disabilitato"
-            note = f"Ultima modifica: {changed_str}" if changed_str else ""
+            disabled_date = changed_str if changed_str else "N/A"
         else:
             status = "Attivo"
-            note = ""
+            disabled_date = ""
         
-        status_data.append((username, created_str, status, note))
+        status_data.append((username, created_str, status, disabled_date))
     
     # Print table header AFTER all data collected
     print()
@@ -361,10 +361,10 @@ def collect_user_status_table(samba_module: str, output_dir: Path) -> int:
     print("  STATO ACCOUNT UTENTI AD")
     print("=" * 120)
     print()
-    print(f"{'UTENTE':<25} {'CREATO IL':<15} {'STATO':<15} {'NOTE':<40}")
-    print(f"{'-'*25} {'-'*15} {'-'*15} {'-'*40}")
+    print(f"{'UTENTE':<25} {'CREATO IL':<15} {'STATO':<15} {'DISABILITATO IL':<15}")
+    print(f"{'-'*25} {'-'*15} {'-'*15} {'-'*15}")
     
-    for username, created, status, note in status_data:
+    for username, created, status, disabled_date in status_data:
         # Color coding
         if status == "Disabilitato":
             status_display = f"{RED}{status}{NC}"
@@ -373,7 +373,7 @@ def collect_user_status_table(samba_module: str, output_dir: Path) -> int:
         else:
             status_display = status
         
-        print(f"{username:<25} {created:<15} {status_display:<15} {note:<40}")
+        print(f"{username:<25} {created:<15} {status_display:<15} {disabled_date:<15}")
     
     print()
     print("=" * 120)
@@ -390,17 +390,17 @@ def collect_user_status_table(samba_module: str, output_dir: Path) -> int:
         f.write(f"- **Disabilitati:** {disabled_count}\n\n")
         f.write("---\n\n")
         f.write("## Tabella Stato Account\n\n")
-        f.write(f"| {'Utente':<20} | {'Creato Il':<12} | {'Stato':<14} | {'Note':<35} |\n")
-        f.write(f"|{'-'*22}|{'-'*14}|{'-'*16}|{'-'*37}|\n")
+        f.write(f"| {'Utente':<20} | {'Creato Il':<12} | {'Stato':<18} | {'Disabilitato Il':<15} |\n")
+        f.write(f"|{'-'*22}|{'-'*14}|{'-'*20}|{'-'*17}|\n")
         
-        for username, created, status, note in status_data:
+        for username, created, status, disabled_date in status_data:
             if status == "Disabilitato":
-                status_md = "[!] Disabilitato"
+                status_md = "[OK] Disabilitato"
             elif status == "Attivo":
                 status_md = "[OK] Attivo"
             else:
                 status_md = status
-            f.write(f"| {username[:20]:<20} | {created:<12} | {status_md:<14} | {note[:35]:<35} |\n")
+            f.write(f"| {username[:20]:<20} | {created:<12} | {status_md:<18} | {disabled_date:<15} |\n")
         
         f.write("\n")
     
