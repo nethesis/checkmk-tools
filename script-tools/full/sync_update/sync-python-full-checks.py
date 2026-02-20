@@ -5,23 +5,27 @@ sync-python-full-checks.py - Sync automatico script Python CheckMK (full)
 Rileva il tipo host, individua la categoria corretta nel repository locale
 e copia/aggiorna tutti gli script Python da full/ verso la cartella local checks.
 
-Version: 1.5.1
+Version: 1.6.0
 """
 
 import argparse
 import hashlib
+import json
 import os
 import shutil
 import stat
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
-VERSION = "1.5.1"
+VERSION = "1.6.0"
 DEFAULT_REPO = Path("/opt/checkmk-tools")
 DEFAULT_TARGET = Path("/usr/lib/check_mk_agent/local")
+PROFILE_FILE_NAME = ".sync_runtime_profile.json"
+PROFILE_TIMEOUT_SECONDS = 20
 
 PROXMOX_HEAVY_300 = {
     "check-proxmox_lxc_runtime.py",
@@ -34,7 +38,7 @@ PROXMOX_HEAVY_300 = {
     "check-proxmox_vm_monitor.py",
     "check-proxmox-vm-status.py",
 }
-MANAGED_INTERVAL_DIRS = {"300"}
+MANAGED_INTERVAL_DIRS = {"60", "300", "900"}
 
 
 def log(message: str) -> None:
@@ -87,6 +91,65 @@ def is_source_newer(src_version: str, dst_version: str) -> bool:
         return parse_semver(src_version) > parse_semver(dst_version)
     except ValueError:
         return False
+
+
+def load_runtime_profile(profile_path: Path) -> Dict[str, Dict[str, Any]]:
+    if not profile_path.exists():
+        return {}
+    try:
+        raw = json.loads(profile_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+
+    normalized: Dict[str, Dict[str, Any]] = {}
+    for script_name, data in raw.items():
+        if not isinstance(data, dict):
+            continue
+        normalized[str(script_name)] = {
+            "hash": str(data.get("hash", "")),
+            "elapsed": float(data.get("elapsed", 0.0) or 0.0),
+            "timeout": bool(data.get("timeout", False)),
+            "interval": str(data.get("interval", ".")),
+        }
+    return normalized
+
+
+def save_runtime_profile(profile_path: Path, profile: Dict[str, Dict[str, Any]]) -> None:
+    try:
+        profile_path.write_text(json.dumps(profile, indent=2, sort_keys=True), encoding="utf-8")
+    except OSError as exc:
+        warn(f"Impossibile salvare runtime profile: {exc}")
+
+
+def classify_interval(elapsed: float, timed_out: bool) -> str:
+    if timed_out or elapsed >= 10.0:
+        return "900"
+    if elapsed >= 5.0:
+        return "300"
+    if elapsed >= 2.0:
+        return "60"
+    return "."
+
+
+def profile_script_runtime(script_path: Path) -> Tuple[float, bool]:
+    started = time.monotonic()
+    timed_out = False
+    try:
+        subprocess.run(
+            [str(script_path)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=PROFILE_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        timed_out = True
+    except OSError:
+        pass
+    elapsed = max(0.0, time.monotonic() - started)
+    return elapsed, timed_out
 
 
 def git_pull_repo(repo_dir: Path) -> None:
@@ -235,7 +298,34 @@ def ensure_executable(file_path: Path) -> None:
     file_path.chmod(current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
-def target_subdir_for_script(category: str, script_name: str, use_interval_subdirs: bool) -> str:
+def target_subdir_for_script(
+    category: str,
+    script_name: str,
+    use_interval_subdirs: bool,
+    auto_tier_by_runtime: bool,
+    src_hash: str,
+    src_path: Path,
+    runtime_profile: Dict[str, Dict[str, Any]],
+) -> str:
+    if auto_tier_by_runtime:
+        cached = runtime_profile.get(script_name, {})
+        if cached.get("hash") == src_hash and cached.get("interval"):
+            return str(cached.get("interval", "."))
+
+        elapsed, timed_out = profile_script_runtime(src_path)
+        interval = classify_interval(elapsed, timed_out)
+        runtime_profile[script_name] = {
+            "hash": src_hash,
+            "elapsed": elapsed,
+            "timeout": timed_out,
+            "interval": interval,
+        }
+        state = "timeout" if timed_out else "ok"
+        log(
+            f"Runtime profile: {script_name} elapsed={elapsed:.2f}s state={state} -> interval={interval}"
+        )
+        return interval
+
     if use_interval_subdirs and category == "script-check-proxmox" and script_name in PROXMOX_HEAVY_300:
         return "300"
     return "."
@@ -247,13 +337,23 @@ def target_path(base_target: Path, subdir: str, script_name: str) -> Path:
     return base_target / subdir / script_name
 
 
-def sync_scripts(source_dir: Path, target_dir: Path, category: str, use_interval_subdirs: bool) -> Tuple[int, int, int, Dict[str, Set[str]]]:
+def sync_scripts(
+    source_dir: Path,
+    target_dir: Path,
+    category: str,
+    use_interval_subdirs: bool,
+    auto_tier_by_runtime: bool,
+    runtime_profile: Dict[str, Dict[str, Any]],
+) -> Tuple[int, int, int, Dict[str, Set[str]]]:
     copied = 0
     unchanged = 0
     skipped = 0
     expected_by_dir: Dict[str, Set[str]] = {".": set()}
-    if use_interval_subdirs:
+    if use_interval_subdirs or auto_tier_by_runtime:
         expected_by_dir["300"] = set()
+    if auto_tier_by_runtime:
+        expected_by_dir["60"] = set()
+        expected_by_dir["900"] = set()
     scripts = list_python_full_scripts(source_dir)
 
     if not scripts:
@@ -261,15 +361,26 @@ def sync_scripts(source_dir: Path, target_dir: Path, category: str, use_interval
         return copied, unchanged, skipped, expected_by_dir
 
     target_dir.mkdir(parents=True, exist_ok=True)
-    if use_interval_subdirs:
+    if use_interval_subdirs or auto_tier_by_runtime:
         (target_dir / "300").mkdir(parents=True, exist_ok=True)
+    if auto_tier_by_runtime:
+        (target_dir / "60").mkdir(parents=True, exist_ok=True)
+        (target_dir / "900").mkdir(parents=True, exist_ok=True)
 
     for src in scripts:
-        subdir = target_subdir_for_script(category, src.name, use_interval_subdirs)
+        src_hash = file_sha256(src)
+        subdir = target_subdir_for_script(
+            category,
+            src.name,
+            use_interval_subdirs,
+            auto_tier_by_runtime,
+            src_hash,
+            src,
+            runtime_profile,
+        )
         expected_by_dir.setdefault(subdir, set()).add(src.name)
         dst = target_path(target_dir, subdir, src.name)
         should_copy = False
-        src_hash = file_sha256(src)
         src_version = extract_version(src)
         if not dst.exists():
             should_copy = True
@@ -305,13 +416,16 @@ def sync_scripts(source_dir: Path, target_dir: Path, category: str, use_interval
             else:
                 log(f"Deploy: {src.name} -> {subdir}/")
 
-        other_location = target_path(target_dir, "." if subdir != "." else "300", src.name)
-        if use_interval_subdirs and other_location.exists():
-            try:
-                other_location.unlink()
-                log(f"Prune duplicate target: {other_location}")
-            except OSError:
-                warn(f"Impossibile rimuovere duplicate target: {other_location}")
+        for candidate in (".", "60", "300", "900"):
+            if candidate == subdir:
+                continue
+            other_location = target_path(target_dir, candidate, src.name)
+            if other_location.exists():
+                try:
+                    other_location.unlink()
+                    log(f"Prune duplicate target: {other_location}")
+                except OSError:
+                    warn(f"Impossibile rimuovere duplicate target: {other_location}")
 
     return copied, unchanged, skipped, expected_by_dir
 
@@ -395,6 +509,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Usa sottocartelle interval (es. local/300) per check pesanti. Default: disabilitato per compatibilità.",
     )
+    parser.add_argument(
+        "--auto-tier-by-runtime",
+        action="store_true",
+        help="Esegue un test runtime degli script nuovi/modificati e li assegna a local/60|300|900.",
+    )
     return parser.parse_args()
 
 
@@ -444,6 +563,13 @@ def main() -> int:
     expected_by_dir: Dict[str, Set[str]] = {".": set()}
     if args.use_interval_subdirs:
         expected_by_dir["300"] = set()
+    if args.auto_tier_by_runtime:
+        expected_by_dir["60"] = set()
+        expected_by_dir["300"] = set()
+        expected_by_dir["900"] = set()
+
+    profile_path = target_dir / PROFILE_FILE_NAME
+    runtime_profile = load_runtime_profile(profile_path)
 
     for category in categories:
         source_dir = repo_dir / category / "full"
@@ -458,6 +584,8 @@ def main() -> int:
             target_dir,
             category,
             args.use_interval_subdirs,
+            args.auto_tier_by_runtime,
+            runtime_profile,
         )
         for folder_key, names in category_expected.items():
             expected_by_dir.setdefault(folder_key, set()).update(names)
@@ -470,6 +598,8 @@ def main() -> int:
         return 1
 
     total_pruned = quarantine_extra_python_scripts(target_dir, expected_by_dir)
+    if args.auto_tier_by_runtime:
+        save_runtime_profile(profile_path, runtime_profile)
 
     log(
         f"Completato: copied={total_copied}, unchanged={total_unchanged}, skipped={total_skipped}, pruned={total_pruned}"

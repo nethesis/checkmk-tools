@@ -6,7 +6,7 @@ Crea:
 - checkmk-python-full-sync.service (oneshot)
 - checkmk-python-full-sync.timer (ogni 5 minuti)
 
-Version: 1.2.0
+Version: 1.3.0
 """
 
 import argparse
@@ -18,7 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 SYSTEMD_DIR = Path("/etc/systemd/system")
 SERVICE_NAME = "checkmk-python-full-sync.service"
 TIMER_NAME = "checkmk-python-full-sync.timer"
@@ -201,6 +201,19 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Modalità rapida (stessi default, pensata per lancio senza complessità).",
     )
+    parser.add_argument(
+        "--auto-tier-by-runtime",
+        dest="auto_tier_by_runtime",
+        action="store_true",
+        help="Abilita profiling runtime e deploy in local/60|300|900.",
+    )
+    parser.add_argument(
+        "--no-auto-tier-by-runtime",
+        dest="auto_tier_by_runtime",
+        action="store_false",
+        help="Disabilita profiling runtime (forza deploy root tradizionale).",
+    )
+    parser.set_defaults(auto_tier_by_runtime=None)
     return parser.parse_args()
 
 
@@ -257,6 +270,12 @@ def main() -> int:
         cmd.append("--all-categories")
     else:
         cmd.extend(["--category", args.category])
+
+    enable_auto_tier = args.auto_tier_by_runtime
+    if enable_auto_tier is None:
+        enable_auto_tier = (not args.all_categories) and args.category in {"auto", "script-check-proxmox"}
+    if enable_auto_tier:
+        cmd.append("--auto-tier-by-runtime")
 
     service_content = f"""[Unit]
 Description=CheckMK Python Full Checks Sync
