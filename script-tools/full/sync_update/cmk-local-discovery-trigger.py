@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -O` (se `--activate`)
 
-Version: 1.3.7
+Version: 1.3.8
 """
 
 import argparse
@@ -30,7 +30,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Set
 
-VERSION = "1.3.7"
+VERSION = "1.3.8"
 DEBUG = False
 LOG_FILE = Path(os.getenv("CHECKMK_AUTOHEAL_LOG_FILE", "/var/log/checkmk_server_autoheal.log"))
 
@@ -479,6 +479,12 @@ def main() -> int:
         else:
             log(f"Nessun cambio: {host}")
             set_host_state(state, host, current_hash, services)
+
+            if vanished_services and not args.initialize_state:
+                warn(
+                    f"Vanished rilevati su {host} con hash invariato: forzo discovery per rimozione servizi spariti"
+                )
+                pending_discovery.append(host)
 
             if services:
                 discovered = discovered_local_services(args.site, host)
