@@ -20,6 +20,16 @@ Supporta installazione completa lato server e prerequisiti lato host.
 
 ## Installazione lato server
 
+### Modalità rapida (consigliata)
+
+```bash
+# Zero argomenti: auto-detect site/user/group + preset produzione (timer 5 min)
+python3 /opt/checkmk-tools/script-tools/full/sync_update/install-cmk-local-discovery-trigger.py
+
+# Variante esplicita preset rapido
+python3 /opt/checkmk-tools/script-tools/full/sync_update/install-cmk-local-discovery-trigger.py --quick
+```
+
 ### 1) Aggiorna repository
 
 ```bash
@@ -95,9 +105,16 @@ tail -n 100 /var/log/auto-git-sync.log
 Se sull'host usi local checks Python da repository, puoi anche installare il sync checks:
 
 ```bash
+# Zero argomenti: installazione automatica con default safe
 python3 /opt/checkmk-tools/script-tools/full/sync_update/install-python-full-sync.py
+
+# Variante esplicita modalità rapida
+python3 /opt/checkmk-tools/script-tools/full/sync_update/install-python-full-sync.py --quick
+
 systemctl status checkmk-python-full-sync.timer --no-pager -l
 ```
+
+Se l'host non usa systemd, l'installer host configura automaticamente fallback cron ogni 5 minuti.
 
 ### Requisiti host
 

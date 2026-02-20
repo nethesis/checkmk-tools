@@ -31,12 +31,12 @@ sudo ./force-update-checkmk.sh
 .\fix-frp-compression-ws2022ad.ps1
 ```
 
-## Remoto (Consigliato)
+## Uso diretto da repository (Consigliato)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/Fix/remote/rforce-update-checkmk.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/fix/full/force-update-checkmk.sh | bash
 ```
 
 ---
 
-🚀 **Launcher remoti**: Vedi `../remote/`
+🚀 **Nota**: I launcher `remote/` sono stati rimossi. Usare gli script completi in `../full/`.

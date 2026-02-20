@@ -7,7 +7,6 @@ Repository organizzato per gestione CheckMK, integrazione Ydea, e script di moni
 ### 📂 **script-tools/** - Strumenti principali
 Script per gestione, deployment e manutenzione CheckMK.
 
-- **`remote/`** - Launcher remoti (r*.sh) - 7 righe, eseguono da GitHub
 - **`full/`** - Script completi standalone
   - Git sync automatico (`auto-git-sync.sh`, `install-auto-git-sync.sh`)
   - Update & upgrade (`update-all-scripts.sh`, `upgrade-checkmk.sh`)
@@ -19,7 +18,6 @@ Script per gestione, deployment e manutenzione CheckMK.
 ### 📂 **Ydea-Toolkit/** - Integrazione Ydea
 Integrazione completa con sistema ticketing Ydea.
 
-- **`remote/`** - Launcher Ydea (`rydea-toolkit.sh`, `rcreate-ticket-ita.sh`, etc.)
 - **`full/`** - Script completi Ydea
   - Toolkit completo (`ydea-toolkit.sh`)
   - Monitoring integration (`ydea-monitoring-integration.sh`)
@@ -29,7 +27,6 @@ Integrazione completa con sistema ticketing Ydea.
 ### 📂 **script-notify-checkmk/** - Notifiche CheckMK
 Script di notifica avanzati per CheckMK.
 
-- **`remote/`** - Launcher notifiche (`rmail_realip`, `rtelegram_realip`, `rydea_realip`)
 - **`full/`** - Script notifiche completi
   - `ydea_realip` - Crea ticket automatici su Ydea
   - `mail_realip` - Email con real IP resolution
@@ -39,7 +36,6 @@ Script di notifica avanzati per CheckMK.
 ### 📂 **Fix/** - Script di fix e troubleshooting
 Risoluzione problemi CheckMK e componenti.
 
-- **`remote/`** - Launcher fix (`rfix-frp-checkmk-host.sh`, `rforce-update-checkmk.sh`)
 - **`full/`** - Script fix completi
   - CheckMK fixes (`force-update-checkmk.sh`, `fix-frp-checkmk-host.sh`)
   - Windows fixes (PowerShell scripts)
@@ -76,16 +72,11 @@ Script per deploy automatico.
 
 ## 🚀 Quick Start
 
-### Uso Script Remoti (Consigliato)
+### Uso Script Completi (Consigliato)
 
 ```bash
-# Esegui launcher remoto direttamente da GitHub
-curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/remote/rinstall-auto-git-sync.sh | bash
-
-# Oppure scarica il launcher (7 righe) e eseguilo
-wget https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/remote/rinstall-auto-git-sync.sh
-chmod +x rinstall-auto-git-sync.sh
-./rinstall-auto-git-sync.sh
+# Esegui script completo direttamente da GitHub
+curl -fsSL https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/script-tools/full/installation/install-auto-git-sync.sh | bash
 ```
 
 ### Uso Script Locali
@@ -105,22 +96,10 @@ sudo ./script-tools/full/installation/install-auto-git-sync.sh
 ## 📖 Convenzioni
 
 ### Nomenclatura File
-- **`r{nome}.sh`** - Launcher remoto (nella cartella `remote/`)
 - **`{nome}.sh`** - Script completo (nella cartella `full/`)
 
-### Struttura Launcher Remoto
-```bash
-#!/bin/bash
-# Launcher per eseguire {NOME} remoto dal repo GitHub
-SCRIPT_URL="https://raw.githubusercontent.com/Coverup20/checkmk-tools/main/{path}/full/{nome}.sh"
-bash <(curl -fsSL "$SCRIPT_URL") "$@"
-```
-
-### Vantaggi Launcher Remoti
-1. **Portabilità**: 7 righe invece di 100+
-2. **Aggiornamenti automatici**: Sempre ultima versione da GitHub
-3. **Semplicità deployment**: Non serve git clone
-4. **Manutenzione zero**: Aggiorna solo il file full/
+### Nota struttura
+Le directory `remote/` sono state rimosse: il repository usa solo script completi in `full/` e documentazione in `doc/`.
 
 ---
 

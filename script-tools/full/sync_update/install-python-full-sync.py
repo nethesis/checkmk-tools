@@ -6,7 +6,7 @@ Crea:
 - checkmk-python-full-sync.service (oneshot)
 - checkmk-python-full-sync.timer (ogni 5 minuti)
 
-Version: 1.1.1
+Version: 1.2.0
 """
 
 import argparse
@@ -18,12 +18,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
-VERSION = "1.1.1"
+VERSION = "1.2.0"
 SYSTEMD_DIR = Path("/etc/systemd/system")
 SERVICE_NAME = "checkmk-python-full-sync.service"
 TIMER_NAME = "checkmk-python-full-sync.timer"
 DEFAULT_SYNC_SCRIPT = Path("/opt/checkmk-tools/script-tools/full/sync_update/sync-python-full-checks.py")
 DEFAULT_REPO_URL = "https://github.com/Coverup20/checkmk-tools.git"
+CRON_LOG_FILE = "/var/log/checkmk-python-full-sync.log"
 
 
 def run(cmd: List[str]) -> None:
@@ -195,7 +196,30 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Sincronizza tutte le categorie script-check-*",
     )
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Modalità rapida (stessi default, pensata per lancio senza complessità).",
+    )
     return parser.parse_args()
+
+
+def setup_cron_fallback(exec_cmd: List[str]) -> None:
+    cron_line = f"*/5 * * * * {' '.join(exec_cmd)} >> {CRON_LOG_FILE} 2>&1"
+
+    existing = run_capture(["crontab", "-l"])
+    current_lines = []
+    if existing.returncode == 0:
+        current_lines = [line for line in (existing.stdout or "").splitlines() if "sync-python-full-checks.py" not in line]
+
+    current_lines.append(cron_line)
+    new_content = "\n".join(current_lines).strip() + "\n"
+
+    temp_path = Path("/tmp/checkmk-python-full-sync.cron")
+    temp_path.write_text(new_content, encoding="utf-8")
+    run(["crontab", str(temp_path)])
+    print("[OK] systemd non disponibile: configurato fallback cron ogni 5 minuti")
+    print(f"[OK] Cron: {cron_line}")
 
 
 def main() -> int:
@@ -258,6 +282,14 @@ WantedBy=timers.target
 
     service_path = SYSTEMD_DIR / SERVICE_NAME
     timer_path = SYSTEMD_DIR / TIMER_NAME
+
+    if not SYSTEMD_DIR.exists():
+        setup_cron_fallback(cmd)
+        run(cmd)
+        print(f"[OK] install-python-full-sync.py v{VERSION}")
+        print(f"[OK] Repo:    {repo_path}")
+        print("[OK] Mode:    cron-fallback")
+        return 0
 
     write_text(service_path, service_content)
     write_text(timer_path, timer_content)

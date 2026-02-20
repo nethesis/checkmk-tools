@@ -97,28 +97,28 @@ checkmk-tools/
 ├── script-check-ns7/              # Script check per NethServer 7
 │   ├── doc/                       # Documentazione
 │   ├── full/                      # Script completi standalone
-│   └── remote/                    # Remote wrapper con auto-update
+│   └── (remote rimosso)           # Solo script full (launcher remoti dismessi)
 │
 ├── script-check-ns8/              # Script check per NethServer 8
 │   ├── doc/                       # Documentazione
 │   ├── full/                      # Script completi (Podman, Webtop, Tomcat)
-│   └── remote/                    # Remote wrapper
+│   └── (remote rimosso)           # Solo script full
 │
 ├── script-check-nsec8/            # Script check per NethSecurity 8
 │   ├── doc/                       # Documentazione
 │   ├── full/                      # Script completi
-│   └── remote/                    # Remote wrapper
+│   └── (remote rimosso)           # Check Python puri in full/
 │
 ├── script-check-ubuntu/           # Script check per Ubuntu/Linux
 │   ├── doc/                       # Documentazione
 │   ├── full/                      # Script completi (SSH, Fail2ban, Disk)
-│   ├── remote/                    # Remote wrapper
+│   ├── (remote rimosso)           # Solo script full
 │   └── deploy-ssh-checks.sh       # Deploy automatico check SSH
 │
 ├── script-check-proxmox/          # Script check per Proxmox VE
 │   ├── doc/                       # Documentazione
 │   ├── full/                      # Script completi API Proxmox
-│   └── remote/                    # Remote wrapper
+│   └── (remote rimosso)           # Solo script full
 │
 ├── script-notify-checkmk/         # Script notifica personalizzati
 │   ├── doc/                       # Documentazione
@@ -127,7 +127,7 @@ checkmk-tools/
 │   │   ├── telegram_*             # Notifiche Telegram
 │   │   ├── ydea_*                 # Integrazione Ydea ticketing
 │   │   └── dump_env               # Utility debug environment
-│   └── remote/                    # Remote wrapper
+│   └── (remote rimosso)           # Solo script full
 │
 ├── script-tools/                  # Tool deployment e utility
 │   ├── doc/                       # Documentazione
@@ -145,7 +145,7 @@ checkmk-tools/
 │   │   ├── setup-auto-upgrade-checkmk.sh # ⭐ Setup auto-upgrade CheckMK
 │   │   ├── upgrade-checkmk.sh         # Upgrade CheckMK
 │   │   └── increase-swap.sh           # Gestione swap
-│   ├── remote/                    # Remote wrapper
+│   ├── (remote rimosso)           # Launcher remoti dismessi
 │   ├── auto-git-sync.service      # Systemd service per sync
 │   └── install-auto-git-sync.sh   # Installazione sync automatico
 │
@@ -158,7 +158,7 @@ checkmk-tools/
 │
 ├── fix/                           # Script fix e correzioni
 │   ├── full/                      # Script fix completi
-│   └── remote/                    # Remote wrapper
+│   └── (remote rimosso)           # Solo script full
 │
 ├── Ydea-Toolkit/                  # 🎫 Integrazione Ydea Ticketing
 │   ├── doc/                       # Documentazione completa
@@ -169,7 +169,7 @@ checkmk-tools/
 │   │   ├── ydea-discover-sla-ids.sh        # Discovery SLA
 │   │   ├── install-ydea-checkmk-integration.sh  # Installazione
 │   │   └── test-*.sh              # Script test
-│   ├── remote/                    # Remote wrapper
+│   ├── (remote rimosso)           # Solo script full
 │   ├── config/                    # File configurazione
 │   ├── README.md                  # Guida principale
 │   └── README-*.md                # Guide specifiche
@@ -250,7 +250,6 @@ Monitoraggio completo per NethServer 7 (CentOS 7 based).
 
 **Struttura**:
 - `full/` - Script completi standalone
-- `remote/` - Remote wrapper con auto-update da GitHub
 - `doc/` - Documentazione specifica
 
 #### Script Disponibili
@@ -278,9 +277,7 @@ Monitoraggio completo per NethServer 7 (CentOS 7 based).
 | `check_fail2ban_status.sh` | Stato Fail2ban | Service status |
 | `check_ssh_all_sessions.sh` | Tutte sessioni SSH | Session count |
 
-**Pattern**: Ogni script ha il suo remote wrapper `rcheck_*.sh` con auto-update da GitHub.
-
-**Nota**: Gli script in `full/` sono standalone, quelli in `remote/` sono wrapper che scaricano automaticamente la versione latest da GitHub.
+**Pattern attuale**: Solo script completi in `full/` (launcher remoti dismessi).
 
 ---
 
@@ -292,7 +289,6 @@ Monitoraggio per NethServer 8 (Podman/Container based).
 
 **Struttura**:
 - `full/` - Script completi per monitoraggio container e servizi
-- `remote/` - Remote wrapper con auto-update
 - `doc/` - Documentazione
 
 #### Script Disponibili
@@ -319,7 +315,6 @@ Script check generici per distribuzioni Ubuntu/Debian.
 
 **Struttura**:
 - `full/` - Script completi per Ubuntu/Debian
-- `remote/` - Remote wrapper
 - `doc/` - Documentazione
 - `deploy-ssh-checks.sh` - Deploy automatico check SSH
 
@@ -352,7 +347,6 @@ Monitoraggio per NethSecurity 8 (Firewall NethServer 8 based).
 
 **Struttura**:
 - `full/` - Script completi per NethSecurity
-- `remote/` - Remote wrapper con auto-update
 - `doc/` - Documentazione specifica
 
 **Note**: NethSecurity 8 è la distribuzione firewall basata su NethServer 8, include monitoraggio specifico per servizi firewall.
@@ -375,7 +369,7 @@ Monitoraggio Proxmox Virtual Environment tramite API.
 | `proxmox_vm_disks.sh` | Monitoraggio dischi VM | Disk usage |
 | `proxmox_vm_monitor.sh` | Monitor generale VM | CPU, RAM, Disk |
 
-**Remote Wrappers**: Prefisso `r` per ogni script (es. `rcheck-proxmox-vm-status.sh`)
+**Esecuzione**: usare direttamente gli script in `full/`.
 
 **Requisiti**:
 - Token API Proxmox configurato
@@ -392,7 +386,6 @@ Sistema avanzato di notifiche CheckMK con supporto FRP (Fast Reverse Proxy) e in
 
 **Struttura**:
 - `full/` - Script notifica completi
-- `remote/` - Remote wrapper
 - `doc/` - Documentazione e guide test
 
 ### Features Principali
@@ -1502,7 +1495,7 @@ Grazie a tutti i contributori che hanno aiutato a migliorare questa collezione!
 - ✅ **Deploy tools avanzati**: 28+ tool deployment e ottimizzazione
 - ✅ **CheckMK tuning**: Script interattivi ottimizzazione v2-v5
 - ✅ **Git sync automatico**: Automazione repository con systemd
-- ✅ **Directory riorganizzate**: Struttura full/remote/doc standardizzata
+- ✅ **Directory riorganizzate**: Struttura full/doc standardizzata (remote dismesso)
 - ✅ **Documentazione completa**: 15+ README specifici
 
 ### v1.5.0
@@ -1516,7 +1509,7 @@ Grazie a tutti i contributori che hanno aiutato a migliorare questa collezione!
 
 - ✅ Sistema smart deploy enhanced
 - ✅ Pattern CheckMK ufficiali integrati
-- ✅ Remote wrappers per tutti gli script
+- ✅ Avvio diretto da script completi in `full/`
 
 ### v1.3.0
 

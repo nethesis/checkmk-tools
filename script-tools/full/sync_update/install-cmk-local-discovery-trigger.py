@@ -8,7 +8,7 @@ Crea:
 - /etc/systemd/system/checkmk-local-discovery-trigger.service
 - /etc/systemd/system/checkmk-local-discovery-trigger.timer
 
-Version: 1.2.0
+Version: 1.3.0
 """
 
 import argparse
@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 from typing import List
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 SYSTEMD_DIR = Path("/etc/systemd/system")
 SERVICE_NAME = "checkmk-local-discovery-trigger.service"
 TIMER_NAME = "checkmk-local-discovery-trigger.timer"
@@ -63,6 +63,42 @@ def ensure_log_file(log_file: Path, run_as_user: str, run_as_group: str) -> None
     gid = grp.getgrnam(run_as_group).gr_gid
     os.chown(log_file, uid, gid)
     os.chmod(log_file, 0o664)
+
+
+def detect_default_site() -> str:
+    sites_root = Path("/opt/omd/sites")
+    if not sites_root.exists():
+        return "monitoring"
+
+    monitoring_site = sites_root / "monitoring"
+    if monitoring_site.exists() and monitoring_site.is_dir():
+        return "monitoring"
+
+    candidates = sorted([p.name for p in sites_root.iterdir() if p.is_dir()])
+    if candidates:
+        return candidates[0]
+    return "monitoring"
+
+
+def resolve_runtime_identity(site: str, run_as_user: str, run_as_group: str) -> tuple[str, str]:
+    selected_user = run_as_user.strip() if run_as_user else ""
+    selected_group = run_as_group.strip() if run_as_group else ""
+
+    if not selected_user:
+        try:
+            pwd.getpwnam(site)
+            selected_user = site
+        except KeyError:
+            selected_user = "root"
+
+    if not selected_group:
+        try:
+            grp.getgrnam(selected_user)
+            selected_group = selected_user
+        except KeyError:
+            selected_group = "root"
+
+    return selected_user, selected_group
 
 
 def install_git_if_missing() -> None:
@@ -135,9 +171,9 @@ WantedBy=multi-user.target
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Installa service/timer guardrail per local discovery trigger")
-    parser.add_argument("--site", default="monitoring", help="Nome site OMD")
-    parser.add_argument("--run-as-user", default="monitoring", help="Utente systemd del servizio")
-    parser.add_argument("--run-as-group", default="monitoring", help="Gruppo systemd del servizio")
+    parser.add_argument("--site", default="", help="Nome site OMD (auto-detect se omesso)")
+    parser.add_argument("--run-as-user", default="", help="Utente systemd del servizio (auto-detect se omesso)")
+    parser.add_argument("--run-as-group", default="", help="Gruppo systemd del servizio (auto-detect se omesso)")
     parser.add_argument("--script-path", default=str(DEFAULT_SCRIPT), help="Path script cmk-local-discovery-trigger.py")
     parser.add_argument("--agent-timeout", type=int, default=90, help="Timeout per host cmk -d in secondi")
     parser.add_argument("--detect-plugins", default="local", help="Plugin target per discovery (default: local)")
@@ -146,7 +182,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Disabilita 'cmk -O' al termine (default: abilitato su discovery riuscita)",
     )
-    parser.add_argument("--interval-min", type=int, default=1, help="Intervallo timer in minuti")
+    parser.add_argument("--interval-min", type=int, default=5, help="Intervallo timer in minuti")
     parser.add_argument("--boot-delay-min", type=int, default=3, help="Delay run dopo boot in minuti")
     parser.add_argument("--timeout-start-min", type=int, default=25, help="TimeoutStartSec in minuti")
     parser.add_argument("--runtime-max-min", type=int, default=25, help="RuntimeMaxSec in minuti")
@@ -184,12 +220,25 @@ def parse_args() -> argparse.Namespace:
         default=str(DEFAULT_AUTO_SYNC_LOG_FILE),
         help="Path log auto git sync (default: /var/log/auto-git-sync.log)",
     )
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Preset rapido consigliato: auto-detect site/user/group + timer 5 min.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     require_root()
+
+    if args.quick and not args.site:
+        args.site = detect_default_site()
+
+    if not args.site:
+        args.site = detect_default_site()
+
+    run_as_user, run_as_group = resolve_runtime_identity(args.site, args.run_as_user, args.run_as_group)
 
     script_path = Path(args.script_path)
     if not script_path.exists():
@@ -198,7 +247,7 @@ def main() -> int:
 
     log_file = Path(args.log_file)
     try:
-        ensure_log_file(log_file, args.run_as_user, args.run_as_group)
+        ensure_log_file(log_file, run_as_user, run_as_group)
     except KeyError as exc:
         print(f"[ERROR] Utente/gruppo non valido per ownership log: {exc}", file=sys.stderr)
         return 1
@@ -233,8 +282,8 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User={args.run_as_user}
-Group={args.run_as_group}
+User={run_as_user}
+Group={run_as_group}
 Environment=CHECKMK_AUTOHEAL_LOG_FILE={log_file}
 ExecStart={' '.join(exec_cmd)}
 TimeoutStartSec={args.timeout_start_min}min
@@ -271,8 +320,8 @@ WantedBy=timers.target
         try:
             install_git_if_missing()
             auto_sync_service_path = setup_auto_git_sync(
-                run_as_user=args.run_as_user,
-                run_as_group=args.run_as_group,
+                run_as_user=run_as_user,
+                run_as_group=run_as_group,
                 repo_dir=Path(args.repo_dir),
                 auto_sync_script=Path(args.auto_sync_script_path),
                 auto_sync_interval=args.auto_sync_interval_sec,
@@ -285,6 +334,8 @@ WantedBy=timers.target
     print(f"[OK] install-cmk-local-discovery-trigger.py v{VERSION}")
     print(f"[OK] Service: {service_path}")
     print(f"[OK] Timer:   {timer_path}")
+    print(f"[OK] Site:    {args.site}")
+    print(f"[OK] RunAs:   {run_as_user}:{run_as_group}")
     print(f"[OK] Log:     {log_file}")
     if auto_sync_service_path:
         print(f"[OK] AutoSync Service: {auto_sync_service_path}")
