@@ -543,7 +543,7 @@ def main() -> int:
 
     save_state(state_path, state)
     log(
-        f"Completato: changed={len(changed_hosts)}, discovery_ok={successful_discovery}, unchanged={len(hosts) - len(changed_hosts)}"
+        f"Completato: changed={len(changed_hosts)}, vanished={len(unique_vanished_hosts)}, discovery_ok={successful_discovery}, unchanged={len(hosts) - len(changed_hosts)}"
     )
     return 0
 
