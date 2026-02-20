@@ -478,22 +478,16 @@ def quarantine_extra_python_scripts(target_dir: Path, expected_by_dir: Dict[str,
             ]
         )
 
-    if not extras:
-        return 0
-
-    backup_dir = target_dir / (
-        "cleanup_nonrepo_python_backup_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    )
-    backup_dir.mkdir(parents=True, exist_ok=True)
-
-    moved = 0
+    pruned = 0
     for extra in extras:
-        destination = backup_dir / extra.name
-        shutil.move(str(extra), str(destination))
-        moved += 1  # type: ignore[operator]
-        log(f"Prune extra: {extra.name} -> {destination}")
+        try:
+            extra.unlink()
+            pruned += 1
+            log(f"Prune extra: {extra.name} (deleted)")
+        except OSError as exc:
+            warn(f"Impossibile rimuovere extra {extra.name}: {exc}")
 
-    return moved
+    return pruned
 
 
 def parse_args() -> argparse.Namespace:
