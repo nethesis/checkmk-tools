@@ -34,6 +34,7 @@ PROXMOX_HEAVY_300 = {
     "check-proxmox_vm_monitor.py",
     "check-proxmox-vm-status.py",
 }
+MANAGED_INTERVAL_DIRS = {"300"}
 
 
 def log(message: str) -> None:
@@ -330,9 +331,12 @@ def quarantine_extra_python_scripts(target_dir: Path, expected_by_dir: Dict[str,
         ]
     )
 
-    for subdir, expected_names in expected_by_dir.items():
+    subdirs_to_scan = set(MANAGED_INTERVAL_DIRS) | {k for k in expected_by_dir.keys() if k != "."}
+
+    for subdir in sorted(subdirs_to_scan):
         if subdir == ".":
             continue
+        expected_names = expected_by_dir.get(subdir, set())
         folder = target_dir / subdir
         if not folder.exists():
             continue
