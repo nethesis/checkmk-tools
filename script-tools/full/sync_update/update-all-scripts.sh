@@ -6,19 +6,94 @@ set -euo pipefail
 # Non aggiunge nuovi file: se nel sistema un nome non esiste, non viene creato.
 # Output semplice (ASCII-only).
 
+VERSION="1.1.1"
+
 REPO_DIR="${1:-/opt/checkmk-tools}"
 BACKUP_DIR="/tmp/scripts-backup-$(date +%Y%m%d-%H%M%S)"
+LOG_FILE="${CHECKMK_AUTOHEAL_LOG_FILE:-/var/log/checkmk_server_autoheal.log}"
+MAX_LOG_SIZE_BYTES="${CHECKMK_AUTOHEAL_LOG_MAX_BYTES:-10485760}"
 UPDATED=0
 
-die() { echo "[ERR] $*" >&2; exit 1; }
-log() { echo "[INFO] $*"; }
-warn() { echo "[WARN] $*"; }
+log_size_bytes() {
+    local file="$1"
+    stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo 0
+}
+
+rotate_log_file() {
+    [[ -f "$LOG_FILE" ]] || return 0
+
+    local current_size
+    current_size="$(log_size_bytes "$LOG_FILE")"
+    [[ "$current_size" =~ ^[0-9]+$ ]] || current_size=0
+
+    if (( current_size < MAX_LOG_SIZE_BYTES )); then
+        return 0
+    fi
+
+    local rotated="${LOG_FILE}.1"
+    local rotated_gz="${rotated}.gz"
+
+    rm -f "$rotated_gz" 2>/dev/null || true
+    mv "$LOG_FILE" "$rotated" 2>/dev/null || true
+    gzip -f "$rotated" 2>/dev/null || true
+    : > "$LOG_FILE"
+    chmod 666 "$LOG_FILE" 2>/dev/null || true
+}
+
+write_log_line() {
+    local level="$1"
+    local message="$2"
+    local timestamp
+    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+    rotate_log_file
+    printf '[%s] [%s] %s\n' "$timestamp" "$level" "$message" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+die() {
+    echo "[ERR] $*" >&2
+    write_log_line "ERROR" "$*"
+    exit 1
+}
+
+log() {
+    echo "[INFO] $*"
+    write_log_line "INFO" "$*"
+}
+
+warn() {
+    echo "[WARN] $*"
+    write_log_line "WARN" "$*"
+}
+
+file_sha256() {
+    local file="$1"
+    sha256sum "$file" 2>/dev/null | awk '{print $1}'
+}
+
+extract_version() {
+    local file="$1"
+    local line value
+    line="$(grep -E '^[[:space:]]*VERSION[[:space:]]*=' "$file" 2>/dev/null | head -n1 || true)"
+    [[ -n "$line" ]] || return 0
+
+    value="${line#*=}"
+    value="$(printf '%s' "$value" | sed -E "s/^[[:space:]]+//; s/[[:space:]]+$//")"
+    value="${value#\"}"
+    value="${value#\'}"
+    value="${value%%\"*}"
+    value="${value%%\'*}"
+    printf '%s' "$value"
+}
 
 [[ ${EUID:-$(id -u)} -eq 0 ]] || die "eseguire come root (sudo)"
 [[ -d "$REPO_DIR" ]] || die "repository non trovato: $REPO_DIR"
 command -v git >/dev/null 2>&1 || die "git non trovato"
 
 mkdir -p "$BACKUP_DIR"
+touch "$LOG_FILE" 2>/dev/null || true
+chmod 666 "$LOG_FILE" 2>/dev/null || true
+log "update-all-scripts.sh v$VERSION"
+log "Server autoheal log: $LOG_FILE"
 log "Repository: $REPO_DIR"
 log "Backup: $BACKUP_DIR"
 
@@ -62,7 +137,8 @@ update_existing_files() {
     log "$label: aggiorno file esistenti in $system_dir"
     shopt -s nullglob
     for dest in "$system_dir"/*; do
-        local name owner mode backup_path
+        local name owner mode backup_path src_hash dst_hash src_version dst_version
+        local hash_changed version_changed reason
         name="$(basename "$dest")"
 
         [[ -f "$dest" ]] || continue
@@ -70,6 +146,36 @@ update_existing_files() {
         [[ "$name" =~ \.(md|backup|bak|old|tmp|disabled)$ ]] && continue
 
         if [[ -f "$src_dir/$name" ]]; then
+            src_hash="$(file_sha256 "$src_dir/$name" || true)"
+            dst_hash="$(file_sha256 "$dest" || true)"
+            src_version="$(extract_version "$src_dir/$name" || true)"
+            dst_version="$(extract_version "$dest" || true)"
+
+            hash_changed=0
+            version_changed=0
+            if [[ "$src_hash" != "$dst_hash" ]]; then
+                hash_changed=1
+            fi
+            if [[ "$src_version" != "$dst_version" ]]; then
+                version_changed=1
+            fi
+
+            if (( hash_changed == 0 && version_changed == 0 )); then
+                continue
+            fi
+
+            reason=""
+            if (( version_changed == 1 )); then
+                reason="version ${dst_version:-n/a} -> ${src_version:-n/a}"
+            fi
+            if (( hash_changed == 1 )); then
+                if [[ -n "$reason" ]]; then
+                    reason="$reason, hash changed"
+                else
+                    reason="hash changed"
+                fi
+            fi
+
             owner="$(stat -c '%u:%g' "$dest" 2>/dev/null || echo "0:0")"
             mode="$(stat -c '%a' "$dest" 2>/dev/null || echo "755")"
 
@@ -80,7 +186,7 @@ update_existing_files() {
             cp -a "$src_dir/$name" "$dest"
             chown "$owner" "$dest" 2>/dev/null || true
             chmod "$mode" "$dest" 2>/dev/null || true
-            log "  updated: $name"
+            log "  updated: $name ($reason)"
             ((count++))
         fi
     done

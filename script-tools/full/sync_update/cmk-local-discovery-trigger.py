@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -O` (se `--activate`)
 
-Version: 1.3.2
+Version: 1.3.3
 """
 
 import argparse
@@ -29,21 +29,39 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.3.2"
+VERSION = "1.3.3"
 DEBUG = False
+LOG_FILE = Path(os.getenv("CHECKMK_AUTOHEAL_LOG_FILE", "/var/log/checkmk_server_autoheal.log"))
+
+
+def append_log(level: str, message: str) -> None:
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    line = f"[{timestamp}] [{level}] {message}\n"
+    try:
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        if not LOG_FILE.exists():
+            LOG_FILE.touch(exist_ok=True)
+            LOG_FILE.chmod(0o666)
+        with LOG_FILE.open("a", encoding="utf-8") as file_obj:
+            file_obj.write(line)
+    except OSError:
+        pass
 
 
 def log(message: str) -> None:
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [INFO] {message}")
+    append_log("INFO", message)
 
 
 def warn(message: str) -> None:
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [WARN] {message}")
+    append_log("WARN", message)
 
 
 def debug(message: str) -> None:
     if DEBUG:
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [DEBUG] {message}")
+        append_log("DEBUG", message)
 
 
 def run_site_cmd(site: str, cmk_command: str, timeout: int = 180) -> subprocess.CompletedProcess:
@@ -298,6 +316,7 @@ def main() -> int:
     state = load_state(state_path)
 
     log(f"cmk-local-discovery-trigger.py v{VERSION}")
+    log(f"Server autoheal log: {LOG_FILE}")
     log(f"Site: {args.site}")
     log(f"State: {state_path}")
     log(f"Lock: {active_lock}")

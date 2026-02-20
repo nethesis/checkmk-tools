@@ -5,7 +5,7 @@ sync-python-full-checks.py - Sync automatico script Python CheckMK (full)
 Rileva il tipo host, individua la categoria corretta nel repository locale
 e copia/aggiorna tutti gli script Python da full/ verso la cartella local checks.
 
-Version: 1.4.0
+Version: 1.4.1
 """
 
 import argparse
@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 DEFAULT_REPO = Path("/opt/checkmk-tools")
 DEFAULT_TARGET = Path("/usr/lib/check_mk_agent/local")
 
@@ -188,18 +188,32 @@ def sync_scripts(source_dir: Path, target_dir: Path) -> Tuple[int, int, int]:
     for src in scripts:
         dst = target_dir / src.name
         should_copy = False
+        src_hash = file_sha256(src)
+        src_version = extract_version(src)
         if not dst.exists():
             should_copy = True
             log(f"Deploy new: {src.name}")
         else:
-            src_hash = file_sha256(src)
             dst_hash = file_sha256(dst)
-            if src_hash == dst_hash:
+            dst_version = extract_version(dst)
+
+            hash_changed = src_hash != dst_hash
+            version_changed = src_version != dst_version
+
+            if not hash_changed and not version_changed:
                 unchanged += 1
                 continue
 
             should_copy = True
-            log(f"Overwrite changed: {src.name}")
+            reasons = []
+            if version_changed:
+                reasons.append(
+                    f"version {dst_version or 'n/a'} -> {src_version or 'n/a'}"
+                )
+            if hash_changed:
+                reasons.append("hash changed")
+            reason_text = ", ".join(reasons) if reasons else "content changed"
+            log(f"Overwrite changed: {src.name} ({reason_text})")
 
         if should_copy:
             shutil.copy2(src, dst)
