@@ -6,7 +6,7 @@ Monitor disk configuration for VMs and containers.
 
 Proxmox VE
 
-Version: 1.0.1
+Version: 1.0.2
 """
 
 import subprocess
@@ -14,11 +14,11 @@ import sys
 import re
 import time
 
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 PVE_TIMEOUT = 10
-PER_VM_CONFIG_TIMEOUT = 2
-PER_CT_CONFIG_TIMEOUT = 2
-TOTAL_BUDGET_SECONDS = 25
+PER_VM_CONFIG_TIMEOUT = 1
+PER_CT_CONFIG_TIMEOUT = 1
+TOTAL_BUDGET_SECONDS = 8
 
 
 def run_cmd(cmd, timeout=PVE_TIMEOUT):
