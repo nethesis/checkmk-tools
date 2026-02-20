@@ -1,28 +1,88 @@
 #!/usr/bin/env python3
-"""Python wrapper for check_wan_status.sh - Version: 1.0.0"""
+"""check_wan_status.py - CheckMK local check WAN status (Python puro)."""
 
+import json
 import subprocess
 import sys
-from pathlib import Path
 
-SERVICE = "WAN_Metrics"
-LEGACY_SCRIPT = Path("/opt/checkmk-tools/script-check-nsec8/full/check_wan_status.sh")
+
+def run(cmd: list[str]) -> str:
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False)
+    return (result.stdout or "").strip()
+
+
+def find_wan_interfaces() -> list[str]:
+    lines = run(["ubus", "list"]).splitlines()
+    return [line.replace("network.interface.", "") for line in lines if line.startswith("network.interface.") and line.replace("network.interface.", "").startswith(("wan", "wwan", "vwan"))]
+
+
+def iface_status(iface: str) -> tuple[str, str]:
+    data = run(["ubus", "call", f"network.interface.{iface}", "status"])
+    if not data:
+        return "unknown", ""
+    try:
+        parsed = json.loads(data)
+        up = parsed.get("up")
+        route = parsed.get("route", [])
+        gateway = route[0].get("nexthop", "") if route and isinstance(route, list) else ""
+        return ("up" if up else "down"), gateway
+    except Exception:
+        return "unknown", ""
+
+
+def ping(target: str) -> bool:
+    result = subprocess.run(["ping", "-c", "2", "-W", "2", target], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    return result.returncode == 0
 
 
 def main() -> int:
-    if not LEGACY_SCRIPT.exists():
-        print(f"3 {SERVICE} - Legacy script missing: {LEGACY_SCRIPT}")
+    wan_ifaces = find_wan_interfaces()
+    if not wan_ifaces:
+        print("0 WAN_Status status=ERROR No WAN interfaces found")
         return 0
-    try:
-        result = subprocess.run([str(LEGACY_SCRIPT)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30, check=False)
-    except Exception as error:
-        print(f"3 {SERVICE} - Legacy wrapper error: {error}")
-        return 0
-    output = (result.stdout or "").strip()
-    if output:
-        print(output)
-        return 0
-    print(f"3 {SERVICE} - Legacy wrapper error: {(result.stderr or f'legacy exit code {result.returncode}').strip()}")
+
+    overall = 0
+    status_messages: list[str] = []
+    details: list[str] = []
+
+    for iface in wan_ifaces:
+        status, gateway = iface_status(iface)
+        if status == "up":
+            if gateway:
+                if ping(gateway):
+                    status_messages.append(f"{iface}=OK")
+                    details.append(f"{iface}: UP (gateway {gateway} reachable)")
+                else:
+                    status_messages.append(f"{iface}=DEGRADED")
+                    details.append(f"{iface}: UP but gateway {gateway} unreachable")
+                    overall = max(overall, 1)
+            elif ping("8.8.8.8") or ping("1.1.1.1"):
+                status_messages.append(f"{iface}=OK")
+                details.append(f"{iface}: UP (internet reachable)")
+            else:
+                status_messages.append(f"{iface}=DEGRADED")
+                details.append(f"{iface}: UP but no connectivity")
+                overall = max(overall, 1)
+        elif status == "down":
+            status_messages.append(f"{iface}=DOWN")
+            details.append(f"{iface}: DOWN")
+            overall = max(overall, 2)
+        else:
+            status_messages.append(f"{iface}=UNKNOWN")
+            details.append(f"{iface}: UNKNOWN")
+            overall = max(overall, 1)
+
+    final_status = "OK" if overall == 0 else ("WARNING" if overall == 1 else "CRITICAL")
+    print(f"{overall} WAN_Status status={final_status} {' '.join(status_messages)} - {', '.join(details)}")
+
+    wan_count = len(wan_ifaces)
+    wan_up = sum(1 for s in status_messages if s.endswith("=OK"))
+    wan_down = sum(1 for s in status_messages if s.endswith("=DOWN"))
+    wan_degraded = sum(1 for s in status_messages if s.endswith("=DEGRADED"))
+    print(
+        f"0 WAN_Metrics - Total={wan_count} Up={wan_up} Down={wan_down} Degraded={wan_degraded} "
+        f"| total={wan_count} up={wan_up} down={wan_down} degraded={wan_degraded}"
+    )
     return 0
 
 

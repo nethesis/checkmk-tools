@@ -1,28 +1,41 @@
 #!/usr/bin/env python3
-"""Python wrapper for check_firewall_connections.sh - Version: 1.0.0"""
+"""check_firewall_connections.py - CheckMK local check conntrack (Python puro)."""
 
-import subprocess
 import sys
 from pathlib import Path
 
 SERVICE = "Firewall_Connections"
-LEGACY_SCRIPT = Path("/opt/checkmk-tools/script-check-nsec8/full/check_firewall_connections.sh")
+
+
+def read_int(path: str) -> int:
+    return int(Path(path).read_text(encoding="utf-8", errors="ignore").strip())
 
 
 def main() -> int:
-    if not LEGACY_SCRIPT.exists():
-        print(f"3 {SERVICE} - Legacy script missing: {LEGACY_SCRIPT}")
+    count_path = Path("/proc/sys/net/netfilter/nf_conntrack_count")
+    max_path = Path("/proc/sys/net/netfilter/nf_conntrack_max")
+    if not count_path.exists() or not max_path.exists():
+        print("1 Firewall_Connections - Conntrack non disponibile")
         return 0
-    try:
-        result = subprocess.run([str(LEGACY_SCRIPT)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30, check=False)
-    except Exception as error:
-        print(f"3 {SERVICE} - Legacy wrapper error: {error}")
-        return 0
-    output = (result.stdout or "").strip()
-    if output:
-        print(output)
-        return 0
-    print(f"3 {SERVICE} - Legacy wrapper error: {(result.stderr or f'legacy exit code {result.returncode}').strip()}")
+
+    current = read_int(str(count_path))
+    max_value = read_int(str(max_path))
+    percent = int(current * 100 / max_value) if max_value > 0 else 0
+
+    if percent >= 90:
+        status, status_text = 2, "CRITICAL"
+    elif percent >= 80:
+        status, status_text = 1, "WARNING"
+    else:
+        status, status_text = 0, "OK"
+
+    warn = int(max_value * 80 / 100)
+    crit = int(max_value * 90 / 100)
+    print(
+        f"{status} {SERVICE} connections={current};{warn};{crit};0;{max_value} "
+        f"Connessioni attive: {current}/{max_value} ({percent}%) - Status: {status_text} "
+        f"| current={current} max={max_value} percent={percent}"
+    )
     return 0
 
 

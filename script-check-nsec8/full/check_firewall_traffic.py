@@ -1,28 +1,67 @@
 #!/usr/bin/env python3
-"""Python wrapper for check_firewall_traffic.sh - Version: 1.0.0"""
+"""check_firewall_traffic.py - CheckMK local check firewall traffic (Python puro)."""
 
+import json
 import subprocess
 import sys
 from pathlib import Path
 
-SERVICE = "Firewall_Traffic"
-LEGACY_SCRIPT = Path("/opt/checkmk-tools/script-check-nsec8/full/check_firewall_traffic.sh")
+
+def run(cmd: list[str]) -> str:
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False)
+    return (result.stdout or "").strip()
+
+
+def get_iface_list() -> tuple[list[str], list[str]]:
+    ubus_lines = run(["ubus", "list"]).splitlines()
+    interfaces = [line.replace("network.interface.", "") for line in ubus_lines if line.startswith("network.interface.")]
+    wan = [i for i in interfaces if i.startswith("wan") or i.startswith("wwan")]
+    lan = [i for i in interfaces if i in {"lan", "br-lan"}]
+    return wan, lan
+
+
+def get_device(iface: str) -> str:
+    data = run(["ubus", "call", f"network.interface.{iface}", "status"])
+    if not data:
+        return ""
+    try:
+        parsed = json.loads(data)
+        return str(parsed.get("device", ""))
+    except Exception:
+        return ""
+
+
+def read_stat(device: str, metric: str) -> int:
+    path = Path(f"/sys/class/net/{device}/statistics/{metric}")
+    if not path.exists():
+        return 0
+    value = path.read_text(encoding="utf-8", errors="ignore").strip()
+    return int(value) if value.isdigit() else 0
+
+
+def emit_for_iface(iface: str) -> None:
+    device = get_device(iface)
+    if not device:
+        return
+
+    rx_bytes = read_stat(device, "rx_bytes")
+    tx_bytes = read_stat(device, "tx_bytes")
+    rx_packets = read_stat(device, "rx_packets")
+    tx_packets = read_stat(device, "tx_packets")
+    rx_errors = read_stat(device, "rx_errors")
+    tx_errors = read_stat(device, "tx_errors")
+
+    status = 1 if (rx_errors > 100 or tx_errors > 100) else 0
+    print(
+        f"{status} {iface}_traffic - RX: {rx_bytes} bytes, TX: {tx_bytes} bytes "
+        f"| rx_bytes={rx_bytes} tx_bytes={tx_bytes} rx_packets={rx_packets} tx_packets={tx_packets} rx_errors={rx_errors} tx_errors={tx_errors}"
+    )
 
 
 def main() -> int:
-    if not LEGACY_SCRIPT.exists():
-        print(f"3 {SERVICE} - Legacy script missing: {LEGACY_SCRIPT}")
-        return 0
-    try:
-        result = subprocess.run([str(LEGACY_SCRIPT)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30, check=False)
-    except Exception as error:
-        print(f"3 {SERVICE} - Legacy wrapper error: {error}")
-        return 0
-    output = (result.stdout or "").strip()
-    if output:
-        print(output)
-        return 0
-    print(f"3 {SERVICE} - Legacy wrapper error: {(result.stderr or f'legacy exit code {result.returncode}').strip()}")
+    wan_ifaces, lan_ifaces = get_iface_list()
+    for iface in wan_ifaces + lan_ifaces:
+        emit_for_iface(iface)
     return 0
 
 

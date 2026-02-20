@@ -1,28 +1,43 @@
 #!/usr/bin/env python3
-"""Python wrapper for check_uptime.sh - Version: 1.0.0"""
+"""check_uptime.py - CheckMK local check uptime/load (Python puro)."""
 
-import subprocess
+import os
 import sys
 from pathlib import Path
 
-SERVICE = "Firewall_Uptime"
-LEGACY_SCRIPT = Path("/opt/checkmk-tools/script-check-nsec8/full/check_uptime.sh")
-
 
 def main() -> int:
-    if not LEGACY_SCRIPT.exists():
-        print(f"3 {SERVICE} - Legacy script missing: {LEGACY_SCRIPT}")
-        return 0
-    try:
-        result = subprocess.run([str(LEGACY_SCRIPT)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30, check=False)
-    except Exception as error:
-        print(f"3 {SERVICE} - Legacy wrapper error: {error}")
-        return 0
-    output = (result.stdout or "").strip()
-    if output:
-        print(output)
-        return 0
-    print(f"3 {SERVICE} - Legacy wrapper error: {(result.stderr or f'legacy exit code {result.returncode}').strip()}")
+    uptime_seconds = 0
+    up = Path("/proc/uptime")
+    if up.exists():
+        first = up.read_text(encoding="utf-8", errors="ignore").split()[0]
+        uptime_seconds = int(float(first))
+
+    days = uptime_seconds // 86400
+    hours = (uptime_seconds % 86400) // 3600
+    minutes = (uptime_seconds % 3600) // 60
+
+    load1 = load5 = load15 = 0.0
+    loadavg = Path("/proc/loadavg")
+    if loadavg.exists():
+        fields = loadavg.read_text(encoding="utf-8", errors="ignore").split()
+        if len(fields) >= 3:
+            load1, load5, load15 = float(fields[0]), float(fields[1]), float(fields[2])
+
+    cpu_count = os.cpu_count() or 1
+    load1_norm = load1 / cpu_count
+
+    if load1_norm > 1.5:
+        status, status_text = 2, "CRITICAL - Load alto"
+    elif load1_norm > 0.8:
+        status, status_text = 1, "WARNING - Load elevato"
+    else:
+        status, status_text = 0, "OK"
+
+    print(
+        f"{status} Firewall_Uptime - Uptime: {days}d {hours}h {minutes}m, Load: {load1:.2f} {load5:.2f} {load15:.2f} ({cpu_count} CPU) - {status_text} "
+        f"| uptime_seconds={uptime_seconds} load1={load1:.2f} load5={load5:.2f} load15={load15:.2f} cpu_count={cpu_count}"
+    )
     return 0
 
 

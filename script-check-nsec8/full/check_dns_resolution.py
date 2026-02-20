@@ -1,28 +1,53 @@
 #!/usr/bin/env python3
-"""Python wrapper for check_dns_resolution.sh - Version: 1.0.0"""
+"""check_dns_resolution.py - CheckMK local check DNS resolution (Python puro)."""
 
 import subprocess
 import sys
-from pathlib import Path
+import time
 
 SERVICE = "DNS_Resolution"
-LEGACY_SCRIPT = Path("/opt/checkmk-tools/script-check-nsec8/full/check_dns_resolution.sh")
+TEST_DOMAINS = ["google.com", "cloudflare.com", "dns.google"]
 
 
 def main() -> int:
-    if not LEGACY_SCRIPT.exists():
-        print(f"3 {SERVICE} - Legacy script missing: {LEGACY_SCRIPT}")
-        return 0
-    try:
-        result = subprocess.run([str(LEGACY_SCRIPT)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30, check=False)
-    except Exception as error:
-        print(f"3 {SERVICE} - Legacy wrapper error: {error}")
-        return 0
-    output = (result.stdout or "").strip()
-    if output:
-        print(output)
-        return 0
-    print(f"3 {SERVICE} - Legacy wrapper error: {(result.stderr or f'legacy exit code {result.returncode}').strip()}")
+    successful = 0
+    failed = 0
+    response_times = []
+
+    for domain in TEST_DOMAINS:
+        start = time.perf_counter()
+        result = subprocess.run(
+            ["nslookup", domain, "127.0.0.1"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        elapsed_ms = int((time.perf_counter() - start) * 1000)
+        if result.returncode == 0 and "Address" in (result.stdout or ""):
+            successful += 1
+            response_times.append(elapsed_ms)
+        else:
+            failed += 1
+
+    total = len(TEST_DOMAINS)
+    avg_time = int(sum(response_times) / len(response_times)) if response_times else 0
+
+    if failed == total:
+        status, status_text = 2, "CRITICAL - DNS non risponde"
+    elif failed > 0:
+        status, status_text = 1, "WARNING - Alcuni test falliti"
+    elif avg_time > 1000:
+        status, status_text = 1, "WARNING - DNS lento"
+    else:
+        status, status_text = 0, "OK"
+
+    print(
+        f"{status} {SERVICE} response_time={avg_time}ms;500;1000 "
+        f"Test: {successful}/{total} OK, tempo medio: {avg_time}ms - {status_text} "
+        f"| successful={successful} failed={failed} total={total} avg_time_ms={avg_time}"
+    )
     return 0
 
 
