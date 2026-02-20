@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -O` (se `--activate`)
 
-Version: 1.3.5
+Version: 1.3.6
 """
 
 import argparse
@@ -30,7 +30,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Set
 
-VERSION = "1.3.5"
+VERSION = "1.3.6"
 DEBUG = False
 LOG_FILE = Path(os.getenv("CHECKMK_AUTOHEAL_LOG_FILE", "/var/log/checkmk_server_autoheal.log"))
 
@@ -245,7 +245,7 @@ def services_hash(services: List[str]) -> str:
 
 def discovered_local_services(site: str, host: str) -> Set[str]:
     cmd = f"cmk -D {shlex.quote(host)}"
-    result = run_site_cmd(site, cmd, timeout=180)
+    result = run_site_cmd(site, cmd, timeout=300)
     if result.returncode != 0:
         debug(f"cmk -D failed for {host} rc={result.returncode}")
         return set()
@@ -314,7 +314,7 @@ def parse_args() -> argparse.Namespace:
         "--agent-timeout",
         type=int,
         default=90,
-        help="Timeout in secondi per singolo 'cmk -d <host>' (default: 90)",
+        help="Timeout base in secondi per singolo 'cmk -d <host>' (default: 90, effettivo minimo: 60)",
     )
     parser.add_argument(
         "--detect-plugins",
@@ -400,6 +400,10 @@ def main() -> int:
         return 0
 
     log(f"Host totali: {len(hosts)}")
+    effective_probe_timeout = max(args.agent_timeout, 60)
+    log(
+        f"Timeout probe cmk effettivo: {effective_probe_timeout}s (requested: {args.agent_timeout}s)"
+    )
 
     changed_hosts: List[str] = []
     successful_discovery = 0
@@ -408,15 +412,15 @@ def main() -> int:
     for host in hosts:
         log(f"Probe host: {host}")
         host_quoted = shlex.quote(host)
-        probe_cmd = f"timeout -k 5 {args.agent_timeout}s cmk -d {host_quoted}"
+        probe_cmd = f"timeout -k 15 {effective_probe_timeout}s cmk -d {host_quoted}"
         try:
-            result = run_site_cmd(args.site, probe_cmd, timeout=args.agent_timeout + 10)
+            result = run_site_cmd(args.site, probe_cmd, timeout=effective_probe_timeout + 60)
         except subprocess.TimeoutExpired:
-            warn(f"cmk -d timeout per {host} (> {args.agent_timeout}s), skip")
+            warn(f"cmk -d timeout per {host} (> {effective_probe_timeout}s), skip")
             continue
 
         if result.returncode == 124:
-            warn(f"cmk -d timeout (rc=124) per {host} dopo {args.agent_timeout}s, skip")
+            warn(f"cmk -d timeout (rc=124) per {host} dopo {effective_probe_timeout}s, skip")
             continue
 
         if result.returncode != 0:
@@ -460,6 +464,7 @@ def main() -> int:
             pending_discovery.append(host)
         else:
             log(f"Nessun cambio: {host}")
+            set_host_state(state, host, current_hash, services)
 
             if services:
                 discovered = discovered_local_services(args.site, host)
@@ -486,9 +491,9 @@ def main() -> int:
         if discover_hosts(args.site, unique_pending, args.dry_run, args.detect_plugins, args.activate):
             successful_discovery = len(unique_pending)
             for host in unique_pending:
-                probe_cmd = f"timeout -k 5 {args.agent_timeout}s cmk -d {shlex.quote(host)}"
+                probe_cmd = f"timeout -k 15 {effective_probe_timeout}s cmk -d {shlex.quote(host)}"
                 try:
-                    refresh = run_site_cmd(args.site, probe_cmd, timeout=args.agent_timeout + 10)
+                    refresh = run_site_cmd(args.site, probe_cmd, timeout=effective_probe_timeout + 60)
                     if refresh.returncode == 0:
                         refreshed_services = extract_local_services(refresh.stdout or "")
                         refreshed_hash = services_hash(refreshed_services)

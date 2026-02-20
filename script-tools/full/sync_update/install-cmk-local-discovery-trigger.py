@@ -8,7 +8,7 @@ Crea:
 - /etc/systemd/system/checkmk-local-discovery-trigger.service
 - /etc/systemd/system/checkmk-local-discovery-trigger.timer
 
-Version: 1.1.5
+Version: 1.1.6
 """
 
 import argparse
@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 from typing import List
 
-VERSION = "1.1.5"
+VERSION = "1.1.6"
 SYSTEMD_DIR = Path("/etc/systemd/system")
 SERVICE_NAME = "checkmk-local-discovery-trigger.service"
 TIMER_NAME = "checkmk-local-discovery-trigger.timer"
@@ -58,7 +58,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run-as-user", default="monitoring", help="Utente systemd del servizio")
     parser.add_argument("--run-as-group", default="monitoring", help="Gruppo systemd del servizio")
     parser.add_argument("--script-path", default=str(DEFAULT_SCRIPT), help="Path script cmk-local-discovery-trigger.py")
-    parser.add_argument("--agent-timeout", type=int, default=45, help="Timeout per host cmk -d in secondi")
+    parser.add_argument("--agent-timeout", type=int, default=90, help="Timeout per host cmk -d in secondi")
     parser.add_argument("--detect-plugins", default="local", help="Plugin target per discovery (default: local)")
     parser.add_argument(
         "--no-activate",
