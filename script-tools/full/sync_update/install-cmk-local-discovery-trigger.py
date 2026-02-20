@@ -8,28 +8,41 @@ Crea:
 - /etc/systemd/system/checkmk-local-discovery-trigger.service
 - /etc/systemd/system/checkmk-local-discovery-trigger.timer
 
-Version: 1.1.6
+Version: 1.2.0
 """
 
 import argparse
 import grp
 import os
 import pwd
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import List
 
-VERSION = "1.1.6"
+VERSION = "1.2.0"
 SYSTEMD_DIR = Path("/etc/systemd/system")
 SERVICE_NAME = "checkmk-local-discovery-trigger.service"
 TIMER_NAME = "checkmk-local-discovery-trigger.timer"
 DEFAULT_SCRIPT = Path("/opt/checkmk-tools/script-tools/full/sync_update/cmk-local-discovery-trigger.py")
 DEFAULT_LOG_FILE = Path("/var/log/checkmk_server_autoheal.log")
+DEFAULT_REPO_DIR = Path("/opt/checkmk-tools")
+DEFAULT_AUTO_SYNC_SCRIPT = Path("/opt/checkmk-tools/script-tools/full/sync_update/auto_git_sync.py")
+AUTO_SYNC_SERVICE_NAME = "auto-git-sync.service"
+DEFAULT_AUTO_SYNC_LOG_FILE = Path("/var/log/auto-git-sync.log")
 
 
 def run(cmd: List[str]) -> None:
     subprocess.run(cmd, check=True)
+
+
+def run_best_effort(cmd: List[str]) -> bool:
+    try:
+        subprocess.run(cmd, check=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
 
 
 def require_root() -> None:
@@ -50,6 +63,74 @@ def ensure_log_file(log_file: Path, run_as_user: str, run_as_group: str) -> None
     gid = grp.getgrnam(run_as_group).gr_gid
     os.chown(log_file, uid, gid)
     os.chmod(log_file, 0o664)
+
+
+def install_git_if_missing() -> None:
+    if shutil.which("git"):
+        return
+
+    if shutil.which("apt-get"):
+        run_best_effort(["apt-get", "update", "-qq"])
+        run(["apt-get", "install", "-y", "git"])
+        return
+
+    if shutil.which("dnf"):
+        run_best_effort(["dnf", "-y", "makecache"])
+        run(["dnf", "install", "-y", "git"])
+        return
+
+    if shutil.which("yum"):
+        run_best_effort(["yum", "-y", "makecache"])
+        run(["yum", "install", "-y", "git"])
+        return
+
+    raise RuntimeError("Package manager non supportato per installare git")
+
+
+def setup_auto_git_sync(
+    run_as_user: str,
+    run_as_group: str,
+    repo_dir: Path,
+    auto_sync_script: Path,
+    auto_sync_interval: int,
+    auto_sync_log_file: Path,
+) -> Path:
+    if not auto_sync_script.exists():
+        raise RuntimeError(f"Script auto git sync non trovato: {auto_sync_script}")
+
+    if not repo_dir.exists():
+        raise RuntimeError(f"Repository locale non trovato: {repo_dir}")
+
+    ensure_log_file(auto_sync_log_file, run_as_user, run_as_group)
+
+    service_content = f"""[Unit]
+Description=Auto Git Sync for checkmk-tools
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={run_as_user}
+Group={run_as_group}
+Environment=TARGET_DIR={repo_dir}
+Environment=SYNC_INTERVAL={auto_sync_interval}
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3 {auto_sync_script} {auto_sync_interval}
+Restart=always
+RestartSec=15
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+"""
+
+    service_path = SYSTEMD_DIR / AUTO_SYNC_SERVICE_NAME
+    write_text(service_path, service_content)
+
+    run(["systemctl", "daemon-reload"])
+    run(["systemctl", "enable", "--now", AUTO_SYNC_SERVICE_NAME])
+    run(["systemctl", "restart", AUTO_SYNC_SERVICE_NAME])
+    return service_path
 
 
 def parse_args() -> argparse.Namespace:
@@ -76,6 +157,32 @@ def parse_args() -> argparse.Namespace:
         "--log-file",
         default=str(DEFAULT_LOG_FILE),
         help="Path log unificato autoheal (default: /var/log/checkmk_server_autoheal.log)",
+    )
+    parser.add_argument(
+        "--setup-auto-sync-git",
+        action="store_true",
+        help="Installa/aggiorna git e configura auto-git-sync.service per /opt/checkmk-tools.",
+    )
+    parser.add_argument(
+        "--auto-sync-interval-sec",
+        type=int,
+        default=60,
+        help="Intervallo in secondi auto-git-sync (default: 60)",
+    )
+    parser.add_argument(
+        "--repo-dir",
+        default=str(DEFAULT_REPO_DIR),
+        help="Path repository locale checkmk-tools (default: /opt/checkmk-tools)",
+    )
+    parser.add_argument(
+        "--auto-sync-script-path",
+        default=str(DEFAULT_AUTO_SYNC_SCRIPT),
+        help="Path script auto_git_sync.py (default: /opt/checkmk-tools/script-tools/full/sync_update/auto_git_sync.py)",
+    )
+    parser.add_argument(
+        "--auto-sync-log-file",
+        default=str(DEFAULT_AUTO_SYNC_LOG_FILE),
+        help="Path log auto git sync (default: /var/log/auto-git-sync.log)",
     )
     return parser.parse_args()
 
@@ -159,10 +266,29 @@ WantedBy=timers.target
     run(["systemctl", "restart", TIMER_NAME])
     run(["systemctl", "start", SERVICE_NAME])
 
+    auto_sync_service_path = None
+    if args.setup_auto_sync_git:
+        try:
+            install_git_if_missing()
+            auto_sync_service_path = setup_auto_git_sync(
+                run_as_user=args.run_as_user,
+                run_as_group=args.run_as_group,
+                repo_dir=Path(args.repo_dir),
+                auto_sync_script=Path(args.auto_sync_script_path),
+                auto_sync_interval=args.auto_sync_interval_sec,
+                auto_sync_log_file=Path(args.auto_sync_log_file),
+            )
+        except RuntimeError as exc:
+            print(f"[ERROR] Setup auto sync git fallito: {exc}", file=sys.stderr)
+            return 1
+
     print(f"[OK] install-cmk-local-discovery-trigger.py v{VERSION}")
     print(f"[OK] Service: {service_path}")
     print(f"[OK] Timer:   {timer_path}")
     print(f"[OK] Log:     {log_file}")
+    if auto_sync_service_path:
+        print(f"[OK] AutoSync Service: {auto_sync_service_path}")
+        print(f"[OK] AutoSync Log:     {args.auto_sync_log_file}")
     print(f"[OK] Verifica: systemctl status {SERVICE_NAME} --no-pager")
     print(f"[OK] Verifica: systemctl list-timers --all | grep {TIMER_NAME}")
     return 0
