@@ -5,7 +5,7 @@ sync-python-full-checks.py - Sync automatico script Python CheckMK (full)
 Rileva il tipo host, individua la categoria corretta nel repository locale
 e copia/aggiorna tutti gli script Python da full/ verso la cartella local checks.
 
-Version: 1.6.0
+Version: 1.7.0
 """
 
 import argparse
@@ -21,24 +21,32 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 DEFAULT_REPO = Path("/opt/checkmk-tools")
 DEFAULT_TARGET = Path("/usr/lib/check_mk_agent/local")
 PROFILE_FILE_NAME = ".sync_runtime_profile.json"
 PROFILE_TIMEOUT_SECONDS = 20
 
-PROXMOX_HEAVY_300 = {
-    "check-proxmox_lxc_runtime.py",
-    "check-proxmox_lxc_status.py",
-    "check-proxmox_qemu_guest_agent_status.py",
-    "check-proxmox_qemu_runtime.py",
-    "check-proxmox_services_status.py",
-    "check-proxmox_snapshots_status.py",
-    "check-proxmox_vm_disks.py",
-    "check-proxmox_vm_monitor.py",
+# Proxmox cache interval tiers (300=5min, 600=10min, 900=15min)
+PROXMOX_INTERVAL_300 = {
     "check-proxmox-vm-status.py",
+    "check-proxmox_services_status.py",
+    "check-proxmox_storage_status.py",
 }
-MANAGED_INTERVAL_DIRS = {"60", "300", "900"}
+PROXMOX_INTERVAL_600 = {
+    "check-proxmox_lxc_status.py",
+    "check-proxmox_lxc_runtime.py",
+    "check-proxmox_vm_disks.py",
+    "check-proxmox_qemu_status.py",
+}
+PROXMOX_INTERVAL_900 = {
+    "check-proxmox_qemu_runtime.py",
+    "check-proxmox_qemu_guest_agent_status.py",
+    "check-proxmox_vm_monitor.py",
+    "check-proxmox_snapshots_status.py",
+    "check-proxmox_backup_status.py",
+}
+MANAGED_INTERVAL_DIRS = {"60", "300", "600", "900"}
 
 
 def log(message: str) -> None:
@@ -326,8 +334,13 @@ def target_subdir_for_script(
         )
         return interval
 
-    if use_interval_subdirs and category == "script-check-proxmox" and script_name in PROXMOX_HEAVY_300:
-        return "300"
+    if use_interval_subdirs and category == "script-check-proxmox":
+        if script_name in PROXMOX_INTERVAL_300:
+            return "300"
+        if script_name in PROXMOX_INTERVAL_600:
+            return "600"
+        if script_name in PROXMOX_INTERVAL_900:
+            return "900"
     return "."
 
 
@@ -363,6 +376,9 @@ def sync_scripts(
     target_dir.mkdir(parents=True, exist_ok=True)
     if use_interval_subdirs or auto_tier_by_runtime:
         (target_dir / "300").mkdir(parents=True, exist_ok=True)
+    if use_interval_subdirs:
+        (target_dir / "600").mkdir(parents=True, exist_ok=True)
+        (target_dir / "900").mkdir(parents=True, exist_ok=True)
     if auto_tier_by_runtime:
         (target_dir / "60").mkdir(parents=True, exist_ok=True)
         (target_dir / "900").mkdir(parents=True, exist_ok=True)
@@ -393,7 +409,7 @@ def sync_scripts(
             version_changed = src_version != dst_version
 
             if not hash_changed and not version_changed:
-                unchanged += 1
+                unchanged += 1  # type: ignore[operator]
                 continue
 
             should_copy = True
@@ -410,7 +426,7 @@ def sync_scripts(
         if should_copy:
             shutil.copy2(src, dst)
             ensure_executable(dst)
-            copied += 1
+            copied += 1  # type: ignore[operator]
             if subdir == ".":
                 log(f"Deploy: {src.name}")
             else:
@@ -474,7 +490,7 @@ def quarantine_extra_python_scripts(target_dir: Path, expected_by_dir: Dict[str,
     for extra in extras:
         destination = backup_dir / extra.name
         shutil.move(str(extra), str(destination))
-        moved += 1
+        moved += 1  # type: ignore[operator]
         log(f"Prune extra: {extra.name} -> {destination}")
 
     return moved
@@ -563,6 +579,8 @@ def main() -> int:
     expected_by_dir: Dict[str, Set[str]] = {".": set()}
     if args.use_interval_subdirs:
         expected_by_dir["300"] = set()
+        expected_by_dir["600"] = set()
+        expected_by_dir["900"] = set()
     if args.auto_tier_by_runtime:
         expected_by_dir["60"] = set()
         expected_by_dir["300"] = set()
@@ -577,7 +595,7 @@ def main() -> int:
             warn(f"Categoria non trovata o senza full/: {category}")
             continue
 
-        categories_found += 1
+        categories_found += 1  # type: ignore[operator]
         log(f"Sincronizzazione categoria: {category}")
         copied, unchanged, skipped, category_expected = sync_scripts(
             source_dir,
@@ -589,9 +607,9 @@ def main() -> int:
         )
         for folder_key, names in category_expected.items():
             expected_by_dir.setdefault(folder_key, set()).update(names)
-        total_copied += copied
-        total_unchanged += unchanged
-        total_skipped += skipped
+        total_copied += copied  # type: ignore[operator]
+        total_unchanged += unchanged  # type: ignore[operator]
+        total_skipped += skipped  # type: ignore[operator]
 
     if categories_found == 0:
         print("[ERROR] Nessuna categoria valida trovata nel repository", file=sys.stderr)
