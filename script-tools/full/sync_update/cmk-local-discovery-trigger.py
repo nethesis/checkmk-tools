@@ -212,6 +212,14 @@ def extract_local_services(agent_output: str) -> List[str]:
         if not in_local or not line:
             continue
 
+        if line.startswith("cached("):
+            closing_idx = line.find(")")
+            if closing_idx == -1:
+                continue
+            line = line[closing_idx + 1 :].strip()
+            if not line:
+                continue
+
         first = line[0]
         if first not in "0123":
             continue

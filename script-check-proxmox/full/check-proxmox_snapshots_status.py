@@ -6,7 +6,7 @@ Monitor snapshot count and age for QEMU VMs (WARN 14 days, CRIT 30 days).
 
 Proxmox VE
 
-Version: 1.0.0
+Version: 1.1.0
 """
 
 import subprocess
@@ -14,8 +14,10 @@ import sys
 import re
 import time
 
-VERSION = "1.0.0"
-PVE_TIMEOUT = 30
+VERSION = "1.1.0"
+PVE_TIMEOUT = 8
+PER_VM_SNAPSHOT_TIMEOUT = 2
+TOTAL_BUDGET_SECONDS = 20
 WARN_DAYS = 14
 CRIT_DAYS = 30
 
@@ -44,37 +46,27 @@ def run_cmd(cmd, timeout=PVE_TIMEOUT):
         return 127, ""
 
 
-def get_vmids():
-    """Get list of VMID from qm list."""
+def get_vm_inventory():
+    """Get list of (vmid, name) from qm list."""
     rc, out = run_cmd(["qm", "list"])
     if rc != 0:
         return []
-    
-    vmids = []
+
+    inventory = []
     for line in out.splitlines()[1:]:  # Skip header
         parts = line.split()
         if parts:
-            vmids.append(parts[0])
-    return vmids
-
-
-def get_vm_name(vmid):
-    """Get VM name from config."""
-    rc, out = run_cmd(["qm", "config", vmid])
-    if rc != 0:
-        return f"vm{vmid}"
-    
-    for line in out.splitlines():
-        if line.startswith("name:"):
-            return line.split(":", 1)[1].strip()
-    return f"vm{vmid}"
+            vmid = parts[0]
+            name = parts[1] if len(parts) > 1 else f"vm{vmid}"
+            inventory.append((vmid, name))
+    return inventory
 
 
 def get_snapshot_count(vmid):
     """Get snapshot count for VM."""
-    rc, out = run_cmd(["qm", "listsnapshot", vmid])
+    rc, out = run_cmd(["qm", "listsnapshot", vmid], timeout=PER_VM_SNAPSHOT_TIMEOUT)
     if rc != 0:
-        return 0
+        return None
     
     count = 0
     for line in out.splitlines()[1:]:  # Skip header
@@ -116,6 +108,9 @@ def get_oldest_snapshot_age(vmid):
 
 
 def main():
+    started = time.monotonic()
+    partial = False
+
     # Check qm command exists
     try:
         subprocess.run(
@@ -128,24 +123,33 @@ def main():
         print("3 PVE_QEMU_Snapshots - qm command not found")
         return 0
     
-    vmids = get_vmids()
-    if not vmids:
+    inventory = get_vm_inventory()
+    if not inventory:
         print("3 PVE_QEMU_Snapshots_Summary - No VMs found")
         return 0
-    
-    # Summary
-    vm_total = len(vmids)
-    snaps_total = sum(get_snapshot_count(vmid) for vmid in vmids)
-    print(f"0 PVE_QEMU_Snapshots_Summary vms={vm_total} snapshots={snaps_total} OK - {snaps_total} snapshots across {vm_total} VMs")
-    
+
+    vm_total = len(inventory)
+    snaps_total = 0
+    processed = 0
+
     # Per-VM checks
-    for vmid in vmids:
-        name = get_vm_name(vmid)
+    for vmid, name in inventory:
+        if (time.monotonic() - started) >= TOTAL_BUDGET_SECONDS:
+            partial = True
+            break
+
         safe_name = sanitize_name(name)
         svc_base = f"SNP_{safe_name}"
-        
+
         snap_count = get_snapshot_count(vmid)
-        
+
+        if snap_count is None:
+            print(f"3 {svc_base}_Count - snapshot query timeout/error")
+            continue
+
+        processed += 1
+        snaps_total += snap_count
+
         if snap_count == 0:
             print(f"2 {svc_base}_Count count=0 CRIT - 0 snapshots")
             continue
@@ -163,8 +167,20 @@ def main():
                 state = 1
             else:
                 state = 0
-            
+
             print(f"{state} {svc_base}_Age age_days={age_days};{WARN_DAYS};{CRIT_DAYS} - oldest snapshot {age_days} days")
+
+    elapsed = time.monotonic() - started
+    if partial:
+        print(
+            f"1 PVE_QEMU_Snapshots_Summary vms={vm_total} processed={processed} snapshots={snaps_total} runtime_seconds={elapsed:.1f} "
+            f"WARN - execution budget reached, partial results"
+        )
+    else:
+        print(
+            f"0 PVE_QEMU_Snapshots_Summary vms={vm_total} processed={processed} snapshots={snaps_total} runtime_seconds={elapsed:.1f} "
+            f"OK - {snaps_total} snapshots across {processed} VMs"
+        )
     
     return 0
 
