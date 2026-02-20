@@ -5,7 +5,7 @@ sync-python-full-checks.py - Sync automatico script Python CheckMK (full)
 Rileva il tipo host, individua la categoria corretta nel repository locale
 e copia/aggiorna tutti gli script Python da full/ verso la cartella local checks.
 
-Version: 1.4.2
+Version: 1.5.0
 """
 
 import argparse
@@ -19,9 +19,21 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
-VERSION = "1.4.2"
+VERSION = "1.5.0"
 DEFAULT_REPO = Path("/opt/checkmk-tools")
 DEFAULT_TARGET = Path("/usr/lib/check_mk_agent/local")
+
+PROXMOX_HEAVY_300 = {
+    "check-proxmox_lxc_runtime.py",
+    "check-proxmox_lxc_status.py",
+    "check-proxmox_qemu_guest_agent_status.py",
+    "check-proxmox_qemu_runtime.py",
+    "check-proxmox_services_status.py",
+    "check-proxmox_snapshots_status.py",
+    "check-proxmox_vm_disks.py",
+    "check-proxmox_vm_monitor.py",
+    "check-proxmox-vm-status.py",
+}
 
 
 def log(message: str) -> None:
@@ -222,20 +234,36 @@ def ensure_executable(file_path: Path) -> None:
     file_path.chmod(current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
-def sync_scripts(source_dir: Path, target_dir: Path) -> Tuple[int, int, int]:
+def target_subdir_for_script(category: str, script_name: str) -> str:
+    if category == "script-check-proxmox" and script_name in PROXMOX_HEAVY_300:
+        return "300"
+    return "."
+
+
+def target_path(base_target: Path, subdir: str, script_name: str) -> Path:
+    if subdir == ".":
+        return base_target / script_name
+    return base_target / subdir / script_name
+
+
+def sync_scripts(source_dir: Path, target_dir: Path, category: str) -> Tuple[int, int, int, Dict[str, Set[str]]]:
     copied = 0
     unchanged = 0
     skipped = 0
+    expected_by_dir: Dict[str, Set[str]] = {".": set(), "300": set()}
     scripts = list_python_full_scripts(source_dir)
 
     if not scripts:
         warn(f"Nessuno script Python trovato in {source_dir}")
-        return copied, unchanged, skipped
+        return copied, unchanged, skipped, expected_by_dir
 
     target_dir.mkdir(parents=True, exist_ok=True)
+    (target_dir / "300").mkdir(parents=True, exist_ok=True)
 
     for src in scripts:
-        dst = target_dir / src.name
+        subdir = target_subdir_for_script(category, src.name)
+        expected_by_dir.setdefault(subdir, set()).add(src.name)
+        dst = target_path(target_dir, subdir, src.name)
         should_copy = False
         src_hash = file_sha256(src)
         src_version = extract_version(src)
@@ -268,20 +296,50 @@ def sync_scripts(source_dir: Path, target_dir: Path) -> Tuple[int, int, int]:
             shutil.copy2(src, dst)
             ensure_executable(dst)
             copied += 1
-            log(f"Deploy: {src.name}")
+            if subdir == ".":
+                log(f"Deploy: {src.name}")
+            else:
+                log(f"Deploy: {src.name} -> {subdir}/")
 
-    return copied, unchanged, skipped
+        other_location = target_path(target_dir, "." if subdir != "." else "300", src.name)
+        if other_location.exists():
+            try:
+                other_location.unlink()
+                log(f"Prune duplicate target: {other_location}")
+            except OSError:
+                warn(f"Impossibile rimuovere duplicate target: {other_location}")
+
+    return copied, unchanged, skipped, expected_by_dir
 
 
-def quarantine_extra_python_scripts(target_dir: Path, expected_names: Set[str]) -> int:
+def quarantine_extra_python_scripts(target_dir: Path, expected_by_dir: Dict[str, Set[str]]) -> int:
     if not target_dir.exists():
         return 0
 
-    extras = [
-        p
-        for p in sorted(target_dir.glob("*.py"))
-        if p.is_file() and not p.name.startswith(".") and p.name not in expected_names
-    ]
+    extras: List[Path] = []
+
+    root_expected = expected_by_dir.get(".", set())
+    extras.extend(
+        [
+            p
+            for p in sorted(target_dir.glob("*.py"))
+            if p.is_file() and not p.name.startswith(".") and p.name not in root_expected
+        ]
+    )
+
+    for subdir, expected_names in expected_by_dir.items():
+        if subdir == ".":
+            continue
+        folder = target_dir / subdir
+        if not folder.exists():
+            continue
+        extras.extend(
+            [
+                p
+                for p in sorted(folder.glob("*.py"))
+                if p.is_file() and not p.name.startswith(".") and p.name not in expected_names
+            ]
+        )
 
     if not extras:
         return 0
@@ -371,7 +429,7 @@ def main() -> int:
     total_pruned = 0
     total_skipped = 0
     categories_found = 0
-    expected_names: Set[str] = set()
+    expected_by_dir: Dict[str, Set[str]] = {".": set(), "300": set()}
 
     for category in categories:
         source_dir = repo_dir / category / "full"
@@ -381,8 +439,9 @@ def main() -> int:
 
         categories_found += 1
         log(f"Sincronizzazione categoria: {category}")
-        expected_names.update([p.name for p in list_python_full_scripts(source_dir)])
-        copied, unchanged, skipped = sync_scripts(source_dir, target_dir)
+        copied, unchanged, skipped, category_expected = sync_scripts(source_dir, target_dir, category)
+        for folder_key, names in category_expected.items():
+            expected_by_dir.setdefault(folder_key, set()).update(names)
         total_copied += copied
         total_unchanged += unchanged
         total_skipped += skipped
@@ -391,7 +450,7 @@ def main() -> int:
         print("[ERROR] Nessuna categoria valida trovata nel repository", file=sys.stderr)
         return 1
 
-    total_pruned = quarantine_extra_python_scripts(target_dir, expected_names)
+    total_pruned = quarantine_extra_python_scripts(target_dir, expected_by_dir)
 
     log(
         f"Completato: copied={total_copied}, unchanged={total_unchanged}, skipped={total_skipped}, pruned={total_pruned}"
