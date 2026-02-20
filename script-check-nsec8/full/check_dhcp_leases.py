@@ -20,7 +20,7 @@ def main() -> int:
 
     try:
         result = subprocess.run(
-            ["/bin/sh", str(LEGACY_SCRIPT)],
+            [str(LEGACY_SCRIPT)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,

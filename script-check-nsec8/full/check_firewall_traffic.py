@@ -14,7 +14,7 @@ def main() -> int:
         print(f"3 {SERVICE} - Legacy script missing: {LEGACY_SCRIPT}")
         return 0
     try:
-        result = subprocess.run(["/bin/sh", str(LEGACY_SCRIPT)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30, check=False)
+        result = subprocess.run([str(LEGACY_SCRIPT)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30, check=False)
     except Exception as error:
         print(f"3 {SERVICE} - Legacy wrapper error: {error}")
         return 0
