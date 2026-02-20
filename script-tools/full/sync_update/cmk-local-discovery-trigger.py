@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -O` (se `--activate`)
 
-Version: 1.3.6
+Version: 1.3.7
 """
 
 import argparse
@@ -30,7 +30,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Set
 
-VERSION = "1.3.6"
+VERSION = "1.3.7"
 DEBUG = False
 LOG_FILE = Path(os.getenv("CHECKMK_AUTOHEAL_LOG_FILE", "/var/log/checkmk_server_autoheal.log"))
 
@@ -265,7 +265,7 @@ def discovered_local_services(site: str, host: str) -> Set[str]:
     return discovered
 
 
-def discover_hosts(site: str, hosts: List[str], dry_run: bool, detect_plugins: str, activate: bool) -> bool:
+def discover_hosts(site: str, hosts: List[str], dry_run: bool, detect_plugins: str) -> bool:
     if not hosts:
         return True
 
@@ -275,8 +275,6 @@ def discover_hosts(site: str, hosts: List[str], dry_run: bool, detect_plugins: s
 
     hosts_part = " ".join(shlex.quote(host) for host in hosts)
     cmd = f"cmk -IIv{plugins_opt} {hosts_part}"
-    if activate:
-        cmd = f"{cmd} && cmk -O"
 
     if dry_run:
         log(f"[DRY-RUN] {cmd}")
@@ -287,13 +285,27 @@ def discover_hosts(site: str, hosts: List[str], dry_run: bool, detect_plugins: s
     if result.returncode == 0:
         for host in hosts:
             log(f"Discovery OK: {host}")
-        if activate:
-            log("Activate changes OK")
-        else:
-            log("Discovery completata: activate disabilitato (skip cmk -O)")
+        log("Discovery completata")
         return True
 
     warn(f"Discovery/Activate FAIL (rc={result.returncode}) hosts={','.join(hosts)}")
+    if result.stdout:
+        warn(result.stdout.strip())
+    return False
+
+
+def apply_changes(site: str, dry_run: bool) -> bool:
+    cmd = "cmk -O"
+    if dry_run:
+        log(f"[DRY-RUN] {cmd}")
+        return True
+
+    result = run_site_cmd(site, cmd, timeout=900)
+    if result.returncode == 0:
+        log("Activate changes OK")
+        return True
+
+    warn(f"Activate changes FAIL (rc={result.returncode})")
     if result.stdout:
         warn(result.stdout.strip())
     return False
@@ -408,6 +420,7 @@ def main() -> int:
     changed_hosts: List[str] = []
     successful_discovery = 0
     pending_discovery: List[str] = []
+    vanished_hosts: List[str] = []
 
     for host in hosts:
         log(f"Probe host: {host}")
@@ -442,6 +455,7 @@ def main() -> int:
             warn(
                 f"Servizi local vanished su {host}: {', '.join(vanished_services[:10])}{' ...' if len(vanished_services) > 10 else ''}"
             )
+            vanished_hosts.append(host)
 
         debug(
             f"Host={host} local_count={len(services)} prev_hash={(previous_hash[:12] if previous_hash else 'none')} curr_hash={current_hash[:12]}"
@@ -485,10 +499,11 @@ def main() -> int:
         return 0
 
     unique_pending = list(dict.fromkeys(pending_discovery))
+    unique_vanished_hosts = list(dict.fromkeys(vanished_hosts))
     if unique_pending:
         log(f"Pending discovery: {len(unique_pending)} host")
         debug(f"Pending discovery hosts: {', '.join(unique_pending)}")
-        if discover_hosts(args.site, unique_pending, args.dry_run, args.detect_plugins, args.activate):
+        if discover_hosts(args.site, unique_pending, args.dry_run, args.detect_plugins):
             successful_discovery = len(unique_pending)
             for host in unique_pending:
                 probe_cmd = f"timeout -k 15 {effective_probe_timeout}s cmk -d {shlex.quote(host)}"
@@ -503,6 +518,20 @@ def main() -> int:
                         warn(f"State refresh fallito per {host} (rc={refresh.returncode})")
                 except Exception:
                     warn(f"State refresh exception per {host}")
+    else:
+        log("Nessuna discovery richiesta")
+
+    if successful_discovery > 0:
+        force_apply_for_vanished = bool(unique_vanished_hosts)
+        should_apply = args.activate or force_apply_for_vanished
+        if force_apply_for_vanished:
+            warn(
+                f"Vanished rilevati su {len(unique_vanished_hosts)} host: forzo apply changes dopo discovery"
+            )
+        if should_apply:
+            apply_changes(args.site, args.dry_run)
+        else:
+            log("Activate disabilitato (skip cmk -O): nessun vanished rilevato")
     else:
         log("Nessuna discovery riuscita: skip cmk -O")
 
