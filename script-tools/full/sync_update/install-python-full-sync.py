@@ -6,7 +6,7 @@ Crea:
 - checkmk-python-full-sync.service (oneshot)
 - checkmk-python-full-sync.timer (ogni 5 minuti)
 
-Version: 1.0.0
+Version: 1.1.1
 """
 
 import argparse
@@ -14,10 +14,11 @@ import os
 import shutil
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import List
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 SYSTEMD_DIR = Path("/etc/systemd/system")
 SERVICE_NAME = "checkmk-python-full-sync.service"
 TIMER_NAME = "checkmk-python-full-sync.timer"
@@ -125,6 +126,41 @@ def update_repo(repo_path: Path) -> None:
             return
 
     print(f"[WARN] git pull fallito: {output}")
+
+    lower_output = output.lower()
+    needs_autoheal = (
+        "would be overwritten by merge" in lower_output
+        or "please commit your changes or stash them" in lower_output
+        or "your local changes" in lower_output
+    )
+
+    if not needs_autoheal:
+        return
+
+    print("[WARN] Auto-heal repo: tentativo stash modifiche locali + retry git pull")
+    stash_msg = f"autoheal-install-python-full-sync-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    stash_result = run_capture(
+        ["git", "-C", str(repo_path), "stash", "push", "--include-untracked", "-m", stash_msg]
+    )
+    stash_output = (stash_result.stdout or "").strip()
+    if stash_result.returncode == 0:
+        if stash_output:
+            print(f"[INFO] git stash: {stash_output.splitlines()[-1]}")
+        else:
+            print("[INFO] git stash: OK")
+    else:
+        print(f"[WARN] git stash fallito: {stash_output}")
+
+    retry = run_capture(["git", "-C", str(repo_path), "pull", "--ff-only"])
+    retry_output = (retry.stdout or "").strip()
+    if retry.returncode == 0:
+        if retry_output:
+            print(f"[INFO] git pull retry: {retry_output.splitlines()[-1]}")
+        else:
+            print("[INFO] git pull retry: OK")
+        return
+
+    print(f"[WARN] git pull retry fallito: {retry_output}")
 
 
 def parse_args() -> argparse.Namespace:

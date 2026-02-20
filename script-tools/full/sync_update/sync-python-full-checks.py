@@ -5,7 +5,7 @@ sync-python-full-checks.py - Sync automatico script Python CheckMK (full)
 Rileva il tipo host, individua la categoria corretta nel repository locale
 e copia/aggiorna tutti gli script Python da full/ verso la cartella local checks.
 
-Version: 1.4.1
+Version: 1.4.2
 """
 
 import argparse
@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
-VERSION = "1.4.1"
+VERSION = "1.4.2"
 DEFAULT_REPO = Path("/opt/checkmk-tools")
 DEFAULT_TARGET = Path("/usr/lib/check_mk_agent/local")
 
@@ -104,6 +104,55 @@ def git_pull_repo(repo_dir: Path) -> None:
             log("git pull: OK")
     else:
         warn(f"git pull fallito (rc={result.returncode}): {output}")
+
+        lower_output = output.lower()
+        needs_autoheal = (
+            "would be overwritten by merge" in lower_output
+            or "please commit your changes or stash them" in lower_output
+            or "your local changes" in lower_output
+        )
+
+        if not needs_autoheal:
+            return
+
+        warn("Auto-heal repo: tentativo stash modifiche locali + retry git pull")
+        stash_msg = f"autoheal-sync-python-full-checks-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+
+        stash_result = subprocess.run(
+            ["git", "stash", "push", "--include-untracked", "-m", stash_msg],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            timeout=60,
+            check=False,
+            cwd=str(repo_dir),
+        )
+        stash_output = (stash_result.stdout or "").strip()
+        if stash_result.returncode == 0:
+            if stash_output:
+                log(f"git stash: {stash_output.splitlines()[-1]}")
+            else:
+                log("git stash: OK")
+        else:
+            warn(f"git stash fallito (rc={stash_result.returncode}): {stash_output}")
+
+        retry = subprocess.run(
+            ["git", "pull", "--ff-only"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            timeout=60,
+            check=False,
+            cwd=str(repo_dir),
+        )
+        retry_output = (retry.stdout or "").strip()
+        if retry.returncode == 0:
+            if retry_output:
+                log(f"git pull retry: {retry_output.splitlines()[-1]}")
+            else:
+                log("git pull retry: OK")
+        else:
+            warn(f"git pull retry fallito (rc={retry.returncode}): {retry_output}")
 
 
 def read_os_release() -> Dict[str, str]:
