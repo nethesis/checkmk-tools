@@ -31,7 +31,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 
-VERSION = "2.13.1"
+VERSION = "2.13.2"
 MAX_PWD_AGE_DAYS = 42
 
 # Cache globale SID
@@ -361,7 +361,7 @@ def collect_user_status_table(samba_module: str, output_dir: Path) -> int:
     print("  STATO ACCOUNT UTENTI AD")
     print("=" * 120)
     print()
-    print(f"{'UTENTE':<25} {'CREATO IL':<15} {'STATO':<15} {'DISABILITATO IL':<15}")
+    print(f"{'UTENTE':<25} {'CREATO IL':<15} {'DISABILITATO IL':<15} {'STATO':<15}")
     print(f"{'-'*25} {'-'*15} {'-'*15} {'-'*15}")
     
     for username, created, status, disabled_date in status_data:
@@ -373,7 +373,7 @@ def collect_user_status_table(samba_module: str, output_dir: Path) -> int:
         else:
             status_display = status
         
-        print(f"{username:<25} {created:<15} {status_display:<15} {disabled_date:<15}")
+        print(f"{username:<25} {created:<15} {disabled_date:<15} {status_display:<15}")
     
     print()
     print("=" * 120)
@@ -390,8 +390,8 @@ def collect_user_status_table(samba_module: str, output_dir: Path) -> int:
         f.write(f"- **Disabilitati:** {disabled_count}\n\n")
         f.write("---\n\n")
         f.write("## Tabella Stato Account\n\n")
-        f.write(f"| {'Utente':<20} | {'Creato Il':<12} | {'Stato':<18} | {'Disabilitato Il':<15} |\n")
-        f.write(f"|{'-'*22}|{'-'*14}|{'-'*20}|{'-'*17}|\n")
+        f.write(f"| {'Utente':<20} | {'Creato Il':<12} | {'Disabilitato Il':<15} | {'Stato':<18} |\n")
+        f.write(f"|{'-'*22}|{'-'*14}|{'-'*17}|{'-'*20}|\n")
         
         for username, created, status, disabled_date in status_data:
             if status == "Disabilitato":
@@ -400,7 +400,7 @@ def collect_user_status_table(samba_module: str, output_dir: Path) -> int:
                 status_md = "[OK] Attivo"
             else:
                 status_md = status
-            f.write(f"| {username[:20]:<20} | {created:<12} | {status_md:<18} | {disabled_date:<15} |\n")
+            f.write(f"| {username[:20]:<20} | {created:<12} | {disabled_date:<15} | {status_md:<18} |\n")
         
         f.write("\n")
     
