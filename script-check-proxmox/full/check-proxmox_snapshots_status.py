@@ -142,7 +142,7 @@ def main():
     for vmid in vmids:
         name = get_vm_name(vmid)
         safe_name = sanitize_name(name)
-        svc_base = f"PVE_QEMU_Snapshots_{vmid}_{safe_name}"
+        svc_base = f"SNP_{safe_name}"
         
         snap_count = get_snapshot_count(vmid)
         
@@ -164,7 +164,7 @@ def main():
             else:
                 state = 0
             
-            print(f"{state} {svc_base}_OldestAge age_days={age_days};{WARN_DAYS};{CRIT_DAYS} - oldest snapshot {age_days} days")
+            print(f"{state} {svc_base}_Age age_days={age_days};{WARN_DAYS};{CRIT_DAYS} - oldest snapshot {age_days} days")
     
     return 0
 

@@ -18,7 +18,7 @@ VERSION = "1.0.2"
 PVE_TIMEOUT = 10
 PER_VM_CONFIG_TIMEOUT = 1
 PER_CT_CONFIG_TIMEOUT = 1
-TOTAL_BUDGET_SECONDS = 8
+TOTAL_BUDGET_SECONDS = 30
 
 
 def run_cmd(cmd, timeout=PVE_TIMEOUT):
@@ -117,7 +117,7 @@ def main():
                         total_size_gb += parse_size_to_gb(size_str)
                 
                 safe_name = sanitize_name(name)
-                svc = f"DISKS_VM_{vmid}_{safe_name}"
+                svc = f"DSK_{safe_name}"
                 metrics = f"disks={disk_count} size_gb={total_size_gb}"
                 msg = f"{disk_count} disks, Total: {total_size_gb}GB"
                 print(f"0 {svc} {metrics} - {msg}")
@@ -161,7 +161,7 @@ def main():
                 size_gb = parse_size_to_gb(size_str)
                 
                 safe_name = sanitize_name(name)
-                svc = f"DISKS_CT_{ctid}_{safe_name}"
+                svc = f"DSK_CT_{ctid}_{safe_name}"
                 metrics = f"size_gb={size_gb}"
                 msg = f"RootFS: {size_gb}GB"
                 print(f"0 {svc} {metrics} - {msg}")

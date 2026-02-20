@@ -19,7 +19,7 @@ VERSION = "1.0.2"
 PVE_TIMEOUT = 10
 PER_VM_CONFIG_TIMEOUT = 1
 PER_VM_PING_TIMEOUT = 1
-TOTAL_BUDGET_SECONDS = 8
+TOTAL_BUDGET_SECONDS = 30
 
 
 def sanitize_name(name):
@@ -116,10 +116,10 @@ def main():
             continue  # Only check running VMs
 
         if (time.monotonic() - started) >= TOTAL_BUDGET_SECONDS:
-            print("1 PVE_QGA_Runtime runtime_seconds=%.1f WARN - execution budget reached, partial results" % (time.monotonic() - started))
+            print("1 QGA_Runtime runtime_seconds=%.1f WARN - execution budget reached, partial results" % (time.monotonic() - started))
             break
         
-        svc = f"PVE_QGA_{sanitize_name(name)}"
+        svc = f"QGA_{sanitize_name(name)}"
         
         # Get VM config and check if agent is enabled
         config = {}
@@ -142,7 +142,7 @@ def main():
         agent_enabled = "1" in agent_cfg
         
         if not agent_enabled:
-            print(f"1 {svc} vmid={vmid} WARN - agent disabled in config")
+            print(f"0 {svc} vmid={vmid} OK - agent disabled in config")
             continue
         
         # Test agent connectivity
