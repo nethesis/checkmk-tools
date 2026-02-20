@@ -205,7 +205,7 @@ def parse_args() -> argparse.Namespace:
         "--auto-tier-by-runtime",
         dest="auto_tier_by_runtime",
         action="store_true",
-        help="Abilita profiling runtime e deploy in local/60|300|900.",
+        help="Abilita profiling runtime e deploy in local/60|100|150|200.",
     )
     parser.add_argument(
         "--no-auto-tier-by-runtime",

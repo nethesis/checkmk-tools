@@ -27,26 +27,26 @@ DEFAULT_TARGET = Path("/usr/lib/check_mk_agent/local")
 PROFILE_FILE_NAME = ".sync_runtime_profile.json"
 PROFILE_TIMEOUT_SECONDS = 20
 
-# Proxmox cache interval tiers (300=5min, 600=10min, 900=15min)
-PROXMOX_INTERVAL_300 = {
+# Proxmox cache interval tiers (100=~1.5min, 150=2.5min, 200=~3.5min)
+PROXMOX_INTERVAL_100 = {
     "check-proxmox-vm-status.py",
     "check-proxmox_services_status.py",
     "check-proxmox_storage_status.py",
 }
-PROXMOX_INTERVAL_600 = {
+PROXMOX_INTERVAL_150 = {
     "check-proxmox_lxc_status.py",
     "check-proxmox_lxc_runtime.py",
     "check-proxmox_vm_disks.py",
     "check-proxmox_qemu_status.py",
 }
-PROXMOX_INTERVAL_900 = {
+PROXMOX_INTERVAL_200 = {
     "check-proxmox_qemu_runtime.py",
     "check-proxmox_qemu_guest_agent_status.py",
     "check-proxmox_vm_monitor.py",
     "check-proxmox_snapshots_status.py",
     "check-proxmox_backup_status.py",
 }
-MANAGED_INTERVAL_DIRS = {"60", "300", "600", "900"}
+MANAGED_INTERVAL_DIRS = {"60", "100", "150", "200", "300", "450", "600", "900"}
 
 
 def log(message: str) -> None:
@@ -132,11 +132,13 @@ def save_runtime_profile(profile_path: Path, profile: Dict[str, Dict[str, Any]])
 
 
 def classify_interval(elapsed: float, timed_out: bool) -> str:
-    if timed_out or elapsed >= 10.0:
-        return "900"
-    if elapsed >= 5.0:
-        return "300"
+    if timed_out or elapsed >= 4.0:
+        return "200"
     if elapsed >= 2.0:
+        return "150"
+    if elapsed >= 1.0:
+        return "100"
+    if elapsed >= 0.5:
         return "60"
     return "."
 
@@ -335,12 +337,12 @@ def target_subdir_for_script(
         return interval
 
     if use_interval_subdirs and category == "script-check-proxmox":
-        if script_name in PROXMOX_INTERVAL_300:
-            return "300"
-        if script_name in PROXMOX_INTERVAL_600:
-            return "600"
-        if script_name in PROXMOX_INTERVAL_900:
-            return "900"
+        if script_name in PROXMOX_INTERVAL_100:
+            return "100"
+        if script_name in PROXMOX_INTERVAL_150:
+            return "150"
+        if script_name in PROXMOX_INTERVAL_200:
+            return "200"
     return "."
 
 
