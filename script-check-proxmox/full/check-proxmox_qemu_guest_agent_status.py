@@ -6,16 +6,20 @@ Verify QEMU Guest Agent status for all running VMs (pvesh JSON API).
 
 Proxmox VE
 
-Version: 1.0.0
+Version: 1.0.1
 """
 
 import subprocess
 import json
 import sys
 import re
+import time
 
-VERSION = "1.0.0"
-PVE_TIMEOUT = 30  # Guest agent checks can be slow
+VERSION = "1.0.1"
+PVE_TIMEOUT = 10
+PER_VM_CONFIG_TIMEOUT = 2
+PER_VM_PING_TIMEOUT = 2
+TOTAL_BUDGET_SECONDS = 25
 
 
 def sanitize_name(name):
@@ -80,6 +84,8 @@ def test_qemu_agent(vmid):
 
 
 def main():
+    started = time.monotonic()
+
     # Verify pvesh command exists
     try:
         subprocess.run(
@@ -108,11 +114,28 @@ def main():
         
         if status != "running":
             continue  # Only check running VMs
+
+        if (time.monotonic() - started) >= TOTAL_BUDGET_SECONDS:
+            print("1 PVE_QGA_Runtime runtime_seconds=%.1f WARN - execution budget reached, partial results" % (time.monotonic() - started))
+            break
         
         svc = f"PVE_QGA_{sanitize_name(name)}"
         
         # Get VM config and check if agent is enabled
-        config = get_vm_config(vmid)
+        config = {}
+        try:
+            result_cfg = subprocess.run(
+                ["pvesh", "get", f"/nodes/localhost/qemu/{vmid}/config", "--output-format", "json"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                timeout=PER_VM_CONFIG_TIMEOUT
+            )
+            if result_cfg.returncode == 0:
+                config = json.loads(result_cfg.stdout)
+        except (subprocess.TimeoutExpired, FileNotFoundError, json.JSONDecodeError):
+            config = {}
+
         agent_cfg = config.get("agent", "0")
         
         # Parse agent config: "1" or "enabled=1" or "enabled=1,fstrim_cloned_disks=1"
@@ -123,7 +146,19 @@ def main():
             continue
         
         # Test agent connectivity
-        if test_qemu_agent(vmid):
+        try:
+            result_ping = subprocess.run(
+                ["pvesh", "get", f"/nodes/localhost/qemu/{vmid}/agent/ping"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                timeout=PER_VM_PING_TIMEOUT
+            )
+            qga_ok = result_ping.returncode == 0
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            qga_ok = False
+
+        if qga_ok:
             print(f"0 {svc} vmid={vmid} OK - responding")
         else:
             print(f"2 {svc} vmid={vmid} CRIT - not responding")

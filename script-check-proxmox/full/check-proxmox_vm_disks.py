@@ -6,15 +6,19 @@ Monitor disk configuration for VMs and containers.
 
 Proxmox VE
 
-Version: 1.0.0
+Version: 1.0.1
 """
 
 import subprocess
 import sys
 import re
+import time
 
-VERSION = "1.0.0"
-PVE_TIMEOUT = 30
+VERSION = "1.0.1"
+PVE_TIMEOUT = 10
+PER_VM_CONFIG_TIMEOUT = 2
+PER_CT_CONFIG_TIMEOUT = 2
+TOTAL_BUDGET_SECONDS = 25
 
 
 def run_cmd(cmd, timeout=PVE_TIMEOUT):
@@ -62,6 +66,9 @@ def parse_size_to_gb(size_str):
 
 
 def main():
+    started = time.monotonic()
+    partial = False
+
     # Check qm and pct commands exist (use 'list' as validation)
     rc_qm, _ = run_cmd(["/usr/sbin/qm", "list"], timeout=5)
     rc_pct, _ = run_cmd(["/usr/sbin/pct", "list"], timeout=5)
@@ -75,6 +82,10 @@ def main():
         rc, out = run_cmd(["/usr/sbin/qm", "list"])
         if rc == 0:
             for line in out.splitlines()[1:]:  # Skip header
+                if (time.monotonic() - started) >= TOTAL_BUDGET_SECONDS:
+                    partial = True
+                    break
+
                 parts = line.split()
                 if len(parts) < 2:
                     continue
@@ -82,7 +93,7 @@ def main():
                 vmid, name = parts[0], parts[1]
                 
                 # Get VM config
-                rc_cfg, cfg = run_cmd(["/usr/sbin/qm", "config", vmid])
+                rc_cfg, cfg = run_cmd(["/usr/sbin/qm", "config", vmid], timeout=PER_VM_CONFIG_TIMEOUT)
                 if rc_cfg != 0:
                     continue
                 
@@ -116,6 +127,10 @@ def main():
         rc, out = run_cmd(["/usr/sbin/pct", "list"])
         if rc == 0:
             for line in out.splitlines()[1:]:  # Skip header
+                if (time.monotonic() - started) >= TOTAL_BUDGET_SECONDS:
+                    partial = True
+                    break
+
                 parts = line.split()
                 if len(parts) < 2:
                     continue
@@ -123,7 +138,7 @@ def main():
                 ctid, name = parts[0], parts[1]
                 
                 # Get CT config
-                rc_cfg, cfg = run_cmd(["/usr/sbin/pct", "config", ctid])
+                rc_cfg, cfg = run_cmd(["/usr/sbin/pct", "config", ctid], timeout=PER_CT_CONFIG_TIMEOUT)
                 if rc_cfg != 0:
                     continue
                 
@@ -150,6 +165,10 @@ def main():
                 metrics = f"size_gb={size_gb}"
                 msg = f"RootFS: {size_gb}GB"
                 print(f"0 {svc} {metrics} - {msg}")
+
+    if partial:
+        elapsed = time.monotonic() - started
+        print(f"1 PVE_VM_Disks_Runtime runtime_seconds={elapsed:.1f} WARN - execution budget reached, partial results")
     
     return 0
 
