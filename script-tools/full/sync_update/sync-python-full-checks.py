@@ -427,7 +427,8 @@ def sync_scripts(
             else:
                 log(f"Deploy: {src.name} -> {subdir}/")
 
-        for candidate in (".", "60", "300", "900"):
+        candidates = {"."} | set(MANAGED_INTERVAL_DIRS)
+        for candidate in sorted(candidates):
             if candidate == subdir:
                 continue
             other_location = target_path(target_dir, candidate, src.name)
