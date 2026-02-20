@@ -12,7 +12,7 @@ Workflow:
 4) Se hash cambiato: esegue `cmk -IIv HOST`
 5) Se almeno un host aggiornato: esegue un solo `cmk -O` (se `--activate`)
 
-Version: 1.3.3
+Version: 1.3.4
 """
 
 import argparse
@@ -25,11 +25,12 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set
 
-VERSION = "1.3.3"
+VERSION = "1.3.4"
 DEBUG = False
 LOG_FILE = Path(os.getenv("CHECKMK_AUTOHEAL_LOG_FILE", "/var/log/checkmk_server_autoheal.log"))
 
@@ -58,6 +59,11 @@ def warn(message: str) -> None:
     append_log("WARN", message)
 
 
+def error(message: str) -> None:
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [ERROR] {message}")
+    append_log("ERROR", message)
+
+
 def debug(message: str) -> None:
     if DEBUG:
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [DEBUG] {message}")
@@ -67,6 +73,8 @@ def debug(message: str) -> None:
 def run_site_cmd(site: str, cmk_command: str, timeout: int = 180) -> subprocess.CompletedProcess:
     site_path = f"/omd/sites/{site}/bin"
     shell_cmd = f"export PATH={site_path}:$PATH; {cmk_command}"
+    started = time.monotonic()
+    debug(f"run_site_cmd start: site={site} timeout={timeout}s cmd={cmk_command}")
 
     current_user = ""
     try:
@@ -75,7 +83,7 @@ def run_site_cmd(site: str, cmk_command: str, timeout: int = 180) -> subprocess.
         current_user = ""
 
     if current_user == site:
-        return subprocess.run(
+        result = subprocess.run(
             ["sh", "-lc", shell_cmd],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -83,15 +91,21 @@ def run_site_cmd(site: str, cmk_command: str, timeout: int = 180) -> subprocess.
             timeout=timeout,
             check=False,
         )
+    else:
+        result = subprocess.run(
+            ["su", "-", site, "-c", shell_cmd],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            timeout=timeout,
+            check=False,
+        )
 
-    return subprocess.run(
-        ["su", "-", site, "-c", shell_cmd],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=True,
-        timeout=timeout,
-        check=False,
+    elapsed = time.monotonic() - started
+    debug(
+        f"run_site_cmd end: rc={result.returncode} elapsed={elapsed:.2f}s cmd={cmk_command}"
     )
+    return result
 
 
 def default_state_file(site: str) -> Path:
@@ -122,6 +136,7 @@ def parse_hosts(site: str, hosts_arg: str) -> List[str]:
     for cmd in ("cmk --list-hosts", "cmk -l"):
         result = run_site_cmd(site, cmd, timeout=120)
         if result.returncode != 0:
+            warn(f"Host list command failed: '{cmd}' rc={result.returncode}")
             continue
 
         hosts = [line.strip() for line in (result.stdout or "").splitlines() if line.strip()]
@@ -317,6 +332,7 @@ def main() -> int:
 
     log(f"cmk-local-discovery-trigger.py v{VERSION}")
     log(f"Server autoheal log: {LOG_FILE}")
+    log(f"Debug mode: {'enabled' if DEBUG else 'disabled'}")
     log(f"Site: {args.site}")
     log(f"State: {state_path}")
     log(f"Lock: {active_lock}")
@@ -325,7 +341,7 @@ def main() -> int:
     try:
         hosts = parse_hosts(args.site, args.hosts)
     except Exception as exc:
-        print(f"[ERROR] Impossibile ottenere host list: {exc}", file=sys.stderr)
+        error(f"Impossibile ottenere host list: {exc}")
         return 1
 
     if not hosts:
@@ -356,6 +372,8 @@ def main() -> int:
             warn(f"cmk -d fallito per {host} (rc={result.returncode}), skip")
             continue
 
+        log(f"Probe OK: {host} (rc={result.returncode})")
+
         services = extract_local_services(result.stdout or "")
         current_hash = services_hash(services)
         previous_hash = state.get(host, "")
@@ -369,7 +387,9 @@ def main() -> int:
 
         if previous_hash != current_hash:
             changed_hosts.append(host)
-            log(f"Cambio local services: {host} (prev={'yes' if previous_hash else 'no'}, now={len(services)})")
+            log(
+                f"Cambio local services: {host} (prev={'yes' if previous_hash else 'no'}, now={len(services)}, prev_hash={(previous_hash[:12] if previous_hash else 'none')}, curr_hash={current_hash[:12]})"
+            )
 
             if args.initialize_state:
                 state[host] = current_hash
@@ -399,6 +419,7 @@ def main() -> int:
 
     unique_pending = list(dict.fromkeys(pending_discovery))
     if unique_pending:
+        log(f"Pending discovery: {len(unique_pending)} host")
         debug(f"Pending discovery hosts: {', '.join(unique_pending)}")
         if discover_hosts(args.site, unique_pending, args.dry_run, args.detect_plugins, args.activate):
             successful_discovery = len(unique_pending)
@@ -408,8 +429,11 @@ def main() -> int:
                     refresh = run_site_cmd(args.site, probe_cmd, timeout=args.agent_timeout + 10)
                     if refresh.returncode == 0:
                         state[host] = services_hash(extract_local_services(refresh.stdout or ""))
+                        debug(f"State refreshed: {host} hash={state[host][:12]}")
+                    else:
+                        warn(f"State refresh fallito per {host} (rc={refresh.returncode})")
                 except Exception:
-                    pass
+                    warn(f"State refresh exception per {host}")
     else:
         log("Nessuna discovery riuscita: skip cmk -O")
 

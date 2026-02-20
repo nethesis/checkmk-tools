@@ -8,21 +8,24 @@ Crea:
 - /etc/systemd/system/checkmk-local-discovery-trigger.service
 - /etc/systemd/system/checkmk-local-discovery-trigger.timer
 
-Version: 1.1.4
+Version: 1.1.5
 """
 
 import argparse
+import grp
 import os
+import pwd
 import subprocess
 import sys
 from pathlib import Path
 from typing import List
 
-VERSION = "1.1.4"
+VERSION = "1.1.5"
 SYSTEMD_DIR = Path("/etc/systemd/system")
 SERVICE_NAME = "checkmk-local-discovery-trigger.service"
 TIMER_NAME = "checkmk-local-discovery-trigger.timer"
 DEFAULT_SCRIPT = Path("/opt/checkmk-tools/script-tools/full/sync_update/cmk-local-discovery-trigger.py")
+DEFAULT_LOG_FILE = Path("/var/log/checkmk_server_autoheal.log")
 
 
 def run(cmd: List[str]) -> None:
@@ -37,6 +40,16 @@ def require_root() -> None:
 
 def write_text(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
+
+
+def ensure_log_file(log_file: Path, run_as_user: str, run_as_group: str) -> None:
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    log_file.touch(exist_ok=True)
+
+    uid = pwd.getpwnam(run_as_user).pw_uid
+    gid = grp.getgrnam(run_as_group).gr_gid
+    os.chown(log_file, uid, gid)
+    os.chmod(log_file, 0o664)
 
 
 def parse_args() -> argparse.Namespace:
@@ -59,6 +72,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--accuracy-sec", type=int, default=60, help="AccuracySec del timer")
     parser.add_argument("--hosts", default="", help="Lista host separati da virgola (vuoto = tutti gli host del site)")
     parser.add_argument("--debug", action="store_true", help="Abilita log debug dettagliati nel trigger")
+    parser.add_argument(
+        "--log-file",
+        default=str(DEFAULT_LOG_FILE),
+        help="Path log unificato autoheal (default: /var/log/checkmk_server_autoheal.log)",
+    )
     return parser.parse_args()
 
 
@@ -69,6 +87,16 @@ def main() -> int:
     script_path = Path(args.script_path)
     if not script_path.exists():
         print(f"[ERROR] Script non trovato: {script_path}", file=sys.stderr)
+        return 1
+
+    log_file = Path(args.log_file)
+    try:
+        ensure_log_file(log_file, args.run_as_user, args.run_as_group)
+    except KeyError as exc:
+        print(f"[ERROR] Utente/gruppo non valido per ownership log: {exc}", file=sys.stderr)
+        return 1
+    except PermissionError as exc:
+        print(f"[ERROR] Permessi insufficienti per creare log file {log_file}: {exc}", file=sys.stderr)
         return 1
 
     exec_cmd = [
@@ -100,6 +128,7 @@ Wants=network-online.target
 Type=oneshot
 User={args.run_as_user}
 Group={args.run_as_group}
+Environment=CHECKMK_AUTOHEAL_LOG_FILE={log_file}
 ExecStart={' '.join(exec_cmd)}
 TimeoutStartSec={args.timeout_start_min}min
 RuntimeMaxSec={args.runtime_max_min}min
@@ -133,6 +162,7 @@ WantedBy=timers.target
     print(f"[OK] install-cmk-local-discovery-trigger.py v{VERSION}")
     print(f"[OK] Service: {service_path}")
     print(f"[OK] Timer:   {timer_path}")
+    print(f"[OK] Log:     {log_file}")
     print(f"[OK] Verifica: systemctl status {SERVICE_NAME} --no-pager")
     print(f"[OK] Verifica: systemctl list-timers --all | grep {TIMER_NAME}")
     return 0
