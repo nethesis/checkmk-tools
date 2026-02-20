@@ -365,10 +365,8 @@ def sync_scripts(
     skipped = 0
     expected_by_dir: Dict[str, Set[str]] = {".": set()}
     if use_interval_subdirs or auto_tier_by_runtime:
-        expected_by_dir["300"] = set()
-    if auto_tier_by_runtime:
-        expected_by_dir["60"] = set()
-        expected_by_dir["900"] = set()
+        for d in MANAGED_INTERVAL_DIRS:
+            expected_by_dir[d] = set()
     scripts = list_python_full_scripts(source_dir)
 
     if not scripts:
@@ -377,13 +375,8 @@ def sync_scripts(
 
     target_dir.mkdir(parents=True, exist_ok=True)
     if use_interval_subdirs or auto_tier_by_runtime:
-        (target_dir / "300").mkdir(parents=True, exist_ok=True)
-    if use_interval_subdirs:
-        (target_dir / "600").mkdir(parents=True, exist_ok=True)
-        (target_dir / "900").mkdir(parents=True, exist_ok=True)
-    if auto_tier_by_runtime:
-        (target_dir / "60").mkdir(parents=True, exist_ok=True)
-        (target_dir / "900").mkdir(parents=True, exist_ok=True)
+        for d in MANAGED_INTERVAL_DIRS:
+            (target_dir / d).mkdir(parents=True, exist_ok=True)
 
     for src in scripts:
         src_hash = file_sha256(src)
@@ -573,14 +566,9 @@ def main() -> int:
     total_skipped = 0
     categories_found = 0
     expected_by_dir: Dict[str, Set[str]] = {".": set()}
-    if args.use_interval_subdirs:
-        expected_by_dir["300"] = set()
-        expected_by_dir["600"] = set()
-        expected_by_dir["900"] = set()
-    if args.auto_tier_by_runtime:
-        expected_by_dir["60"] = set()
-        expected_by_dir["300"] = set()
-        expected_by_dir["900"] = set()
+    if args.use_interval_subdirs or args.auto_tier_by_runtime:
+        for d in MANAGED_INTERVAL_DIRS:
+            expected_by_dir[d] = set()
 
     profile_path = target_dir / PROFILE_FILE_NAME
     runtime_profile = load_runtime_profile(profile_path)
