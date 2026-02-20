@@ -5,7 +5,7 @@ sync-python-full-checks.py - Sync automatico script Python CheckMK (full)
 Rileva il tipo host, individua la categoria corretta nel repository locale
 e copia/aggiorna tutti gli script Python da full/ verso la cartella local checks.
 
-Version: 1.5.0
+Version: 1.5.1
 """
 
 import argparse
@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
-VERSION = "1.5.0"
+VERSION = "1.5.1"
 DEFAULT_REPO = Path("/opt/checkmk-tools")
 DEFAULT_TARGET = Path("/usr/lib/check_mk_agent/local")
 
@@ -234,8 +234,8 @@ def ensure_executable(file_path: Path) -> None:
     file_path.chmod(current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
-def target_subdir_for_script(category: str, script_name: str) -> str:
-    if category == "script-check-proxmox" and script_name in PROXMOX_HEAVY_300:
+def target_subdir_for_script(category: str, script_name: str, use_interval_subdirs: bool) -> str:
+    if use_interval_subdirs and category == "script-check-proxmox" and script_name in PROXMOX_HEAVY_300:
         return "300"
     return "."
 
@@ -246,11 +246,13 @@ def target_path(base_target: Path, subdir: str, script_name: str) -> Path:
     return base_target / subdir / script_name
 
 
-def sync_scripts(source_dir: Path, target_dir: Path, category: str) -> Tuple[int, int, int, Dict[str, Set[str]]]:
+def sync_scripts(source_dir: Path, target_dir: Path, category: str, use_interval_subdirs: bool) -> Tuple[int, int, int, Dict[str, Set[str]]]:
     copied = 0
     unchanged = 0
     skipped = 0
-    expected_by_dir: Dict[str, Set[str]] = {".": set(), "300": set()}
+    expected_by_dir: Dict[str, Set[str]] = {".": set()}
+    if use_interval_subdirs:
+        expected_by_dir["300"] = set()
     scripts = list_python_full_scripts(source_dir)
 
     if not scripts:
@@ -258,10 +260,11 @@ def sync_scripts(source_dir: Path, target_dir: Path, category: str) -> Tuple[int
         return copied, unchanged, skipped, expected_by_dir
 
     target_dir.mkdir(parents=True, exist_ok=True)
-    (target_dir / "300").mkdir(parents=True, exist_ok=True)
+    if use_interval_subdirs:
+        (target_dir / "300").mkdir(parents=True, exist_ok=True)
 
     for src in scripts:
-        subdir = target_subdir_for_script(category, src.name)
+        subdir = target_subdir_for_script(category, src.name, use_interval_subdirs)
         expected_by_dir.setdefault(subdir, set()).add(src.name)
         dst = target_path(target_dir, subdir, src.name)
         should_copy = False
@@ -302,7 +305,7 @@ def sync_scripts(source_dir: Path, target_dir: Path, category: str) -> Tuple[int
                 log(f"Deploy: {src.name} -> {subdir}/")
 
         other_location = target_path(target_dir, "." if subdir != "." else "300", src.name)
-        if other_location.exists():
+        if use_interval_subdirs and other_location.exists():
             try:
                 other_location.unlink()
                 log(f"Prune duplicate target: {other_location}")
@@ -383,6 +386,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Deploy da tutte le categorie script-check-*/full",
     )
+    parser.add_argument(
+        "--use-interval-subdirs",
+        action="store_true",
+        help="Usa sottocartelle interval (es. local/300) per check pesanti. Default: disabilitato per compatibilità.",
+    )
     return parser.parse_args()
 
 
@@ -429,7 +437,9 @@ def main() -> int:
     total_pruned = 0
     total_skipped = 0
     categories_found = 0
-    expected_by_dir: Dict[str, Set[str]] = {".": set(), "300": set()}
+    expected_by_dir: Dict[str, Set[str]] = {".": set()}
+    if args.use_interval_subdirs:
+        expected_by_dir["300"] = set()
 
     for category in categories:
         source_dir = repo_dir / category / "full"
@@ -439,7 +449,12 @@ def main() -> int:
 
         categories_found += 1
         log(f"Sincronizzazione categoria: {category}")
-        copied, unchanged, skipped, category_expected = sync_scripts(source_dir, target_dir, category)
+        copied, unchanged, skipped, category_expected = sync_scripts(
+            source_dir,
+            target_dir,
+            category,
+            args.use_interval_subdirs,
+        )
         for folder_key, names in category_expected.items():
             expected_by_dir.setdefault(folder_key, set()).update(names)
         total_copied += copied
