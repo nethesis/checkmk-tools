@@ -300,6 +300,7 @@ def collect_password_expiry_table(samba_module: str, output_dir: Path) -> None:
             pwd_data.append((username, "Mai cambiata", "Mai", "N/A"))
             continue
         
+        assert pwd_match is not None
         try:
             pwd_last_set = int(pwd_match.group(1))
             # FILETIME to Unix timestamp
@@ -461,10 +462,10 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
         if members:
             for member in members:
                 print(f"{groupname[:39]:<40} {member[:39]:<40}")
-                displayed_rows += 1
+                displayed_rows += 1  # type: ignore[operator]
         elif not computers:
             print(f"{groupname[:39]:<40} {'(nessun membro)':<40}")
-            displayed_rows += 1
+            displayed_rows += 1  # type: ignore[operator]
     
     print()
     print("=" * 80)
@@ -629,10 +630,10 @@ def collect_shares_table(samba_module: str, output_dir: Path) -> int:
         
         if exit_code != 0 or "trustee" not in stdout_acl:
             share_data.append((share_name, share_path, [], []))
-            acl_failed += 1
+            acl_failed += 1  # type: ignore[operator]
             continue
         
-        acl_success += 1
+        acl_success += 1  # type: ignore[operator]
         
         # Parse ACL (access_mask comes BEFORE trustee in output)
         users_rw = []
@@ -682,20 +683,20 @@ def collect_shares_table(samba_module: str, output_dir: Path) -> int:
     # Display on console: show ALL permissions details
     displayed_rows = 0
     for share_name, share_path, users_rw, users_ro in share_data:
-        path_display = share_path[:39] if len(share_path) > 39 else share_path
+        path_display = share_path[:39] if len(share_path) > 39 else share_path  # type: ignore[index]
         
         # Display one row per permission
         if users_rw:
-            for user in users_rw:
-                user_display = user[:29] if len(user) > 29 else user
+            for user in users_rw:  # type: ignore[union-attr]
+                user_display = user[:29] if len(user) > 29 else user  # type: ignore[index]
                 print(f"{share_name:<30} {path_display:<40} {user_display:<20} RW")
-                displayed_rows += 1
+                displayed_rows += 1  # type: ignore[operator]
         
         if users_ro:
-            for user in users_ro:
-                user_display = user[:29] if len(user) > 29 else user
+            for user in users_ro:  # type: ignore[union-attr]
+                user_display = user[:29] if len(user) > 29 else user  # type: ignore[index]
                 print(f"{share_name:<30} {path_display:<40} {user_display:<20} RO")
-                displayed_rows += 1
+                displayed_rows += 1  # type: ignore[operator]
         
         # If no permissions, show one row
         if not users_rw and not users_ro:
@@ -905,7 +906,7 @@ def collect_webtop_sharing(webtop_module: Optional[str], samba_module: str, outp
             f.write(f"|{'-'*24}|{'-'*24}|{'-'*12}|\n")
             
             for owner, shared, perm in shares_data:
-                f.write(f"| {owner[:22]:<22} | {shared[:22]:<22} | {perm:<10} |\n")
+                f.write(f"| {owner[:22]:<22} | {shared[:22]:<22} | {perm:<10} |\n")  # type: ignore[index]
             
             f.write("\n")
         else:
@@ -1086,7 +1087,7 @@ File allegati:
                 encoders.encode_base64(part)
                 part.add_header('Content-Disposition', f'attachment; filename="{md_filename}"')
                 msg.attach(part)
-                attached_count += 1
+                attached_count += 1  # type: ignore[operator]
     
     log_info(f"Allegati: {attached_count} file")
     
@@ -1154,6 +1155,7 @@ def main() -> int:
     print()
     
     # Collect data with table display
+    assert samba_module is not None, "Modulo Samba non trovato"
     GLOBAL_USER_COUNT = collect_ad_users(samba_module, output_dir)
     collect_password_expiry_table(samba_module, output_dir)
     GLOBAL_GROUP_COUNT = collect_ad_groups_table(samba_module, output_dir)

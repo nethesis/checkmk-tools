@@ -31,7 +31,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 
-VERSION = "2.13.2"
+VERSION = "2.13.3"
 MAX_PWD_AGE_DAYS = 42
 
 # Cache globale SID
@@ -302,8 +302,8 @@ def collect_user_status_table(samba_module: str, output_dir: Path) -> int:
     users = [line.strip() for line in users_file.read_text().splitlines() if line.strip()]
     
     # Collect data for ALL users (header printed AFTER data collection)
-    status_data = []
-    disabled_count = 0
+    status_data: List[Tuple[str, str, str, str]] = []
+    disabled_count: int = 0
     
     for idx, username in enumerate(users, 1):
         # Progress every 10 users
@@ -346,7 +346,7 @@ def collect_user_status_table(samba_module: str, output_dir: Path) -> int:
                 changed_str = parsed
         
         if is_disabled:
-            disabled_count += 1
+            disabled_count += 1  # type: ignore[operator]
             status = "Disabilitato"
             disabled_date = changed_str if changed_str else "N/A"
         else:
@@ -386,7 +386,7 @@ def collect_user_status_table(samba_module: str, output_dir: Path) -> int:
         f.write(f"Report generato: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n\n")
         f.write("## Riepilogo\n\n")
         f.write(f"- **Utenti totali:** {len(status_data)}\n")
-        f.write(f"- **Attivi:** {len(status_data) - disabled_count}\n")
+        f.write(f"- **Attivi:** {len(status_data) - disabled_count}\n")  # type: ignore[operator]
         f.write(f"- **Disabilitati:** {disabled_count}\n\n")
         f.write("---\n\n")
         f.write("## Tabella Stato Account\n\n")
@@ -400,7 +400,7 @@ def collect_user_status_table(samba_module: str, output_dir: Path) -> int:
                 status_md = "[OK] Attivo"
             else:
                 status_md = status
-            f.write(f"| {username[:20]:<20} | {created:<12} | {disabled_date:<15} | {status_md:<18} |\n")
+            f.write(f"| {str(username)[:20]:<20} | {created:<12} | {disabled_date:<15} | {status_md:<18} |\n")  # type: ignore[index]
         
         f.write("\n")
     
@@ -425,8 +425,8 @@ def collect_password_expiry_table(samba_module: str, output_dir: Path) -> None:
     users = [line.strip() for line in users_file.read_text().splitlines() if line.strip()]
     
     # Collect data for ALL users (header printed AFTER data collection)
-    pwd_data = []
-    user_count = 0
+    pwd_data: List[Tuple[str, str, str, object]] = []
+    user_count: int = 0
     
     for username in users:
         user_count += 1
@@ -453,6 +453,8 @@ def collect_password_expiry_table(samba_module: str, output_dir: Path) -> None:
             pwd_data.append((username, "Mai cambiata", "Mai", "N/A"))
             continue
         
+        # At this point pwd_match is guaranteed to be not None
+        assert pwd_match is not None
         try:
             pwd_last_set = int(pwd_match.group(1))
             # FILETIME to Unix timestamp
@@ -568,8 +570,8 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
     groups = [g for g in all_groups if g not in EXCLUDE_GROUPS]
     
     # Collect members for each group (header printed AFTER data collection)
-    displayed_rows = 0
-    group_member_data = []
+    displayed_rows: int = 0
+    group_member_data: List[Tuple[str, List[str], List[str]]] = []
     
     for idx, groupname in enumerate(groups, 1):
         # Progress every 10 groups
@@ -609,15 +611,15 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
     print(f"{'-'*40} {'-'*40}")
     
     # Display on console: one row per member (ALL members shown)
-    displayed_rows = 0
+    displayed_rows = 0  # type: int
     for groupname, members, computers in group_member_data:
         if members:
             for member in members:
-                print(f"{groupname[:39]:<40} {member[:39]:<40}")
-                displayed_rows += 1
+                print(f"{str(groupname)[:39]:<40} {str(member)[:39]:<40}")  # type: ignore[index]
+                displayed_rows += 1  # type: ignore[operator]
         elif not computers:
-            print(f"{groupname[:39]:<40} {'(nessun membro)':<40}")
-            displayed_rows += 1
+            print(f"{str(groupname)[:39]:<40} {'(nessun membro)':<40}")  # type: ignore[index]
+            displayed_rows += 1  # type: ignore[operator]
     
     print()
     print("=" * 80)
@@ -647,7 +649,7 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
         print(f"{'-'*40} {'-'*40}")
         
         for groupname, computer in computer_list:
-            print(f"{groupname[:39]:<40} {computer[:39]:<40}")
+            print(f"{str(groupname)[:39]:<40} {str(computer)[:39]:<40}")  # type: ignore[index]
         
         print()
         print("=" * 80)
@@ -668,9 +670,9 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
         for groupname, members, computers in group_member_data:
             if members:
                 for member in members:
-                    f.write(f"| {groupname[:35]:<35} | {member[:35]:<35} |\n")
+                    f.write(f"| {str(groupname)[:35]:<35} | {str(member)[:35]:<35} |\n")  # type: ignore[index]
             elif not computers:
-                f.write(f"| {groupname[:35]:<35} | {'(nessun membro)':<35} |\n")
+                f.write(f"| {str(groupname)[:35]:<35} | {'(nessun membro)':<35} |\n")  # type: ignore[index]
         
         f.write("\n")
     
@@ -691,7 +693,7 @@ def collect_ad_groups_table(samba_module: str, output_dir: Path) -> int:
             
             for groupname, _, computers in group_member_data:
                 for computer in computers:
-                    f.write(f"| {groupname[:35]:<35} | {computer[:35]:<35} |\n")
+                    f.write(f"| {str(groupname)[:35]:<35} | {str(computer)[:35]:<35} |\n")  # type: ignore[index]
             
             f.write("\n")
         
@@ -745,9 +747,9 @@ def collect_shares_table(samba_module: str, output_dir: Path) -> int:
     log_info(f"Trovati {len(shares)} share")
     
     # Collect ACL for each share (header printed AFTER data collection)
-    share_data = []
-    acl_success = 0
-    acl_failed = 0
+    share_data: List[Tuple[str, str, List[str], List[str]]] = []
+    acl_success: int = 0
+    acl_failed: int = 0
     
     for idx, share_name in enumerate(shares, 1):
         # Progress every 5 shares
@@ -782,10 +784,10 @@ def collect_shares_table(samba_module: str, output_dir: Path) -> int:
         
         if exit_code != 0 or "trustee" not in stdout_acl:
             share_data.append((share_name, share_path, [], []))
-            acl_failed += 1
+            acl_failed += 1  # type: ignore[operator]
             continue
         
-        acl_success += 1
+        acl_success += 1  # type: ignore[operator]
         
         # Parse ACL (access_mask comes BEFORE trustee in output)
         users_rw = []
@@ -833,22 +835,22 @@ def collect_shares_table(samba_module: str, output_dir: Path) -> int:
     print(f"{'-'*30} {'-'*40} {'-'*20} {'-'*10}")
     
     # Display on console: show ALL permissions details
-    displayed_rows = 0
+    displayed_rows: int = 0
     for share_name, share_path, users_rw, users_ro in share_data:
-        path_display = share_path[:39] if len(share_path) > 39 else share_path
+        path_display = str(share_path)[:39] if len(str(share_path)) > 39 else str(share_path)  # type: ignore[index]
         
         # Display one row per permission
         if users_rw:
-            for user in users_rw:
-                user_display = user[:29] if len(user) > 29 else user
+            for user in users_rw:  # type: ignore[union-attr]
+                user_display = str(user)[:29] if len(str(user)) > 29 else str(user)  # type: ignore[index]
                 print(f"{share_name:<30} {path_display:<40} {user_display:<20} RW")
-                displayed_rows += 1
+                displayed_rows += 1  # type: ignore[operator]
         
         if users_ro:
-            for user in users_ro:
-                user_display = user[:29] if len(user) > 29 else user
+            for user in users_ro:  # type: ignore[union-attr]
+                user_display = str(user)[:29] if len(str(user)) > 29 else str(user)  # type: ignore[index]
                 print(f"{share_name:<30} {path_display:<40} {user_display:<20} RO")
-                displayed_rows += 1
+                displayed_rows += 1  # type: ignore[operator]
         
         # If no permissions, show one row
         if not users_rw and not users_ro:
@@ -875,15 +877,15 @@ def collect_shares_table(samba_module: str, output_dir: Path) -> int:
             has_perms = False
             
             for user in users_rw:
-                f.write(f"| {share_name[:30]:<30} | {user[:35]:<35} | {'RW':<10} |\n")
+                f.write(f"| {str(share_name)[:30]:<30} | {str(user)[:35]:<35} | {'RW':<10} |\n")  # type: ignore[index]
                 has_perms = True
             
             for user in users_ro:
-                f.write(f"| {share_name[:30]:<30} | {user[:35]:<35} | {'RO':<10} |\n")
+                f.write(f"| {str(share_name)[:30]:<30} | {str(user)[:35]:<35} | {'RO':<10} |\n")  # type: ignore[index]
                 has_perms = True
             
             if not has_perms:
-                f.write(f"| {share_name[:30]:<30} | {'(nessun permesso)':<35} | {'-':<10} |\n")
+                f.write(f"| {str(share_name)[:30]:<30} | {'(nessun permesso)':<35} | {'-':<10} |\n")  # type: ignore[index]
         
         f.write("\n")
     
@@ -1058,7 +1060,7 @@ def collect_webtop_sharing(webtop_module: Optional[str], samba_module: str, outp
             f.write(f"|{'-'*24}|{'-'*24}|{'-'*12}|\n")
             
             for owner, shared, perm in shares_data:
-                f.write(f"| {owner[:22]:<22} | {shared[:22]:<22} | {perm:<10} |\n")
+                f.write(f"| {str(owner)[:22]:<22} | {str(shared)[:22]:<22} | {str(perm):<10} |\n")  # type: ignore[index]
             
             f.write("\n")
         else:
@@ -1234,7 +1236,7 @@ File allegati:
         "06_user_status.md"
     ]
     
-    attached_count = 0
+    attached_count: int = 0
     for md_filename in md_files:
         md_path = output_dir / md_filename
         if md_path.exists():
@@ -1244,7 +1246,7 @@ File allegati:
                 encoders.encode_base64(part)
                 part.add_header('Content-Disposition', f'attachment; filename="{md_filename}"')
                 msg.attach(part)
-                attached_count += 1
+                attached_count += 1  # type: ignore[operator]
     
     log_info(f"Allegati: {attached_count} file")
     
@@ -1312,6 +1314,7 @@ def main() -> int:
     print()
     
     # Collect data with table display
+    assert samba_module is not None, "Modulo Samba non trovato"
     GLOBAL_USER_COUNT = collect_ad_users(samba_module, output_dir)
     GLOBAL_DISABLED_COUNT = collect_user_status_table(samba_module, output_dir)
     collect_password_expiry_table(samba_module, output_dir)
