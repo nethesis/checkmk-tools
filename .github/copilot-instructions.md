@@ -1501,6 +1501,7 @@ nsec8-stable      # 10.155.100.100:22 (root, NethSecurity 8)
 laboratorio       # 10.155.100.1:2222 (root, NethSecurity 8)
                   # ROCKSOLID Mode validato - resistente major upgrade
 marziodemo        # 10.155.100.61:22 (root, Demo environment)
+srv-monitoring    # 192.168.5.104:22 (admin-nethesis, Monitoring)
 
 # Altri server
 fwlab             # 192.168.5.117:2222 (root)

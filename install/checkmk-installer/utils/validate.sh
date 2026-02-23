@@ -21,7 +21,9 @@ validate_email() {
 
 validate_url() {
 	local url="$1"
-	[[ "$url" =~ ^https?://[^[:space:]]+$ ]]
+	[[ "$url" =~ ^https?://[^[:space:]]+$ ]] || return 1
+	[[ "$url" =~ [[:cntrl:]] ]] && return 1
+	return 0
 }
 
 input_port() {
@@ -46,6 +48,7 @@ input_url() {
 	local prompt="$1" default="$2" url
 	while true; do
 		url=$(input_text "$prompt" "$default")
+		url="$(printf '%s' "$url" | tr -d '\r')"
 		[[ -z "$url" ]] && { echo ""; return 0; }
 		validate_url "$url" && { echo "$url"; return 0; }
 		echo "Invalid URL (must start with http:// or https://)"
