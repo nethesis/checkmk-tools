@@ -110,7 +110,24 @@ def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str
     if command_exists("omd"):
         log_header("Removing OMD site")
         run_cmd(["omd", "stop", cfg.site_name], check=False)
-        run_cmd(["omd", "rm", "-f", cfg.site_name], check=False)
+        run_cmd(["omd", "rm", "--yes", cfg.site_name], check=False)
+        # Fallback: if site dir still exists after omd rm, delete it manually
+        site_dir = Path(f"/omd/sites/{cfg.site_name}")
+        if site_dir.exists():
+            log_warn(f"omd rm did not remove {site_dir} - deleting manually")
+            run_cmd(["rm", "-rf", str(site_dir)], check=False)
+
+    log_header("Cleaning up installer backup files from system dirs")
+    total_cleaned = 0
+    for d in _BACKUP_DIRS_TO_CLEAN:
+        n = cleanup_backup_files(d)
+        if n:
+            log_info(f"  Deleted {n} backup file(s) from {d}")
+            total_cleaned += n
+    if total_cleaned == 0:
+        log_info("No backup files found to clean")
+    else:
+        log_success(f"Cleaned {total_cleaned} backup file(s) total")
 
     log_header("Purging packages")
     installed = _list_installed_packages()
@@ -125,18 +142,6 @@ def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str
 
     log_header("Autoremove")
     run_cmd(["apt-get", "autoremove", "-y"], check=False)
-
-    log_header("Cleaning up installer backup files from system dirs")
-    total_cleaned = 0
-    for d in _BACKUP_DIRS_TO_CLEAN:
-        n = cleanup_backup_files(d)
-        if n:
-            log_info(f"  Deleted {n} backup file(s) from {d}")
-            total_cleaned += n
-    if total_cleaned == 0:
-        log_info("No backup files found to clean")
-    else:
-        log_success(f"Cleaned {total_cleaned} backup file(s) total")
 
     log_header("Deleting directories")
     target_repo_dir = Path(cfg.auto_git_sync_target_dir)
