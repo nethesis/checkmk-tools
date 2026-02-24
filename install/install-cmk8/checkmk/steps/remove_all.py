@@ -136,12 +136,26 @@ def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str
     if to_remove:
         log_info(f"Purging {len(to_remove)} packages...")
         log_info("Packages: " + " ".join(shlex.quote(p) for p in to_remove))
-        run_cmd(["apt-get", "purge", "-y", *to_remove], check=True)
+        run_cmd(["apt-get", "purge", "-y", *to_remove], check=False)
     else:
         log_info("No matching packages to purge")
 
     log_header("Autoremove")
     run_cmd(["apt-get", "autoremove", "-y"], check=False)
+
+    # Explicitly remove leftover config dirs dpkg won't delete when not empty
+    log_header("Removing leftover config directories")
+    _leftover_dirs: list[Path] = [
+        Path("/etc/fail2ban"),
+        Path("/etc/apache2"),
+        Path("/etc/postfix"),
+        Path("/etc/ufw"),
+        Path("/etc/chrony"),
+        Path("/usr/lib/check_mk_agent"),
+        Path("/omd"),
+    ]
+    for d in _leftover_dirs:
+        _delete_dir(d)
 
     log_header("Deleting directories")
     target_repo_dir = Path(cfg.auto_git_sync_target_dir)
