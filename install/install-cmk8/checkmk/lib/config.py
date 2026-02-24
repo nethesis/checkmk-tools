@@ -87,6 +87,7 @@ class InstallerConfig:
     smtp_relayhost: str
     smtp_relay_user: str
     smtp_relay_password: str
+    smtp_from_address: str
 
 
 def config_to_env(cfg: InstallerConfig) -> dict[str, str]:
@@ -119,6 +120,7 @@ def config_to_env(cfg: InstallerConfig) -> dict[str, str]:
         "SMTP_RELAY_USER": cfg.smtp_relay_user,
         # Intentionally do not persist relay password by default
         "SMTP_RELAY_PASSWORD": "",
+        "SMTP_FROM_ADDRESS": cfg.smtp_from_address,
     }
 
 
@@ -166,6 +168,7 @@ def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
     smtp_relayhost = getv("SMTP_RELAYHOST", "")
     smtp_relay_user = getv("SMTP_RELAY_USER", "")
     smtp_relay_password = getv("SMTP_RELAY_PASSWORD", "")
+    smtp_from_address = getv("SMTP_FROM_ADDRESS", "")
 
     if interactive:
         timezone = prompt_str("Timezone", default=timezone)
@@ -210,6 +213,7 @@ def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
             smtp_relay_user = prompt_str("SMTP relay user/email", default=smtp_relay_user)
             if not smtp_relay_password:
                 smtp_relay_password = getpass("SMTP relay password (will not be echoed): ")
+        smtp_from_address = prompt_str("SMTP From address (e.g. no-reply@example.com)", default=smtp_from_address)
 
     return InstallerConfig(
         timezone=timezone,
@@ -237,4 +241,5 @@ def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
         smtp_relayhost=smtp_relayhost,
         smtp_relay_user=smtp_relay_user,
         smtp_relay_password=smtp_relay_password,
+        smtp_from_address=smtp_from_address,
     )

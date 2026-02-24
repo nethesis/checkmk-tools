@@ -8,7 +8,7 @@ from lib.common import command_exists, log_header, log_info, log_success, log_wa
 from lib.config import InstallerConfig
 
 
-def _configure_relay(relayhost: str, relay_user: str, relay_password: str) -> None:
+def _configure_relay(relayhost: str, relay_user: str, relay_password: str, from_address: str) -> None:
     """Configure Postfix SMTP relay with SASL authentication."""
     log_info(f"Configuring SMTP relay: {relayhost}")
 
@@ -25,6 +25,13 @@ def _configure_relay(relayhost: str, relay_user: str, relay_password: str) -> No
     sasl_passwd.write_text(f"{relayhost} {relay_user}:{relay_password}\n", encoding="utf-8")
     sasl_passwd.chmod(0o600)
     run_cmd(["postmap", str(sasl_passwd)])
+
+    if from_address:
+        log_info(f"Configuring sender address rewriting: {from_address}")
+        generic_maps = Path("/etc/postfix/generic")
+        generic_maps.write_text(f"@{run_capture(['hostname', '-f'], check=False) or 'localhost'} {from_address}\nroot {from_address}\n", encoding="utf-8")
+        run_cmd(["postmap", str(generic_maps)])
+        run_cmd(["postconf", "-e", "smtp_generic_maps = hash:/etc/postfix/generic"])
 
     log_success("SMTP relay configured")
 
@@ -45,17 +52,22 @@ def run(cfg: InstallerConfig) -> None:
     relayhost = cfg.smtp_relayhost.strip()
     relay_user = cfg.smtp_relay_user.strip()
     relay_password = cfg.smtp_relay_password.strip()
+    from_address = cfg.smtp_from_address.strip()
 
     if relayhost.upper().startswith("INSERISCI_"):
         relayhost = ""
     if relay_user.upper().startswith("INSERISCI_"):
         relay_user = ""
+    if from_address.upper().startswith("INSERISCI_"):
+        from_address = ""
 
     if relayhost:
         # Configured in .env - use directly (password may still need prompting)
         if not relay_password:
             relay_password = getpass(f"SMTP relay password for {relay_user}@{relayhost} (will not be echoed): ").strip()
-        _configure_relay(relayhost, relay_user, relay_password)
+        if not from_address:
+            from_address = input("From address (e.g. no-reply@example.com, leave blank to skip): ").strip()
+        _configure_relay(relayhost, relay_user, relay_password, from_address)
     else:
         # Not configured - ask interactively
         print("")
@@ -67,8 +79,9 @@ def run(cfg: InstallerConfig) -> None:
             relayhost = input("Relayhost (e.g. [smtp.gmail.com]:587): ").strip()
             relay_user = input("Relay username/email: ").strip()
             relay_password = getpass("Relay password (will not be echoed): ").strip()
+            from_address = input("From address (e.g. no-reply@example.com, leave blank to skip): ").strip()
             if relayhost and relay_user and relay_password:
-                _configure_relay(relayhost, relay_user, relay_password)
+                _configure_relay(relayhost, relay_user, relay_password, from_address)
             else:
                 log_warn("Incomplete relay config - using loopback-only mode")
         else:

@@ -3,7 +3,7 @@
 
 Re-implements the workflow in install-cmk8/install-cmk/scripts/*.sh in Python.
 
-Version: 1.0.17
+Version: 1.0.18
 """
 
 from __future__ import annotations
@@ -83,105 +83,105 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--interactive", action="store_true", help="Prompt for key settings")
     sub = p.add_subparsers(dest="cmd", required=False)
 
-    sub.add_parser("menu", help="Interactive menu")
+    sub.add_parser("menu", help="Interactive menu (default when no command given)")
     sub.add_parser("init", help="Create/update .env with a guided prompt")
     sub.add_parser("bootstrap", help="Run full installation")
+    sub.add_parser("install", help="Alias for bootstrap")
     sub.add_parser("verify", help="Verify installation")
-    rm = sub.add_parser("remove-all", help="Remove CheckMK and related services installed by this bootstrap")
-    rm.add_argument(
-        "--assume-yes",
-        action="store_true",
-        help="Non-interactive mode (requires --confirm-hostname to avoid accidents)",
-    )
-    rm.add_argument(
-        "--confirm-hostname",
-        default="",
-        help="Hostname that must match (required with --assume-yes)",
-    )
+
+    rm = sub.add_parser("remove-all", help="Remove CheckMK and related services")
+    rm.add_argument("--assume-yes", action="store_true", help="Non-interactive (requires --confirm-hostname)")
+    rm.add_argument("--confirm-hostname", default="", help="Hostname that must match (required with --assume-yes)")
+    sub.add_parser("remove", help="Alias for remove-all (interactive confirmation)")
 
     cert = sub.add_parser("certbot", help="Certbot helpers")
     cert_sub = cert.add_subparsers(dest="cert_cmd", required=True)
     cert_sub.add_parser("install", help="Install certbot and plugin")
-
     run_p = cert_sub.add_parser("run", help="Obtain certificate")
     run_p.add_argument("--domain", action="append", dest="domains", help="Domain (repeatable)")
     run_p.add_argument("--email", help="Let's Encrypt email")
     run_p.add_argument("--webserver", choices=["apache", "nginx", "standalone"], help="Webserver plugin")
-
     cert_sub.add_parser("auto", help="Auto-detect domain from hostname -f and run")
     return p
 
 
+def _require_root_or_reexec() -> None:
+    """If not root, print hint and exit. (sudo -E is needed to preserve env)"""
+    if not _is_root():
+        import sys
+        script = Path(__file__).resolve()
+        print(f"[ERROR] Root required. Run: sudo -E python3 {script}")
+        raise SystemExit(1)
+
+
 def _menu_loop(env_file: Path) -> int:
+    _require_root_or_reexec()
+
+    _raw_env = str(env_file)
+    env_display = _raw_env if len(_raw_env) <= 36 else "..." + _raw_env[-33:]
+    omd_installed = _is_root() and os.path.exists("/usr/bin/omd")
+    status = "INSTALLED" if omd_installed else "not installed"
+
     while True:
         print("")
-        print("========================================")
-        print(f" CheckMK Installer (Python v{VERSION})")
-        print("========================================")
-        print("")
-        print(" 1) Init .env (guided)")
-        print(" 2) Bootstrap (install)")
-        print(" 3) Verify")
-        print(" 4) Certbot install")
-        print(" 5) Certbot auto")
-        print(" 6) Remove all (uninstall)")
-        print(" 0) Exit")
+        print("╔══════════════════════════════════════════╗")
+        print(f"║  CheckMK Installer  v{VERSION:<18} ║")
+        print(f"║  env: {env_display:<36}║")
+        print(f"║  CheckMK: {status:<32}║")
+        print("╠══════════════════════════════════════════╣")
+        print("║  1) Configure .env (guided wizard)       ║")
+        print("║  2) Install (full bootstrap)             ║")
+        print("║  3) Verify installation                  ║")
+        print("║  4) SSL certificate (certbot)            ║")
+        print("║  5) Remove / uninstall                   ║")
+        print("║  0) Exit                                 ║")
+        print("╚══════════════════════════════════════════╝")
         print("")
         try:
-            choice = input("Select: ").strip()
+            choice = input("Select [0-5]: ").strip()
         except EOFError:
             return 1
 
         if choice == "0":
             return 0
+
         if choice == "1":
             init_env(env_file, interactive=True)
-            continue
-        if choice == "2":
-            if not _is_root():
-                script_name = Path(__file__).name
-                print("[INFO] bootstrap requires root. Run:")
-                print(f"  sudo -E ./{script_name} bootstrap --env-file {env_file}")
-                continue
-            bootstrap(env_file, interactive=False)
-            continue
-        if choice == "3":
-            if not _is_root():
-                script_name = Path(__file__).name
-                print("[INFO] verify requires root. Run:")
-                print(f"  sudo -E ./{script_name} verify --env-file {env_file}")
-                continue
-            cfg = load_config(env_file=env_file, interactive=False)
-            return int(verify.run(cfg))
-        if choice == "4":
-            if not _is_root():
-                script_name = Path(__file__).name
-                print("[INFO] certbot install requires root. Run:")
-                print(f"  sudo -E ./{script_name} certbot install --env-file {env_file}")
-                continue
-            cfg = load_config(env_file=env_file, interactive=False)
-            certbot.install(cfg)
-            continue
-        if choice == "5":
-            if not _is_root():
-                script_name = Path(__file__).name
-                print("[INFO] certbot auto requires root. Run:")
-                print(f"  sudo -E ./{script_name} certbot auto --env-file {env_file}")
-                continue
-            cfg = load_config(env_file=env_file, interactive=False)
-            certbot.auto(cfg)
-            continue
 
-        if choice == "6":
-            if not _is_root():
-                script_name = Path(__file__).name
-                print("[INFO] remove-all requires root. Run:")
-                print(f"  sudo -E ./{script_name} remove-all --env-file {env_file}")
-                continue
+        elif choice == "2":
+            bootstrap(env_file, interactive=False)
+            omd_installed = os.path.exists("/usr/bin/omd")
+            status = "INSTALLED" if omd_installed else "not installed"
+
+        elif choice == "3":
+            cfg = load_config(env_file=env_file, interactive=False)
+            verify.run(cfg)
+
+        elif choice == "4":
+            print("")
+            print(" a) Install certbot packages only")
+            print(" b) Obtain certificate (interactive)")
+            print(" c) Auto-detect domain and obtain")
+            print("")
+            sub = input("Select [a/b/c]: ").strip().lower()
+            cfg = load_config(env_file=env_file, interactive=False)
+            if sub == "a":
+                certbot.install(cfg)
+            elif sub == "b":
+                certbot.bootstrap_step(cfg)
+            elif sub == "c":
+                certbot.auto(cfg)
+            else:
+                print("Invalid selection")
+
+        elif choice == "5":
             cfg = load_config(env_file=env_file, interactive=False)
             remove_all.run(cfg)
-            continue
-        print("Invalid selection")
+            omd_installed = os.path.exists("/usr/bin/omd")
+            status = "INSTALLED" if omd_installed else "not installed"
+
+        else:
+            print("Invalid selection")
 
 
 def _is_root() -> bool:
@@ -196,26 +196,23 @@ def main(argv: list[str]) -> int:
     if args.cmd in {None, "menu"}:
         return _menu_loop(env_file)
 
-    root_required = args.cmd in {"bootstrap", "certbot", "verify", "remove-all"}
+    root_required = args.cmd in {"bootstrap", "install", "certbot", "verify", "remove-all", "remove"}
     if root_required and not _is_root():
         script_name = Path(__file__).name
         raise SystemExit(
-            "Root privileges required. Run via sudo with a TTY, for example:\n"
-            f"  sudo -E ./{script_name} {args.cmd} --env-file {env_file}" + (" --interactive" if interactive else "")
+            f"Root required. Run: sudo -E python3 {script_name} {args.cmd}"
         )
 
     if args.cmd == "init":
-        if not interactive:
-            print("[INFO] For init it's recommended to use --interactive")
         init_env(env_file, interactive=True)
         return 0
-    if args.cmd == "bootstrap":
+    if args.cmd in {"bootstrap", "install"}:
         bootstrap(env_file, interactive)
         return 0
     if args.cmd == "verify":
         cfg = load_config(env_file=env_file, interactive=False)
         return verify.run(cfg)
-    if args.cmd == "remove-all":
+    if args.cmd in {"remove-all", "remove"}:
         cfg = load_config(env_file=env_file, interactive=False)
         remove_all.run(
             cfg,
