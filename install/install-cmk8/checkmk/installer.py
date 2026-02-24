@@ -3,7 +3,7 @@
 
 Re-implements the workflow in install-cmk8/install-cmk/scripts/*.sh in Python.
 
-Version: 1.0.22
+Version: 1.0.26
 """
 
 from __future__ import annotations
@@ -31,11 +31,11 @@ from steps import (
     remove_all,
     ssh,
     system_auto_updates,
+    timeshift,
     unattended,
     verify,
     ydea_toolkit,
 )
-from steps import timeshift
 
 
 def bootstrap(env_file: Path, interactive: bool) -> None:
