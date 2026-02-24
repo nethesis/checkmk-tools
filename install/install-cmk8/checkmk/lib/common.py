@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-VERSION = "1.0.27"
+VERSION = "1.0.28"
 
 
 class Colors:

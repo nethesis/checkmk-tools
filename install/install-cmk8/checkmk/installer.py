@@ -3,7 +3,7 @@
 
 Re-implements the workflow in install-cmk8/install-cmk/scripts/*.sh in Python.
 
-Version: 1.0.27
+Version: 1.0.28
 """
 
 from __future__ import annotations
@@ -22,6 +22,9 @@ from steps import (
     certbot,
     checkmk,
     checkmk_auto_upgrade,
+    config_backup,
+    config_backup_minimal,
+    config_backup_ultra_minimal,
     deploy_checks,
     fail2ban,
     firewall,
@@ -68,6 +71,9 @@ def bootstrap(env_file: Path, interactive: bool) -> None:
     checkmk_auto_upgrade.run(cfg)
     log_optimizer.run(cfg)
     backup_jobs.run(cfg)
+    config_backup.run(cfg)
+    config_backup_minimal.run(cfg)
+    config_backup_ultra_minimal.run(cfg)
 
     log_header("Installation Complete")
     log_success("CheckMK installation finished")
