@@ -21,6 +21,9 @@ sudo -E ./installer.py bootstrap
 
 # Verifica
 sudo -E ./installer.py verify
+
+# Rimozione completa (uninstall)
+sudo -E ./installer.py remove-all
 ```
 
 Nota: `bootstrap`, `certbot` e `verify` richiedono esplicitamente root (`sudo -E`).

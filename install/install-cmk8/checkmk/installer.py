@@ -3,7 +3,7 @@
 
 Re-implements the workflow in install-cmk8/install-cmk/scripts/*.sh in Python.
 
-Version: 1.0.2
+Version: 1.0.6
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ from steps import (
     ntp,
     packages,
     postfix,
+    remove_all,
     ssh,
     unattended,
     verify,
@@ -86,6 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("init", help="Create/update .env with a guided prompt")
     sub.add_parser("bootstrap", help="Run full installation")
     sub.add_parser("verify", help="Verify installation")
+    sub.add_parser("remove-all", help="Remove CheckMK and related services installed by this bootstrap")
 
     cert = sub.add_parser("certbot", help="Certbot helpers")
     cert_sub = cert.add_subparsers(dest="cert_cmd", required=True)
@@ -112,6 +114,7 @@ def _menu_loop(env_file: Path) -> int:
         print(" 3) Verify")
         print(" 4) Certbot install")
         print(" 5) Certbot auto")
+        print(" 6) Remove all (uninstall)")
         print(" 0) Exit")
         print("")
         try:
@@ -159,6 +162,16 @@ def _menu_loop(env_file: Path) -> int:
             certbot.auto(cfg)
             continue
 
+        if choice == "6":
+            if not _is_root():
+                script_name = Path(__file__).name
+                print("[INFO] remove-all requires root. Run:")
+                print(f"  sudo -E ./{script_name} remove-all --env-file {env_file}")
+                continue
+            cfg = load_config(env_file=env_file, interactive=False)
+            remove_all.run(cfg)
+            continue
+
         print("Invalid selection")
 
 
@@ -174,7 +187,7 @@ def main(argv: list[str]) -> int:
     if args.cmd in {None, "menu"}:
         return _menu_loop(env_file)
 
-    root_required = args.cmd in {"bootstrap", "certbot", "verify"}
+    root_required = args.cmd in {"bootstrap", "certbot", "verify", "remove-all"}
     if root_required and not _is_root():
         script_name = Path(__file__).name
         raise SystemExit(
@@ -193,6 +206,10 @@ def main(argv: list[str]) -> int:
     if args.cmd == "verify":
         cfg = load_config(env_file=env_file, interactive=False)
         return verify.run(cfg)
+    if args.cmd == "remove-all":
+        cfg = load_config(env_file=env_file, interactive=False)
+        remove_all.run(cfg)
+        return 0
     if args.cmd == "certbot":
         cfg = load_config(env_file=env_file, interactive=interactive)
         if args.cert_cmd == "install":
