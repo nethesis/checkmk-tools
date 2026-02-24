@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-VERSION = "1.0.8"
+VERSION = "1.0.9"
 
 
 class Colors:
@@ -60,6 +60,14 @@ def command_exists(name: str) -> bool:
     return shutil.which(name) is not None
 
 
+def _child_env() -> dict[str, str]:
+    env = dict(os.environ)
+    env.setdefault("DEBIAN_FRONTEND", "noninteractive")
+    env.setdefault("NEEDRESTART_MODE", "a")
+    env.setdefault("APT_LISTCHANGES_FRONTEND", "none")
+    return env
+
+
 @dataclass(frozen=True)
 class RunResult:
     returncode: int
@@ -67,14 +75,14 @@ class RunResult:
 
 def run(cmd: list[str], *, check: bool = True) -> RunResult:
     log_info(f"Running: {shlex.join(cmd)}")
-    res = subprocess.run(cmd)
+    res = subprocess.run(cmd, env=_child_env())
     if check and res.returncode != 0:
         raise subprocess.CalledProcessError(res.returncode, cmd)
     return RunResult(returncode=res.returncode)
 
 
 def run_capture(cmd: list[str], *, check: bool = True) -> str:
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=_child_env())
     if check and res.returncode != 0:
         raise subprocess.CalledProcessError(res.returncode, cmd, output=res.stdout, stderr=res.stderr)
     return res.stdout.strip()
