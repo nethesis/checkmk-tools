@@ -102,8 +102,7 @@ def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str
         _confirm_or_abort(host=host, site=cfg.site_name)
 
     log_header("Stopping services")
-    run_cmd(["systemctl", "stop", "--now", "auto-git-sync.service"], check=False)
-    run_cmd(["systemctl", "disable", "--now", "auto-git-sync.service"], check=False)
+    # auto-git-sync e check locali NON vengono rimossi (esclusi da remove-all)
     run_cmd(["systemctl", "stop", "--now", "apache2"], check=False)
     run_cmd(["systemctl", "stop", "--now", "postfix"], check=False)
     run_cmd(["systemctl", "stop", "--now", "fail2ban"], check=False)
@@ -146,6 +145,7 @@ def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str
     run_cmd(["apt-get", "autoremove", "-y"], check=False)
 
     # Explicitly remove leftover config dirs dpkg won't delete when not empty
+    # ESCLUSI: /usr/lib/check_mk_agent (contiene i check locali deployati)
     log_header("Removing leftover config directories")
     _leftover_dirs: list[Path] = [
         Path("/etc/fail2ban"),
@@ -153,35 +153,21 @@ def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str
         Path("/etc/postfix"),
         Path("/etc/ufw"),
         Path("/etc/chrony"),
-        Path("/usr/lib/check_mk_agent"),
         Path("/omd"),
     ]
     for d in _leftover_dirs:
         _delete_dir(d)
 
     log_header("Deleting directories")
-    target_repo_dir = Path(cfg.auto_git_sync_target_dir)
-    installer_root = Path(__file__).resolve().parents[2]
-    postpone_repo_delete = False
-    try:
-        postpone_repo_delete = str(installer_root).startswith(str(target_repo_dir.resolve()) + "/")
-    except Exception:
-        postpone_repo_delete = False
-
     dirs_to_delete: list[Path] = [
-        Path("/usr/lib/check_mk_agent/local"),
         Path("/omd"),
         Path("/etc/check_mk"),
+        # ESCLUSO: /opt/checkmk-tools (repo) e /usr/lib/check_mk_agent/local (check deployati)
     ]
-    if not postpone_repo_delete:
-        dirs_to_delete.insert(0, target_repo_dir)
-
     for path in dirs_to_delete:
         _delete_dir(path)
 
-    if postpone_repo_delete:
-        log_header("Deleting repository directory")
-        _delete_dir(target_repo_dir)
+    log_info("Mantenuti: /opt/checkmk-tools (repo), auto-git-sync.service, /usr/lib/check_mk_agent/local/")
 
     log_header("Result")
     if command_exists("omd"):
