@@ -143,7 +143,7 @@ def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
     ntp_servers = [s for s in ntp_raw.split() if s]
     checkmk_admin_password = getv("CHECKMK_ADMIN_PASSWORD", "")
     checkmk_deb_url = getv("CHECKMK_DEB_URL", "")
-    cmk_version = getv("CMK_VERSION", getv("CHECKMK_VERSION", "2.4.0p1"))
+    cmk_version = getv("CMK_VERSION", getv("CHECKMK_VERSION", "latest"))
     site_name = getv("SITE_NAME", getv("CHECKMK_SITE", "monitoring"))
     redirect_to_site = parse_bool(getv("REDIRECT_TO_SITE", "true"), default=True)
 
