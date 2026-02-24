@@ -5,11 +5,12 @@ from pathlib import Path
 
 from lib.common import cleanup_backup_files, command_exists, log_error, log_header, log_info, log_success, log_warn, require_root
 from lib.common import run as run_cmd
-from lib.common import run_capture
+from lib.common import _BACKUP_DIR, run_capture
 from lib.config import InstallerConfig
 
-# Directories where backup_file() may have left *.backup / *.backup_* files
-_BACKUP_DIRS_TO_CLEAN: list[Path] = [
+# backup_file() now stores everything in _BACKUP_DIR (/var/backups/checkmk-installer)
+# plus we still clean any stale .backup files from old runs in these dirs
+_LEGACY_BACKUP_DIRS: list[Path] = [
     Path("/etc/apt/apt.conf.d"),
     Path("/etc/ssh"),
     Path("/etc/chrony"),
@@ -117,9 +118,10 @@ def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str
             log_warn(f"omd rm did not remove {site_dir} - deleting manually")
             run_cmd(["rm", "-rf", str(site_dir)], check=False)
 
-    log_header("Cleaning up installer backup files from system dirs")
+    log_header("Cleaning up installer backup files")
     total_cleaned = 0
-    for d in _BACKUP_DIRS_TO_CLEAN:
+    # Central backup dir (current)
+    for d in [_BACKUP_DIR, *_LEGACY_BACKUP_DIRS]:
         n = cleanup_backup_files(d)
         if n:
             log_info(f"  Deleted {n} backup file(s) from {d}")

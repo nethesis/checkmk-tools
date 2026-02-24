@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-VERSION = "1.0.19"
+VERSION = "1.0.20"
 
 
 class Colors:
@@ -88,11 +88,22 @@ def run_capture(cmd: list[str], *, check: bool = True) -> str:
     return res.stdout.strip()
 
 
-def backup_file(path: Path) -> Path:
-    """Backup a file to <name>.backup (single, no timestamp accumulation)."""
+_BACKUP_DIR = Path("/var/backups/checkmk-installer")
+
+
+def backup_file(path: Path, dest_dir: Path | None = None) -> Path:
+    """Backup a file into dest_dir (default: /var/backups/checkmk-installer/).
+
+    The backup filename encodes the original path so it never lands inside
+    sensitive directories like /etc/apt/apt.conf.d/ where apt would complain.
+    """
     if not path.exists():
         return path
-    backup_path = path.with_name(f"{path.name}.backup")
+    out_dir = dest_dir if dest_dir is not None else _BACKUP_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    # encode full path as flat filename: /etc/apt/apt.conf.d/50foo → etc_apt_apt.conf.d_50foo.backup
+    flat = str(path).lstrip("/").replace("/", "_")
+    backup_path = out_dir / f"{flat}.backup"
     shutil.copy2(path, backup_path)
     return backup_path
 

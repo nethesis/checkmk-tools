@@ -162,6 +162,13 @@ def run_step(cfg: InstallerConfig) -> None:
 
     sites_output = run_capture(["omd", "sites"], check=False)
     if cfg.site_name not in sites_output:
+        # Pulisce gruppo/utente unix orfano (lasciato da run parziale precedente)
+        import subprocess as _sp
+        _grp = _sp.run(["getent", "group", cfg.site_name], capture_output=True)
+        if _grp.returncode == 0:
+            log_warn(f"Gruppo unix '{cfg.site_name}' orfano trovato (site non esiste). Rimozione...")
+            run_cmd(["userdel", cfg.site_name], check=False)
+            run_cmd(["groupdel", cfg.site_name], check=False)
         run_cmd(["omd", "create", cfg.site_name])
     run_cmd(["omd", "start", cfg.site_name], check=False)
 
