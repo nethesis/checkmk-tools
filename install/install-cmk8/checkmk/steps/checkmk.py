@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import re
+import urllib.error
 import urllib.request
+import urllib.parse
 import shlex
 from pathlib import Path
 
@@ -36,6 +38,62 @@ def _detect_latest_raw_version(timeout_sec: int = 20) -> str:
     return max(versions, key=_parse_version_tuple)
 
 
+def _probe_url_ok(url: str, timeout_sec: int = 20) -> bool:
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (compatible; checkmk-tools-installer/1.0; +https://github.com/Coverup20/checkmk-tools)",
+            "Accept": "application/octet-stream,*/*",
+            "Range": "bytes=0-0",
+        },
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+            status = getattr(resp, "status", None)
+            return status in {200, 206}
+    except urllib.error.HTTPError:
+        return False
+    except Exception:
+        return False
+
+
+def _derive_latest_from_seed_url(seed_url: str, *, codename: str, arch: str, timeout_sec: int = 20) -> str:
+    """Given a known-good deb URL, probe newer patch versions and return the latest reachable URL."""
+
+    # Extract base '/checkmk' prefix
+    if "/checkmk/" not in seed_url:
+        return seed_url
+
+    prefix, tail = seed_url.split("/checkmk/", 1)
+    base = prefix.rstrip("/") + "/checkmk"
+
+    m = re.search(r"check-mk-raw-(\d+\.\d+\.\d+)p(\d+)_0\.[a-z0-9]+_[^/]+\.deb", seed_url)
+    if not m:
+        return seed_url
+
+    series = m.group(1)
+    seed_patch = int(m.group(2))
+
+    last_ok = seed_patch
+    consecutive_fail = 0
+
+    # Probe forward from the seed patch; stop after a few consecutive misses.
+    for patch in range(seed_patch, seed_patch + 50):
+        ver = f"{series}p{patch}"
+        url = f"{base}/{ver}/check-mk-raw-{ver}_0.{codename}_{arch}.deb"
+        if _probe_url_ok(url, timeout_sec=timeout_sec):
+            last_ok = patch
+            consecutive_fail = 0
+        else:
+            consecutive_fail += 1
+            if patch > seed_patch and consecutive_fail >= 3:
+                break
+
+    ver = f"{series}p{last_ok}"
+    return f"{base}/{ver}/check-mk-raw-{ver}_0.{codename}_{arch}.deb"
+
+
 def run_step(cfg: InstallerConfig) -> None:
     log_header("60-CHECKMK")
     log_info("Installing CheckMK...")
@@ -43,24 +101,50 @@ def run_step(cfg: InstallerConfig) -> None:
     run_cmd(["apt-get", "install", "-y", "gdebi-core"])
 
     url = cfg.checkmk_deb_url.strip()
-    if not url:
-        codename = run_capture(["lsb_release", "-cs"], check=False) or "jammy"
-        arch = run_capture(["dpkg", "--print-architecture"], check=False) or "amd64"
 
+    # Support local file paths (or file://) so users can pre-stage a .deb on the host.
+    if url.startswith("file://"):
+        url = url[len("file://") :]
+
+    codename = run_capture(["lsb_release", "-cs"], check=False) or "jammy"
+    arch = run_capture(["dpkg", "--print-architecture"], check=False) or "amd64"
+
+    if url.startswith("/"):
+        deb_path = Path(url)
+        if not deb_path.is_file():
+            raise RuntimeError(f"Local CheckMK .deb not found: {deb_path}")
+        log_info(f"Using local .deb: {deb_path}")
+        run_cmd(["gdebi", "-n", str(deb_path)])
+    else:
         cmk_version = (cfg.cmk_version or "").strip()
-        if cmk_version.lower() in {"latest", ""}:
-            log_info("CMK_VERSION=latest: detecting latest available raw version...")
-            try:
-                cmk_version = _detect_latest_raw_version()
-            except Exception as exc:
-                raise RuntimeError(f"Failed to detect latest CheckMK version: {exc}")
 
-        url = f"https://download.checkmk.com/checkmk/{cmk_version}/check-mk-raw-{cmk_version}_0.{codename}_{arch}.deb"
-        log_info(f"Using derived URL: {url}")
+        # If user provided a URL and asked for latest, use it as a seed and probe forward.
+        if url and cmk_version.lower() in {"latest", ""}:
+            derived = _derive_latest_from_seed_url(url, codename=codename, arch=arch)
+            if derived != url:
+                log_info(f"Derived latest URL from seed: {derived}")
+            url = derived
 
-    deb_path = Path("/tmp") / Path(url).name
-    run_cmd(["wget", "-O", str(deb_path), url])
-    run_cmd(["gdebi", "-n", str(deb_path)])
+        if not url:
+            # Legacy listing-based detection (may fail if upstream requires auth)
+            cmk_version = (cfg.cmk_version or "").strip()
+            if cmk_version.lower() in {"latest", ""}:
+                log_info("CMK_VERSION=latest: detecting latest available raw version...")
+                try:
+                    cmk_version = _detect_latest_raw_version()
+                except Exception as exc:
+                    raise RuntimeError(
+                        "Failed to detect latest CheckMK version from listing (upstream may require auth). "
+                        "Set CHECKMK_DEB_URL to a known-good .deb URL and keep CMK_VERSION=latest to auto-probe newer patches. "
+                        f"Details: {exc}"
+                    )
+
+            url = f"https://download.checkmk.com/checkmk/{cmk_version}/check-mk-raw-{cmk_version}_0.{codename}_{arch}.deb"
+            log_info(f"Using derived URL: {url}")
+
+        deb_path = Path("/tmp") / Path(url).name
+        run_cmd(["wget", "-O", str(deb_path), url])
+        run_cmd(["gdebi", "-n", str(deb_path)])
 
     if not command_exists("omd"):
         raise RuntimeError("omd command not found after installation")
