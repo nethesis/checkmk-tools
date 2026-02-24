@@ -110,11 +110,16 @@ def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str
     if command_exists("omd"):
         log_header("Removing OMD site")
         run_cmd(["omd", "stop", cfg.site_name], check=False)
-        run_cmd(["omd", "rm", "--yes", cfg.site_name], check=False)
+        # omd rm non supporta --yes su tutte le versioni: usa umount + rm manuale direttamente
+        run_cmd(["omd", "rm", cfg.site_name], check=False)
         # Fallback: if site dir still exists after omd rm, delete it manually
         site_dir = Path(f"/omd/sites/{cfg.site_name}")
         if site_dir.exists():
             log_warn(f"omd rm did not remove {site_dir} - deleting manually")
+            # Unmount tmp (tmpfs) per evitare 'device or resource busy'
+            tmp_dir = site_dir / "tmp"
+            if tmp_dir.exists():
+                run_cmd(["umount", "-l", str(tmp_dir)], check=False)
             run_cmd(["rm", "-rf", str(site_dir)], check=False)
 
     log_header("Cleaning up installer backup files")

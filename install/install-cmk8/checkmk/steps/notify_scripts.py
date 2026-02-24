@@ -27,9 +27,16 @@ def run_step(cfg: InstallerConfig) -> None:
     dest_dir = Path(f"/omd/sites/{cfg.site_name}/local/share/check_mk/notifications")
 
     if not dest_dir.exists():
-        log_warn(f"Directory notifiche non trovata: {dest_dir}")
-        log_warn("CheckMK non ancora installato o sito non creato. Skip.")
-        return
+        # Se il sito OMD esiste, creiamo la directory (non è creata automaticamente da omd create)
+        site_dir = Path(f"/omd/sites/{cfg.site_name}")
+        if not site_dir.exists():
+            log_warn(f"Sito OMD non trovato: {site_dir}. CheckMK non installato? Skip.")
+            return
+        log_info(f"Creazione directory notifiche: {dest_dir}")
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        # Imposta ownership al sito OMD
+        import subprocess
+        subprocess.run(["chown", "-R", f"{cfg.site_name}:{cfg.site_name}", str(dest_dir)], check=False)
 
     # Copy only files without .py extension (the actual CheckMK notification scripts)
     # Skip __pycache__ and .py helper files
