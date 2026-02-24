@@ -18,7 +18,14 @@ def _parse_version_tuple(version: str) -> tuple[int, int, int, int]:
 
 def _detect_latest_raw_version(timeout_sec: int = 20) -> str:
     url = "https://download.checkmk.com/checkmk/"
-    with urllib.request.urlopen(url, timeout=timeout_sec) as resp:
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (compatible; checkmk-tools-installer/1.0; +https://github.com/Coverup20/checkmk-tools)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
         html = resp.read().decode("utf-8", errors="replace")
 
     # Capture versions like 2.4.0p20, 2.5.0p1, etc.
