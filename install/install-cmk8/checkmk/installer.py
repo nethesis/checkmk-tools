@@ -3,7 +3,7 @@
 
 Re-implements the workflow in install-cmk8/install-cmk/scripts/*.sh in Python.
 
-Version: 1.0.28
+Version: 1.0.29
 """
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ from steps import (
     ntp,
     packages,
     postfix,
+    rclone_setup,
     remove_all,
     ssh,
     system_auto_updates,
@@ -71,6 +72,7 @@ def bootstrap(env_file: Path, interactive: bool) -> None:
     checkmk_auto_upgrade.run(cfg)
     log_optimizer.run(cfg)
     backup_jobs.run(cfg)
+    rclone_setup.run(cfg)
     config_backup.run(cfg)
     config_backup_minimal.run(cfg)
     config_backup_ultra_minimal.run(cfg)
