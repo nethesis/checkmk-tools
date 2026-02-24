@@ -51,8 +51,14 @@ def obtain(cfg: InstallerConfig, *, domains: list[str] | None, email: str | None
         base += ["-d", d]
     base += ["--non-interactive", "--agree-tos", "--email", email]
 
-    run_cmd(base)
-    log_success(f"SSL certificate obtained for: {', '.join(domains)}")
+    import subprocess as _sp
+    result = _sp.run(base)
+    if result.returncode != 0:
+        log_warn(f"Certbot non ha ottenuto il certificato (exit {result.returncode}).")
+        log_warn("Cause tipiche: dominio non punta a questo server, porta 80 non raggiungibile.")
+        log_warn("Riprova dopo aver configurato il DNS: ./installer.py certbot run")
+        return
+    log_success(f"Certificato SSL ottenuto per: {', '.join(domains)}")
 
 
 def auto(cfg: InstallerConfig) -> None:
@@ -107,4 +113,8 @@ def bootstrap_step(cfg: InstallerConfig) -> None:
         return
 
     cfg_patched = dataclasses.replace(cfg, letsencrypt_email=email, letsencrypt_domains=domains_str)
-    obtain(cfg_patched, domains=domains, email=email, webserver=None)
+    try:
+        obtain(cfg_patched, domains=domains, email=email, webserver=None)
+    except Exception as exc:  # noqa: BLE001
+        log_warn(f"Certbot fallito: {exc}")
+        log_warn("Puoi riprovare con: ./installer.py certbot run")
