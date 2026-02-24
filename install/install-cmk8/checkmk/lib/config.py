@@ -1,0 +1,135 @@
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from getpass import getpass
+from pathlib import Path
+
+
+def parse_dotenv(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    data: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.lower().startswith("export "):
+            line = line[7:].lstrip()
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if len(value) >= 2 and ((value[0] == value[-1] == '"') or (value[0] == value[-1] == "'")):
+            value = value[1:-1]
+        data[key] = value
+    return data
+
+
+def parse_bool(value: str | None, *, default: bool = False) -> bool:
+    if value is None:
+        return default
+    v = value.strip().lower()
+    if v in {"1", "true", "yes", "y", "on"}:
+        return True
+    if v in {"0", "false", "no", "n", "off"}:
+        return False
+    return default
+
+
+def prompt_str(prompt: str, *, default: str | None = None) -> str:
+    if default is not None and default != "":
+        ans = input(f"{prompt} [{default}]: ").strip()
+        return ans or default
+    return input(f"{prompt}: ").strip()
+
+
+def prompt_int(prompt: str, *, default: int) -> int:
+    while True:
+        raw = input(f"{prompt} [{default}]: ").strip()
+        if not raw:
+            return default
+        try:
+            return int(raw)
+        except ValueError:
+            print("Please enter a valid integer.")
+
+
+@dataclass(frozen=True)
+class InstallerConfig:
+    timezone: str
+    ssh_port: int
+    permit_root_login: str
+    client_alive_interval: int
+    client_alive_countmax: int
+    login_grace_time: int
+    root_password: str
+    open_http_https: bool
+    letsencrypt_email: str
+    letsencrypt_domains: str
+    webserver: str
+    ntp_servers: list[str]
+    checkmk_admin_password: str
+    checkmk_deb_url: str
+    cmk_version: str
+    site_name: str
+
+
+def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
+    env_from_file = parse_dotenv(env_file)
+    env = {**env_from_file, **os.environ}
+
+    def getv(key: str, default: str = "") -> str:
+        return str(env.get(key, default)).strip()
+
+    timezone = getv("TIMEZONE", "Europe/Rome")
+    ssh_port = int(getv("SSH_PORT", "22") or "22")
+    permit_root_login = getv("PERMIT_ROOT_LOGIN", "prohibit-password")
+    client_alive_interval = int(getv("CLIENT_ALIVE_INTERVAL", "600") or "600")
+    client_alive_countmax = int(getv("CLIENT_ALIVE_COUNTMAX", "2") or "2")
+    login_grace_time = int(getv("LOGIN_GRACE_TIME", "30") or "30")
+    root_password = getv("ROOT_PASSWORD", "")
+    open_http_https = parse_bool(getv("OPEN_HTTP_HTTPS", "true"), default=True)
+    letsencrypt_email = getv("LETSENCRYPT_EMAIL", "")
+    letsencrypt_domains = getv("LETSENCRYPT_DOMAINS", "")
+    webserver = getv("WEBSERVER", getv("WS", "apache"))
+    ntp_raw = getv("NTP_SERVERS", "0.pool.ntp.org 1.pool.ntp.org 2.pool.ntp.org 3.pool.ntp.org")
+    ntp_servers = [s for s in ntp_raw.split() if s]
+    checkmk_admin_password = getv("CHECKMK_ADMIN_PASSWORD", "")
+    checkmk_deb_url = getv("CHECKMK_DEB_URL", "")
+    cmk_version = getv("CMK_VERSION", getv("CHECKMK_VERSION", "2.4.0p1"))
+    site_name = getv("SITE_NAME", getv("CHECKMK_SITE", "monitoring"))
+
+    if interactive:
+        timezone = prompt_str("Timezone", default=timezone)
+        ssh_port = prompt_int("SSH Port", default=ssh_port)
+        permit_root_login = prompt_str("PermitRootLogin (yes|no|prohibit-password)", default=permit_root_login)
+        open_http_https = parse_bool(prompt_str("Open HTTP/HTTPS (true|false)", default=str(open_http_https).lower()), default=open_http_https)
+        webserver = prompt_str("Webserver for Certbot (apache|nginx|standalone)", default=webserver)
+        if not checkmk_deb_url:
+            checkmk_deb_url = prompt_str("CheckMK .deb URL (leave blank to build from CMK_VERSION)", default="")
+        cmk_version = prompt_str("CheckMK version (used if URL not provided)", default=cmk_version)
+        site_name = prompt_str("OMD site name", default=site_name)
+        if not checkmk_admin_password:
+            if input("Set cmkadmin password now? [y/N]: ").strip().lower() in {"y", "yes"}:
+                checkmk_admin_password = getpass("cmkadmin password (will not be echoed): ")
+
+    return InstallerConfig(
+        timezone=timezone,
+        ssh_port=ssh_port,
+        permit_root_login=permit_root_login,
+        client_alive_interval=client_alive_interval,
+        client_alive_countmax=client_alive_countmax,
+        login_grace_time=login_grace_time,
+        root_password=root_password,
+        open_http_https=open_http_https,
+        letsencrypt_email=letsencrypt_email,
+        letsencrypt_domains=letsencrypt_domains,
+        webserver=webserver,
+        ntp_servers=ntp_servers,
+        checkmk_admin_password=checkmk_admin_password,
+        checkmk_deb_url=checkmk_deb_url,
+        cmk_version=cmk_version,
+        site_name=site_name,
+    )
