@@ -6,7 +6,12 @@ Re-implementazione in Python di quanto presente in `install-cmk8/install-cmk/` (
 
 ```bash
 cd /opt/checkmk-tools/install/install-cmk8/checkmk
-cp .env.example .env
+
+# Setup guidato: genera .env senza doverlo editare a mano
+./installer.py init --interactive
+
+# In alternativa (manuale):
+# cp .env.example .env
 
 # Installazione completa (l'installer chiede sudo automaticamente)
 ./installer.py bootstrap --interactive
@@ -16,6 +21,9 @@ cp .env.example .env
 ```
 
 Nota: `bootstrap`, `certbot` e `verify` eseguono auto-escalation via `sudo` quando necessario.
+
+Suggerimento: la modalità non-interattiva ha senso se `.env` è già completo.
+Per questo usa `./installer.py init --interactive` una sola volta, poi puoi rilanciare `bootstrap` senza prompt.
 
 Durante `bootstrap` vengono anche:
 

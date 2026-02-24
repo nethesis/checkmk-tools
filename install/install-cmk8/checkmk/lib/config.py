@@ -82,6 +82,45 @@ class InstallerConfig:
     auto_git_sync_target_dir: str
 
 
+def config_to_env(cfg: InstallerConfig) -> dict[str, str]:
+    return {
+        "TIMEZONE": cfg.timezone,
+        "SSH_PORT": str(cfg.ssh_port),
+        "PERMIT_ROOT_LOGIN": cfg.permit_root_login,
+        "CLIENT_ALIVE_INTERVAL": str(cfg.client_alive_interval),
+        "CLIENT_ALIVE_COUNTMAX": str(cfg.client_alive_countmax),
+        "LOGIN_GRACE_TIME": str(cfg.login_grace_time),
+        # Intentionally do not persist passwords by default
+        "ROOT_PASSWORD": "",
+        "OPEN_HTTP_HTTPS": "true" if cfg.open_http_https else "false",
+        "LETSENCRYPT_EMAIL": cfg.letsencrypt_email,
+        "LETSENCRYPT_DOMAINS": cfg.letsencrypt_domains,
+        "WEBSERVER": cfg.webserver,
+        "NTP_SERVERS": " ".join(cfg.ntp_servers),
+        # Intentionally do not persist passwords by default
+        "CHECKMK_ADMIN_PASSWORD": "",
+        "CHECKMK_DEB_URL": cfg.checkmk_deb_url,
+        "CMK_VERSION": cfg.cmk_version,
+        "SITE_NAME": cfg.site_name,
+        "REDIRECT_TO_SITE": "true" if cfg.redirect_to_site else "false",
+        "DEPLOY_LOCAL_CHECKS": "true" if cfg.deploy_local_checks else "false",
+        "ENABLE_AUTO_GIT_SYNC": "true" if cfg.enable_auto_git_sync else "false",
+        "AUTO_GIT_SYNC_INTERVAL_SEC": str(cfg.auto_git_sync_interval_sec),
+        "AUTO_GIT_SYNC_REPO_URL": cfg.auto_git_sync_repo_url,
+        "AUTO_GIT_SYNC_TARGET_DIR": cfg.auto_git_sync_target_dir,
+    }
+
+
+def write_dotenv(path: Path, values: dict[str, str]) -> None:
+    lines: list[str] = []
+    for key, value in values.items():
+        if any(ch.isspace() for ch in value):
+            lines.append(f'{key}="{value}"')
+        else:
+            lines.append(f"{key}={value}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
     env_from_file = parse_dotenv(env_file)
     env = {**env_from_file, **os.environ}

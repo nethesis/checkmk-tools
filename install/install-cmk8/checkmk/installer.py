@@ -3,7 +3,7 @@
 
 Re-implements the workflow in install-cmk8/install-cmk/scripts/*.sh in Python.
 
-Version: 1.0.1
+Version: 1.0.2
 """
 
 from __future__ import annotations
@@ -15,8 +15,8 @@ import sys
 from pathlib import Path
 from typing import NoReturn
 
-from lib.common import VERSION, log_header, log_success
-from lib.config import load_config
+from lib.common import VERSION, log_header, log_info, log_success
+from lib.config import config_to_env, load_config, write_dotenv
 from steps import (
     apache,
     auto_git_sync,
@@ -36,6 +36,11 @@ from steps import timeshift
 
 
 def bootstrap(env_file: Path, interactive: bool) -> None:
+    if not env_file.exists() and not interactive:
+        raise SystemExit(
+            f"Env file not found: {env_file}. Run: ./installer.py init --interactive (or copy .env.example to .env)"
+        )
+
     cfg = load_config(env_file=env_file, interactive=interactive)
     log_header(f"CheckMK Installation Bootstrap (Python v{VERSION})")
 
@@ -56,6 +61,21 @@ def bootstrap(env_file: Path, interactive: bool) -> None:
     log_header("Installation Complete")
     log_success("CheckMK installation finished")
 
+    log_header("Next Steps")
+    if cfg.letsencrypt_email.strip() and cfg.letsencrypt_domains.strip():
+        log_info("Certbot: you provided LETSENCRYPT_* values. Run: ./installer.py certbot run (or certbot auto)")
+    else:
+        log_info("Certbot: configure LETSENCRYPT_EMAIL/LETSENCRYPT_DOMAINS in .env or run with --interactive")
+    log_info("Verify: ./installer.py verify")
+
+
+def init_env(env_file: Path, interactive: bool) -> None:
+    cfg = load_config(env_file=env_file, interactive=interactive)
+    values = config_to_env(cfg)
+    env_file.parent.mkdir(parents=True, exist_ok=True)
+    write_dotenv(env_file, values)
+    log_success(f"Wrote env file: {env_file}")
+
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="installer.py", description="Python guided installer for CheckMK on Ubuntu")
@@ -64,6 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--interactive", action="store_true", help="Prompt for key settings")
     sub = p.add_subparsers(dest="cmd", required=True)
 
+    sub.add_parser("init", help="Create/update .env with a guided prompt")
     sub.add_parser("bootstrap", help="Run full installation")
     sub.add_parser("verify", help="Verify installation")
 
@@ -106,6 +127,11 @@ def main(argv: list[str]) -> int:
         print("[INFO] Root privileges required. Re-running via sudo...")
         _reexec_with_sudo()
 
+    if args.cmd == "init":
+        if not interactive:
+            print("[INFO] For init it's recommended to use --interactive")
+        init_env(env_file, interactive=True)
+        return 0
     if args.cmd == "bootstrap":
         bootstrap(env_file, interactive)
         return 0
