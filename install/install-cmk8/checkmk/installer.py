@@ -20,6 +20,7 @@ from steps import (
     auto_git_sync,
     certbot,
     checkmk,
+    checkmk_auto_upgrade,
     deploy_checks,
     fail2ban,
     firewall,
@@ -29,6 +30,7 @@ from steps import (
     postfix,
     remove_all,
     ssh,
+    system_auto_updates,
     unattended,
     verify,
     ydea_toolkit,
@@ -60,6 +62,8 @@ def bootstrap(env_file: Path, interactive: bool) -> None:
     certbot.bootstrap_step(cfg)
     ydea_toolkit.run(cfg)
     timeshift.run(cfg)
+    system_auto_updates.run(cfg)
+    checkmk_auto_upgrade.run(cfg)
 
     log_header("Installation Complete")
     log_success("CheckMK installation finished")
