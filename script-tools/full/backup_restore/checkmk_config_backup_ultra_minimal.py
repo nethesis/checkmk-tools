@@ -83,8 +83,16 @@ def ensure_remote(site: str) -> None:
 
 def collect_metadata(site: str, site_base: Path, metadata_path: Path) -> None:
     version = "N/A"
-    if (site_base / "version").exists():
-        version = (site_base / "version").read_text(encoding="utf-8", errors="ignore").strip()
+    dot_version = site_base / ".version"
+    if dot_version.is_file():
+        import re as _re
+        raw = dot_version.read_text(encoding="utf-8", errors="ignore")
+        m = _re.search(r'CMK_VERSION="([^"]+)"', raw)
+        version = m.group(1) if m else raw.strip()
+    else:
+        result = run_site_cmd(site, "omd version", check=False)
+        if result.returncode == 0:
+            version = result.stdout.strip()
 
     metadata = f"""=== CHECKMK BACKUP ULTRA-MINIMALE ===
 Data backup: {dt.datetime.now()}
