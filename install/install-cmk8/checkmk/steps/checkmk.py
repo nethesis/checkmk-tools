@@ -3,7 +3,7 @@ from __future__ import annotations
 import shlex
 from pathlib import Path
 
-from lib.common import command_exists, log_header, log_info, log_success, run, run_capture
+from lib.common import command_exists, log_header, log_info, log_success, run as run_cmd, run_capture
 from lib.config import InstallerConfig
 
 
@@ -11,7 +11,7 @@ def run_step(cfg: InstallerConfig) -> None:
     log_header("60-CHECKMK")
     log_info("Installing CheckMK...")
 
-    run(["apt-get", "install", "-y", "gdebi-core"])
+    run_cmd(["apt-get", "install", "-y", "gdebi-core"])
 
     url = cfg.checkmk_deb_url.strip()
     if not url:
@@ -21,20 +21,20 @@ def run_step(cfg: InstallerConfig) -> None:
         log_info(f"Using derived URL: {url}")
 
     deb_path = Path("/tmp") / Path(url).name
-    run(["wget", "-O", str(deb_path), url])
-    run(["gdebi", "-n", str(deb_path)])
+    run_cmd(["wget", "-O", str(deb_path), url])
+    run_cmd(["gdebi", "-n", str(deb_path)])
 
     if not command_exists("omd"):
         raise RuntimeError("omd command not found after installation")
 
     sites_output = run_capture(["omd", "sites"], check=False)
     if cfg.site_name not in sites_output:
-        run(["omd", "create", cfg.site_name])
-    run(["omd", "start", cfg.site_name], check=False)
+        run_cmd(["omd", "create", cfg.site_name])
+    run_cmd(["omd", "start", cfg.site_name], check=False)
 
     if cfg.checkmk_admin_password:
         log_info("Setting cmkadmin password (value not shown)...")
-        run(
+        run_cmd(
             [
                 "omd",
                 "su",

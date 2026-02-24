@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from lib.common import backup_file, command_exists, log_header, log_info, log_success, run
+from lib.common import backup_file, command_exists, log_header, log_info, log_success, run as run_cmd
 from lib.config import InstallerConfig
 
 
@@ -16,11 +16,11 @@ def run_step(cfg: InstallerConfig) -> None:
     log_info("Installing and configuring Apache reverse proxy for CheckMK...")
 
     if not command_exists("apache2"):
-        run(["apt-get", "update"])
-        run(["apt-get", "install", "-y", "apache2"])
+        run_cmd(["apt-get", "update"])
+        run_cmd(["apt-get", "install", "-y", "apache2"])
 
     for mod in ["proxy", "proxy_http", "rewrite", "headers", "ssl"]:
-        run(["a2enmod", mod], check=False)
+        run_cmd(["a2enmod", mod], check=False)
 
     domain = _first_domain(cfg)
     default_site = cfg.site_name
@@ -84,10 +84,10 @@ def run_step(cfg: InstallerConfig) -> None:
 
     apache_conf.write_text("\n".join(vhost), encoding="utf-8")
 
-    run(["a2ensite", "checkmk.conf"], check=False)
-    run(["a2dissite", "000-default.conf"], check=False)
-    run(["systemctl", "restart", "apache2"], check=False)
-    run(["systemctl", "enable", "apache2"], check=False)
+    run_cmd(["a2ensite", "checkmk.conf"], check=False)
+    run_cmd(["a2dissite", "000-default.conf"], check=False)
+    run_cmd(["systemctl", "restart", "apache2"], check=False)
+    run_cmd(["systemctl", "enable", "apache2"], check=False)
 
     log_success("Apache configured")
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from lib.common import log_header, log_info, log_success, log_warn, require_root, run, run_capture
+from lib.common import log_header, log_info, log_success, log_warn, require_root, run as run_cmd, run_capture
 from lib.config import InstallerConfig
 
 
@@ -19,7 +19,7 @@ def install(cfg: InstallerConfig) -> None:
         pass
     else:
         raise SystemExit("Invalid WEBSERVER/WS. Use apache|nginx|standalone")
-    run(["apt-get", "install", "-y", *packages])
+    run_cmd(["apt-get", "install", "-y", *packages])
     log_success("Certbot installed")
 
 
@@ -49,7 +49,7 @@ def obtain(cfg: InstallerConfig, *, domains: list[str] | None, email: str | None
         base += ["-d", d]
     base += ["--non-interactive", "--agree-tos", "--email", email]
 
-    run(base)
+    run_cmd(base)
     log_success(f"SSL certificate obtained for: {', '.join(domains)}")
 
 

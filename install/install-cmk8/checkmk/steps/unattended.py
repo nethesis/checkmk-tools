@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from lib.common import backup_file, log_header, log_info, log_success, run, run_capture
+from lib.common import backup_file, log_header, log_info, log_success, run as run_cmd, run_capture
 from lib.config import InstallerConfig
 
 
@@ -10,7 +10,7 @@ def run_step(_: InstallerConfig) -> None:
     log_header("21-UNATTENDED-UPGRADES")
     log_info("Configuring unattended-upgrades (security updates)...")
 
-    run(["apt-get", "install", "-y", "unattended-upgrades"])
+    run_cmd(["apt-get", "install", "-y", "unattended-upgrades"])
 
     distro_id = run_capture(["bash", "-lc", ". /etc/os-release; echo ${ID:-Ubuntu}"], check=False) or "Ubuntu"
     codename = run_capture(["lsb_release", "-cs"], check=False) or "jammy"

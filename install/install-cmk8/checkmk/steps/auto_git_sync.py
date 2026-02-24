@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from lib.common import backup_file, command_exists, log_header, log_info, log_success, log_warn, run
+from lib.common import backup_file, command_exists, log_header, log_info, log_success, log_warn, run as run_cmd
 from lib.config import InstallerConfig
 
 
@@ -77,15 +77,15 @@ def run_step(cfg: InstallerConfig) -> None:
     log_info(f"Installing auto git sync script to {INSTALL_SCRIPT_PATH} ...")
     INSTALL_SCRIPT_PATH.parent.mkdir(parents=True, exist_ok=True)
     INSTALL_SCRIPT_PATH.write_text(source_script.read_text(encoding="utf-8", errors="replace"), encoding="utf-8")
-    run(["chmod", "+x", str(INSTALL_SCRIPT_PATH)])
+    run_cmd(["chmod", "+x", str(INSTALL_SCRIPT_PATH)])
 
     log_info(f"Writing systemd unit: {SERVICE_PATH} ...")
     _write_service_file(cfg)
 
     log_info("Enabling and starting auto-git-sync.service ...")
-    run(["systemctl", "daemon-reload"])
-    run(["systemctl", "enable", "--now", SERVICE_NAME])
-    run(["systemctl", "restart", SERVICE_NAME], check=False)
+    run_cmd(["systemctl", "daemon-reload"])
+    run_cmd(["systemctl", "enable", "--now", SERVICE_NAME])
+    run_cmd(["systemctl", "restart", SERVICE_NAME], check=False)
 
     log_success("Auto git sync enabled")
 

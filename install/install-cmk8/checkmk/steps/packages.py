@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from lib.common import log_header, log_info, log_success, run
+from lib.common import log_header, log_info, log_success, run as run_cmd
 from lib.config import InstallerConfig
 
 
 def run_step(_: InstallerConfig) -> None:
     log_header("20-PACKAGES")
     log_info("Installing base packages...")
-    run(["apt-get", "update"])
-    run(
+    run_cmd(["apt-get", "update"])
+    run_cmd(
         [
             "apt-get",
             "install",

@@ -4,7 +4,7 @@ import re
 import shlex
 from pathlib import Path
 
-from lib.common import backup_file, command_exists, log_header, log_info, log_success, log_warn, run
+from lib.common import backup_file, command_exists, log_header, log_info, log_success, log_warn, run as run_cmd
 from lib.config import InstallerConfig
 
 
@@ -48,13 +48,13 @@ def run_step(cfg: InstallerConfig) -> None:
 
     if cfg.root_password and not cfg.root_password.upper().startswith("INSERISCI_"):
         log_info("Setting root password (value not shown)...")
-        run(["bash", "-lc", f"echo 'root:{shlex.quote(cfg.root_password)}' | chpasswd"], check=True)
+        run_cmd(["bash", "-lc", f"echo 'root:{shlex.quote(cfg.root_password)}' | chpasswd"], check=True)
     elif cfg.root_password:
         log_warn("ROOT_PASSWORD looks like a placeholder; skipping root password change.")
 
     if command_exists("systemctl"):
-        run(["systemctl", "restart", "sshd"], check=False)
-        run(["systemctl", "restart", "ssh"], check=False)
+        run_cmd(["systemctl", "restart", "sshd"], check=False)
+        run_cmd(["systemctl", "restart", "ssh"], check=False)
 
     log_success("SSH configured")
 

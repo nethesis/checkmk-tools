@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from lib.common import log_header, log_info, log_success, log_warn, run
+from lib.common import log_header, log_info, log_success, log_warn, run as run_cmd
 from lib.config import InstallerConfig
 
 
@@ -32,7 +32,7 @@ def run_step(cfg: InstallerConfig) -> None:
         return
 
     log_info("Deploying OS-aware CheckMK local checks into /usr/lib/check_mk_agent/local ...")
-    run(["python3", str(script_path), "--install-all", "--yes"])
+    run_cmd(["python3", str(script_path), "--install-all", "--yes"])
     log_success("Local checks deployed")
 
 
