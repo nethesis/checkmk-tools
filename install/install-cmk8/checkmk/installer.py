@@ -23,6 +23,7 @@ from steps import (
     deploy_checks,
     fail2ban,
     firewall,
+    notify_scripts,
     ntp,
     packages,
     postfix,
@@ -30,6 +31,7 @@ from steps import (
     ssh,
     unattended,
     verify,
+    ydea_toolkit,
 )
 from steps import timeshift
 
@@ -54,7 +56,9 @@ def bootstrap(env_file: Path, interactive: bool) -> None:
     deploy_checks.run(cfg)
     auto_git_sync.run(cfg)
     apache.run(cfg)
+    notify_scripts.run(cfg)
     certbot.bootstrap_step(cfg)
+    ydea_toolkit.run(cfg)
     timeshift.run(cfg)
 
     log_header("Installation Complete")

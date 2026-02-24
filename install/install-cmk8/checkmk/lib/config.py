@@ -88,6 +88,7 @@ class InstallerConfig:
     smtp_relay_user: str
     smtp_relay_password: str
     smtp_from_address: str
+    fail2ban_ignoreip: str  # space-separated IPs/CIDRs to whitelist
 
 
 def config_to_env(cfg: InstallerConfig) -> dict[str, str]:
@@ -121,6 +122,7 @@ def config_to_env(cfg: InstallerConfig) -> dict[str, str]:
         # Intentionally do not persist relay password by default
         "SMTP_RELAY_PASSWORD": "",
         "SMTP_FROM_ADDRESS": cfg.smtp_from_address,
+        "FAIL2BAN_IGNOREIP": cfg.fail2ban_ignoreip,
     }
 
 
@@ -169,6 +171,7 @@ def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
     smtp_relay_user = getv("SMTP_RELAY_USER", "")
     smtp_relay_password = getv("SMTP_RELAY_PASSWORD", "")
     smtp_from_address = getv("SMTP_FROM_ADDRESS", "")
+    fail2ban_ignoreip = getv("FAIL2BAN_IGNOREIP", "2.119.67.169")
 
     if interactive:
         timezone = prompt_str("Timezone", default=timezone)
@@ -242,4 +245,5 @@ def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
         smtp_relay_user=smtp_relay_user,
         smtp_relay_password=smtp_relay_password,
         smtp_from_address=smtp_from_address,
+        fail2ban_ignoreip=fail2ban_ignoreip,
     )
