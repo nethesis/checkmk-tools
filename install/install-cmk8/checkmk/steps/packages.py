@@ -16,6 +16,8 @@ def run_step(_: InstallerConfig) -> None:
             "curl",
             "wget",
             "git",
+            "python3",
+            "python3-pip",
             "vim",
             "htop",
             "net-tools",

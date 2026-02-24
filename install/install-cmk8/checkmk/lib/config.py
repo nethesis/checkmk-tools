@@ -74,6 +74,12 @@ class InstallerConfig:
     checkmk_deb_url: str
     cmk_version: str
     site_name: str
+    redirect_to_site: bool
+    deploy_local_checks: bool
+    enable_auto_git_sync: bool
+    auto_git_sync_interval_sec: int
+    auto_git_sync_repo_url: str
+    auto_git_sync_target_dir: str
 
 
 def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
@@ -100,6 +106,13 @@ def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
     checkmk_deb_url = getv("CHECKMK_DEB_URL", "")
     cmk_version = getv("CMK_VERSION", getv("CHECKMK_VERSION", "2.4.0p1"))
     site_name = getv("SITE_NAME", getv("CHECKMK_SITE", "monitoring"))
+    redirect_to_site = parse_bool(getv("REDIRECT_TO_SITE", "true"), default=True)
+
+    deploy_local_checks = parse_bool(getv("DEPLOY_LOCAL_CHECKS", "true"), default=True)
+    enable_auto_git_sync = parse_bool(getv("ENABLE_AUTO_GIT_SYNC", "true"), default=True)
+    auto_git_sync_interval_sec = int(getv("AUTO_GIT_SYNC_INTERVAL_SEC", "60") or "60")
+    auto_git_sync_repo_url = getv("AUTO_GIT_SYNC_REPO_URL", "https://github.com/Coverup20/checkmk-tools.git")
+    auto_git_sync_target_dir = getv("AUTO_GIT_SYNC_TARGET_DIR", "/opt/checkmk-tools")
 
     if interactive:
         timezone = prompt_str("Timezone", default=timezone)
@@ -107,6 +120,22 @@ def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
         permit_root_login = prompt_str("PermitRootLogin (yes|no|prohibit-password)", default=permit_root_login)
         open_http_https = parse_bool(prompt_str("Open HTTP/HTTPS (true|false)", default=str(open_http_https).lower()), default=open_http_https)
         webserver = prompt_str("Webserver for Certbot (apache|nginx|standalone)", default=webserver)
+
+        if root_password.upper().startswith("INSERISCI_"):
+            root_password = ""
+        if not root_password:
+            if input("Change root password now? [y/N]: ").strip().lower() in {"y", "yes"}:
+                root_password = getpass("root password (will not be echoed): ")
+
+        if letsencrypt_email.upper().startswith("INSERISCI_"):
+            letsencrypt_email = ""
+        if letsencrypt_domains.upper().startswith("INSERISCI_"):
+            letsencrypt_domains = ""
+
+        # Optional: used when running certbot commands (can be left blank during bootstrap)
+        letsencrypt_email = prompt_str("Let's Encrypt email (optional)", default=letsencrypt_email)
+        letsencrypt_domains = prompt_str("Let's Encrypt domains comma-separated (optional)", default=letsencrypt_domains)
+
         if not checkmk_deb_url:
             checkmk_deb_url = prompt_str("CheckMK .deb URL (leave blank to build from CMK_VERSION)", default="")
         cmk_version = prompt_str("CheckMK version (used if URL not provided)", default=cmk_version)
@@ -114,6 +143,11 @@ def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
         if not checkmk_admin_password:
             if input("Set cmkadmin password now? [y/N]: ").strip().lower() in {"y", "yes"}:
                 checkmk_admin_password = getpass("cmkadmin password (will not be echoed): ")
+
+        redirect_to_site = parse_bool(
+            prompt_str("Redirect / to /<site>/ (true|false)", default=str(redirect_to_site).lower()),
+            default=redirect_to_site,
+        )
 
     return InstallerConfig(
         timezone=timezone,
@@ -132,4 +166,10 @@ def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
         checkmk_deb_url=checkmk_deb_url,
         cmk_version=cmk_version,
         site_name=site_name,
+        redirect_to_site=redirect_to_site,
+        deploy_local_checks=deploy_local_checks,
+        enable_auto_git_sync=enable_auto_git_sync,
+        auto_git_sync_interval_sec=auto_git_sync_interval_sec,
+        auto_git_sync_repo_url=auto_git_sync_repo_url,
+        auto_git_sync_target_dir=auto_git_sync_target_dir,
     )

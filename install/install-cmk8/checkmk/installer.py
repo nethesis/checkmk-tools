@@ -3,26 +3,33 @@
 
 Re-implements the workflow in install-cmk8/install-cmk/scripts/*.sh in Python.
 
-Version: 1.0.0
+Version: 1.0.1
 """
 
 from __future__ import annotations
 
 import argparse
+import os
+import shutil
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 from lib.common import VERSION, log_header, log_success
 from lib.config import load_config
 from steps import (
+    apache,
+    auto_git_sync,
     certbot,
     checkmk,
+    deploy_checks,
     fail2ban,
     firewall,
     ntp,
     packages,
     postfix,
     ssh,
+    unattended,
     verify,
 )
 from steps import timeshift
@@ -35,11 +42,15 @@ def bootstrap(env_file: Path, interactive: bool) -> None:
     ssh.run(cfg)
     ntp.run(cfg)
     packages.run(cfg)
+    unattended.run(cfg)
     postfix.run(cfg)
     firewall.run(cfg)
     fail2ban.run(cfg)
-    certbot.install(cfg)
     checkmk.run(cfg)
+    deploy_checks.run(cfg)
+    auto_git_sync.run(cfg)
+    apache.run(cfg)
+    certbot.install(cfg)
     timeshift.run(cfg)
 
     log_header("Installation Complete")
@@ -69,10 +80,31 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _is_root() -> bool:
+    return os.name == "posix" and hasattr(os, "geteuid") and os.geteuid() == 0
+
+
+def _reexec_with_sudo() -> NoReturn:
+    if os.name != "posix":
+        raise SystemExit("This installer must run on Linux (Ubuntu).")
+    sudo = shutil.which("sudo")
+    if not sudo:
+        raise SystemExit("sudo not found. Install sudo or run this command as root.")
+
+    script_path = str(Path(__file__).resolve())
+    argv = [sudo, "-E", sys.executable, script_path, *sys.argv[1:]]
+    os.execvp(argv[0], argv)
+
+
 def main(argv: list[str]) -> int:
     args = build_parser().parse_args(argv)
     env_file = Path(args.env_file)
     interactive = bool(args.interactive)
+
+    root_required = args.cmd in {"bootstrap", "certbot", "verify"}
+    if root_required and not _is_root():
+        print("[INFO] Root privileges required. Re-running via sudo...")
+        _reexec_with_sudo()
 
     if args.cmd == "bootstrap":
         bootstrap(env_file, interactive)
@@ -81,7 +113,7 @@ def main(argv: list[str]) -> int:
         cfg = load_config(env_file=env_file, interactive=False)
         return verify.run(cfg)
     if args.cmd == "certbot":
-        cfg = load_config(env_file=env_file, interactive=False)
+        cfg = load_config(env_file=env_file, interactive=interactive)
         if args.cert_cmd == "install":
             certbot.install(cfg)
             return 0

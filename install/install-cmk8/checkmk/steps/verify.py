@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -112,6 +113,59 @@ def run(cfg: InstallerConfig) -> int:
             errors += 1
     else:
         _warn("curl not installed")
+
+    print("")
+
+    print("7. Checking Local Checks deployment...")
+    local_dir = Path("/usr/lib/check_mk_agent/local")
+    if not cfg.deploy_local_checks:
+        _warn("DEPLOY_LOCAL_CHECKS=false: skipped")
+    elif not local_dir.is_dir():
+        _fail(f"Local checks directory not found: {local_dir}")
+        errors += 1
+    else:
+        try:
+            installed = [
+                p
+                for p in local_dir.iterdir()
+                if p.is_file() and not p.name.startswith(".") and os.access(p, os.X_OK)
+            ]
+        except PermissionError:
+            installed = []
+
+        if installed:
+            _ok(f"Local checks present: {len(installed)} executable file(s)")
+        else:
+            _fail("No executable local checks found")
+            errors += 1
+
+    print("")
+
+    print("8. Checking Auto Git Sync...")
+    if not cfg.enable_auto_git_sync:
+        _warn("ENABLE_AUTO_GIT_SYNC=false: skipped")
+    elif not command_exists("systemctl"):
+        _warn("systemctl not available; cannot check auto-git-sync.service")
+    else:
+        script_path = Path("/usr/local/bin/auto-git-sync.py")
+        if script_path.exists():
+            _ok(f"Auto git sync script present: {script_path}")
+        else:
+            _fail(f"Auto git sync script missing: {script_path}")
+            errors += 1
+
+        service_name = "auto-git-sync.service"
+        active = subprocess.run(["systemctl", "is-active", "--quiet", service_name]).returncode == 0
+        enabled = subprocess.run(["systemctl", "is-enabled", "--quiet", service_name]).returncode == 0
+        if active:
+            _ok(f"{service_name} is active")
+        else:
+            _fail(f"{service_name} is not active")
+            errors += 1
+        if enabled:
+            _ok(f"{service_name} is enabled")
+        else:
+            _warn(f"{service_name} is not enabled")
 
     print("\n===================================")
     ip = run_capture(["bash", "-lc", "hostname -I | awk '{print $1}'"], check=False)
