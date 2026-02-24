@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/opt/checkmk-tools/script-tools/full/backup_restore/checkmk_manage_job00_daily.sh
+ExecStart=/usr/bin/python3 /opt/checkmk-tools/script-tools/full/backup_restore/checkmk_manage_job00_daily.py
 User=root
 StandardOutput=journal
 StandardError=journal
