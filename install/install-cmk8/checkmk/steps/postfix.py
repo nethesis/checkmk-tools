@@ -19,7 +19,7 @@ def run_step(_: InstallerConfig) -> None:
     run_cmd(["postconf", "-e", "mydestination = $myhostname, localhost.$mydomain, localhost"])
 
     if command_exists("systemctl"):
-        run_cmd(["systemctl", "restart", "postfix"], check=False)
+        run_cmd(["systemctl", "restart", "--no-block", "postfix"], check=False)
         run_cmd(["systemctl", "enable", "postfix"], check=False)
     log_success("Postfix configured")
 
