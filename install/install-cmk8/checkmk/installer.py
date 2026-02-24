@@ -3,7 +3,7 @@
 
 Re-implements the workflow in install-cmk8/install-cmk/scripts/*.sh in Python.
 
-Version: 1.0.6
+Version: 1.0.7
 """
 
 from __future__ import annotations
@@ -87,7 +87,22 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("init", help="Create/update .env with a guided prompt")
     sub.add_parser("bootstrap", help="Run full installation")
     sub.add_parser("verify", help="Verify installation")
-    sub.add_parser("remove-all", help="Remove CheckMK and related services installed by this bootstrap")
+    rm = sub.add_parser("remove-all", help="Remove CheckMK and related services installed by this bootstrap")
+    rm.add_argument(
+        "--assume-yes",
+        action="store_true",
+        help="Non-interactive mode (requires --confirm-hostname to avoid accidents)",
+    )
+    rm.add_argument(
+        "--confirm-hostname",
+        default="",
+        help="Hostname that must match (required with --assume-yes)",
+    )
+    rm.add_argument(
+        "--delete-backups",
+        action="store_true",
+        help="Delete created backups at the end (non-interactive)",
+    )
 
     cert = sub.add_parser("certbot", help="Certbot helpers")
     cert_sub = cert.add_subparsers(dest="cert_cmd", required=True)
@@ -208,7 +223,12 @@ def main(argv: list[str]) -> int:
         return verify.run(cfg)
     if args.cmd == "remove-all":
         cfg = load_config(env_file=env_file, interactive=False)
-        remove_all.run(cfg)
+        remove_all.run(
+            cfg,
+            assume_yes=bool(getattr(args, "assume_yes", False)),
+            confirm_hostname=str(getattr(args, "confirm_hostname", "") or "").strip(),
+            delete_backups=bool(getattr(args, "delete_backups", False)),
+        )
         return 0
     if args.cmd == "certbot":
         cfg = load_config(env_file=env_file, interactive=interactive)

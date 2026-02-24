@@ -85,11 +85,21 @@ def _confirm_or_abort(host: str, site: str) -> None:
         raise SystemExit("Aborted")
 
 
-def run(cfg: InstallerConfig) -> None:
+def _confirm_non_interactive(host: str, confirm_hostname: str) -> None:
+    if not confirm_hostname:
+        raise SystemExit("--assume-yes requires --confirm-hostname")
+    if confirm_hostname != host:
+        raise SystemExit(f"Confirmation failed: expected hostname '{confirm_hostname}', got '{host}'")
+
+
+def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str = "", delete_backups: bool = False) -> None:
     require_root()
 
     host = run_capture(["hostname"], check=False) or "unknown"
-    _confirm_or_abort(host=host, site=cfg.site_name)
+    if assume_yes:
+        _confirm_non_interactive(host=host, confirm_hostname=confirm_hostname)
+    else:
+        _confirm_or_abort(host=host, site=cfg.site_name)
 
     log_header("Stopping services")
     run_cmd(["systemctl", "stop", "--now", "auto-git-sync.service"], check=False)
@@ -137,15 +147,24 @@ def run(cfg: InstallerConfig) -> None:
         for move in backup_moves:
             log_warn(f"- {move.backup}")
 
-        print("")
-        ans = input("Delete these backups now? [y/N]: ").strip().lower()
-        if ans in {"y", "yes"}:
-            log_header("Deleting backups")
-            for move in backup_moves:
-                run_cmd(["rm", "-rf", str(move.backup)], check=False)
-            log_success("Backups deleted")
+        if assume_yes:
+            if delete_backups:
+                log_header("Deleting backups")
+                for move in backup_moves:
+                    run_cmd(["rm", "-rf", str(move.backup)], check=False)
+                log_success("Backups deleted")
+            else:
+                log_info("Keeping backups")
         else:
-            log_info("Keeping backups")
+            print("")
+            ans = input("Delete these backups now? [y/N]: ").strip().lower()
+            if ans in {"y", "yes"}:
+                log_header("Deleting backups")
+                for move in backup_moves:
+                    run_cmd(["rm", "-rf", str(move.backup)], check=False)
+                log_success("Backups deleted")
+            else:
+                log_info("Keeping backups")
 
     # Minimal sanity check
     if command_exists("omd"):
