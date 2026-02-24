@@ -3,7 +3,7 @@
 
 Re-implements the workflow in install-cmk8/install-cmk/scripts/*.sh in Python.
 
-Version: 1.0.7
+Version: 1.0.8
 """
 
 from __future__ import annotations

@@ -115,12 +115,24 @@ def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str
 
     log_header("Backup key directories (rename)")
     backup_moves: list[_BackupMove] = []
-    for path in [
-        Path(cfg.auto_git_sync_target_dir),
+
+    target_repo_dir = Path(cfg.auto_git_sync_target_dir)
+    installer_root = Path(__file__).resolve().parents[2]
+    postpone_repo_backup = False
+    try:
+        postpone_repo_backup = str(installer_root).startswith(str(target_repo_dir.resolve()) + "/")
+    except Exception:
+        postpone_repo_backup = False
+
+    backup_paths: list[Path] = [
         Path("/usr/lib/check_mk_agent/local"),
         Path("/omd"),
         Path("/etc/check_mk"),
-    ]:
+    ]
+    if not postpone_repo_backup:
+        backup_paths.insert(0, target_repo_dir)
+
+    for path in backup_paths:
         move = _backup_dir_by_rename(path)
         if move:
             backup_moves.append(move)
@@ -138,6 +150,12 @@ def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str
 
     log_header("Autoremove")
     run_cmd(["apt-get", "autoremove", "-y"], check=False)
+
+    if postpone_repo_backup:
+        log_header("Backup repository directory (rename)")
+        move = _backup_dir_by_rename(target_repo_dir)
+        if move:
+            backup_moves.append(move)
 
     log_header("Result")
     log_success("Remove-all completed")
