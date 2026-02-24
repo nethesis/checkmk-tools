@@ -23,6 +23,10 @@ def parse_dotenv(path: Path) -> dict[str, str]:
         value = value.strip()
         if len(value) >= 2 and ((value[0] == value[-1] == '"') or (value[0] == value[-1] == "'")):
             value = value[1:-1]
+        else:
+            # Strip inline comments for unquoted values (dotenv common pattern: KEY=value  # comment)
+            if "#" in value:
+                value = value.split("#", 1)[0].rstrip()
         data[key] = value
     return data
 
