@@ -1452,12 +1452,12 @@ wsl -- ssh <host> "rm /usr/lib/check_mk_agent/local/rssh_service_name_old 2>/dev
 - ✅ SSH Config: `~/.ssh/config` con alias host
 - ✅ SSH ControlMaster: Riutilizzo connessioni (passphrase 1 volta, poi 1 min attiva)
 
-**⚠️ REGOLA CRITICA - Gestione Password SSH:**
-- ❌ **MAI inviare comandi multipli** quando SSH richiede password
-- ✅ **ATTENDERE** che l'utente inserisca la password
-- ✅ **UN COMANDO ALLA VOLTA** per host con autenticazione password
-- ⚠️ Se vedi `password:` nell'output → FERMARSI e attendere conferma utente
-- ✅ SSH session timeout dopo inattività → riconnettersi con comando singolo prima di operazioni multiple
+**⚠️ REGOLA PRATICA - Password SSH/Sudo (no “pausa continua”):**
+
+- ✅ Usa `ssh -tt` quando prevedi prompt (password/confirm)
+- ✅ Sblocca `sudo` una volta con `sudo -v`, poi puoi eseguire anche batch di comandi
+- ⚠️ Se compare davvero un prompt `password for ...:`/`[sudo] password for ...:` → fermarsi solo finché la password non viene inserita
+- ✅ Se la sessione scade (timeout sudo/ssh) → ripeti `sudo -v` e riparti
 
 **⚠️ REGOLA CRITICA - Timeout Comandi SSH Remoti:**
 - ⚠️ **PROBLEMA**: Agent SSH va troppo veloce e pensa che utente abbia interrotto (^C), ma in realtà comando stava ancora elaborando

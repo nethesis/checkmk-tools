@@ -13,14 +13,14 @@ cd /opt/checkmk-tools/install/install-cmk8/checkmk
 # In alternativa (manuale):
 # cp .env.example .env
 
-# Installazione completa (l'installer chiede sudo automaticamente)
-./installer.py bootstrap --interactive
+# Installazione completa (esegui con sudo)
+sudo -E ./installer.py bootstrap --interactive
 
 # Verifica
-./installer.py verify
+sudo -E ./installer.py verify
 ```
 
-Nota: `bootstrap`, `certbot` e `verify` eseguono auto-escalation via `sudo` quando necessario.
+Nota: `bootstrap`, `certbot` e `verify` richiedono esplicitamente root (`sudo -E`).
 
 Suggerimento: la modalità non-interattiva ha senso se `.env` è già completo.
 Per questo usa `./installer.py init --interactive` una sola volta, poi puoi rilanciare `bootstrap` senza prompt.

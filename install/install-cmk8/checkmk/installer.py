@@ -10,10 +10,7 @@ from __future__ import annotations
 
 import argparse
 import os
-import shutil
-import sys
 from pathlib import Path
-from typing import NoReturn
 
 from lib.common import VERSION, log_header, log_info, log_success
 from lib.config import config_to_env, load_config, write_dotenv
@@ -105,18 +102,6 @@ def _is_root() -> bool:
     return os.name == "posix" and hasattr(os, "geteuid") and os.geteuid() == 0
 
 
-def _reexec_with_sudo() -> NoReturn:
-    if os.name != "posix":
-        raise SystemExit("This installer must run on Linux (Ubuntu).")
-    sudo = shutil.which("sudo")
-    if not sudo:
-        raise SystemExit("sudo not found. Install sudo or run this command as root.")
-
-    script_path = str(Path(__file__).resolve())
-    argv = [sudo, "-E", sys.executable, script_path, *sys.argv[1:]]
-    os.execvp(argv[0], argv)
-
-
 def main(argv: list[str]) -> int:
     args = build_parser().parse_args(argv)
     env_file = Path(args.env_file)
@@ -124,8 +109,11 @@ def main(argv: list[str]) -> int:
 
     root_required = args.cmd in {"bootstrap", "certbot", "verify"}
     if root_required and not _is_root():
-        print("[INFO] Root privileges required. Re-running via sudo...")
-        _reexec_with_sudo()
+        script_name = Path(__file__).name
+        raise SystemExit(
+            "Root privileges required. Run via sudo with a TTY, for example:\n"
+            f"  sudo -E ./{script_name} {args.cmd} --env-file {env_file}" + (" --interactive" if interactive else "")
+        )
 
     if args.cmd == "init":
         if not interactive:
