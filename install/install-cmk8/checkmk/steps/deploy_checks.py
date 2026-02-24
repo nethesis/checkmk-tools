@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from lib.common import command_exists, log_header, log_info, log_success, log_warn, run as run_cmd
 from lib.config import InstallerConfig
+
+_WAIT_POLL_SEC = 5       # intervallo polling
+_WAIT_TIMEOUT_SEC = 180  # massimo 3 minuti
 
 
 def _find_repo_root() -> Path | None:
@@ -78,6 +82,26 @@ def _ensure_agent_and_local_dir(cfg: InstallerConfig, repo_root: Path | None) ->
     return local_dir.exists()
 
 
+def _wait_for_local_dir(timeout: int = _WAIT_TIMEOUT_SEC) -> bool:
+    """Aspetta polling finché /usr/lib/check_mk_agent/local non compare (creato dall'agent CheckMK)."""
+    local_dir = Path("/usr/lib/check_mk_agent/local")
+    if local_dir.exists():
+        return True
+
+    log_info(f"/usr/lib/check_mk_agent/local non trovata. Attendo installazione agent CheckMK (max {timeout}s)...")
+    elapsed = 0
+    while elapsed < timeout:
+        time.sleep(_WAIT_POLL_SEC)
+        elapsed += _WAIT_POLL_SEC
+        if local_dir.exists():
+            log_success(f"  /usr/lib/check_mk_agent/local trovata dopo {elapsed}s")
+            return True
+        log_info(f"  ... attendo ({elapsed}/{timeout}s)")
+
+    log_warn(f"Timeout: /usr/lib/check_mk_agent/local non trovata dopo {timeout}s.")
+    return False
+
+
 def run_step(cfg: InstallerConfig) -> None:
     log_header("60-DEPLOY-LOCAL-CHECKS")
 
@@ -87,23 +111,27 @@ def run_step(cfg: InstallerConfig) -> None:
 
     repo_root = _find_repo_root()
 
-    if not _ensure_agent_and_local_dir(cfg, repo_root):
-        log_warn("/usr/lib/check_mk_agent/local missing and no local agent .deb found. Skipping local checks deploy.")
-        log_warn("Hint: install CheckMK agent first, then re-run deploy.")
+    # Prima tenta installazione agent, poi aspetta in polling
+    if not Path("/usr/lib/check_mk_agent/local").exists():
+        _ensure_agent_and_local_dir(cfg, repo_root)
+
+    if not _wait_for_local_dir():
+        log_warn("Impossibile trovare /usr/lib/check_mk_agent/local. Skip deploy check.")
+        log_warn("Hint: installa CheckMK agent, poi ri-esegui: ./installer.py deploy-checks")
         return
 
     if repo_root is None:
-        log_warn("Repository root not found (script-tools/full missing). Skipping local checks deploy.")
+        log_warn("Repository root non trovato (script-tools/full mancante). Skip deploy check.")
         return
 
     script_path = repo_root / "script-tools" / "full" / "deploy" / "auto-deploy-checks.py"
     if not script_path.exists():
-        log_warn(f"auto-deploy-checks.py not found at: {script_path}. Skipping.")
+        log_warn(f"auto-deploy-checks.py non trovato in: {script_path}. Skip.")
         return
 
-    log_info("Deploying OS-aware CheckMK local checks into /usr/lib/check_mk_agent/local ...")
+    log_info("Deploy check locali CheckMK in /usr/lib/check_mk_agent/local ...")
     run_cmd(["python3", str(script_path), "--install-all", "--yes"])
-    log_success("Local checks deployed")
+    log_success("Check locali deployati")
 
 
 def run(cfg: InstallerConfig) -> None:

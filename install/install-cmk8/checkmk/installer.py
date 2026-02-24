@@ -3,7 +3,7 @@
 
 Re-implements the workflow in install-cmk8/install-cmk/scripts/*.sh in Python.
 
-Version: 1.0.18
+Version: 1.0.19
 """
 
 from __future__ import annotations
@@ -93,6 +93,7 @@ def build_parser() -> argparse.ArgumentParser:
     rm.add_argument("--assume-yes", action="store_true", help="Non-interactive (requires --confirm-hostname)")
     rm.add_argument("--confirm-hostname", default="", help="Hostname that must match (required with --assume-yes)")
     sub.add_parser("remove", help="Alias for remove-all (interactive confirmation)")
+    sub.add_parser("deploy-checks", help="Deploy local checks (auto-deploy-checks.py --install-all). Waits for agent path.")
 
     cert = sub.add_parser("certbot", help="Certbot helpers")
     cert_sub = cert.add_subparsers(dest="cert_cmd", required=True)
@@ -118,27 +119,40 @@ def _menu_loop(env_file: Path) -> int:
     _require_root_or_reexec()
 
     _raw_env = str(env_file)
-    env_display = _raw_env if len(_raw_env) <= 36 else "..." + _raw_env[-33:]
+    env_display = _raw_env if len(_raw_env) <= 33 else "..." + _raw_env[-30:]
     omd_installed = _is_root() and os.path.exists("/usr/bin/omd")
     status = "INSTALLED" if omd_installed else "not installed"
 
+    # Larghezza interna fissa: W caratteri tra i due ║
+    W = 42
+
+    def row(text: str = "") -> str:
+        """Riga con bordi allineati: ║  testo.ljust(W-4)  ║"""
+        return f"║  {text:<{W - 4}}  ║"
+
+    sep_top = "╔" + "═" * W + "╗"
+    sep_mid = "╠" + "═" * W + "╣"
+    sep_bot = "╚" + "═" * W + "╝"
+
     while True:
         print("")
-        print("╔══════════════════════════════════════════╗")
-        print(f"║  CheckMK Installer  v{VERSION:<18} ║")
-        print(f"║  env: {env_display:<36}║")
-        print(f"║  CheckMK: {status:<32}║")
-        print("╠══════════════════════════════════════════╣")
-        print("║  1) Configure .env (guided wizard)       ║")
-        print("║  2) Install (full bootstrap)             ║")
-        print("║  3) Verify installation                  ║")
-        print("║  4) SSL certificate (certbot)            ║")
-        print("║  5) Remove / uninstall                   ║")
-        print("║  0) Exit                                 ║")
-        print("╚══════════════════════════════════════════╝")
+        print(sep_top)
+        print(row(f"CheckMK Installer  v{VERSION}"))
+        print(row(f"env: {env_display}"))
+        print(row(f"CheckMK: {status}"))
+        print(sep_mid)
+        print(row("1) Configure .env  (guided wizard)"))
+        print(row("2) Install         (full bootstrap)"))
+        print(row("3) Verify installation"))
+        print(row("4) SSL certificate (certbot)"))
+        print(row("5) Remove / uninstall"))
+        print(row("6) Deploy local checks"))
+        print(row())
+        print(row("0) Exit"))
+        print(sep_bot)
         print("")
         try:
-            choice = input("Select [0-5]: ").strip()
+            choice = input("  Select [0-6]: ").strip()
         except EOFError:
             return 1
 
@@ -180,6 +194,10 @@ def _menu_loop(env_file: Path) -> int:
             omd_installed = os.path.exists("/usr/bin/omd")
             status = "INSTALLED" if omd_installed else "not installed"
 
+        elif choice == "6":
+            cfg = load_config(env_file=env_file, interactive=False)
+            deploy_checks.run(cfg)
+
         else:
             print("Invalid selection")
 
@@ -196,7 +214,7 @@ def main(argv: list[str]) -> int:
     if args.cmd in {None, "menu"}:
         return _menu_loop(env_file)
 
-    root_required = args.cmd in {"bootstrap", "install", "certbot", "verify", "remove-all", "remove"}
+    root_required = args.cmd in {"bootstrap", "install", "certbot", "verify", "remove-all", "remove", "deploy-checks"}
     if root_required and not _is_root():
         script_name = Path(__file__).name
         raise SystemExit(
@@ -208,6 +226,10 @@ def main(argv: list[str]) -> int:
         return 0
     if args.cmd in {"bootstrap", "install"}:
         bootstrap(env_file, interactive)
+        return 0
+    if args.cmd == "deploy-checks":
+        cfg = load_config(env_file=env_file, interactive=False)
+        deploy_checks.run(cfg)
         return 0
     if args.cmd == "verify":
         cfg = load_config(env_file=env_file, interactive=False)
