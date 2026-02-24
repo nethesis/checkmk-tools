@@ -7,6 +7,9 @@ Re-implementazione in Python di quanto presente in `install-cmk8/install-cmk/` (
 ```bash
 cd /opt/checkmk-tools/install/install-cmk8/checkmk
 
+# Menu (consigliato)
+./installer.py
+
 # Setup guidato: genera .env senza doverlo editare a mano
 ./installer.py init --interactive
 
@@ -14,7 +17,7 @@ cd /opt/checkmk-tools/install/install-cmk8/checkmk
 # cp .env.example .env
 
 # Installazione completa (esegui con sudo)
-sudo -E ./installer.py bootstrap --interactive
+sudo -E ./installer.py bootstrap
 
 # Verifica
 sudo -E ./installer.py verify

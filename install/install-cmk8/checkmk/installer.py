@@ -80,8 +80,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--version", action="version", version=f"%(prog)s v{VERSION}")
     p.add_argument("--env-file", default=str(Path(__file__).with_name(".env")), help="Path to .env file")
     p.add_argument("--interactive", action="store_true", help="Prompt for key settings")
-    sub = p.add_subparsers(dest="cmd", required=True)
+    sub = p.add_subparsers(dest="cmd", required=False)
 
+    sub.add_parser("menu", help="Interactive menu")
     sub.add_parser("init", help="Create/update .env with a guided prompt")
     sub.add_parser("bootstrap", help="Run full installation")
     sub.add_parser("verify", help="Verify installation")
@@ -99,6 +100,68 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _menu_loop(env_file: Path) -> int:
+    while True:
+        print("")
+        print("========================================")
+        print(f" CheckMK Installer (Python v{VERSION})")
+        print("========================================")
+        print("")
+        print(" 1) Init .env (guided)")
+        print(" 2) Bootstrap (install)")
+        print(" 3) Verify")
+        print(" 4) Certbot install")
+        print(" 5) Certbot auto")
+        print(" 0) Exit")
+        print("")
+        try:
+            choice = input("Select: ").strip()
+        except EOFError:
+            return 1
+
+        if choice == "0":
+            return 0
+        if choice == "1":
+            init_env(env_file, interactive=True)
+            continue
+        if choice == "2":
+            if not _is_root():
+                script_name = Path(__file__).name
+                print("[INFO] bootstrap requires root. Run:")
+                print(f"  sudo -E ./{script_name} bootstrap --env-file {env_file}")
+                continue
+            bootstrap(env_file, interactive=False)
+            continue
+        if choice == "3":
+            if not _is_root():
+                script_name = Path(__file__).name
+                print("[INFO] verify requires root. Run:")
+                print(f"  sudo -E ./{script_name} verify --env-file {env_file}")
+                continue
+            cfg = load_config(env_file=env_file, interactive=False)
+            return int(verify.run(cfg))
+        if choice == "4":
+            if not _is_root():
+                script_name = Path(__file__).name
+                print("[INFO] certbot install requires root. Run:")
+                print(f"  sudo -E ./{script_name} certbot install --env-file {env_file}")
+                continue
+            cfg = load_config(env_file=env_file, interactive=False)
+            certbot.install(cfg)
+            continue
+        if choice == "5":
+            if not _is_root():
+                script_name = Path(__file__).name
+                print("[INFO] certbot auto requires root. Run:")
+                print(f"  sudo -E ./{script_name} certbot auto --env-file {env_file}")
+                continue
+            cfg = load_config(env_file=env_file, interactive=False)
+            certbot.auto(cfg)
+            continue
+
+        print("Invalid selection")
+
+
 def _is_root() -> bool:
     return os.name == "posix" and hasattr(os, "geteuid") and os.geteuid() == 0
 
@@ -107,6 +170,9 @@ def main(argv: list[str]) -> int:
     args = build_parser().parse_args(argv)
     env_file = Path(args.env_file)
     interactive = bool(args.interactive)
+
+    if args.cmd in {None, "menu"}:
+        return _menu_loop(env_file)
 
     root_required = args.cmd in {"bootstrap", "certbot", "verify"}
     if root_required and not _is_root():
