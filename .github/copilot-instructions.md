@@ -58,6 +58,15 @@
    - ✅ Eseguire un comando, attendere conferma utente
    - ⚠️ SPECIALMENTE per operazioni distruttive (rm, delete, drop, truncate)
 
+    **Regola aggiuntiva (OBBLIGATORIA): pausa a fine comando**
+    - ✅ Dopo OGNI comando lanciato in terminale, aggiungere una pausa breve per permettere di leggere l’output.
+    - Default: **3 secondi**.
+    - PowerShell (locale): aggiungere sempre `; Start-Sleep -Seconds 3`
+       - Esempio: `wsl -- ssh host "uptime"; Start-Sleep -Seconds 3`
+    - Bash (remoto / dentro SSH): aggiungere `; sleep 3`
+       - Esempio: `ssh host "uptime; sleep 3"`
+    - Obiettivo: evitare che l’output “sparisca” subito e ridurre errori/timeout percepiti.
+
 2. **Backup prima di cancellare**
    - ❌ NON cancellare mai file/directory senza backup
    - ✅ SEMPRE creare backup prima di operazioni distruttive
@@ -1452,12 +1461,11 @@ wsl -- ssh <host> "rm /usr/lib/check_mk_agent/local/rssh_service_name_old 2>/dev
 - ✅ SSH Config: `~/.ssh/config` con alias host
 - ✅ SSH ControlMaster: Riutilizzo connessioni (passphrase 1 volta, poi 1 min attiva)
 
-**⚠️ REGOLA PRATICA - Password SSH/Sudo (no “pausa continua”):**
+**⚠️ REGOLA PRATICA - Password SSH (no “pausa continua”):**
 
 - ✅ Usa `ssh -tt` quando prevedi prompt (password/confirm)
-- ✅ Sblocca `sudo` una volta con `sudo -v`, poi puoi eseguire anche batch di comandi
 - ⚠️ Se compare davvero un prompt `password for ...:`/`[sudo] password for ...:` → fermarsi solo finché la password non viene inserita
-- ✅ Se la sessione scade (timeout sudo/ssh) → ripeti `sudo -v` e riparti
+- ✅ Non forzare `sudo`/`sudo -v` “di default”: usare `sudo` solo quando serve e quando l’utente lo sta effettivamente facendo (o lo richiede)
 
 **⚠️ REGOLA CRITICA - Timeout Comandi SSH Remoti:**
 - ⚠️ **PROBLEMA**: Agent SSH va troppo veloce e pensa che utente abbia interrotto (^C), ma in realtà comando stava ancora elaborando
