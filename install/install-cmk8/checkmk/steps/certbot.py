@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import dataclasses
+
 from lib.common import log_header, log_info, log_success, log_warn, require_root, run as run_cmd, run_capture
 from lib.config import InstallerConfig
 
@@ -60,3 +62,49 @@ def auto(cfg: InstallerConfig) -> None:
         log_warn("Cannot auto-detect domain; skipping")
         return
     obtain(cfg, domains=[domain], email=None, webserver=None)
+
+
+def bootstrap_step(cfg: InstallerConfig) -> None:
+    """
+    Called during bootstrap. Always installs certbot package.
+    Then interactively prompts for domain/email if not configured, and obtains cert.
+    User can skip cert issuance and do it later with: ./installer.py certbot run
+    """
+    install(cfg)
+
+    email = cfg.letsencrypt_email.strip()
+    domains_str = cfg.letsencrypt_domains.strip()
+
+    # Strip placeholder values
+    if email.upper().startswith("INSERISCI_"):
+        email = ""
+    if domains_str.upper().startswith("INSERISCI_"):
+        domains_str = ""
+
+    if not email or not domains_str:
+        print("")
+        log_header("50-CERTBOT: SSL Certificate")
+        log_warn("LETSENCRYPT_EMAIL or LETSENCRYPT_DOMAINS not configured.")
+        print("")
+        ans = input("Configure SSL certificate now? [y/N]: ").strip().lower()
+        if ans not in {"y", "yes"}:
+            log_warn("Skipping certificate issuance. Run later: ./installer.py certbot run")
+            return
+
+        if not domains_str:
+            domains_str = input("Domain(s) comma-separated (e.g. monitor.example.com): ").strip()
+        if not email:
+            email = input("Let's Encrypt email: ").strip()
+
+        if not domains_str or not email:
+            log_warn("Domain or email empty - skipping certificate issuance.")
+            log_warn("Run later: ./installer.py certbot run --domain <dom> --email <mail>")
+            return
+
+    domains = [d.strip() for d in domains_str.split(",") if d.strip()]
+    if not domains:
+        log_warn("No valid domains - skipping certificate issuance.")
+        return
+
+    cfg_patched = dataclasses.replace(cfg, letsencrypt_email=email, letsencrypt_domains=domains_str)
+    obtain(cfg_patched, domains=domains, email=email, webserver=None)

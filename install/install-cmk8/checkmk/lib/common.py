@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-VERSION = "1.0.14"
+VERSION = "1.0.15"
 
 
 class Colors:
@@ -89,8 +89,22 @@ def run_capture(cmd: list[str], *, check: bool = True) -> str:
 
 
 def backup_file(path: Path) -> Path:
+    """Backup a file to <name>.backup (single, no timestamp accumulation)."""
     if not path.exists():
         return path
-    backup_path = path.with_name(f"{path.name}.backup_{now_stamp()}")
+    backup_path = path.with_name(f"{path.name}.backup")
     shutil.copy2(path, backup_path)
     return backup_path
+
+
+def cleanup_backup_files(directory: Path) -> int:
+    """Delete all *.backup and *.backup_* files in a directory (not recursive)."""
+    count = 0
+    for pattern in ("*.backup", "*.backup_*"):
+        for f in directory.glob(pattern):
+            try:
+                f.unlink()
+                count += 1
+            except Exception:
+                pass
+    return count

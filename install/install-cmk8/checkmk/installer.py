@@ -3,7 +3,7 @@
 
 Re-implements the workflow in install-cmk8/install-cmk/scripts/*.sh in Python.
 
-Version: 1.0.14
+Version: 1.0.15
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ def bootstrap(env_file: Path, interactive: bool) -> None:
     deploy_checks.run(cfg)
     auto_git_sync.run(cfg)
     apache.run(cfg)
-    certbot.install(cfg)
+    certbot.bootstrap_step(cfg)
     timeshift.run(cfg)
 
     log_header("Installation Complete")
@@ -97,11 +97,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--confirm-hostname",
         default="",
         help="Hostname that must match (required with --assume-yes)",
-    )
-    rm.add_argument(
-        "--delete-backups",
-        action="store_true",
-        help="Delete created backups at the end (non-interactive)",
     )
 
     cert = sub.add_parser("certbot", help="Certbot helpers")
@@ -186,7 +181,6 @@ def _menu_loop(env_file: Path) -> int:
             cfg = load_config(env_file=env_file, interactive=False)
             remove_all.run(cfg)
             continue
-
         print("Invalid selection")
 
 
@@ -227,7 +221,6 @@ def main(argv: list[str]) -> int:
             cfg,
             assume_yes=bool(getattr(args, "assume_yes", False)),
             confirm_hostname=str(getattr(args, "confirm_hostname", "") or "").strip(),
-            delete_backups=bool(getattr(args, "delete_backups", False)),
         )
         return 0
     if args.cmd == "certbot":

@@ -1,31 +1,30 @@
 from __future__ import annotations
 
 import shlex
-from dataclasses import dataclass
 from pathlib import Path
 
-from lib.common import command_exists, log_error, log_header, log_info, log_success, log_warn, now_stamp, require_root
+from lib.common import cleanup_backup_files, command_exists, log_error, log_header, log_info, log_success, log_warn, require_root
 from lib.common import run as run_cmd
 from lib.common import run_capture
 from lib.config import InstallerConfig
 
+# Directories where backup_file() may have left *.backup / *.backup_* files
+_BACKUP_DIRS_TO_CLEAN: list[Path] = [
+    Path("/etc/apt/apt.conf.d"),
+    Path("/etc/ssh"),
+    Path("/etc/chrony"),
+    Path("/etc/fail2ban"),
+    Path("/lib/systemd/system"),
+]
 
-@dataclass(frozen=True)
-class _BackupMove:
-    original: Path
-    backup: Path
 
-
-def _backup_dir_by_rename(path: Path) -> _BackupMove | None:
+def _delete_dir(path: Path) -> bool:
+    """Delete a directory (rm -rf). Returns True if something was deleted."""
     if not path.exists():
-        return None
-
-    stamp = now_stamp()
-    backup_path = path.with_name(f"{path.name}.backup_{stamp}")
-
-    log_warn(f"Backup before delete: mv {path} -> {backup_path}")
-    run_cmd(["mv", str(path), str(backup_path)], check=True)
-    return _BackupMove(original=path, backup=backup_path)
+        return False
+    log_warn(f"Deleting: {path}")
+    run_cmd(["rm", "-rf", str(path)], check=False)
+    return True
 
 
 def _list_installed_packages() -> set[str]:
@@ -92,7 +91,7 @@ def _confirm_non_interactive(host: str, confirm_hostname: str) -> None:
         raise SystemExit(f"Confirmation failed: expected hostname '{confirm_hostname}', got '{host}'")
 
 
-def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str = "", delete_backups: bool = False) -> None:
+def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str = "") -> None:
     require_root()
 
     host = run_capture(["hostname"], check=False) or "unknown"
@@ -113,30 +112,6 @@ def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str
         run_cmd(["omd", "stop", cfg.site_name], check=False)
         run_cmd(["omd", "rm", "-f", cfg.site_name], check=False)
 
-    log_header("Backup key directories (rename)")
-    backup_moves: list[_BackupMove] = []
-
-    target_repo_dir = Path(cfg.auto_git_sync_target_dir)
-    installer_root = Path(__file__).resolve().parents[2]
-    postpone_repo_backup = False
-    try:
-        postpone_repo_backup = str(installer_root).startswith(str(target_repo_dir.resolve()) + "/")
-    except Exception:
-        postpone_repo_backup = False
-
-    backup_paths: list[Path] = [
-        Path("/usr/lib/check_mk_agent/local"),
-        Path("/omd"),
-        Path("/etc/check_mk"),
-    ]
-    if not postpone_repo_backup:
-        backup_paths.insert(0, target_repo_dir)
-
-    for path in backup_paths:
-        move = _backup_dir_by_rename(path)
-        if move:
-            backup_moves.append(move)
-
     log_header("Purging packages")
     installed = _list_installed_packages()
     to_remove = _filter_removal_packages(installed)
@@ -151,41 +126,45 @@ def run(cfg: InstallerConfig, *, assume_yes: bool = False, confirm_hostname: str
     log_header("Autoremove")
     run_cmd(["apt-get", "autoremove", "-y"], check=False)
 
-    if postpone_repo_backup:
-        log_header("Backup repository directory (rename)")
-        move = _backup_dir_by_rename(target_repo_dir)
-        if move:
-            backup_moves.append(move)
+    log_header("Cleaning up installer backup files from system dirs")
+    total_cleaned = 0
+    for d in _BACKUP_DIRS_TO_CLEAN:
+        n = cleanup_backup_files(d)
+        if n:
+            log_info(f"  Deleted {n} backup file(s) from {d}")
+            total_cleaned += n
+    if total_cleaned == 0:
+        log_info("No backup files found to clean")
+    else:
+        log_success(f"Cleaned {total_cleaned} backup file(s) total")
+
+    log_header("Deleting directories")
+    target_repo_dir = Path(cfg.auto_git_sync_target_dir)
+    installer_root = Path(__file__).resolve().parents[2]
+    postpone_repo_delete = False
+    try:
+        postpone_repo_delete = str(installer_root).startswith(str(target_repo_dir.resolve()) + "/")
+    except Exception:
+        postpone_repo_delete = False
+
+    dirs_to_delete: list[Path] = [
+        Path("/usr/lib/check_mk_agent/local"),
+        Path("/omd"),
+        Path("/etc/check_mk"),
+    ]
+    if not postpone_repo_delete:
+        dirs_to_delete.insert(0, target_repo_dir)
+
+    for path in dirs_to_delete:
+        _delete_dir(path)
+
+    if postpone_repo_delete:
+        log_header("Deleting repository directory")
+        _delete_dir(target_repo_dir)
 
     log_header("Result")
-    log_success("Remove-all completed")
-
-    if backup_moves:
-        log_warn("Backups created (you can delete them manually when satisfied):")
-        for move in backup_moves:
-            log_warn(f"- {move.backup}")
-
-        if assume_yes:
-            if delete_backups:
-                log_header("Deleting backups")
-                for move in backup_moves:
-                    run_cmd(["rm", "-rf", str(move.backup)], check=False)
-                log_success("Backups deleted")
-            else:
-                log_info("Keeping backups")
-        else:
-            print("")
-            ans = input("Delete these backups now? [y/N]: ").strip().lower()
-            if ans in {"y", "yes"}:
-                log_header("Deleting backups")
-                for move in backup_moves:
-                    run_cmd(["rm", "-rf", str(move.backup)], check=False)
-                log_success("Backups deleted")
-            else:
-                log_info("Keeping backups")
-
-    # Minimal sanity check
     if command_exists("omd"):
         log_error("omd is still present on PATH; removal may be incomplete")
     else:
-        log_info("omd not present (OK)")
+        log_success("Remove-all completed (omd not present)")
+

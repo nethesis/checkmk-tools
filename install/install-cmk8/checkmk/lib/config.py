@@ -84,6 +84,9 @@ class InstallerConfig:
     auto_git_sync_interval_sec: int
     auto_git_sync_repo_url: str
     auto_git_sync_target_dir: str
+    smtp_relayhost: str
+    smtp_relay_user: str
+    smtp_relay_password: str
 
 
 def config_to_env(cfg: InstallerConfig) -> dict[str, str]:
@@ -112,6 +115,10 @@ def config_to_env(cfg: InstallerConfig) -> dict[str, str]:
         "AUTO_GIT_SYNC_INTERVAL_SEC": str(cfg.auto_git_sync_interval_sec),
         "AUTO_GIT_SYNC_REPO_URL": cfg.auto_git_sync_repo_url,
         "AUTO_GIT_SYNC_TARGET_DIR": cfg.auto_git_sync_target_dir,
+        "SMTP_RELAYHOST": cfg.smtp_relayhost,
+        "SMTP_RELAY_USER": cfg.smtp_relay_user,
+        # Intentionally do not persist relay password by default
+        "SMTP_RELAY_PASSWORD": "",
     }
 
 
@@ -156,6 +163,9 @@ def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
     auto_git_sync_interval_sec = int(getv("AUTO_GIT_SYNC_INTERVAL_SEC", "60") or "60")
     auto_git_sync_repo_url = getv("AUTO_GIT_SYNC_REPO_URL", "https://github.com/Coverup20/checkmk-tools.git")
     auto_git_sync_target_dir = getv("AUTO_GIT_SYNC_TARGET_DIR", "/opt/checkmk-tools")
+    smtp_relayhost = getv("SMTP_RELAYHOST", "")
+    smtp_relay_user = getv("SMTP_RELAY_USER", "")
+    smtp_relay_password = getv("SMTP_RELAY_PASSWORD", "")
 
     if interactive:
         timezone = prompt_str("Timezone", default=timezone)
@@ -192,6 +202,15 @@ def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
             default=redirect_to_site,
         )
 
+        # SMTP relay (optional)
+        print("")
+        print("Postfix SMTP relay (leave blank to use loopback-only mode):")
+        smtp_relayhost = prompt_str("SMTP relayhost (e.g. [smtp.gmail.com]:587)", default=smtp_relayhost)
+        if smtp_relayhost:
+            smtp_relay_user = prompt_str("SMTP relay user/email", default=smtp_relay_user)
+            if not smtp_relay_password:
+                smtp_relay_password = getpass("SMTP relay password (will not be echoed): ")
+
     return InstallerConfig(
         timezone=timezone,
         ssh_port=ssh_port,
@@ -215,4 +234,7 @@ def load_config(*, env_file: Path, interactive: bool) -> InstallerConfig:
         auto_git_sync_interval_sec=auto_git_sync_interval_sec,
         auto_git_sync_repo_url=auto_git_sync_repo_url,
         auto_git_sync_target_dir=auto_git_sync_target_dir,
+        smtp_relayhost=smtp_relayhost,
+        smtp_relay_user=smtp_relay_user,
+        smtp_relay_password=smtp_relay_password,
     )
