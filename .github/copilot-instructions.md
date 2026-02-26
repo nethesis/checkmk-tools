@@ -1510,14 +1510,14 @@ laboratorio       # 10.155.100.1:2222 (root, NethSecurity 8)
                   # ROCKSOLID Mode validato - resistente major upgrade
 marziodemo        # 10.155.100.61:22 (root, Demo environment)
 ubntmarzio        # 10.155.100.108:22 (user: marzio)
-srv-monitoring    # 45.33.235.86:2333 (root, Monitoring)
+srv-monitoring    # 45.33.235.86:2333 (admin-nethesis, Monitoring)
                   # Firewall pubblico 45.33.235.86 porta 2333 → DNAT → 127.0.0.1:2222 interno
                   # ⚠️ fail2ban attivo sul firewall - NON fare tentativi multipli di connessione
                   # ⚠️ Firewall whitelist solo IP 159.65.203.113 (alias sos)
                   # ⚠️ Autenticazione PASSWORD (non chiave SSH)
                   # → Procedura accesso OBBLIGATORIA:
                   #   1. wsl -- ssh sos
-                  #   2. Da sos: ssh root@45.33.235.86 -p 2333  (inserire password)
+                  #   2. Da sos: ssh admin-nethesis@45.33.235.86 -p 2333  (inserire password)
 
 # Altri server
 fwlab             # 192.168.5.117:2222 (root)
