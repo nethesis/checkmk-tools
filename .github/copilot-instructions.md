@@ -1518,7 +1518,6 @@ srv-monitoring    # 45.33.235.86:2333 (root, Monitoring)
                   # → Procedura accesso OBBLIGATORIA:
                   #   1. wsl -- ssh sos
                   #   2. Da sos: ssh root@45.33.235.86 -p 2333  (inserire password)
-                  # → Oppure in un comando: wsl -- ssh srv-monitoring  (ProxyJump sos automatico, chiede password)
 
 # Altri server
 fwlab             # 192.168.5.117:2222 (root)
