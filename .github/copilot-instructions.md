@@ -96,7 +96,7 @@
    - ✅ Non eliminare mai backup senza conferma esplicita
 
 7. **Controllo integrità periodico automatico**
-   - ✅ Durante le conversazioni, proporre periodicamente `.\check-integrity.ps1 -SendEmail`
+   - ✅ Durante le conversazioni, proporre periodicamente `.\script-ps-tools\check-integrity.ps1 -SendEmail`
    - ✅ Eseguire il controllo in momenti opportuni (dopo modifiche, commit importanti, richieste utente)
    - ✅ Inviare email se anche solo 1 file corrotto viene trovato
    - ✅ Email include: lista file corrotti, percentuale errori, dettagli
@@ -759,16 +759,16 @@ netstat -tlnp | grep :9090  # Deve mostrare nginx in ascolto
 
 ```powershell
 # Controllo standard con riepilogo
-.\check-integrity.ps1
+.\script-ps-tools\check-integrity.ps1
 
 # Controllo dettagliato con lista completa errori
-.\check-integrity.ps1 -Detailed
+.\script-ps-tools\check-integrity.ps1 -Detailed
 
 # Esporta report completo su file
-.\check-integrity.ps1 -ExportReport
+.\script-ps-tools\check-integrity.ps1 -ExportReport
 
 # Cambia soglia di corruzione (default: 15%)
-.\check-integrity.ps1 -Threshold 20
+.\script-ps-tools\check-integrity.ps1 -Threshold 20
 
 ```text
 
@@ -979,19 +979,19 @@ wsl -- ssh <host> "/opt/checkmk-tools/script-check-ns7/remote/rcheck-sos-ns7.py"
 
 ### Prima di ogni commit importante:
 
-1. Eseguire `.\check-integrity.ps1` per verificare lo stato
+1. Eseguire `.\script-ps-tools\check-integrity.ps1` per verificare lo stato
 2. Se errori >15%, indagare prima di committare
 3. Verificare che tutti gli script .sh siano eseguibili
 
 ### Dopo modifiche massive:
 
-1. Eseguire `.\check-integrity.ps1 -Detailed` per vedere tutti gli errori
+1. Eseguire `.\script-ps-tools\check-integrity.ps1 -Detailed` per vedere tutti gli errori
 2. Valutare se è necessario riparare script corrotti
-3. Usare `.\repair-corrupted-scripts.ps1` se disponibile
+3. Usare `.\script-ps-tools\repair-corrupted-scripts.ps1` se disponibile
 
 ### Monitoraggio periodico:
 
-- **Settimanale**: `.\check-integrity.ps1 -ExportReport` per storico
+- **Settimanale**: `.\script-ps-tools\check-integrity.ps1 -ExportReport` per storico
 - **Mensile**: Analizzare trend corruzione nel tempo
 
 ---
@@ -1017,10 +1017,10 @@ wsl -- ssh <host> "/opt/checkmk-tools/script-check-ns7/remote/rcheck-sos-ns7.py"
 
 ```powershell
 # Modalità interattiva
-.\backup-simple.ps1
+.\script-ps-tools\backup-simple.ps1
 
 # Modalità automatica (scheduled task)
-.\backup-simple.ps1 -Unattended
+.\script-ps-tools\backup-simple.ps1 -Unattended
 ```
 
 **Tempo esecuzione:** ~2-5 minuti (dipende da numero script)
@@ -1045,10 +1045,10 @@ wsl -- ssh <host> "/opt/checkmk-tools/script-check-ns7/remote/rcheck-sos-ns7.py"
 
 ```powershell
 # Modalità interattiva
-.\backup-quick.ps1
+.\script-ps-tools\backup-quick.ps1
 
 # Modalità automatica (workflow Python)
-.\backup-quick.ps1 -Unattended
+.\script-ps-tools\backup-quick.ps1 -Unattended
 ```
 
 **Tempo esecuzione:** ~30-60 secondi
@@ -1078,19 +1078,19 @@ wsl -- ssh <host> "/opt/checkmk-tools/script-check-ns7/remote/rcheck-sos-ns7.py"
 # 1. Converti tutti gli script della categoria
 # 2. Testa e deploya tutti
 # 3. Backup veloce
-.\backup-quick.ps1 -Unattended
+.\script-ps-tools\backup-quick.ps1 -Unattended
 ```
 
 **Backup periodico completo:**
 ```powershell
 # Task schedulato (es: ogni notte)
-.\backup-simple.ps1 -Unattended
+.\script-ps-tools\backup-simple.ps1 -Unattended
 ```
 
 **Verifica integrità on-demand:**
 ```powershell
 # Controllo manuale senza backup
-.\check-integrity.ps1 -Detailed
+.\script-ps-tools\check-integrity.ps1 -Detailed
 ```
 
 ---
@@ -1421,11 +1421,11 @@ wsl -- ssh <host> "rm /usr/lib/check_mk_agent/local/rssh_service_name_old 2>/dev
 **⚠️ BACKUP A FINE CATEGORIA:**
 
 - ✅ **BACKUP OBBLIGATORIO**: A fine conversione **intera categoria/cartella**
-- ✅ Esempio: dopo aver completato TUTTI gli script di `script-check-ubuntu/` → `.\backup-quick.ps1 -Unattended`
+- ✅ Esempio: dopo aver completato TUTTI gli script di `script-check-ubuntu/` → `.\script-ps-tools\backup-quick.ps1 -Unattended`
 - ❌ NON eseguire backup dopo ogni singolo script
 - ✅ Eseguire backup solo quando categoria completa è testata e deployata
-- ✅ `backup-quick.ps1` è ottimizzato per workflow conversione (NO controllo integrità)
-- ℹ️ Controllo integrità eseguito separatamente con `.\check-integrity.ps1` quando necessario
+- ✅ `script-ps-tools\backup-quick.ps1` è ottimizzato per workflow conversione (NO controllo integrità)
+- ℹ️ Controllo integrità eseguito separatamente con `.\script-ps-tools\check-integrity.ps1` quando necessario
 
 ### 9. Esempio Completo Real World
 
