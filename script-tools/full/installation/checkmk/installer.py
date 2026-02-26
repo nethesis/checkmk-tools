@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """checkmk - Python guided installer (Ubuntu) for CheckMK and related services.
 
-Re-implements the workflow in install/install-cmk8/install-cmk/scripts/*.sh in Python.
+Re-implements the workflow in script-tools/full/installation/install-cmk8/install-cmk/scripts/*.sh in Python.
 
 Version: 1.0.29
 """

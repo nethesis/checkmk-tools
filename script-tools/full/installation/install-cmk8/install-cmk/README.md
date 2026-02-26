@@ -59,7 +59,7 @@ Variabili supportate:
 
 Esempio:
 ```bash
-cd Install/install-cmk8/install-cmk
+cd script-tools/full/installation/install-cmk8/install-cmk
 WS=apache \
 LETSENCRYPT_EMAIL="admin@example.com" \
 LETSENCRYPT_DOMAINS="monitor01.example.com" \

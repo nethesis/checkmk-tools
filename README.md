@@ -982,7 +982,7 @@ Ogni categoria ha la sua documentazione dettagliata:
 
 ### Guide Installazione
 
-- 📦 **CheckMK 8**: [Install/install-cmk8/](Install/install-cmk8/)
+- 📦 **CheckMK 8**: [script-tools/full/installation/install-cmk8/](script-tools/full/installation/install-cmk8/)
 
 ### Configurazioni
 
