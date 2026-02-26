@@ -1514,8 +1514,11 @@ srv-monitoring    # 45.33.235.86:2333 (root, Monitoring)
                   # Firewall pubblico 45.33.235.86 porta 2333 → DNAT → 127.0.0.1:2222 interno
                   # ⚠️ fail2ban attivo sul firewall - NON fare tentativi multipli di connessione
                   # ⚠️ Firewall whitelist solo IP 159.65.203.113 (alias sos)
-                  # → Accesso SOLO via ProxyJump sos (configurato in ~/.ssh/config)
-                  # SSH config: ProxyJump sos, IdentityFile ~/.ssh/checkmk
+                  # ⚠️ Autenticazione PASSWORD (non chiave SSH)
+                  # → Procedura accesso OBBLIGATORIA:
+                  #   1. wsl -- ssh sos
+                  #   2. Da sos: ssh root@45.33.235.86 -p 2333  (inserire password)
+                  # → Oppure in un comando: wsl -- ssh srv-monitoring  (ProxyJump sos automatico, chiede password)
 
 # Altri server
 fwlab             # 192.168.5.117:2222 (root)
