@@ -133,20 +133,15 @@ def run_step(cfg: InstallerConfig) -> None:
                 try:
                     cmk_version = _detect_latest_raw_version()
                 except Exception as exc:
-                    # Listing failed (upstream auth required) - ask user for seed URL
-                    print("")
+                    # Listing failed (upstream auth required) - fall back to probing from a known seed.
                     log_warn(f"Could not auto-detect version from listing: {exc}")
-                    log_warn("Provide a known-good .deb URL (will be used as seed to probe newer patches).")
-                    log_warn("Example: https://download.checkmk.com/checkmk/2.4.0p22/check-mk-raw-2.4.0p22_0.noble_amd64.deb")
-                    print("")
-                    url = input("CheckMK .deb seed URL: ").strip()
-                    if not url:
-                        raise RuntimeError(
-                            "No URL provided. Set CHECKMK_DEB_URL in .env or provide URL interactively."
-                        )
-                    derived = _derive_latest_from_seed_url(url, codename=codename, arch=arch)
-                    if derived != url:
-                        log_info(f"Derived latest URL from seed: {derived}")
+                    log_warn("Falling back to automatic probe from known seed URL (2.4.0p20)...")
+                    seed_url = (
+                        f"https://download.checkmk.com/checkmk/2.4.0p20"
+                        f"/check-mk-raw-2.4.0p20_0.{codename}_{arch}.deb"
+                    )
+                    derived = _derive_latest_from_seed_url(seed_url, codename=codename, arch=arch)
+                    log_info(f"Auto-detected latest URL: {derived}")
                     url = derived
 
             if not url:
