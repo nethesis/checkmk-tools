@@ -7,7 +7,7 @@ import urllib.parse
 import shlex
 from pathlib import Path
 
-from lib.common import command_exists, log_header, log_info, log_success, run as run_cmd, run_capture
+from lib.common import command_exists, log_header, log_info, log_success, log_warn, run as run_cmd, run_capture
 from lib.config import InstallerConfig
 
 
