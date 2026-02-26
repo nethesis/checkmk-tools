@@ -1513,7 +1513,9 @@ ubntmarzio        # 10.155.100.108:22 (user: marzio)
 srv-monitoring    # 45.33.235.86:2333 (root, Monitoring)
                   # Firewall pubblico 45.33.235.86 porta 2333 → DNAT → 127.0.0.1:2222 interno
                   # ⚠️ fail2ban attivo sul firewall - NON fare tentativi multipli di connessione
-                  # SSH config: IdentityFile ~/.ssh/checkmk
+                  # ⚠️ Firewall whitelist solo IP 159.65.203.113 (alias sos)
+                  # → Accesso SOLO via ProxyJump sos (configurato in ~/.ssh/config)
+                  # SSH config: ProxyJump sos, IdentityFile ~/.ssh/checkmk
 
 # Altri server
 fwlab             # 192.168.5.117:2222 (root)
