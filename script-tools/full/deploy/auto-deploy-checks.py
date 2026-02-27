@@ -88,13 +88,11 @@ class HostDetector:
             self.script_category = "script-check-ns7"
             return
         
-        # NethServer 8 (Debian based con podman)
+        # NethServer 8 (Rocky Linux based con api-cli/runagent)
         if Path("/usr/bin/runagent").exists() or Path("/usr/bin/api-cli").exists():
-            exit_code, stdout, _ = self._run_command(["api-cli", "run", "list-modules", "--output", "json"])
-            if exit_code == 0:
-                self.host_type = "NethServer 8"
-                self.script_category = "script-check-ns8"
-                return
+            self.host_type = "NethServer 8"
+            self.script_category = "script-check-ns8"
+            return
         
         # NethSecurity 8 (OpenWrt based)
         if Path("/etc/openwrt_release").exists():
