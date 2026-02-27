@@ -1514,12 +1514,23 @@ srv-monitoring    # 45.33.235.86:2333 (root, Monitoring)
                   # Firewall pubblico 45.33.235.86 porta 2333 → DNAT → 127.0.0.1:2222 interno
                   # ⚠️ fail2ban attivo sul firewall - NON fare tentativi multipli di connessione
                   # ⚠️ Firewall whitelist solo IP 159.65.203.113 (alias sos) - OBBLIGATORIO jump via sos
-                  # ⚠️ Autenticazione PASSWORD (non chiave SSH)
+                  # ⚠️ Autenticazione PASSWORD (non chiave SSH) - NON installare chiavi SSH
                   # ✅ Comando accesso diretto (da WSL):
+                  #   wsl -- ssh srv-monitoring          (usa alias ~/.ssh/config in WSL)
+                  # ✅ Config WSL ~/.ssh/config entry OBBLIGATORIA:
+                  #   Host srv-monitoring
+                  #       HostName 45.33.235.86
+                  #       Port 2333
+                  #       User root
+                  #       ProxyJump sos
+                  #       ControlMaster auto
+                  #       ControlPath ~/.ssh/cm-%r@%h:%p
+                  #       ControlPersist 5m
+                  # ✅ Workflow persistenza (password 1 sola volta per 5 min):
+                  #   1. wsl -- ssh srv-monitoring         → inserire password → sessione aperta
+                  #   2. wsl -- ssh srv-monitoring "cmd"   → no password (riusa ControlMaster)
+                  # → Accesso diretto senza config:
                   #   wsl -- ssh -o ControlMaster=no -J sos -p 2333 root@45.33.235.86
-                  # → Procedura alternativa manuale:
-                  #   1. wsl -- ssh sos
-                  #   2. Da sos: ssh root@45.33.235.86 -p 2333  (inserire password)
 
 # Altri server
 fwlab             # 192.168.5.117:2222 (root)
