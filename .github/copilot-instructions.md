@@ -1515,7 +1515,9 @@ srv-monitoring    # 45.33.235.86:2333 (admin-nethesis, Monitoring)
                   # ⚠️ fail2ban attivo sul firewall - NON fare tentativi multipli di connessione
                   # ⚠️ Firewall whitelist solo IP 159.65.203.113 (alias sos)
                   # ⚠️ Autenticazione PASSWORD (non chiave SSH)
-                  # → Procedura accesso OBBLIGATORIA:
+                  # ✅ Comando accesso diretto (da WSL):
+                  #   ssh -o ControlMaster=no -J sos -p 2333 admin-nethesis@45.33.235.86
+                  # → Procedura alternativa manuale:
                   #   1. wsl -- ssh sos
                   #   2. Da sos: ssh admin-nethesis@45.33.235.86 -p 2333  (inserire password)
 
@@ -2136,3 +2138,57 @@ fi
 ---
 
 **Ultimo aggiornamento**: 2026-02-04
+
+---
+
+## 🎫 Ydea-Toolkit - Integrazione CheckMK su srv-monitoring
+
+### Path script (notification scripts CheckMK, senza estensione)
+
+```bash
+/omd/sites/monitoring/local/share/check_mk/notifications/ydea_la
+/omd/sites/monitoring/local/share/check_mk/notifications/ydea_ag
+```
+
+### Test manuale notifica
+
+```bash
+su - monitoring -c "
+  cd /omd/sites/monitoring/local/share/check_mk/notifications/ && \
+  NOTIFY_WHAT=PROBLEM \
+  NOTIFY_HOSTNAME=ns8.ad.studiopaci.info \
+  NOTIFY_SERVICEDESC=CPU \
+  NOTIFY_SERVICESTATE=CRITICAL \
+  NOTIFY_SERVICEOUTPUT='CPU load 95%' \
+  NOTIFY_NOTIFICATIONTYPE=PROBLEM \
+  python3 ydea_la
+"
+# Verifica cache
+cat /opt/ydea-toolkit/cache/ydea_checkmk_tickets.json
+```
+
+### Cache Ydea (percorso corretto post fix installer commit b8f2090)
+
+```text
+/opt/ydea-toolkit/cache/ydea_checkmk_tickets.json
+/opt/ydea-toolkit/cache/ydea_checkmk_flapping.json
+/opt/ydea-toolkit/cache/ydea_cache.lock
+```
+
+### Fix manuale rapido su host già installati
+
+```bash
+mkdir -p /opt/ydea-toolkit/cache
+echo '{}' > /opt/ydea-toolkit/cache/ydea_checkmk_tickets.json
+echo '{}' > /opt/ydea-toolkit/cache/ydea_checkmk_flapping.json
+touch /opt/ydea-toolkit/cache/ydea_cache.lock
+chmod 666 /opt/ydea-toolkit/cache/*.json /opt/ydea-toolkit/cache/*.lock
+chmod 777 /opt/ydea-toolkit/cache
+chmod 640 /opt/ydea-toolkit/.env.la /opt/ydea-toolkit/.env.ag
+chown monitoring:monitoring /opt/ydea-toolkit/.env.la /opt/ydea-toolkit/.env.ag
+```
+
+### Note
+
+- API key `Y_KEY_8c814108a0345fdeace7fb9c637fb6c9` → **scaduta** (febbraio 2026) - attendere nuova key
+- Log: `tail -f /var/log/ydea_health.log` e `tail -f /var/log/ydea_cache_validator.log`
