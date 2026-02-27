@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
 
-VERSION = "2.0.1"  # Fix critico: converti underscore → dash (CheckMK ignora file con _)
+VERSION = "2.1.0"  # Aggiunto filtro automatico script NS8 per moduli installati
 REPO_URL = "https://raw.githubusercontent.com/Coverup20/checkmk-tools/main"
 GITHUB_API = "https://api.github.com/repos/Coverup20/checkmk-tools/contents"
 CHECKMK_LOCAL_PATH = Path("/usr/lib/check_mk_agent/local")
@@ -79,6 +79,18 @@ class HostDetector:
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return 1, "", ""
     
+    def get_ns8_modules(self) -> List[str]:
+        """
+        Ritorna la lista dei moduli NS8 installati via runagent -l.
+        Es: ['mail1', 'webtop1', 'nethvoice1', 'samba1', ...]
+        """
+        if self.script_category != 'script-check-ns8':
+            return []
+        exit_code, stdout, _ = self._run_command(['runagent', '-l'])
+        if exit_code != 0 or not stdout:
+            return []
+        return [line.strip() for line in stdout.split('\n') if line.strip()]
+
     def detect_host_type(self) -> None:
         """Rileva tipo di host in base a caratteristiche del sistema."""
         
@@ -156,6 +168,53 @@ def print_header() -> None:
     print(f"{Colors.BLUE}║{Colors.NC}  Installazione automatica script CheckMK             {Colors.BLUE}║{Colors.NC}")
     print(f"{Colors.BLUE}╚═══════════════════════════════════════════════════════════╝{Colors.NC}")
     print()
+
+
+# Mapping: keyword nel nome script → prefisso modulo NS8 richiesto
+NS8_SCRIPT_MODULE_MAP = {
+    'services':  'mail',
+    'webtop':    'webtop',
+    'tomcat':    'webtop',
+    'acl':       'samba',
+}
+
+
+def filter_scripts_by_ns8_modules(scripts: List[Tuple[str, str]], modules: List[str]) -> Tuple[List[Tuple[str, str]], List[str]]:
+    """
+    Filtra la lista script in base ai moduli NS8 installati.
+    Ritorna (script_applicabili, script_esclusi).
+    """
+    if not modules:
+        return scripts, []
+
+    # Prefissi moduli attivi (es: ['mail', 'webtop', 'nethvoice', 'samba'])
+    active_prefixes = set()
+    for m in modules:
+        # Rimuovi suffisso numerico: mail1 → mail, webtop2 → webtop
+        prefix = m.rstrip('0123456789')
+        active_prefixes.add(prefix)
+
+    applicable = []
+    excluded = []
+
+    for filename, url in scripts:
+        name_lower = filename.lower()
+        required_module = None
+        for keyword, module in NS8_SCRIPT_MODULE_MAP.items():
+            if keyword in name_lower:
+                required_module = module
+                break
+
+        if required_module is None:
+            # Nessun requisito → sempre applicabile
+            applicable.append((filename, url))
+        elif required_module in active_prefixes:
+            # Modulo richiesto presente
+            applicable.append((filename, url))
+        else:
+            excluded.append(filename)
+
+    return applicable, excluded
 
 
 def list_available_scripts(category: str, script_type: str = 'both') -> List[Tuple[str, str]]:
@@ -1348,7 +1407,17 @@ Nota: Ora vengono installati SOLO script completi (full/), non più launcher rem
         return 1
     
     print(f"{Colors.GREEN}✓ Trovati {len(scripts)} script completi{Colors.NC}")
-    
+
+    # Filtra script per moduli NS8 installati
+    if detector.script_category == 'script-check-ns8':
+        ns8_modules = detector.get_ns8_modules()
+        if ns8_modules:
+            scripts, excluded = filter_scripts_by_ns8_modules(scripts, ns8_modules)
+            print(f"{Colors.CYAN}ℹ Moduli NS8 attivi: {', '.join(ns8_modules)}{Colors.NC}")
+            if excluded:
+                print(f"{Colors.YELLOW}⚠ Script esclusi (modulo non installato): {', '.join(excluded)}{Colors.NC}")
+            print(f"{Colors.GREEN}✓ Script applicabili a questo host: {len(scripts)}{Colors.NC}")
+
     # Determina selezione (da args o input interattivo)
     selected_indices: List[int] = []
     
