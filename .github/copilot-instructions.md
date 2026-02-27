@@ -1479,6 +1479,15 @@ wsl -- ssh <host> "rm /usr/lib/check_mk_agent/local/rssh_service_name_old 2>/dev
 - ✅ **ASPETTARE completamento** anche se sembra lento - il comando sta lavorando
 - ❌ **NON assumere** che ^C nell'output significhi interruzione utente - potrebbe essere timeout tool troppo breve
 
+**🔴 REGOLA CRITICA - NON lanciare un secondo comando SSH prima dell'output del primo:**
+- ❌ **MAI** lanciare un nuovo comando SSH mentre il precedente è ancora in attesa di password o output
+- ❌ **MAI** usare `get_terminal_output` subito dopo e poi lanciare un secondo comando "perché il primo non ha risposto"
+- ✅ **SEMPRE** usare `terminal_last_command` per leggere l'output del comando in corso
+- ✅ **SEMPRE** aspettare con timeout generoso (60000+) su srv-monitoring (autenticazione password richiesta ogni volta)
+- ✅ srv-monitoring richiede **2 inserimenti password** (primo fallisce "Permission denied"), poi funziona
+- ⚠️ Il secondo inserimento password può richiedere fino a 30-60 secondi prima che l'output arrivi
+- ❌ **NON** lanciare un comando alternativo "più semplice" se il primo non risponde subito - ASPETTARE
+
 **Host disponibili:**
 
 ```bash
