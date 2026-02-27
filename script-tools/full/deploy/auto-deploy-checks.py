@@ -88,8 +88,16 @@ class HostDetector:
             self.script_category = "script-check-ns7"
             return
         
-        # NethServer 8 (Rocky Linux based con api-cli/runagent)
-        if Path("/usr/bin/runagent").exists() or Path("/usr/bin/api-cli").exists():
+        # NethServer 8 (Rocky Linux based)
+        ns8_indicators = [
+            Path("/usr/bin/runagent"),
+            Path("/usr/bin/api-cli"),
+            Path("/etc/nethserver"),
+            Path("/usr/libexec/nethserver"),
+            Path("/usr/share/nethserver"),
+            Path("/var/lib/nethserver"),
+        ]
+        if any(p.exists() for p in ns8_indicators):
             self.host_type = "NethServer 8"
             self.script_category = "script-check-ns8"
             return
