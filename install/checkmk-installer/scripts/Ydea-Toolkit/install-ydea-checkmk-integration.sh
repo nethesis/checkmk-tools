@@ -160,7 +160,18 @@ setup_env() {
     warn "Nessun template .env trovato, creo file vuoto: $env_file"
     : > "$env_file"
   fi
-  
+
+  # Permessi e ownership corretti per tutti i file .env
+  # Il site CheckMK (utente monitoring) deve poterli leggere
+  for env_f in "${YDEA_TOOLKIT_DIR}/.env" "${YDEA_TOOLKIT_DIR}/.env.la" "${YDEA_TOOLKIT_DIR}/.env.ag"; do
+    if [[ -f "$env_f" ]]; then
+      chmod 640 "$env_f"
+      chown "${CHECKMK_SITE}:${CHECKMK_SITE}" "$env_f" 2>/dev/null || \
+        chown root:root "$env_f" 2>/dev/null || true
+      success "Permessi corretti su $(basename $env_f)"
+    fi
+  done
+
   echo ""
   warn "⚠️  IMPORTANTE: Configura le credenziali Ydea in:"
   echo "  $env_file"
@@ -216,14 +227,21 @@ setup_cron() {
 
 create_cache_files() {
   info "Inizializzazione file cache..."
-  
-  echo '{}' > /tmp/ydea_checkmk_tickets.json
-  chmod 666 /tmp/ydea_checkmk_tickets.json
-  
-  echo '{}' > /tmp/ydea_checkmk_flapping.json
-  chmod 666 /tmp/ydea_checkmk_flapping.json
-  
-  success "File cache inizializzati"
+
+  local cache_dir="${YDEA_TOOLKIT_DIR}/cache"
+  mkdir -p "$cache_dir"
+  chmod 777 "$cache_dir"
+
+  echo '{}' > "${cache_dir}/ydea_checkmk_tickets.json"
+  chmod 666 "${cache_dir}/ydea_checkmk_tickets.json"
+
+  echo '{}' > "${cache_dir}/ydea_checkmk_flapping.json"
+  chmod 666 "${cache_dir}/ydea_checkmk_flapping.json"
+
+  touch "${cache_dir}/ydea_cache.lock"
+  chmod 666 "${cache_dir}/ydea_cache.lock"
+
+  success "File cache inizializzati in ${cache_dir}"
 }
 
 show_next_steps() {
