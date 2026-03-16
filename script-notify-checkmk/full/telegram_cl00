@@ -14,8 +14,8 @@ import urllib.request
 VERSION = "1.0.0"
 
 # === CONFIG ===
-TOKEN = os.environ.get("TELEGRAM_TOKEN", "8264716040:AAHPjzYJz7h8pV9hzjaf45-Mrv2gf8tMXmQ")
-CHAT_ID = "-1003722564717"
+TOKEN = os.environ.get("TELEGRAM_TOKEN", "8704169230:AAGvH16EAxYgESIPPHj8HjONSIXA6E89go8")
+CHAT_ID = "-1003721850413"
 
 CMK_URL = "https://monitor.nethlab.it/monitoring"
 SITE = "monitoring"
